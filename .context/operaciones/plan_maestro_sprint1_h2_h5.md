@@ -8,10 +8,10 @@
 
 ```text
 FASE = F11
-ESTADO = H2_MERGED_TO_DESARROLLO_CI_GREEN
+ESTADO = H2_MERGED_TO_CERTIFICACION_CI_GREEN
 H2-H5 = REDEFINED_ACTIVE_SEQUENCE
 active_work_package = NONE_SUPERSEDED
-next_gate = PROMOTE_DESARROLLO_TO_CERTIFICACION_FOR_H2
+next_gate = CERTIFICATION_QA_H2_READ_ONLY
 DB = FREE_H2_VALIDATED_BLOCKED_FOR_NEW_DDL_DML_WITHOUT_JIT
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
@@ -27,7 +27,8 @@ feat/* o docs/* desde desarrollo
 
 ## Reglas
 
-- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 fue mergeado a `desarrollo` mediante PR #458 y queda pendiente de promocion protegida a `certificacion`.
+- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 fue mergeado a `desarrollo` mediante PR #458, el gate documental por PR #459 y promocionado a `certificacion` por PR #460. Queda pendiente QA read-only en `certificacion`.
+- Todo cierre de hito/task debe validar criterios contra la fuente privada cliente usando su atestacion sanitizada versionada.
 - Work Packages, grants R3, digests documentales, Context Graph y promotion gates historicos quedan superseded y no autorizan ejecucion.
 - Cambios DB, DDL/DML, Supabase, writers, schedules, deploys, produccion, backups y acciones destructivas requieren aprobacion JIT separada.
 - `security-audit` permanece como check requerido.

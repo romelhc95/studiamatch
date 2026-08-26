@@ -2,14 +2,18 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `MERGED_TO_DESARROLLO_CI_GREEN` |
+| Estado | `MERGED_TO_CERTIFICACION_CI_GREEN` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | Promocion protegida H2 de desarrollo a certificacion; Pro/writers requieren nueva JIT |
+| Gate | QA read-only H2 en certificacion; Pro/writers requieren nueva JIT |
 
 ## Alcance
 
-Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. La DDL Free inicial, el forward-fix, la remediacion Security Advisor, el backfill editorial, el seed versionado de `editorial_field_definitions` y el fix `20260826_h2_public_effective_view_public_fields_fix.sql` fueron aplicados/verificados en Supabase Free bajo JIT consumidas. PR #458 fue aprobado y mergeado a `desarrollo` con checks verdes.
+Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. La DDL Free inicial, el forward-fix, la remediacion Security Advisor, el backfill editorial, el seed versionado de `editorial_field_definitions` y el fix `20260826_h2_public_effective_view_public_fields_fix.sql` fueron aplicados/verificados en Supabase Free bajo JIT consumidas. PR #458 fue aprobado y mergeado a `desarrollo`; PR #459 agrego el gate documental post-merge; PR #460 promovio H2 a `certificacion`, todos con checks verdes.
+
+## Validacion Contra Fuente Cliente
+
+El cierre H2 valida `H2-CA2` y `H2-CA3` contra la fuente privada cliente `SRC-REQ-002` mediante la atestacion sanitizada versionada [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md). La fuente privada no se versiona ni se expone en PRs.
 
 ## Contrato Editorial
 
@@ -63,4 +67,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`. PR #458 mergeado a `desarrollo`; siguiente paso es promocion protegida a `certificacion`. Pro, writers, schedules, canaries, deploys o cualquier DML adicional requieren aprobacion separada.
+DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`. PR #458 mergeado a `desarrollo`; PR #459 mergeado a `desarrollo`; PR #460 mergeado a `certificacion`. Siguiente paso: QA read-only H2 en `certificacion`. Pro, writers, schedules, canaries, deploys o cualquier DML adicional requieren aprobacion separada.

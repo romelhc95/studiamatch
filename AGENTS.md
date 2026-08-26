@@ -21,6 +21,7 @@ Reglas obligatorias:
 4. Si aparece drift de scope, baseline, ambiente, secreto o ruta protegida, detente y consulta.
 5. El pedido nuevo de Sprint 1 queda gobernado por `.context/estado_del_proyecto.md` y el plan vinculante Obsidian; `REDEFINICION.md` fue retirado definitivamente y no debe recrearse.
 6. Todo desarrollo futuro del producto debe preservar continuamente escalabilidad, seguridad, mantenimiento, calidad y rendimiento; ningun hito, task o requerimiento puede cerrarse sin validar esas premisas frente al alcance ejecutado.
+7. Al cerrar un hito o task vinculado a un requerimiento, la evidencia canonica debe validar los criterios de aceptacion contra el documento privado del cliente mediante su atestacion sanitizada versionada. El documento privado no se versiona ni se expone en PRs.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 

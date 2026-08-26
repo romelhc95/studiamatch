@@ -8,7 +8,10 @@ REQUIRED_DOCS = {
         "must_include": [
             "# Acta Ejecutiva Canonica Hito 002",
             "Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`",
-            "Veredicto PR: `MERGED_TO_DESARROLLO_CI_GREEN`",
+            "Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`",
+            "Validacion Contra Fuente Cliente",
+            "SRC-REQ-002",
+            "ADENDA-REQ-EST-001-001",
             "Grado de evidencia: `A`",
             "H2-CA2",
             "H2-CA3",
@@ -22,9 +25,8 @@ REQUIRED_DOCS = {
             "security_invoker=true",
             "91 passed",
             "h2_pg17_harness_ok",
-            "APPROVED_AND_MERGED_TO_DESARROLLO",
-            "MERGED_TO_DESARROLLO_CI_GREEN",
-            "No acredita certificacion",
+            "APPROVED_AND_MERGED_TO_CERTIFICACION",
+            "MERGED_TO_CERTIFICACION_CI_GREEN",
             "no autoriza Supabase Pro",
         ],
         "client_language": [
@@ -38,7 +40,8 @@ REQUIRED_DOCS = {
     ".context/matrices/matriz_hito_002.md": {
         "must_include": [
             "Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`",
-            "Veredicto PR: `MERGED_TO_DESARROLLO_CI_GREEN`",
+            "Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`",
+            "Fuente cliente validada: `SRC-REQ-002` via `ADENDA-REQ-EST-001-001`",
             "Grado de evidencia: `A`",
             "Traduccion para cliente",
             "Modelo editorial separado",
@@ -90,7 +93,7 @@ def test_h2_client_evidence_documents_reach_grade_a() -> None:
 
         assert grade == "A", "; ".join(results)
         assert "IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT" in text
-        assert "MERGED_TO_DESARROLLO_CI_GREEN" in text
+        assert "MERGED_TO_CERTIFICACION_CI_GREEN" in text
         assert "Grado de evidencia: `A`" in text
 
 
@@ -99,7 +102,6 @@ def test_h2_client_evidence_does_not_overstate_delivery_scope() -> None:
         encoding="utf-8"
     )
 
-    assert "No acredita certificacion" in evidence
     assert "No acredita" in evidence and "produccion" in evidence
     assert "no autoriza Supabase Pro" in evidence
     assert "writers" in evidence
@@ -123,5 +125,7 @@ def test_h2_client_evidence_records_merged_pr_state() -> None:
 
     assert "PR #458" in evidence
     assert "0c9e40f81f2a38141c9c2af170e26ab594b7533d" in evidence
-    assert "MERGED_TO_DESARROLLO_CI_GREEN" in evidence
-    assert "MERGED_TO_DESARROLLO_CI_GREEN" in matrix
+    assert "4f7061585202301760d8068e13edc5c93b0f94e2" in evidence
+    assert "0ed6afeec741c698f1111c2ea27357160fa77279" in evidence
+    assert "MERGED_TO_CERTIFICACION_CI_GREEN" in evidence
+    assert "MERGED_TO_CERTIFICACION_CI_GREEN" in matrix

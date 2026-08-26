@@ -1,14 +1,18 @@
 # Acta Ejecutiva Canonica Hito 002
 
-Estado: `MERGED_TO_DESARROLLO_CI_GREEN`.
+Estado: `MERGED_TO_CERTIFICACION_CI_GREEN`.
 
 Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`.
 
-Veredicto PR: `MERGED_TO_DESARROLLO_CI_GREEN`.
+Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`.
 
 Grado de evidencia: `A`.
 
-Esta acta acredita que H2, compuesto por `H2-CA2` y `H2-CA3`, esta implementado y validado tecnicamente en el ambiente Supabase Free de desarrollo. PR #458 fue aprobado y mergeado a `desarrollo` con checks verdes. No acredita certificacion, produccion ni aceptacion contractual final sin promocion protegida, validaciones CI y aprobacion humana posterior.
+Esta acta acredita que H2, compuesto por `H2-CA2` y `H2-CA3`, esta implementado y validado tecnicamente en el ambiente Supabase Free de desarrollo, mergeado a `desarrollo` por PR #458 y promovido a `certificacion` por PR #460 con checks verdes. No acredita produccion ni aceptacion contractual final sin QA de certificacion, validaciones CI y aprobacion humana posterior.
+
+## Validacion Contra Fuente Cliente
+
+La validacion de cierre de `H2-CA2` y `H2-CA3` se contrasto contra la fuente privada cliente `SRC-REQ-002` usando la atestacion sanitizada versionada [ADENDA-REQ-EST-001-001](../../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md). La fuente privada no se versiona y no se expone en PRs. La adenda exige que Hito 2 contenga CA2 completo y CA3: schema editorial/calidad, faltantes, fuentes, actualizacion manual, constraints, indices, RLS, contratos de acceso, pipeline tolerante a datos parciales, marcado pendiente/completo, persistencia, backfill y pruebas por ambiente.
 
 ## Resumen Para Cliente
 
@@ -68,7 +72,11 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | Credential scan | `PASS`. |
 | Security-auditor pre-merge | `GO emitido antes de abrir PR #458`. |
 | PR #458 | `APPROVED_AND_MERGED_TO_DESARROLLO@0c9e40f81f2a38141c9c2af170e26ab594b7533d`. |
-| Veredicto PR | `MERGED_TO_DESARROLLO_CI_GREEN`. |
+| PR #459 | `APPROVED_AND_MERGED_CONTEXT_GATE@4f7061585202301760d8068e13edc5c93b0f94e2`. |
+| PR #460 | `APPROVED_AND_MERGED_TO_CERTIFICACION@0ed6afeec741c698f1111c2ea27357160fa77279`. |
+| Fuente cliente | `SRC-REQ-002` validada via `ADENDA-REQ-EST-001-001`. |
+| Gate fuente privada | `tests/test_requirement_client_source_validation.py` con `STUDIAMATCH_PRIVATE_SOURCE_DIR`: `6 passed`. |
+| Veredicto PR | `MERGED_TO_CERTIFICACION_CI_GREEN`. |
 
 ## Alcance No Incluido
 
@@ -88,4 +96,4 @@ Este hito no despliega produccion, no habilita schedules, no ejecuta writers pro
 
 ## Decision Solicitada
 
-Con esta evidencia, el siguiente paso es autorizar promocion protegida de H2 desde `desarrollo` hacia `certificacion`. El merge a `desarrollo` no autoriza Supabase Pro, produccion, writers, schedules, canaries, deploys ni DDL/DML adicional.
+Con esta evidencia, el siguiente paso es autorizar QA read-only de H2 en `certificacion`. La promocion a `certificacion` no autoriza Supabase Pro, produccion, writers, schedules, canaries, deploys ni DDL/DML adicional.

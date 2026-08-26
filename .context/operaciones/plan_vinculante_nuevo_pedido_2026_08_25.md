@@ -8,12 +8,16 @@
 
 ```text
 FASE = F11
-ESTADO = H2_MERGED_TO_DESARROLLO_CI_GREEN
+ESTADO = H2_MERGED_TO_CERTIFICACION_CI_GREEN
 AUTORIDAD = AGENTS.md + .context/estado_del_proyecto.md + Obsidian versionado
 SOPORTE_TEMPORAL_RAIZ = REMOVED
 DB = FREE_H2_VALIDATED_BLOCKED_FOR_NEW_DDL_DML_WITHOUT_JIT
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
+
+Todo cierre de hito o task vinculado al requerimiento debe validar sus criterios
+contra la fuente privada cliente mediante atestacion sanitizada versionada. El
+documento privado no se versiona ni se expone en PRs.
 
 ## Hitos Redefinidos
 
