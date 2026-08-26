@@ -4,11 +4,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 POST_H2_MERGE_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
-POST_H2_PHASE_STATE = "H2_MERGED_TO_CERTIFICACION_CI_GREEN"
+POST_H2_PHASE_STATE = "H2_CERTIFICATION_QA_READ_ONLY_DEFINED"
 H2_MERGE_COMMIT = "0c9e40f81f2a38141c9c2af170e26ab594b7533d"
 H2_CONTEXT_GATE_COMMIT = "4f7061585202301760d8068e13edc5c93b0f94e2"
 H2_CERTIFICATION_MERGE_COMMIT = "0ed6afeec741c698f1111c2ea27357160fa77279"
-NEXT_GATE = "CERTIFICATION_QA_H2_READ_ONLY"
+NEXT_GATE = "EXECUTE_CERTIFICATION_QA_H2_READ_ONLY"
 
 OBSOLETE_POST_MERGE_TOKENS = [
     "DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED",
@@ -81,3 +81,28 @@ def test_obsidian_context_graph_links_are_existing_files() -> None:
     assert (ROOT / ".context/hitos/hito_002.md").exists()
     assert (ROOT / ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md").exists()
     assert (ROOT / ".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md").exists()
+
+
+def test_certification_readonly_qa_is_defined_before_main_promotion() -> None:
+    qa = read(".context/operaciones/h2_h3_certification_readonly_qa.md")
+    state = read(".context/estado_del_proyecto.md")
+    tracking = read(".context/seguimiento/seguimiento_sprint_1_h2_h5.md")
+
+    required_terms = [
+        "NO_GO_MAIN_UNTIL_QA_EXECUTED",
+        "Funcionalidad publica",
+        "Contrato frontend H2",
+        "Privacidad H2",
+        "Pipeline H2",
+        "H3 prearranque",
+        "Fuente cliente",
+        "Seguridad",
+        "GO/NO-GO",
+        "promocion `certificacion -> main`",
+    ]
+
+    for term in required_terms:
+        assert term in qa
+
+    assert "operaciones/h2_h3_certification_readonly_qa.md" in state
+    assert "QA read-only H2/H3" in tracking
