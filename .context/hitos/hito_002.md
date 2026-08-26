@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `REMOTE_COMPAT_VERIFIED_PENDING_REVIEW` |
+| Estado | `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Gate | Compatibilidad funcional Desarrollo antes de repetir promocion; Pro/writers requieren nueva JIT |
@@ -67,4 +67,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql`, fix `20260826_h2_public_effective_view_public_fields_fix.sql` y compatibilidad `20260826_h2_development_legacy_public_compat.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`; post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Web preview #466 muestra catalogo, detalle y comparador. PR #458 mergeado a `desarrollo`; PR #459 mergeado a `desarrollo`; PR #460 mergeado a `certificacion`. PR #466 requiere revision humana/CI antes de merge. Pro, writers, schedules, canaries, deploys o cualquier DML adicional requieren aprobacion separada.
+DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql`, fix `20260826_h2_public_effective_view_public_fields_fix.sql` y compatibilidad `20260826_h2_development_legacy_public_compat.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`; post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Limpieza local de calidad para PR #466 elimina rewrites rotos de detalle, llamadas legacy `ratings`/`reviews` y defaults fabricados del comparador; requiere validacion remota en preview nuevo antes de declarar Calidad `GO`. PR #458 mergeado a `desarrollo`; PR #459 mergeado a `desarrollo`; PR #460 mergeado a `certificacion`. PR #466 requiere validacion local, revision humana/CI y preview limpio antes de merge. Pro, writers, schedules, canaries, deploys o cualquier DML adicional requieren aprobacion separada.

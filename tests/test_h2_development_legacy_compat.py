@@ -11,6 +11,9 @@ FRONTEND_FILES = [
     ROOT / "web/src/app/courses/[institution]/[slug]/page.tsx",
     ROOT / "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx",
 ]
+COURSE_DETAIL = ROOT / "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx"
+COMPARE_CONTENT = ROOT / "web/src/app/compare/CompareContent.tsx"
+REDIRECTS_FILE = ROOT / "web/public/_redirects"
 
 
 def read(path: Path) -> str:
@@ -20,7 +23,7 @@ def read(path: Path) -> str:
 def test_h2_development_compatibility_closes_hito_acceptance_criteria() -> None:
     text = read(EVIDENCE)
 
-    assert "Estado: `PREPARED_FOR_FREE_DEVELOPMENT_JIT`" in text
+    assert "Estado: `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION`" in text
     assert "`H2-CA2` Modelo editorial separado | `GO`" in text
     assert "`H2-CA3` Pipeline tolerante a incompletos | `GO`" in text
     assert "Compatibilidad funcional Desarrollo local/mock | `GO`" in text
@@ -36,10 +39,50 @@ def test_h2_development_compatibility_does_not_overstate_required_pillars() -> N
         assert f"| {pillar} | `GO` |" in text
 
     assert "| Funcionalidad | `GO_AFTER_FREE_MIGRATION` |" in text
-    assert "| Calidad | `GO_WITH_OBSERVATIONS` |" in text
+    assert "| Calidad | `PENDING_REMOTE_VERIFICATION` |" in text
     assert "Desarrollo remoto muestra `227` programas" in text
-    assert "401 manejados en ratings/reviews" in text
+    assert "llamadas legacy `ratings`/`reviews` retiradas" in text
     assert "No hay fallback frontend a `courses`" in text
+
+
+def test_h2_quality_gate_removes_broken_detail_rewrites() -> None:
+    if not REDIRECTS_FILE.exists():
+        return
+
+    redirects = read(REDIRECTS_FILE)
+    assert "/courses/:institution/:slug/ /courses/ 200" not in redirects
+    assert "/courses/:institution/:slug /courses/ 200" not in redirects
+
+
+def test_h2_quality_gate_removes_public_social_proof_calls() -> None:
+    for path in FRONTEND_FILES:
+        text = read(path)
+        assert "/rest/v1/ratings" not in text
+        assert "/rest/v1/reviews" not in text
+
+    detail = read(COURSE_DETAIL)
+    for removed_ui in ["PUBLICAR RESEÑA", "Reseñas Verificadas", "Aún no hay calificaciones", "Deja tu opinión"]:
+        assert removed_ui not in detail
+
+
+def test_h2_quality_gate_related_courses_stay_on_valid_static_route_shape() -> None:
+    detail = read(COURSE_DETAIL)
+
+    assert "institution_id=eq.${safeInstitutionId}" in detail
+    assert "category_id=eq.${safeCatId}" in detail
+    assert "institution_slug: course.institution_slug" in detail
+    assert "fetchRelatedCourses" in detail
+
+
+def test_h2_quality_gate_compare_does_not_fabricate_unknown_values() -> None:
+    compare = read(COMPARE_CONTENT)
+
+    assert "|| 4500" not in compare
+    assert '"4,500"' not in compare
+    assert '"12.0"' not in compare
+    assert '"Gratis"' not in compare
+    assert "No disponible" in compare
+    assert "investment && salary ? investment / salary : null" in compare
 
 
 def test_h2_development_readonly_preflight_records_remote_delta() -> None:
@@ -56,7 +99,7 @@ def test_h2_development_readonly_preflight_records_remote_delta() -> None:
     assert "Vista efectiva actual | `227` cursos" in text
     assert "Missing legacy IDs | `0`" in text
     assert "Unexpected effective IDs | `0`" in text
-    assert "PR #466 no debe mergearse sin revision humana" in text
+    assert "PR #466 no debe mergearse sin validacion local" in text
 
 
 def test_h2_development_compatibility_documents_transparent_transition() -> None:

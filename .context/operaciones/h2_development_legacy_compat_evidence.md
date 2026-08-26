@@ -1,6 +1,6 @@
 # H2 Development Legacy Compatibility Evidence
 
-Estado: `PREPARED_FOR_FREE_DEVELOPMENT_JIT`.
+Estado: `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION`.
 
 Ambiente objetivo: `desarrollo` / Supabase Free.
 
@@ -27,7 +27,7 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 | Escalabilidad | `GO` | La cohorte es una tabla indexada por `course_id`; el lector mantiene filtros por `active`, `verified` y `production_enabled`. |
 | Seguridad | `GO` | No hay fallback frontend a `courses`; la cohorte queda en schema `private`, sin grants publicos, y la vista expone solo campos publicos. |
 | Mantenimiento | `GO` | La compatibilidad es forward-only, versionada y separa expansion temporal de contraccion futura. |
-| Calidad | `GO_WITH_OBSERVATIONS` | Tests locales y evidencia remota pasan para H2 compat; quedan observaciones UI no bloqueantes: prefetch RSC 404 en rutas dinamicas y 401 manejados en ratings/reviews. |
+| Calidad | `PENDING_REMOTE_VERIFICATION` | Correccion local retira rewrites que servian HTML fallback en detalles, llamadas legacy `ratings`/`reviews` retiradas y defaults fabricados del comparador. Falta preview remoto nuevo sin React #418, 401 ni 404 de rutas exportadas antes de declarar `GO`. |
 | Rendimiento | `GO` | La cohorte usa PK por `course_id`; el lector filtra por columnas existentes y conserva una superficie de 28 columnas. |
 
 ## Preflight Read-Only Free 2026-08-26
@@ -68,7 +68,19 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 | Web real preview #466 Home/listado | `PASS`: muestra `227` resultados, `227` programas y `14` instituciones. |
 | Web real preview #466 detalle | `PASS`: `/courses/dmc/big-data-12b2f4dc/` carga `Big data`. |
 | Web real preview #466 comparador | `PASS`: `/compare/?ids=cafd93b2-4a2b-403e-b289-d7fd135316c7` carga `Big data`. |
-| Observaciones UI | `NON_BLOCKING_FOR_H2_COMPAT`: 404 en prefetch RSC de rutas dinamicas exportadas y 401 manejados para `ratings/reviews`; deben clasificarse en deuda separada si se exige consola limpia. |
+| Observaciones UI | `ROOT_CAUSE_IDENTIFIED_AND_FIXED_LOCALLY_PENDING_REMOTE`: `_redirects` servia `/courses/` para detalles estaticos existentes, causando hydration #418; llamadas legacy `ratings`/`reviews` retiradas porque reviews reales estan fuera de Sprint 1; comparador deja de inventar precio, salario o ROI. |
+
+## Limpieza Calidad Local 2026-08-26
+
+| Control | Resultado |
+|---|---|
+| Causa raiz hydration | `web/public/_redirects` reescribia `/courses/:institution/:slug` hacia `/courses/` con 200, entregando HTML fallback aunque existiera el asset estatico del detalle. |
+| Correccion detalle | `_redirects` eliminado; `/courses/` queda como pagina propia, no como rewrite para rutas de detalle. |
+| Social proof | GET/POST frontend a `ratings` y `reviews` retirados; no se amplian grants, RLS ni superficie publica porque reviews reales estan excluidas de Sprint 1. |
+| Relacionados | Carga desacoplada de social proof y filtrada por `category_id` + `institution_id`, para que los href usen el `institution_slug` real del curso actual. |
+| Comparador | Precio, salario y ROI desconocidos se muestran como `Consultar`/`No disponible`; no se fabrican `Gratis`, `S/ 4,500` ni `12.0` meses. |
+| Pruebas | Regresiones estaticas agregadas para rewrites, social proof, relacionados y defaults fabricados; smoke mock falla ante endpoints REST inesperados. |
+| Estado calidad | `PENDING_REMOTE_VERIFICATION`: requiere build/preview nuevo y consola/red limpias antes de subir a `GO`. |
 
 ## Reglas De Cohorte
 
@@ -83,15 +95,15 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 | Fase | Plan |
 |---|---|
 | `expand` | Crear `private.h2_legacy_public_course_cohort` y reemplazar el lector acotado sin reabrir lectura publica directa a `courses`. |
-| `compatibilidad` | Mantener visibles los cursos legacy que ya cumplian `active + verified + production_enabled` mientras H2 editorial se estabiliza. |
-| `deploy` | Validar Home, listado, detalle, comparador, build static y smoke web contra `courses_public_effective`. |
-| `contract` | Retirar la cohorte legacy cuando los cursos requeridos esten publicados por el contrato H2 estricto `published + complete + available`. |
-| Rollback | Mientras la cohorte exista, el frontend H2 conserva el catalogo anterior; cualquier correccion DB posterior debe ser forward-only. |
-| No degradacion funcional | `courses_public_effective=0` era `NO-GO`; post-apply Free queda `227` y la web real muestra catalogo. |
+| `compatibilidad` | Mantener visibles los cursos legacy que ya cumplian `active + verified + production_enabled`; retirar solo social proof roto/fuera de alcance sin tocar DB ni datos existentes. |
+| `deploy` | Validar Home, listado, detalle, comparador, build static y smoke web contra `courses_public_effective`; preview nuevo debe quedar sin React #418, 401 de `ratings`/`reviews` ni 404 de rutas exportadas. |
+| `contract` | Retirar la cohorte legacy cuando los cursos requeridos esten publicados por el contrato H2 estricto `published + complete + available`; social proof real futuro debe entrar como modulo autenticado/moderado separado. |
+| Rollback | Frontend-only para limpieza de calidad; revertir commit restauraria UI previa sin DDL, sin perdida de datos y sin modificar Supabase. |
+| No degradacion funcional | `courses_public_effective=0` era `NO-GO`; post-apply Free queda `227`; limpieza local preserva catalogo, detalle y comparador sin llamadas fuera del contrato publico H2. |
 
 ## Limites
 
 - No autoriza Supabase Pro, produccion, schedules, canaries, deploys, merge a `main` ni publicacion masiva.
 - La aplicacion en Free requiere JIT separada para aplicar la migracion y verificar equivalencia real contra datos remotos.
 - Si el inventario remoto no encuentra cursos elegibles, se permite un seeder condicionado de fixtures solo en Free para validar comportamiento, no como evidencia de catalogo real.
-- PR #466 no debe mergearse sin revision humana, CI requerido y aceptacion explicita de las observaciones UI no bloqueantes.
+- PR #466 no debe mergearse sin validacion local, preview remoto nuevo, revision humana y CI requerido. Calidad no sube a `GO` hasta comprobar consola/red limpias en el preview nuevo.

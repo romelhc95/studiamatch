@@ -93,14 +93,13 @@ export default function CompareContent() {
         const categoryArray = Array.isArray(categories) ? categories : [];
 
         const enriched = dataArray.map(c => {
-          // Cálculo seguro de ROI en el frontend si falla el backend
-          const investment = c.price_pen || 0;
-          const salary = c.expected_monthly_salary || 4500;
-          const calculatedRoi = investment > 0 ? (investment / salary) : 0;
+          const investment = typeof c.price_pen === "number" && c.price_pen > 0 ? c.price_pen : null;
+          const salary = typeof c.expected_monthly_salary === "number" && c.expected_monthly_salary > 0 ? c.expected_monthly_salary : null;
+          const calculatedRoi = investment && salary ? investment / salary : null;
 
           return {
             ...c,
-            roi_months: c.roi_months || calculatedRoi || 12,
+            roi_months: c.roi_months || calculatedRoi,
             institution_name: institutionArray.find((i: { id: string; name: string }) => i.id === c.institution_id)?.name || "StudIAMatch",
             institution_slug: institutionArray.find((i: { id: string; slug: string }) => i.id === c.institution_id)?.slug || "general",
             category: categoryArray.find((category: { id: string; name: string }) => category.id === c.category_id)?.name || c.category
@@ -226,13 +225,13 @@ export default function CompareContent() {
                     <div className="bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-brand-gray/30 dark:border-white/5">
                       <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Inversión</div>
                       <div className="text-lg font-bold text-brand-slate dark:text-white">
-                        {course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Gratis")}
+                        {course.price_status === 'consultar' || !course.price_pen || course.price_pen <= 0 ? "Consultar" : `S/ ${course.price_pen.toLocaleString()}`}
                       </div>
                     </div>
                     <div className="bg-emerald-50 dark:bg-emerald-500/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-500/20">
                       <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-1">ROI Est.</div>
                       <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
-                        {course.roi_months ? course.roi_months.toFixed(1) : "12.0"} meses
+                        {course.roi_months ? `${course.roi_months.toFixed(1)} meses` : "No disponible"}
                       </div>
                     </div>
                   </div>
@@ -274,7 +273,7 @@ export default function CompareContent() {
                       </div>
                       <div>
                         <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Salario Inicial</div>
-                        <div className="text-sm font-bold">S/ {course.expected_monthly_salary?.toLocaleString() || "4,500"}</div>
+                        <div className="text-sm font-bold">{course.expected_monthly_salary ? `S/ ${course.expected_monthly_salary.toLocaleString()}` : "No disponible"}</div>
                       </div>
                     </div>
                   </div>

@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F11_H2_DEVELOPMENT_COMPAT_REMOTE_VERIFIED_PENDING_REVIEW`
+`F11_H2_QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION`
 
 | Control | Estado |
 |---|---|
@@ -31,7 +31,7 @@
 | Validacion fuente cliente | `SRC-REQ-002_VALIDATED_VIA_ADENDA_SANITIZADA` |
 | Gate fuente privada local | `PASSED_6_TESTS_HASH_MATCH` |
 | Work package activo | `NONE_SUPERSEDED` |
-| Proximo gate unico | `PR_466_REVIEW_AND_CI_BEFORE_MERGE` |
+| Proximo gate unico | `LOCAL_QUALITY_VALIDATION_THEN_PR_466_REVIEW_AND_CI_BEFORE_MERGE` |
 
 ## Porcentaje De Avance
 
@@ -39,8 +39,8 @@
 
 | Unidad | Estado | Puntos |
 |---|---|---:|
-| `H2-CA2` | `REMOTE_COMPAT_VERIFIED_PENDING_REVIEW` | 95 |
-| `H2-CA3` | `REMOTE_COMPAT_VERIFIED_PENDING_REVIEW` | 95 |
+| `H2-CA2` | `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION` | 95 |
+| `H2-CA3` | `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION` | 95 |
 | `H3-CA4` | `NEXT_AFTER_H2_CERTIFICATION_QA` | 0 |
 | `H4-CA5` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA6` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
@@ -60,14 +60,14 @@
 
 ## Porcentaje De Desviacion
 
-`H2_DEVELOPMENT_COMPAT_REMOTE_VERIFIED_PENDING_REVIEW`.
+`H2_QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION`.
 
 La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
 ## Cumplimiento De Criterios
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
-- Hito 2: DDL Free remediada, backfill editorial, seed diccionario, fix de vista publica y compatibilidad legacy aplicados/verificados; PR #458, PR #459 y PR #460 aprobados/mergeados con CI verde; post-apply Free detecto `227` cursos legacy elegibles, `227` efectivos, `0` faltantes y `0` inesperados; preview #466 muestra catalogo, detalle y comparador; criterios contrastados contra `SRC-REQ-002` via adenda sanitizada.
+- Hito 2: DDL Free remediada, backfill editorial, seed diccionario, fix de vista publica y compatibilidad legacy aplicados/verificados; PR #458, PR #459 y PR #460 aprobados/mergeados con CI verde; post-apply Free detecto `227` cursos legacy elegibles, `227` efectivos, `0` faltantes y `0` inesperados; preview #466 muestra catalogo, detalle y comparador; limpieza local de calidad requiere preview nuevo sin React #418, 401 ni 404 de rutas exportadas; criterios contrastados contra `SRC-REQ-002` via adenda sanitizada.
 - Hitos 3-5: planificados segun dependencias del nuevo plan vinculante.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
@@ -80,7 +80,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 - PR #414, #415 y #416 fueron fusionados mediante PR protegidos.
 - El flujo normal de PR protegido queda restaurado para cambios futuros.
-- H2 base esta mergeado en `certificacion`; PR #466 queda pendiente de revision humana/CI antes de merge a `desarrollo`. Cualquier DDL/DML adicional requiere JIT separada.
+- H2 base esta mergeado en `certificacion`; PR #466 queda pendiente de validacion local, preview remoto limpio, revision humana/CI antes de merge a `desarrollo`. Cualquier DDL/DML adicional requiere JIT separada.
 - API de tipo de cambio permanece backlog.
 - Ruta canonica contractual futura: `/programas/[slug]`.
 - H2 remediacion Free: `20260826_h2_security_advisor_remediation.sql` aplicado y verificado read-only; backfill Free aplicado con segundo `NOOP`; seed `editorial_field_definitions` aplicado con 41 definiciones y visibilidad publica acotada; `20260826_h2_public_effective_view_public_fields_fix.sql` aplicado y verificado con `0` campos privados en `courses_public_effective` remoto.
@@ -111,7 +111,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 ## Siguientes Pasos
 
-1. Revisar PR #466 y esperar CI requerido antes de merge a `desarrollo`.
+1. Validar limpieza local de calidad, luego preview remoto nuevo y CI requerido antes de revisar/mergear PR #466 a `desarrollo`.
 2. Verificar/publicar las tres fuentes solo si los archivos locales estan disponibles, inspeccionados y sus hashes coinciden.
 3. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
 
@@ -122,6 +122,6 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 ## Proximo Prompt Cavernicola
 
 ```text
-Revisar PR #466 H2 compat; no mergear sin CI requerido y revision humana.
+Validar limpieza local de calidad de PR #466; no mergear sin preview remoto limpio, CI requerido y revision humana.
 No autoriza Supabase Pro, schedules, writers, deploys ni produccion sin aprobacion JIT separada.
 ```

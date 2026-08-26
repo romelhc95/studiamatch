@@ -44,6 +44,11 @@ const course = {
 
 http.createServer((req, res) => {
   res.setHeader("content-type", "application/json");
+  if (req.url.startsWith("/rest/v1/ratings") || req.url.startsWith("/rest/v1/reviews")) {
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: "social proof endpoints are outside H2 public contract" }));
+    return;
+  }
   if (req.url.startsWith("/rest/v1/courses_public_effective")) {
     res.end(JSON.stringify([course]));
     return;
@@ -56,7 +61,8 @@ http.createServer((req, res) => {
     res.end(JSON.stringify([{ id: "cat-1", name: "Data" }]));
     return;
   }
-  res.end("[]");
+  res.statusCode = 500;
+  res.end(JSON.stringify({ error: `unexpected endpoint ${req.url}` }));
 }).listen(3210, "127.0.0.1");
 JS
 
@@ -77,5 +83,9 @@ test -f out/index.html
 test -f out/courses/inst-a/curso-legacy-visible/index.html
 grep -q "Curso Legacy Visible" out/index.html
 grep -q "Curso Legacy Visible" out/courses/inst-a/curso-legacy-visible/index.html
+if grep -q "Ruta de programa no válida" out/courses/inst-a/curso-legacy-visible/index.html; then
+  echo "Detail route served fallback HTML" >&2
+  exit 1
+fi
 
 echo "h2_web_mock_smoke_ok"

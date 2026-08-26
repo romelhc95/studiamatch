@@ -2,14 +2,14 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `REMOTE_COMPAT_VERIFIED_PENDING_REVIEW` |
+| Estado | `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Bloqueo | PR #466 pendiente de revision humana/CI antes de merge; Pro/writers siguen bloqueados |
+| Bloqueo | PR #466 pendiente de validacion local, preview remoto limpio, revision humana/CI antes de merge; Pro/writers siguen bloqueados |
 
 ## Pendiente
 
-1. Revisar/mergear PR #466 solo tras CI y revision humana.
+1. Validar limpieza local de calidad y preview remoto nuevo antes de revisar/mergear PR #466.
 2. Mantener evidencia Free aplicada/verificada como anexo de certificacion.
 3. Autorizar DDL/DML Pro JIT solo despues de merge protegido a Desarrollo, promocion a certificacion y QA equivalente.
 4. Preservar veredicto `MERGED_TO_CERTIFICACION_CI_GREEN`, grado documental `A` y validacion contra fuente cliente sanitizada en CI.
@@ -39,4 +39,7 @@ mergeado a `desarrollo` con CI verde; PR #459 y PR #460 tambien fueron mergeados
 con CI verde, dejando H2 en `certificacion`. El cierre se valida contra
 `SRC-REQ-002` mediante `ADENDA-REQ-EST-001-001`. Pro, writers, schedules,
 canaries, deploys y cualquier DDL/DML adicional quedan bloqueados sin aprobacion
-JIT separada.
+JIT separada. La limpieza local de calidad de PR #466 retira rewrites de detalle,
+social proof anonimo fuera de Sprint 1 y defaults fabricados del comparador; no
+toca DB y no declara Calidad `GO` hasta verificar un preview nuevo sin errores de
+consola/red.

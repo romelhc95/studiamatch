@@ -3,32 +3,15 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  MapPin, TrendingUp, ChevronLeft, 
+import {
+  MapPin, TrendingUp,
   CheckCircle, ShieldCheck, GraduationCap, Download, Info,
-  Star, MessageSquare, User, Award, Sprout
+  Award, Sprout
 } from "lucide-react";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-
-interface Rating {
-  id: string;
-  course_id: string;
-  rating_value: number;
-  user_nickname: string;
-  created_at: string;
-}
-
-interface Review {
-  id: string;
-  course_id: string;
-  content: string;
-  user_nickname: string;
-  created_at: string;
-}
 
 interface Course {
   id: string;
@@ -67,17 +50,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'requisitos' | 'reviews'>('info');
-
-  // SOCIAL PROOF STATE
-  const [ratings, setRatings] = useState<Rating[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [activeTab, setActiveTab] = useState<'info' | 'requisitos'>('info');
   const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
-  const [newRating, setNewRating] = useState(5);
-  const [newReview, setNewReview] = useState("");
-  const [userNickname, setUserNickname] = useState("");
-  const [isSocialSubmitting, setIsSocialSubmitting] = useState(false);
-  const [socialSuccess, setSocialSuccess] = useState(false);
   const [compareList, setCompareList] = useState<Array<{ id: string; name: string }>>([]);
   const [compareInit, setCompareInit] = useState(false);
 
@@ -113,97 +87,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
-
-  const handleSubmitSocial = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!userNickname.trim()) {
-      alert("Por favor, ingresa tu nombre o apodo.");
-      return;
-    }
-    if (!newReview.trim()) {
-      alert("Por favor, escribe un comentario sobre tu experiencia.");
-      return;
-    }
-    if (!course) return;
-
-    setIsSocialSubmitting(true);
-    console.log("🚀 Iniciando envío de reseña...", { rating: newRating, nickname: userNickname });
-    
-    try {
-      if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-        throw new Error("Configuración de Supabase incompleta. Verifique las variables de entorno.");
-      }
-
-      const headers = {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_PUBLISHABLE_KEY,
-        'Prefer': 'return=minimal'
-      };
-
-      console.log("📡 Enviando calificación a:", `${SUPABASE_URL}/rest/v1/ratings`);
-      // Insert Rating
-      const ratingResponse = await fetch(`${SUPABASE_URL}/rest/v1/ratings`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          course_id: course.id,
-          rating_value: newRating,
-          user_nickname: userNickname.trim()
-        })
-      });
-
-      if (!ratingResponse.ok) {
-        const errorData = await ratingResponse.json().catch(() => ({}));
-        console.error("❌ Error en Rating:", errorData);
-        throw new Error(`Error al guardar la calificación: ${ratingResponse.statusText}`);
-      }
-
-      console.log("📡 Enviando reseña a:", `${SUPABASE_URL}/rest/v1/reviews`);
-      // Insert Review
-      const reviewResponse = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          course_id: course.id,
-          content: newReview.trim(),
-          user_nickname: userNickname.trim()
-        })
-      });
-
-      if (!reviewResponse.ok) {
-        const errorData = await reviewResponse.json().catch(() => ({}));
-        console.error("❌ Error en Review:", errorData);
-        throw new Error("Error al guardar la reseña.");
-      }
-
-      console.log("✅ Reseña publicada con éxito.");
-      setSocialSuccess(true);
-      setNewReview("");
-      setUserNickname("");
-      
-      // Refresh social proof
-      console.log("🔄 Actualizando lista de reseñas...");
-      const safeId = encodeURIComponent(course.id);
-      const rRes = await fetch(`${SUPABASE_URL}/rest/v1/ratings?course_id=eq.${safeId}&select=*`, { headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY } });
-      const rvRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews?course_id=eq.${safeId}&select=*&order=created_at.desc`, { headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY } });
-      
-      if (rRes.ok && rvRes.ok) {
-        const rData = await rRes.json();
-        const rvData = await rvRes.json();
-        if (Array.isArray(rData)) setRatings(rData);
-        if (Array.isArray(rvData)) setReviews(rvData);
-      }
-
-      setTimeout(() => setSocialSuccess(false), 3000);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.error("🔴 Error crítico al enviar social proof:", error);
-      alert(error?.message || "Ocurrió un error al enviar tu reseña.");
-    } finally {
-      setIsSocialSubmitting(false);
-    }
-  };
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -304,32 +187,23 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
   useEffect(() => {
     if (course) {
-      const fetchSocialProofAndRelated = async () => {
+      const fetchRelatedCourses = async () => {
         if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return;
-        
+
         const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
         const safeId = encodeURIComponent(course.id);
         const safeCatId = course.category_id ? encodeURIComponent(course.category_id) : null;
-        
-        try {
-          // Intentar fetch paralelo de ratings, reviews y cursos relacionados
-          const promises = [
-            fetch(`${SUPABASE_URL}/rest/v1/ratings?course_id=eq.${safeId}&select=*`, { headers }),
-            fetch(`${SUPABASE_URL}/rest/v1/reviews?course_id=eq.${safeId}&select=*&order=created_at.desc`, { headers })
-          ];
+        const safeInstitutionId = course.institution_id ? encodeURIComponent(course.institution_id) : null;
 
-          if (safeCatId) {
-            promises.push(fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?category_id=eq.${safeCatId}&id=neq.${safeId}&limit=3&select=${COURSE_PUBLIC_FIELDS}`, { headers }));
+        try {
+          if (!safeCatId || !safeInstitutionId) {
+            setRelatedCourses([]);
+            return;
           }
 
-          const results = await Promise.all(promises);
-          
-          const ratingsData = results[0].ok ? await results[0].json() : [];
-          const reviewsData = results[1].ok ? await results[1].json() : [];
-          const relatedData = (safeCatId && results[2] && results[2].ok) ? await results[2].json() : [];
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?category_id=eq.${safeCatId}&institution_id=eq.${safeInstitutionId}&id=neq.${safeId}&limit=3&select=${COURSE_PUBLIC_FIELDS}`, { headers });
+          const relatedData = response.ok ? await response.json() : [];
 
-          if (Array.isArray(ratingsData)) setRatings(ratingsData);
-          if (Array.isArray(reviewsData)) setReviews(reviewsData);
           if (Array.isArray(relatedData)) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const enriched = relatedData.map((c: any) => ({
@@ -340,10 +214,10 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             setRelatedCourses(enriched as Course[]);
           }
         } catch (error) {
-          console.error("Error fetching social proof:", error);
+          console.error("Error fetching related courses:", error);
         }
       };
-      fetchSocialProofAndRelated();
+      fetchRelatedCourses();
     }
   }, [course]);
 
@@ -603,10 +477,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                   onClick={() => setActiveTab('requisitos')}
                   className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'requisitos' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
                 >REQUISITOS</button>
-                <button 
-                  onClick={() => setActiveTab('reviews')}
-                  className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'reviews' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                >RESEÑAS ({reviews.length})</button>
               </div>
 
               <div className="min-h-[200px] animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -670,110 +540,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                     {!course.target_audience && !course.requirements && (
                       <div className="text-slate-400 italic py-10">No existen prerrequisitos técnicos estrictos reportados para este programa.</div>
                     )}
-                  </div>
-                )}
-
-                {activeTab === 'reviews' && (
-                  <div className="space-y-12 animate-in fade-in duration-700">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      <div className="space-y-6">
-                        <h3 className="text-2xl font-bold flex items-center gap-2">
-                          <Star className="h-6 w-6 text-amber-400 fill-amber-400" />
-                          Calificaciones
-                        </h3>
-                        {ratings.length > 0 ? (
-                          <div className="bg-slate-50 dark:bg-white/5 p-8 rounded-[2.5rem] border border-brand-gray/30">
-                            <div className="flex items-center gap-4">
-                              <div className="text-5xl font-black text-brand-slate dark:text-white">
-                                {(ratings.reduce((acc, r) => acc + r.rating_value, 0) / ratings.length).toFixed(1)}
-                              </div>
-                              <div>
-                                <div className="flex text-amber-400 mb-1">
-                                  {[1,2,3,4,5].map(star => (
-                                    <Star key={star} className={cn("h-4 w-4", star <= Math.round(ratings.reduce((acc, r) => acc + r.rating_value, 0) / ratings.length) ? "fill-amber-400" : "text-slate-300")} />
-                                  ))}
-                                </div>
-                                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">{ratings.length} Reseñas Verificadas</div>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-slate-50 dark:bg-white/5 p-8 rounded-[2.5rem] border border-dashed border-slate-300 text-center">
-                            <p className="text-slate-500 font-bold italic">Aún no hay calificaciones. ¡Sé el primero!</p>
-                          </div>
-                        )}
-                        
-                        <Card className="p-8 rounded-[2.5rem] border-brand-gray/50 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden relative">
-                          <div className="relative z-10">
-                            <h4 className="text-lg font-bold mb-4">Deja tu opinión</h4>
-                            <form onSubmit={handleSubmitSocial} className="space-y-4">
-                              <div className="flex gap-2 mb-4">
-                                {[1,2,3,4,5].map(star => (
-                                  <button 
-                                    type="button" 
-                                    key={star} 
-                                    onClick={() => setNewRating(star)}
-                                    className="transition-transform hover:scale-125"
-                                  >
-                                    <Star className={cn("h-6 w-6", star <= newRating ? "fill-amber-400 text-amber-400" : "text-slate-300")} />
-                                  </button>
-                                ))}
-                              </div>
-                              <Input 
-                                placeholder="Tu Apodo/Nombre" 
-                                required 
-                                className="h-12 rounded-2xl bg-slate-50 dark:bg-zinc-800 border-0 font-bold" 
-                                value={userNickname}
-                                onChange={(e) => setUserNickname(e.target.value)}
-                              />
-                              <textarea 
-                                placeholder="Comparte tu experiencia con este programa..." 
-                                required
-                                className="w-full h-32 rounded-3xl bg-slate-50 dark:bg-zinc-800 border-0 p-6 font-bold text-sm focus:ring-4 focus:ring-brand-blue/10 resize-none transition-all"
-                                value={newReview}
-                                onChange={(e) => setNewReview(e.target.value)}
-                              />
-                              <Button 
-                                type="submit"
-                                disabled={isSocialSubmitting}
-                                className="w-full h-14 bg-brand-slate text-white dark:bg-brand-mint dark:text-brand-slate font-black rounded-2xl border-0"
-                              >
-                                {isSocialSubmitting ? "ENVIANDO..." : "PUBLICAR RESEÑA"}
-                              </Button>
-                              {socialSuccess && <p className="text-center text-emerald-500 font-bold text-xs animate-bounce mt-2">¡Gracias por tu aporte!</p>}
-                            </form>
-                          </div>
-                        </Card>
-                      </div>
-
-                      <div className="space-y-6">
-                        <h3 className="text-2xl font-bold flex items-center gap-2">
-                          <MessageSquare className="h-6 w-6 text-brand-blue" />
-                          Comentarios
-                        </h3>
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                          {reviews.length > 0 ? reviews.map(review => (
-                            <div key={review.id} className="bg-white dark:bg-white/5 p-6 rounded-3xl border border-brand-gray/30 shadow-sm relative group">
-                              <div className="flex items-center gap-3 mb-4">
-                                <div className="h-10 w-10 rounded-full bg-brand-blue/10 flex items-center justify-center text-brand-blue font-bold">
-                                  <User className="h-5 w-5" />
-                                </div>
-                                <div>
-                                  <div className="text-sm font-black text-brand-slate dark:text-white uppercase tracking-wider">{review.user_nickname}</div>
-                                  <div className="text-[10px] text-slate-400 font-bold uppercase">{new Date(review.created_at).toLocaleDateString()}</div>
-                                </div>
-                              </div>
-                              <p className="text-slate-600 dark:text-slate-400 leading-relaxed italic text-sm">&ldquo;{review.content}&rdquo;</p>
-                            </div>
-                          )) : (
-                            <div className="py-20 text-center opacity-40">
-                              <MessageSquare className="h-12 w-12 mx-auto mb-4" />
-                              <p className="font-bold">Sin comentarios aún.</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
