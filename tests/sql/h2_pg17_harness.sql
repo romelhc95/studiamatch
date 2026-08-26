@@ -84,11 +84,79 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.increment_view_count(UUID) TO anon, authenticated, service_role;
 
-\i /repo/db/migrations/20260825_h2_editorial_layer.sql
-\i /repo/db/migrations/20260825_h2_editorial_layer_grants_fix.sql
-\i /repo/db/migrations/20260825_h2_editorial_layer_start_date_view_fix.sql
-\i /repo/db/migrations/20260825_h2_editorial_layer_allowlist_fix.sql
-\i /repo/db/migrations/20260826_h2_editorial_layer_forward_fix.sql
+\ir ../../db/migrations/20260825_h2_editorial_layer.sql
+\ir ../../db/migrations/20260825_h2_editorial_layer_grants_fix.sql
+\ir ../../db/migrations/20260825_h2_editorial_layer_start_date_view_fix.sql
+\ir ../../db/migrations/20260825_h2_editorial_layer_allowlist_fix.sql
+\ir ../../db/migrations/20260826_h2_editorial_layer_forward_fix.sql
+\ir ../../db/migrations/20260826_h2_security_advisor_remediation.sql
+\ir ../../db/migrations/20260826_h2_seed_editorial_field_definitions.sql
+\ir ../../db/migrations/20260826_h2_seed_editorial_field_definitions.sql
+\ir ../../db/migrations/20260826_h2_public_effective_view_public_fields_fix.sql
+
+DO $$
+BEGIN
+    IF (SELECT count(*) FROM public.editorial_field_definitions) <> 41 THEN
+        RAISE EXCEPTION 'unexpected editorial_field_definitions seed count';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM public.editorial_field_definitions
+        WHERE is_public = true
+          AND field_key IN (
+              'editorial_status',
+              'quality_status',
+              'missing_fields',
+              'field_sources',
+              'field_timestamps',
+              'manual_overrides',
+              'manual_start_date',
+              'is_sponsored',
+              'sponsored_priority',
+              'sponsorship_label',
+              'lead_cta_enabled',
+              'availability_status',
+              'published_at',
+              'archived_at',
+              'manual_updated_at',
+              'manual_updated_by'
+          )
+    ) THEN
+        RAISE EXCEPTION 'private editorial fields exposed in seed';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.editorial_field_definitions
+        WHERE field_key = 'duration'
+          AND ownership = 'hybrid_manual_preferred'
+          AND is_required_for_publish = true
+          AND is_public = true
+    ) THEN
+        RAISE EXCEPTION 'duration seed contract missing';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'courses_public_effective'
+          AND column_name IN (
+              'editorial_status',
+              'quality_status',
+              'missing_fields',
+              'field_sources',
+              'field_timestamps',
+              'is_sponsored',
+              'lead_cta_enabled',
+              'sponsored_priority',
+              'sponsorship_label',
+              'availability_status',
+              'editorial_updated_at'
+          )
+    ) THEN
+        RAISE EXCEPTION 'private editorial fields exposed in public view';
+    END IF;
+END;
+$$;
 
 INSERT INTO public.institutions (id, name, website_url)
 VALUES
@@ -244,7 +312,8 @@ SELECT public.h2_update_course_quality(
     ARRAY['mode', 'duration']::TEXT[],
     '{"name":"pipeline"}'::JSONB,
     '{"name":"2026-08-25T00:00:00Z"}'::JSONB,
-    'h2-harness-quality-1'
+    'h2-harness-quality-1',
+    'hash-h2-harness-quality-1'
 );
 
 SELECT public.h2_update_course_quality(
@@ -252,7 +321,8 @@ SELECT public.h2_update_course_quality(
     ARRAY['mode', 'duration']::TEXT[],
     '{"name":"pipeline"}'::JSONB,
     '{"name":"2026-08-25T00:00:00Z"}'::JSONB,
-    'h2-harness-quality-1'
+    'h2-harness-quality-1',
+    'hash-h2-harness-quality-1'
 );
 
 DO $$
@@ -273,6 +343,26 @@ BEGIN
     IF status_value <> 'pending_review' THEN
         RAISE EXCEPTION 'quality RPC changed editorial_status to %', status_value;
     END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+    BEGIN
+        PERFORM public.h2_update_course_quality(
+            '20000000-0000-0000-0000-000000000002',
+            ARRAY[]::TEXT[],
+            '{"name":"pipeline"}'::JSONB,
+            '{"name":"2026-08-25T00:00:00Z"}'::JSONB,
+            'h2-harness-quality-1',
+            'different-payload-hash'
+        );
+        RAISE EXCEPTION 'quality RPC accepted reused request_id with different payload';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM <> 'request_id already exists for a different payload' THEN
+            RAISE;
+        END IF;
+    END;
 END;
 $$;
 
@@ -326,6 +416,8 @@ BEGIN
 END;
 $$;
 
-\i /repo/db/migrations/20260826_h2_editorial_layer_forward_fix.sql
+\ir ../../db/migrations/20260826_h2_security_advisor_remediation.sql
+\ir ../../db/migrations/20260826_h2_seed_editorial_field_definitions.sql
+\ir ../../db/migrations/20260826_h2_public_effective_view_public_fields_fix.sql
 
 SELECT 'h2_pg17_harness_ok' AS result;

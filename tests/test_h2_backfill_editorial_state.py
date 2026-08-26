@@ -8,6 +8,7 @@ from scripts.maintenance.h2_backfill_editorial_state import build_quality_payloa
 
 class FakeDb:
     def __init__(self, courses, states):
+        self.supabase_url = "https://aqrldlmlszjtgpqiegaa.supabase.co"
         self.courses = courses
         self.states = states
         self.calls = []
@@ -25,7 +26,7 @@ class FakeDb:
 
     def rpc_raise(self, function_name, params):
         self.calls.append((function_name, params))
-        return {"status": "success"}
+        return {"processed": len(params.get("p_items", []))}
 
 
 def course(course_id="00000000-0000-0000-0000-000000000001", **overrides):
@@ -86,9 +87,12 @@ def test_apply_uses_quality_rpc_without_publication_fields() -> None:
     assert stats["inserted"] == 1
     assert len(db.calls) == 1
     function_name, params = db.calls[0]
-    assert function_name == "h2_update_course_quality"
-    assert params["p_request_id"].startswith("h2-backfill:")
-    assert "editorial_status" not in params
+    assert function_name == "h2_update_course_quality_batch"
+    assert len(params["p_items"]) == 1
+    item = params["p_items"][0]
+    assert item["request_id"].startswith("h2-backfill:h2-quality-v2:")
+    assert len(item["payload_hash"]) == 64
+    assert "editorial_status" not in item
 
 
 def test_second_run_noops_when_quality_matches() -> None:
@@ -108,3 +112,57 @@ def test_second_run_noops_when_quality_matches() -> None:
 
     assert stats == {"scanned": 1, "inserted": 0, "updated": 0, "deleted": 0, "noop": 1}
     assert db.calls == []
+
+
+def test_second_run_noops_when_incomplete_quality_matches() -> None:
+    incomplete = course(mode=None, duration=None)
+    payload = build_quality_payload(incomplete)
+    existing = {
+        "course_id": "00000000-0000-0000-0000-000000000001",
+        "quality_status": payload["quality_status"],
+        "manual_overrides": {},
+        "missing_fields": list(reversed(payload["missing_fields"])),
+        "field_sources": payload["field_sources"],
+        "field_timestamps": payload["field_timestamps"],
+        "manual_updated_at": None,
+    }
+    db = FakeDb([incomplete], {existing["course_id"]: existing})
+
+    stats = run_backfill(db, apply=True, batch_size=500)
+
+    assert stats == {"scanned": 1, "inserted": 0, "updated": 0, "deleted": 0, "noop": 1}
+    assert db.calls == []
+
+
+def test_apply_rejects_wrong_project_ref() -> None:
+    db = FakeDb([course()], {})
+    db.supabase_url = "https://xwhtiqmboljkshrtviyw.supabase.co"
+
+    try:
+        run_backfill(db, apply=True, batch_size=500)
+    except RuntimeError as exc:
+        assert "expected project aqrldlmlszjtgpqiegaa" in str(exc)
+    else:
+        raise AssertionError("expected project ref guard to fail")
+
+
+def test_dry_run_handles_more_than_one_thousand_rows_without_writes() -> None:
+    rows = [course(f"00000000-0000-0000-0000-{idx:012d}") for idx in range(1, 1002)]
+    db = FakeDb(rows, {})
+
+    stats = run_backfill(db, apply=False, batch_size=1000)
+
+    assert stats == {"scanned": 1001, "inserted": 1001, "updated": 0, "deleted": 0, "noop": 0}
+    assert db.calls == []
+
+
+def test_apply_batches_ten_thousand_rows_without_per_row_rpc() -> None:
+    rows = [course(f"00000000-0000-0000-0000-{idx:012d}") for idx in range(1, 10001)]
+    db = FakeDb(rows, {})
+
+    stats = run_backfill(db, apply=True, batch_size=1000)
+
+    assert stats == {"scanned": 10000, "inserted": 10000, "updated": 0, "deleted": 0, "noop": 0}
+    assert len(db.calls) == 10
+    assert all(name == "h2_update_course_quality_batch" for name, _ in db.calls)
+    assert all(len(params["p_items"]) == 1000 for _, params in db.calls)

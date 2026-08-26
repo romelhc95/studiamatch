@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
+import json
 from typing import Any, Mapping
 
 
+CONTRACT_VERSION = "h2-quality-v2"
 REQUIRED_FIELDS: tuple[str, ...] = (
     "name",
     "institution",
@@ -29,6 +32,7 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
 MANUAL_SOURCE = "manual_override"
 PIPELINE_SOURCE = "pipeline"
 DEFAULT_SOURCE = "display_default"
+MISSING_PLACEHOLDERS = {"", "none", "null", "nan", "consultar", "a consultar", "sin confirmar"}
 
 
 @dataclass(frozen=True)
@@ -94,6 +98,18 @@ def compute_editorial_state(
     )
 
 
+def canonical_quality_hash(payload: Mapping[str, Any]) -> str:
+    canonical = {
+        "contract_version": CONTRACT_VERSION,
+        "field_sources": _canonical_mapping(payload.get("field_sources")),
+        "field_timestamps": _canonical_mapping(payload.get("field_timestamps")),
+        "missing_fields": list(payload.get("missing_fields") or []),
+        "quality_status": payload.get("quality_status"),
+    }
+    encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
 def _keys_for(field: str) -> tuple[str, ...]:
     return FIELD_ALIASES.get(field, (field,))
 
@@ -110,7 +126,7 @@ def _present(value: Any) -> bool:
     if value is None:
         return False
     if isinstance(value, str):
-        return value.strip().lower() not in {"", "none", "null", "nan"}
+        return value.strip().lower() not in MISSING_PLACEHOLDERS
     if isinstance(value, (list, tuple, set, dict)):
         return bool(value)
     return True
@@ -120,3 +136,7 @@ def _string_or_none(value: Any) -> str | None:
     if not _present(value):
         return None
     return str(value)
+
+
+def _canonical_mapping(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, Mapping) else {}

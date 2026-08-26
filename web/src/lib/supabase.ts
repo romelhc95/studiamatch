@@ -19,7 +19,7 @@ export const SUPABASE_URL = supabaseUrl;
 export const SUPABASE_PUBLISHABLE_KEY = supabasePublishableKey;
 
 // Fase 80A: Columnas públicas de courses — explícitas, sin internals (provider_used, is_mock_data, last_scraped_at, etc.)
-export const COURSE_PUBLIC_FIELDS = 'id,institution_id,category_id,name,slug,url,price_pen,price_status,mode,duration,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,start_date,start_date_text,course_type,brochure_url,expected_monthly_salary,seniority_level,roi_months,view_count,comparison_count,editorial_status,quality_status,missing_fields,field_sources,field_timestamps,is_sponsored,lead_cta_enabled,sponsored_priority,sponsorship_label,availability_status,created_at,updated_at,editorial_updated_at';
+export const COURSE_PUBLIC_FIELDS = 'id,institution_id,category_id,name,slug,url,price_pen,price_status,mode,duration,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,start_date,start_date_text,course_type,brochure_url,expected_monthly_salary,seniority_level,roi_months,view_count,comparison_count,created_at,updated_at';
 
 export interface Course {
   id: string;
