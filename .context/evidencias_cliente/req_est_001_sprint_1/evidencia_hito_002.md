@@ -42,7 +42,7 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | Definiciones privadas | 16 | Campos internos protegidos. |
 | Columnas de vista publica | 28 | Superficie publica acotada. |
 | Campos privados expuestos | 0 | No se publica estado interno ni auditoria. |
-| Compatibilidad visual Desarrollo | `GO` | La vista H2 preserva cursos legacy `active + verified + production_enabled` mediante cohorte privada temporal. |
+| Compatibilidad visual Desarrollo | `NO-GO_PENDING_FREE_MIGRATION` | El diseno local/mock preserva cursos legacy, pero Desarrollo remoto sigue devolviendo `courses_public_effective=[]`; requiere aplicar/verificar cohorte Free con JIT separada. |
 
 ## Evidencia Tecnica Resumida
 

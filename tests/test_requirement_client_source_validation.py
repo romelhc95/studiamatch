@@ -12,7 +12,8 @@ CLIENT_SOURCE_HOME = "SRC-REQ-002-HOME"
 CLIENT_SOURCE_RESULTADOS = "SRC-REQ-002-RESULTADOS"
 SANITIZED_ATTESTATION_ID = "ADENDA-REQ-EST-001-001"
 SANITIZED_ATTESTATION_PATH = ".context/backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md"
-CLOSED_H2_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
+H2_CERTIFICATION_PR_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
+H2_CURRENT_COMPAT_STATE = "NO-GO_PENDING_FREE_COMPAT_MIGRATION"
 SOURCE_HASHES = {
     "Studiamatch_MVP_Requerimientos_v5.docx": "3537820F93F3A6880BBA22109C020CEDB4334F1AFD905ACEA70E809C9748B107",
     "studiamatch_home.html": "3E84696C000A9F9875853145C8C2CF227E606A5B5F8527184328629C3B1A135D",
@@ -126,7 +127,7 @@ def test_h2_closed_evidence_validates_against_sanitized_client_attestation() -> 
     assert "marcado pendiente/completo" in attestation
 
     for text in [evidence, hito, task, matrix]:
-        assert CLOSED_H2_STATE in text
+        assert H2_CERTIFICATION_PR_STATE in text or H2_CURRENT_COMPAT_STATE in text
         assert CLIENT_SOURCE_ID in text
         assert SANITIZED_ATTESTATION_ID in text
 
@@ -190,7 +191,7 @@ def test_next_hito_pre_start_gate_is_backed_by_client_source_mapping() -> None:
     matrix3 = read(".context/matrices/matriz_hito_003.md")
     evidence3 = read(".context/evidencias_cliente/sprint_1/evidencia_hito_003.md")
 
-    assert "CERTIFICATION_QA_H2_READ_ONLY" in state
+    assert "FREE_H2_COMPAT_JIT_APPLY_AND_REAL_WEB_VALIDATION" in state
     assert "| H3 | Administracion editorial autenticada | CA4 | H2 aceptado |" in plan
     assert "| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin despues de H2 aceptado. |" in backlog_index
     assert "`CA4` | Panel `/admin`" in attestation

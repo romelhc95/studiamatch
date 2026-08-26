@@ -23,19 +23,34 @@ def test_h2_development_compatibility_closes_hito_acceptance_criteria() -> None:
     assert "Estado: `PREPARED_FOR_FREE_DEVELOPMENT_JIT`" in text
     assert "`H2-CA2` Modelo editorial separado | `GO`" in text
     assert "`H2-CA3` Pipeline tolerante a incompletos | `GO`" in text
-    assert "Compatibilidad funcional Desarrollo | `GO`" in text
+    assert "Compatibilidad funcional Desarrollo local/mock | `GO`" in text
+    assert "Compatibilidad funcional Desarrollo remoto | `NO-GO_PENDING_FREE_MIGRATION`" in text
     assert "Privacidad de datos editoriales | `GO`" in text
     assert "Transparencia para futuro main | `GO_CONDICIONADO`" in text
 
 
-def test_h2_development_compatibility_approves_required_pillars() -> None:
+def test_h2_development_compatibility_does_not_overstate_required_pillars() -> None:
     text = read(EVIDENCE)
 
-    for pillar in ["Funcionalidad", "Escalabilidad", "Seguridad", "Mantenimiento", "Calidad", "Rendimiento"]:
+    for pillar in ["Escalabilidad", "Seguridad", "Mantenimiento", "Rendimiento"]:
         assert f"| {pillar} | `GO` |" in text
 
-    assert "web no queda vacia" in text
+    assert "| Funcionalidad | `NO-GO_PENDING_FREE_MIGRATION` |" in text
+    assert "| Calidad | `NO-GO_PENDING_REMOTE_EVIDENCE` |" in text
+    assert "Desarrollo remoto aun devuelve `courses_public_effective=[]`" in text
     assert "No hay fallback frontend a `courses`" in text
+
+
+def test_h2_development_readonly_preflight_records_remote_delta() -> None:
+    text = read(EVIDENCE)
+
+    assert "## Preflight Read-Only Free 2026-08-26" in text
+    assert "Legacy visible elegible | `227` cursos" in text
+    assert "H2 estricto visible | `0` cursos" in text
+    assert "Vista efectiva actual | `0` cursos" in text
+    assert "`227` cursos legacy faltan" in text
+    assert "ordered IDs md5 `b2a88ca4af2075f9796365acec1904c8`" in text
+    assert "PR #466 no debe mergearse" in text
 
 
 def test_h2_development_compatibility_documents_transparent_transition() -> None:

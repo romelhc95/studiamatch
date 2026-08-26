@@ -3,12 +3,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-POST_H2_MERGE_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
-POST_H2_PHASE_STATE = "H2_MERGED_TO_CERTIFICACION_CI_GREEN"
+POST_H2_MERGE_STATE = "NO-GO_PENDING_FREE_COMPAT_MIGRATION"
+POST_H2_PHASE_STATE = "H2_DEVELOPMENT_COMPAT_NO_GO_PENDING_FREE_MIGRATION"
 H2_MERGE_COMMIT = "0c9e40f81f2a38141c9c2af170e26ab594b7533d"
 H2_CONTEXT_GATE_COMMIT = "4f7061585202301760d8068e13edc5c93b0f94e2"
 H2_CERTIFICATION_MERGE_COMMIT = "0ed6afeec741c698f1111c2ea27357160fa77279"
-NEXT_GATE = "CERTIFICATION_QA_H2_READ_ONLY"
+NEXT_GATE = "FREE_H2_COMPAT_JIT_APPLY_AND_REAL_WEB_VALIDATION"
 
 OBSOLETE_POST_MERGE_TOKENS = [
     "DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED",
@@ -49,9 +49,11 @@ def test_obsidian_context_graph_records_h2_post_merge_state() -> None:
     assert f"| `HITO-002` | `{POST_H2_MERGE_STATE}` | `TASK-H2-001` |" in state
     assert f"| Estado | `{POST_H2_MERGE_STATE}` |" in hito
     assert f"| Estado | `{POST_H2_MERGE_STATE}` |" in task
-    assert f"Estado: `{POST_H2_MERGE_STATE}`" in evidence
-    assert f"Veredicto PR: `{POST_H2_MERGE_STATE}`" in evidence
-    assert f"Veredicto PR: `{POST_H2_MERGE_STATE}`" in matrix
+    assert "Estado: `MERGED_TO_CERTIFICACION_CI_GREEN`" in evidence
+    assert "Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`" in evidence
+    assert "Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`" in matrix
+    assert "NO-GO_PENDING_FREE_MIGRATION" in evidence
+    assert "NO-GO_PENDING_FREE_MIGRATION" in matrix
     assert H2_MERGE_COMMIT in evidence
     assert H2_CONTEXT_GATE_COMMIT in evidence
     assert H2_CERTIFICATION_MERGE_COMMIT in evidence

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `MERGED_TO_CERTIFICACION_CI_GREEN` |
+| Estado | `NO-GO_PENDING_FREE_COMPAT_MIGRATION` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Bloqueo | Compatibilidad funcional Desarrollo pendiente de aplicar/verificar con JIT Free; Pro/writers siguen bloqueados |
@@ -32,7 +32,9 @@ Security Advisor, backfill editorial Free con segundo `NOOP` validado y seed
 aplicado/verificado con `0` campos privados expuestos. La correccion de compatibilidad
 prepara `private.h2_legacy_public_course_cohort` para que los cursos legacy
 `active + verified + production_enabled` sigan visibles en Desarrollo sin fallback
-frontend a `courses`. PR #458 fue aprobado y
+frontend a `courses`. Preflight read-only Free detecto `227` cursos legacy elegibles,
+`0` H2 estrictos y `0` efectivos; PR #466 no debe mergearse hasta aplicar/verificar
+la migracion en Free con JIT separada y validar la web real. PR #458 fue aprobado y
 mergeado a `desarrollo` con CI verde; PR #459 y PR #460 tambien fueron mergeados
 con CI verde, dejando H2 en `certificacion`. El cierre se valida contra
 `SRC-REQ-002` mediante `ADENDA-REQ-EST-001-001`. Pro, writers, schedules,
