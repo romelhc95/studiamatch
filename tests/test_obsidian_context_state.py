@@ -4,11 +4,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 POST_H2_MERGE_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
-POST_H2_PHASE_STATE = "H2_CERTIFICATION_QA_READ_ONLY_DEFINED"
+POST_H2_PHASE_STATE = "H2_CERTIFICATION_QA_READ_ONLY_PASSED"
 H2_MERGE_COMMIT = "0c9e40f81f2a38141c9c2af170e26ab594b7533d"
 H2_CONTEXT_GATE_COMMIT = "4f7061585202301760d8068e13edc5c93b0f94e2"
 H2_CERTIFICATION_MERGE_COMMIT = "0ed6afeec741c698f1111c2ea27357160fa77279"
-NEXT_GATE = "EXECUTE_CERTIFICATION_QA_H2_READ_ONLY"
+NEXT_GATE = "PREPARE_MAIN_PROMOTION_PREFLIGHT_H2"
 
 OBSOLETE_POST_MERGE_TOKENS = [
     "DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED",
@@ -89,7 +89,8 @@ def test_certification_readonly_qa_is_defined_before_main_promotion() -> None:
     tracking = read(".context/seguimiento/seguimiento_sprint_1_h2_h5.md")
 
     required_terms = [
-        "NO_GO_MAIN_UNTIL_QA_EXECUTED",
+        "GO_FOR_MAIN_PROMOTION_PREFLIGHT_ONLY",
+        "PASS_CERTIFICATION_READ_ONLY_QA",
         "Funcionalidad publica",
         "Contrato frontend H2",
         "Privacidad H2",

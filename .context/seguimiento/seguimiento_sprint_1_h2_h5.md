@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F11_H2_CERTIFICATION_QA_READ_ONLY_DEFINED`
+`F11_H2_CERTIFICATION_QA_READ_ONLY_PASSED`
 
 | Control | Estado |
 |---|---|
@@ -31,8 +31,8 @@
 | Validacion fuente cliente | `SRC-REQ-002_VALIDATED_VIA_ADENDA_SANITIZADA` |
 | Gate fuente privada local | `PASSED_6_TESTS_HASH_MATCH` |
 | Work package activo | `NONE_SUPERSEDED` |
-| QA read-only H2/H3 | `DEFINED_PENDING_EXECUTION` |
-| Proximo gate unico | `EXECUTE_CERTIFICATION_QA_H2_READ_ONLY` |
+| QA read-only H2/H3 | `PASS_CERTIFICATION_READ_ONLY_QA` |
+| Proximo gate unico | `PREPARE_MAIN_PROMOTION_PREFLIGHT_H2` |
 
 ## Porcentaje De Avance
 
@@ -61,7 +61,7 @@
 
 ## Porcentaje De Desviacion
 
-`H2_CERTIFICATION_QA_READ_ONLY_DEFINED`.
+`H2_CERTIFICATION_QA_READ_ONLY_PASSED`.
 
 La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
@@ -81,7 +81,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 - PR #414, #415 y #416 fueron fusionados mediante PR protegidos.
 - El flujo normal de PR protegido queda restaurado para cambios futuros.
-- H2 esta mergeado en `certificacion`; la siguiente accion es ejecutar el QA read-only H2/H3 definido en `.context/operaciones/h2_h3_certification_readonly_qa.md` cuando el usuario lo instruya. Cualquier DDL/DML adicional requiere JIT separada.
+- H2 esta mergeado en `certificacion`; QA read-only H2/H3 paso sin regresion funcional. La siguiente accion es preparar preflight de promocion a `main` cuando el usuario lo instruya. Cualquier DDL/DML adicional requiere JIT separada.
 - API de tipo de cambio permanece backlog.
 - Ruta canonica contractual futura: `/programas/[slug]`.
 - H2 remediacion Free: `20260826_h2_security_advisor_remediation.sql` aplicado y verificado read-only; backfill Free aplicado con segundo `NOOP`; seed `editorial_field_definitions` aplicado con 41 definiciones y visibilidad publica acotada; `20260826_h2_public_effective_view_public_fields_fix.sql` aplicado y verificado con `0` campos privados en `courses_public_effective` remoto.
@@ -112,7 +112,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 ## Siguientes Pasos
 
-1. Ejecutar QA read-only H2/H3 en `certificacion` cuando el usuario lo instruya.
+1. Preparar preflight de promocion H2 `certificacion -> main` cuando el usuario lo instruya.
 2. Verificar/publicar las tres fuentes solo si los archivos locales estan disponibles, inspeccionados y sus hashes coinciden.
 3. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
 
@@ -123,6 +123,6 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 ## Proximo Prompt Cavernicola
 
 ```text
-Ejecutar QA read-only H2/H3 en certificacion.
+Preparar preflight H2 para promocion certificacion a main.
 No autoriza Supabase Pro, schedules, writers, deploys, main ni produccion sin aprobacion JIT separada.
 ```

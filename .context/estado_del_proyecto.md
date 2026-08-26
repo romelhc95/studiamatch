@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-26-F11-H2-MERGED-CERTIFICACION`.
+Snapshot: `SNAPSHOT-2026-08-26-F11-H2-CERTIFICATION-QA-PASSED`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -27,7 +27,7 @@ PR del hito siguiente hasta corregir la atestacion sanitizada.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `H2_CERTIFICATION_QA_READ_ONLY_DEFINED` | H2 Free aplicado/verificado; H2 mergeado a `certificacion`; QA read-only H2/H3 definido para validar funcionalidad antes de `main`; autoridad exclusiva en `AGENTS.md` y Obsidian `.context/**`. |
+| `F11` | Activacion documental del nuevo pedido | `H2_CERTIFICATION_QA_READ_ONLY_PASSED` | H2 Free aplicado/verificado; H2 mergeado a `certificacion`; QA read-only H2/H3 ejecutado sin regresion funcional antes de `main`; autoridad exclusiva en `AGENTS.md` y Obsidian `.context/**`. |
 
 ## Subfases F10
 
@@ -63,8 +63,8 @@ PR del hito siguiente hasta corregir la atestacion sanitizada.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `H2_CERTIFICATION_QA_READ_ONLY_DEFINED`.
-- Proximo gate unico: `EXECUTE_CERTIFICATION_QA_H2_READ_ONLY`.
+- Gate vigente: `H2_CERTIFICATION_QA_READ_ONLY_PASSED`.
+- Proximo gate unico: `PREPARE_MAIN_PROMOTION_PREFLIGHT_H2`.
 
 ## Estado De Hitos Sprint 1
 
@@ -89,12 +89,12 @@ PR del hito siguiente hasta corregir la atestacion sanitizada.
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
 | Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed `editorial_field_definitions` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados/verificados en Supabase Free. Pro, writers, schedules y DB Sync siguen bloqueados. |
 | Evidencia cliente | `GRADE_A_CLIENT_SOURCE_VALIDATED_H2_CERTIFICACION` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, validacion contra `SRC-REQ-002` via adenda sanitizada, PRs #458/#459/#460 mergeados y QA read-only definido. |
+| QA certificacion | `PASS_CERTIFICATION_READ_ONLY_QA` | [QA H2/H3 read-only](operaciones/h2_h3_certification_readonly_qa.md) ejecutado: suite `108 passed`, build/static smoke PASS, vista publica sin privados y advisors sin bloqueantes H2. |
 
 ## Alcance Inmediato
 
-El alcance inmediato es ejecutar el QA read-only definido en
-[QA Read-Only Certificacion H2/H3](operaciones/h2_h3_certification_readonly_qa.md)
-bajo instruccion humana separada.
+El alcance inmediato es preparar preflight de promocion a `main` para H2 bajo
+instruccion humana separada, sin ejecutar Pro/produccion hasta JIT especifica.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
 `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
 salvo autorizacion separada. H2 fue mergeado por PR #458 a `desarrollo`, PR #459
@@ -116,6 +116,6 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es ejecutar QA read-only H2/H3 en `certificacion` cuando exista
-instruccion humana separada. Pro, writers, schedules, produccion, deploys,
-promocion a `main` y cambios remotos adicionales siguen bloqueados.
+El siguiente gate es preparar preflight de promocion `certificacion -> main` para
+H2 cuando exista instruccion humana separada. Pro, writers, schedules,
+produccion, deploys y cambios remotos adicionales siguen bloqueados.

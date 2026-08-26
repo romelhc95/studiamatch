@@ -5,7 +5,7 @@
 | Estado | `MERGED_TO_CERTIFICACION_CI_GREEN` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | QA read-only H2/H3 definido; ejecucion requiere instruccion humana separada |
+| Gate | QA read-only H2/H3 aprobado; main requiere preflight/JIT separada |
 
 ## Alcance
 
@@ -67,4 +67,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`. PR #458 mergeado a `desarrollo`; PR #459 mergeado a `desarrollo`; PR #460 mergeado a `certificacion`. Siguiente paso: ejecutar [QA Read-Only Certificacion H2/H3](../operaciones/h2_h3_certification_readonly_qa.md). Pro, writers, schedules, canaries, deploys, `main` o cualquier DML adicional requieren aprobacion separada.
+DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`. PR #458 mergeado a `desarrollo`; PR #459 mergeado a `desarrollo`; PR #460 mergeado a `certificacion`; QA read-only H2/H3 aprobado en [QA Read-Only Certificacion H2/H3](../operaciones/h2_h3_certification_readonly_qa.md). Pro, writers, schedules, canaries, deploys, `main` o cualquier DML adicional requieren aprobacion separada.
