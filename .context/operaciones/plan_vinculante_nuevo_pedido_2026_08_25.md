@@ -19,6 +19,13 @@ Para cualquier nuevo desarrollo con requerimiento cliente, antes de iniciar y al
 El documento privado no se versiona ni se expone en PRs.
 Si el gate falla, se corrige primero la atestacion sanitizada y no se ejecuta el hito siguiente.
 
+Todo cambio funcional, DB, UI, pipeline o despliegue debe tener transicion
+transparente documentada: `expand -> compatibilidad -> deploy -> contract`.
+Durante construccion y promocion se mantiene el comportamiento legacy necesario
+para que la aplicacion siga funcionando sin degradar funcionalidad. Tras estabilizar en produccion se
+contrae el soporte legacy y queda activo solo el nuevo contrato solicitado. El
+cierre de hito/task exige rollback y evidencia de no degradacion funcional.
+
 ## Hitos Redefinidos
 
 | Hito | Alcance vinculante | Criterios | Dependencia |
@@ -73,6 +80,22 @@ PII, fuentes con hashes divergentes, DOCX con macros, firmas, embeddings o
 revisiones, fuentes copiadas dentro del bundle web, cambios DB mezclados con
 hitos frontend no autorizados, workflows invalidos o schedules activados por
 implicacion.
+
+## Gate De Transicion Transparente
+
+Cada cambio debe declarar:
+
+1. `expand`: objetos, rutas o contratos nuevos agregados sin romper el legado.
+2. `compatibilidad`: comportamiento legacy preservado durante construccion,
+   certificacion y ventana de rollback.
+3. `deploy`: evidencia de que la aplicacion sigue funcionando durante la
+   promocion.
+4. `contract`: condicion objetiva para retirar legacy y dejar solo el contrato
+   nuevo en produccion.
+5. Rollback: camino probado o documentado para volver al estado funcional previo
+   sin perdida de datos.
+
+Si alguno de estos puntos falta, el cambio queda en `NO-GO` para promocion.
 
 ## H2 Modelo Editorial
 

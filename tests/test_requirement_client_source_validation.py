@@ -12,7 +12,8 @@ CLIENT_SOURCE_HOME = "SRC-REQ-002-HOME"
 CLIENT_SOURCE_RESULTADOS = "SRC-REQ-002-RESULTADOS"
 SANITIZED_ATTESTATION_ID = "ADENDA-REQ-EST-001-001"
 SANITIZED_ATTESTATION_PATH = ".context/backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md"
-CLOSED_H2_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
+H2_CERTIFICATION_PR_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
+H2_CURRENT_COMPAT_STATE = "H2_COMPAT_MERGED_TO_DESARROLLO_PENDING_CERTIFICATION"
 SOURCE_HASHES = {
     "Studiamatch_MVP_Requerimientos_v5.docx": "3537820F93F3A6880BBA22109C020CEDB4334F1AFD905ACEA70E809C9748B107",
     "studiamatch_home.html": "3E84696C000A9F9875853145C8C2CF227E606A5B5F8527184328629C3B1A135D",
@@ -85,6 +86,28 @@ def test_required_pillars_include_functionality_for_critical_changes() -> None:
     assert "| Funcionalidad | `PENDIENTE/APROBADO` |" in pr_template
 
 
+def test_transparent_transition_is_required_for_all_future_changes() -> None:
+    agents = read("AGENTS.md")
+    state = read(".context/estado_del_proyecto.md")
+    plan = read(".context/operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md")
+    master_plan = read(".context/operaciones/plan_maestro_sprint1_h2_h5.md")
+    pr_template = read(".github/pull_request_template.md")
+
+    for text in [agents, state, plan, master_plan, pr_template]:
+        normalized = " ".join(text.split())
+        assert "expand -> compatibilidad -> deploy -> contract" in normalized
+        assert "rollback" in normalized.lower()
+
+    for text in [agents, state, plan, master_plan]:
+        normalized = " ".join(text.split()).lower()
+        assert "transicion transparente" in normalized
+        assert "funcionalidad" in normalized
+        assert "legacy" in normalized
+        assert "produccion" in normalized
+
+    assert "No degradacion funcional" in pr_template
+
+
 def test_h2_closed_evidence_validates_against_sanitized_client_attestation() -> None:
     attestation = read(SANITIZED_ATTESTATION_PATH)
     evidence = read(".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md")
@@ -104,7 +127,7 @@ def test_h2_closed_evidence_validates_against_sanitized_client_attestation() -> 
     assert "marcado pendiente/completo" in attestation
 
     for text in [evidence, hito, task, matrix]:
-        assert CLOSED_H2_STATE in text
+        assert H2_CERTIFICATION_PR_STATE in text or H2_CURRENT_COMPAT_STATE in text
         assert CLIENT_SOURCE_ID in text
         assert SANITIZED_ATTESTATION_ID in text
 
@@ -168,7 +191,7 @@ def test_next_hito_pre_start_gate_is_backed_by_client_source_mapping() -> None:
     matrix3 = read(".context/matrices/matriz_hito_003.md")
     evidence3 = read(".context/evidencias_cliente/sprint_1/evidencia_hito_003.md")
 
-    assert "H2_CERTIFICATION_QA_READ_ONLY_PASSED" in state
+    assert "CERTIFICATION_PROMOTION_PR_REVIEW_AND_DEPLOY_VALIDATION" in state
     assert "| H3 | Administracion editorial autenticada | CA4 | H2 aceptado |" in plan
     assert "| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin despues de H2 aceptado. |" in backlog_index
     assert "`CA4` | Panel `/admin`" in attestation

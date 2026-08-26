@@ -23,7 +23,7 @@ def test_obsidian_is_living_authority_and_redefinition_is_removed():
     state = read(".context/estado_del_proyecto.md")
 
     assert "Esta nota es la autoridad exclusiva del estado vivo" in state
-    assert "H2_CERTIFICATION_QA_READ_ONLY_PASSED" in state
+    assert "H2_COMPAT_MERGED_TO_DESARROLLO_PENDING_CERTIFICATION" in state
     assert "REDEFINICION.md` eliminado definitivamente" in state
     assert not (ROOT / "REDEFINICION.md").exists()
 
