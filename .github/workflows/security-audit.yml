@@ -61,7 +61,7 @@ jobs:
             Dockerfile docker-compose.yml docker-compose.yaml package.json package-lock.json \
             requirements.txt requirements-*.txt web/package.json web/package-lock.json || true)
           if [ -n "$changed" ]; then
-            disallowed=$(printf '%s\n' "$changed" | grep -Ev '^(db/migrations/2026082[56]_h2_(editorial_layer.*|security_advisor_remediation|public_effective_view_public_fields_fix|seed_editorial_field_definitions)\.sql|scripts/(shared/editorial_contract\.py|core/(cleansing_worker|enrichment_worker|sync_vector_worker)\.py|maintenance/h2_(backfill_editorial_state|scan_unauthorized_writers)\.py)|web/src/(lib/supabase\.ts|app/(page\.tsx|HomeContent\.tsx|compare/CompareContent\.tsx|courses/\[institution\]/\[slug\]/(page\.tsx|CourseDetailClient\.tsx)))|\.github/workflows/security-audit\.yml)$' || true)
+            disallowed=$(printf '%s\n' "$changed" | grep -Ev '^(db/migrations/2026082[56]_h2_(editorial_layer.*|security_advisor_remediation|public_effective_view_public_fields_fix|seed_editorial_field_definitions|development_legacy_public_compat)\.sql|scripts/(shared/editorial_contract\.py|core/(cleansing_worker|enrichment_worker|sync_vector_worker)\.py|maintenance/h2_(backfill_editorial_state|scan_unauthorized_writers)\.py)|web/(public/_redirects|src/(lib/supabase\.ts|app/(page\.tsx|HomeContent\.tsx|compare/CompareContent\.tsx|courses/\[institution\]/\[slug\]/(page\.tsx|CourseDetailClient\.tsx))))|\.github/workflows/security-audit\.yml)$' || true)
             if [ -z "$disallowed" ]; then
               echo "protected H2 paths changed with editorial safeguards present"
               exit 0
@@ -98,6 +98,7 @@ jobs:
             tests/test_h2_backfill_editorial_state.py \
             tests/test_h2_editorial_migration.py \
             tests/test_h2_client_evidence_docs.py \
+            tests/test_h2_development_legacy_compat.py \
             tests/test_h2_pipeline_contract.py \
             tests/test_h2_writer_scan.py \
             -q
@@ -158,6 +159,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: bash ../scripts/security/h2_web_mock_smoke.sh
 
   workflow-lint:
     name: actionlint And shellcheck
@@ -180,7 +182,7 @@ jobs:
           set -euo pipefail
           "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/db-sync-to-pro.yml
       - name: Run shellcheck
-        run: shellcheck scripts/security/scan_credentials.sh .githooks/pre-commit .githooks/pre-push
+        run: shellcheck scripts/security/scan_credentials.sh scripts/security/h2_web_mock_smoke.sh .githooks/pre-commit .githooks/pre-push
 
   db-gate:
     name: PostgreSQL DB Change Gate
