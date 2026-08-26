@@ -1,14 +1,14 @@
 # Acta Ejecutiva Canonica Hito 002
 
-Estado: `FREE_DDL_DML_PUBLIC_SURFACE_VALIDATED_PR_READY`.
+Estado: `MERGED_TO_DESARROLLO_CI_GREEN`.
 
 Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`.
 
-Veredicto PR: `GO_TECHNICAL_FOR_PROTECTED_PR`.
+Veredicto PR: `MERGED_TO_DESARROLLO_CI_GREEN`.
 
 Grado de evidencia: `A`.
 
-Esta acta acredita que H2, compuesto por `H2-CA2` y `H2-CA3`, esta implementado y validado tecnicamente en el ambiente Supabase Free de desarrollo. La evidencia queda en GO tecnico para abrir PR protegido hacia `desarrollo` cuando exista autorizacion humana separada. No acredita merge, certificacion, produccion ni aceptacion contractual final sin PR protegido, validaciones CI y aprobacion humana posterior.
+Esta acta acredita que H2, compuesto por `H2-CA2` y `H2-CA3`, esta implementado y validado tecnicamente en el ambiente Supabase Free de desarrollo. PR #458 fue aprobado y mergeado a `desarrollo` con checks verdes. No acredita certificacion, produccion ni aceptacion contractual final sin promocion protegida, validaciones CI y aprobacion humana posterior.
 
 ## Resumen Para Cliente
 
@@ -66,8 +66,9 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | TypeScript | `PASS`. |
 | Static build | `PASS`. |
 | Credential scan | `PASS`. |
-| Security-auditor | `GO tecnico para PR`. |
-| Veredicto PR | `GO_TECHNICAL_FOR_PROTECTED_PR`. |
+| Security-auditor pre-merge | `GO emitido antes de abrir PR #458`. |
+| PR #458 | `APPROVED_AND_MERGED_TO_DESARROLLO@0c9e40f81f2a38141c9c2af170e26ab594b7533d`. |
+| Veredicto PR | `MERGED_TO_DESARROLLO_CI_GREEN`. |
 
 ## Alcance No Incluido
 
@@ -87,4 +88,4 @@ Este hito no despliega produccion, no habilita schedules, no ejecuta writers pro
 
 ## Decision Solicitada
 
-Con esta evidencia, el siguiente paso es autorizar commit, push y PR protegido de H2 hacia `desarrollo`. El PR queda listo para aprobacion tecnica del usuario. La aprobacion de PR no autoriza Supabase Pro, produccion, writers, schedules, canaries, deploys ni DDL/DML adicional.
+Con esta evidencia, el siguiente paso es autorizar promocion protegida de H2 desde `desarrollo` hacia `certificacion`. El merge a `desarrollo` no autoriza Supabase Pro, produccion, writers, schedules, canaries, deploys ni DDL/DML adicional.

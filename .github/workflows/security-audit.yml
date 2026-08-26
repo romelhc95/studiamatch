@@ -92,6 +92,7 @@ jobs:
           python3 -m pytest \
             tests/test_supabase_credentials_contract.py \
             tests/test_security_flow.py \
+            tests/test_obsidian_context_state.py \
             tests/test_editorial_contract.py \
             tests/test_h2_backfill_editorial_state.py \
             tests/test_h2_editorial_migration.py \

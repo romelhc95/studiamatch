@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F11_FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY`
+`F11_H2_MERGED_TO_DESARROLLO_CI_GREEN`
 
 | Control | Estado |
 |---|---|
@@ -25,9 +25,9 @@
 | Acciones remotas | `NORMAL_FLOW_RESTORED` |
 | DB | `FREE_H2_PUBLIC_SURFACE_VALIDATED` |
 | GO documental | `RECEIVED` |
-| GO tecnico PR H2 | `GO_TECHNICAL_FOR_PROTECTED_PR` |
+| PR H2 a desarrollo | `APPROVED_AND_MERGED_458@0c9e40f81f2a38141c9c2af170e26ab594b7533d` |
 | Work package activo | `NONE_SUPERSEDED` |
-| Proximo gate unico | `PR_H2_A_DESARROLLO` |
+| Proximo gate unico | `PROMOTE_DESARROLLO_TO_CERTIFICACION_FOR_H2` |
 
 ## Porcentaje De Avance
 
@@ -35,9 +35,9 @@
 
 | Unidad | Estado | Puntos |
 |---|---|---:|
-| `H2-CA2` | `FREE_DDL_REMEDIATED_READONLY_VERIFIED` | 0 |
-| `H2-CA3` | `FREE_BACKFILL_AND_SEED_VALIDATED` | 0 |
-| `H3-CA4` | `PLANNED_AFTER_H2_ACCEPTED` | 0 |
+| `H2-CA2` | `MERGED_TO_DESARROLLO_CI_GREEN` | 100 |
+| `H2-CA3` | `MERGED_TO_DESARROLLO_CI_GREEN` | 100 |
+| `H3-CA4` | `NEXT_AFTER_H2_CERTIFICATION_GATE` | 0 |
 | `H4-CA5` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA6` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA7` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
@@ -48,7 +48,7 @@
 | `H5-CA11` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H5-CA13R` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 
-`Progreso H2-H5 = 0 / 1200 x 100 = 0%`
+`Progreso H2-H5 = 200 / 1200 x 100 = 16.67%`
 
 ### Homologacion
 
@@ -56,14 +56,14 @@
 
 ## Porcentaje De Desviacion
 
-`FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY`.
+`H2_MERGED_TO_DESARROLLO_CI_GREEN`.
 
 La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
 ## Cumplimiento De Criterios
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
-- Hito 2: DDL Free remediada, backfill editorial, seed diccionario y fix de vista publica aplicados/verificados; PR listo con veredicto `GO_TECHNICAL_FOR_PROTECTED_PR` bajo instruccion humana separada.
+- Hito 2: DDL Free remediada, backfill editorial, seed diccionario y fix de vista publica aplicados/verificados; PR #458 aprobado y mergeado a `desarrollo` con CI verde.
 - Hitos 3-5: planificados segun dependencias del nuevo plan vinculante.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
@@ -76,7 +76,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 - PR #414, #415 y #416 fueron fusionados mediante PR protegidos.
 - El flujo normal de PR protegido queda restaurado para cambios futuros.
-- H2 es el siguiente alcance tecnico despues del PR documental y requiere JIT DB para cualquier DDL/DML.
+- H2 esta mergeado en `desarrollo`; la siguiente accion es promocion protegida a `certificacion` cuando el usuario lo instruya. Cualquier DDL/DML adicional requiere JIT separada.
 - API de tipo de cambio permanece backlog.
 - Ruta canonica contractual futura: `/programas/[slug]`.
 - H2 remediacion Free: `20260826_h2_security_advisor_remediation.sql` aplicado y verificado read-only; backfill Free aplicado con segundo `NOOP`; seed `editorial_field_definitions` aplicado con 41 definiciones y visibilidad publica acotada; `20260826_h2_public_effective_view_public_fields_fix.sql` aplicado y verificado con `0` campos privados en `courses_public_effective` remoto.
@@ -107,7 +107,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 ## Siguientes Pasos
 
-1. Preparar PR H2 limpio hacia `desarrollo` cuando el usuario lo instruya.
+1. Preparar PR protegido `desarrollo -> certificacion` para H2 cuando el usuario lo instruya.
 2. Verificar/publicar las tres fuentes solo si los archivos locales estan disponibles, inspeccionados y sus hashes coinciden.
 3. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
 
@@ -118,6 +118,6 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 ## Proximo Prompt Cavernicola
 
 ```text
-Preparar PR H2 hacia desarrollo.
+Preparar promocion H2 de desarrollo a certificacion.
 No autoriza Supabase Pro, schedules, writers, deploys ni produccion sin aprobacion JIT separada.
 ```

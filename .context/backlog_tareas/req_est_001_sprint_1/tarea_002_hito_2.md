@@ -2,17 +2,17 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `FREE_DDL_DML_PUBLIC_SURFACE_VALIDATED_PR_READY` |
+| Estado | `MERGED_TO_DESARROLLO_CI_GREEN` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Bloqueo | PR protegido con GO tecnico, pendiente de instruccion humana separada; Pro/writers siguen bloqueados |
+| Bloqueo | Promocion protegida a certificacion pendiente de instruccion humana separada; Pro/writers siguen bloqueados |
 
 ## Pendiente
 
-1. Preparar push/PR protegido hacia `desarrollo` cuando el usuario lo instruya.
-2. Mantener evidencia Free aplicada/verificada en el PR.
+1. Preparar PR protegido `desarrollo -> certificacion` para H2 cuando el usuario lo instruya.
+2. Mantener evidencia Free aplicada/verificada como anexo de promocion.
 3. Autorizar DDL/DML Pro JIT solo despues de certificacion y aprobacion separada.
-4. Preservar veredicto `GO_TECHNICAL_FOR_PROTECTED_PR` y grado documental `A` en CI.
+4. Preservar veredicto `MERGED_TO_DESARROLLO_CI_GREEN` y grado documental `A` en CI.
 
 ## Preparacion Actual
 
@@ -29,6 +29,6 @@
 H2 tiene DDL Free aplicada para la capa editorial, forward-fix, remediacion
 Security Advisor, backfill editorial Free con segundo `NOOP` validado y seed
 `editorial_field_definitions` aplicado/verificado y fix de vista publica Free
-aplicado/verificado con `0` campos privados expuestos. Pro, writers, schedules,
-canaries, deploys y cualquier DDL/DML adicional quedan bloqueados sin aprobacion
-JIT separada.
+aplicado/verificado con `0` campos privados expuestos. PR #458 fue aprobado y
+mergeado a `desarrollo` con CI verde. Pro, writers, schedules, canaries, deploys
+y cualquier DDL/DML adicional quedan bloqueados sin aprobacion JIT separada.

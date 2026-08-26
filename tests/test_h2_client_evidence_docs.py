@@ -8,7 +8,7 @@ REQUIRED_DOCS = {
         "must_include": [
             "# Acta Ejecutiva Canonica Hito 002",
             "Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`",
-            "Veredicto PR: `GO_TECHNICAL_FOR_PROTECTED_PR`",
+            "Veredicto PR: `MERGED_TO_DESARROLLO_CI_GREEN`",
             "Grado de evidencia: `A`",
             "H2-CA2",
             "H2-CA3",
@@ -22,9 +22,9 @@ REQUIRED_DOCS = {
             "security_invoker=true",
             "91 passed",
             "h2_pg17_harness_ok",
-            "GO tecnico para PR",
-            "GO_TECHNICAL_FOR_PROTECTED_PR",
-            "no acredita merge",
+            "APPROVED_AND_MERGED_TO_DESARROLLO",
+            "MERGED_TO_DESARROLLO_CI_GREEN",
+            "No acredita certificacion",
             "no autoriza Supabase Pro",
         ],
         "client_language": [
@@ -38,7 +38,7 @@ REQUIRED_DOCS = {
     ".context/matrices/matriz_hito_002.md": {
         "must_include": [
             "Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`",
-            "Veredicto PR: `GO_TECHNICAL_FOR_PROTECTED_PR`",
+            "Veredicto PR: `MERGED_TO_DESARROLLO_CI_GREEN`",
             "Grado de evidencia: `A`",
             "Traduccion para cliente",
             "Modelo editorial separado",
@@ -50,7 +50,7 @@ REQUIRED_DOCS = {
             "Idempotencia de backfill",
             "Escalabilidad de lote",
             "Validacion automatizada",
-            "Aprobacion tecnica para PR",
+            "PR protegido a desarrollo",
             "Campos privados expuestos | 0",
         ],
         "client_language": [
@@ -90,7 +90,7 @@ def test_h2_client_evidence_documents_reach_grade_a() -> None:
 
         assert grade == "A", "; ".join(results)
         assert "IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT" in text
-        assert "GO_TECHNICAL_FOR_PROTECTED_PR" in text
+        assert "MERGED_TO_DESARROLLO_CI_GREEN" in text
         assert "Grado de evidencia: `A`" in text
 
 
@@ -99,7 +99,7 @@ def test_h2_client_evidence_does_not_overstate_delivery_scope() -> None:
         encoding="utf-8"
     )
 
-    assert "No acredita merge" in evidence
+    assert "No acredita certificacion" in evidence
     assert "No acredita" in evidence and "produccion" in evidence
     assert "no autoriza Supabase Pro" in evidence
     assert "writers" in evidence
@@ -113,3 +113,15 @@ def test_h2_matrix_links_technical_controls_to_client_meaning() -> None:
     assert matrix.count("PASS_IN_DEVELOPMENT") >= 15
     assert "H2-CA2" in matrix
     assert "H2-CA3" in matrix
+
+
+def test_h2_client_evidence_records_merged_pr_state() -> None:
+    evidence = (ROOT / ".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md").read_text(
+        encoding="utf-8"
+    )
+    matrix = (ROOT / ".context/matrices/matriz_hito_002.md").read_text(encoding="utf-8")
+
+    assert "PR #458" in evidence
+    assert "0c9e40f81f2a38141c9c2af170e26ab594b7533d" in evidence
+    assert "MERGED_TO_DESARROLLO_CI_GREEN" in evidence
+    assert "MERGED_TO_DESARROLLO_CI_GREEN" in matrix
