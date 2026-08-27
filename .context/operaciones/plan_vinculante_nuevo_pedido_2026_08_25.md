@@ -126,7 +126,11 @@ requiere JIT DDL separado.
 
 Validacion: contratos estaticos/offline, JIT DDL en Supabase Free, backfill JIT
 DML separado, matriz RLS real por rol, advisors, segunda corrida `NOOP` y
-promocion a Pro solo despues de Certification y nuevo JIT.
+promocion a Pro solo despues de Certification y nuevo JIT. Para produccion,
+Pro debe expandirse y verificarse antes del deploy frontend: el frontend legacy
+de `main` debe seguir leyendo `courses` mientras el frontend H2 queda preparado
+para `courses_public_effective`; la revocacion de lectura directa y retiro de
+cohorte son fases `contract` posteriores, no parte del `expand` inicial.
 
 ## H3 Admin
 

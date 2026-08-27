@@ -21,11 +21,11 @@
 | Pilar | Estado | Resultado validado |
 |---|---|---|
 | Funcionalidad | `PENDIENTE/APROBADO` |  |
-| Escalabilidad | `PENDIENTE/APROBADO` |  |
-| Seguridad | `PENDIENTE/APROBADO` |  |
-| Mantenimiento | `PENDIENTE/APROBADO` |  |
-| Calidad | `PENDIENTE/APROBADO` |  |
-| Rendimiento | `PENDIENTE/APROBADO` |  |
+| Escalabilidad |  |  |
+| Seguridad |  |  |
+| Mantenimiento |  |  |
+| Calidad |  |  |
+| Rendimiento |  |  |
 
 ## Transicion Transparente
 
@@ -44,9 +44,11 @@
 - Matriz de trazabilidad:
 - Metricas verificables:
 - Grado de evidencia:
-- Traduccion cliente incluida: `SI/NO`
+- Traduccion cliente incluida:
 
 ## Validaciones
+
+Completar esta tabla solo con resultados realmente ejecutados. Si una validacion no aplica o no pudo ejecutarse, indicarlo explicitamente con causa y riesgo residual.
 
 | Validacion | Resultado |
 |---|---|
@@ -60,19 +62,22 @@
 | security-audit |  |
 | CodeQL |  |
 | Cloudflare Pages |  |
+| Smoke preview |  |
+| Browser snapshot |  |
+| security-auditor |  |
 
 ## Seguridad Y Datos
 
 - [ ] No hay credenciales hardcodeadas ni secretos en logs, errores, URLs, comentarios o evidencia publica del PR.
 - [ ] Los identificadores operativos sensibles o innecesarios se mantienen solo en evidencia interna cuando aplique.
-- [ ] `security-audit` esta verde.
-- [ ] Ejecute `@security-auditor` sobre los cambios y no hay hallazgos criticos/altos.
-- [ ] Cambios DB, produccion, schedules, writers, deploys, secrets o acciones destructivas tienen aprobacion separada.
+- [ ] `security-audit` esta verde en este PR, o queda pendiente con causa y owner.
+- [ ] Ejecute `@security-auditor` sobre los cambios y no hay hallazgos criticos/altos, o existe waiver aprobado.
+- [ ] Cambios DB, produccion, schedules, writers, deploys, secrets o acciones destructivas no se ejecutan en este PR salvo aprobacion JIT separada y documentada.
 
 ## Alcance Y Limites
 
 - [ ] El PR enlaza requerimiento o issue aplicable.
-- [ ] La rama nace de `desarrollo` salvo promocion `desarrollo -> certificacion -> main`.
+- [ ] La rama/base corresponde al flujo autorizado.
 - [ ] El diff no mezcla pedidos independientes.
 - [ ] No se versionan fuentes privadas, `.env*`, artifacts ni salidas generadas.
 - [ ] Si toca rutas protegidas, la justificacion y aprobacion estan en el PR.
@@ -84,5 +89,4 @@
 - [ ] `npm run lint` pasa sin errores cuando hay cambios frontend.
 - [ ] `npx tsc --noEmit` pasa sin errores cuando hay cambios frontend.
 - [ ] Los scripts Python modificados compilan correctamente.
-- [ ] Las pruebas relevantes pasan localmente o en CI.
-- [ ] El historial no contiene commits con credenciales expuestas.
+- [ ] Las pruebas relevantes pasan localmente y/o en CI con resultado documentado.

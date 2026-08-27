@@ -13,24 +13,26 @@ def source(relative: str) -> str:
 def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     workflow = source(".github/workflows/security-audit.yml")
 
-    assert "Promotion Boundary" in workflow
-    assert "post-merge-approval:" in workflow
-    assert "promote/gov-hom-006-o3-req1" in workflow
+    assert "h2-main-production-expand-gate:" in workflow
+    assert "H2 Main Production Expand Gate" in workflow
+    assert "h2_main_production_expand_evidence.json" in workflow
+    assert "github.event.pull_request.base.ref == 'main'" in workflow
     assert "f10-main-boundary:" not in workflow
 
 
 def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
-    workflow = source(".github/workflows/f9-7-contract.yml")
+    assert not (ROOT / ".github/workflows/f9-7-contract.yml").exists()
 
-    assert "workflow_dispatch:" in workflow
-    assert "pull_request:" not in workflow.split("permissions:", 1)[0]
-    assert "push:" not in workflow.split("permissions:", 1)[0]
+    workflow = source(".github/workflows/security-audit.yml")
+    assert "f9-7-contract" not in workflow
+    assert "h2-main-production-expand-gate:" in workflow
 
 
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     workflow = source(".github/workflows/db-sync-to-pro.yml")
 
-    assert "push:" in workflow
+    assert "push:" not in workflow.split("permissions:", 1)[0]
+    assert "workflow_dispatch:" in workflow
     assert "Report pending migrations dry-run" in workflow
     assert "Confirm report-only mode" in workflow
     assert "operation == 'apply'" in workflow
@@ -47,10 +49,13 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "fromJSON(needs.report.outputs.pending_count) > 0" in apply_section
     assert ".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md" in apply_section
     assert "Status: APPROVED_FOR_PRODUCTION_DDL" in apply_section
-    assert "Authorized base SHA:" in apply_section
+    assert "Authorized payload SHA:" in apply_section
+    assert "Authorized candidate SHA:" not in apply_section
+    assert "git merge-base --is-ancestor" in apply_section
     assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in apply_section
     assert 'grep -F "$CANDIDATE_SHA"' not in apply_section
     assert "Verify production controls before migrations" in apply_section
+    assert "NEXT_" + "SUPABASE_PUBLISHABLE_KEY" in apply_section
 
     verify_section = workflow.split("  verify:", 1)[1].split("  defer-fg2:", 1)[0]
     assert "inputs.operation == 'verify'" in verify_section
