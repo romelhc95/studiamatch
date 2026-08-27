@@ -165,3 +165,44 @@ def test_prompt_retroalimentado_standard_is_authoritative() -> None:
             assert term in text
 
     assert "operaciones/estandar_prompts_retroalimentados.md" in state
+
+
+def test_pull_request_template_is_authoritative_and_evidence_driven() -> None:
+    agents = read("AGENTS.md")
+    state = read(".context/estado_del_proyecto.md")
+    standard = read(".context/operaciones/estandar_prompts_retroalimentados.md")
+    template = read(".github/pull_request_template.md")
+
+    required_authority_terms = [
+        ".github/pull_request_template.md",
+        "validaciones necesarias",
+        "resultados reales",
+        "placeholders",
+        "riesgo residual",
+    ]
+    required_template_sections = [
+        "## Resumen",
+        "## Avances Del Cambio",
+        "## Pilares Obligatorios",
+        "## Transicion Transparente",
+        "## Evidencia Para Cliente",
+        "## Validaciones",
+        "## Seguridad Y Datos",
+        "## Alcance Y Limites",
+        "## Checklist Tecnico",
+        "Credential scan",
+        "Python tests",
+        "ESLint",
+        "TypeScript",
+        "Static build",
+        "security-auditor",
+    ]
+
+    for text in (agents, state, standard):
+        for term in required_authority_terms:
+            assert term in text
+
+    for section in required_template_sections:
+        assert section in template
+
+    assert "Completar esta tabla solo con resultados realmente ejecutados" in template

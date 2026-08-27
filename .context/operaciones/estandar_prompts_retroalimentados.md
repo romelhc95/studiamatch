@@ -34,6 +34,7 @@ analizar
 6. El cierre requiere evidencia canonica, criterios cliente, pruebas completas, revisiones especializadas y ausencia de hallazgos HIGH/CRITICAL.
 7. No se ocultan fallos clasificandolos genericamente como historicos o fuera de alcance sin demostrar baseline reproducible.
 8. Cada waiver requiere causa, evidencia reproducible, owner, riesgo, vencimiento y aprobacion humana.
+9. Antes de abrir o actualizar un PR se debe usar `.github/pull_request_template.md` y ejecutar las validaciones necesarias para completar sus tablas con resultados reales. La plantilla no admite placeholders finales ni checks declarados por intencion; si algo no aplica o queda pendiente, se registra causa, riesgo residual y owner.
 
 ## H2REQ1
 

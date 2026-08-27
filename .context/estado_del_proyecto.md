@@ -45,6 +45,12 @@ ocultar fallos como historicos o fuera de alcance sin demostrar baseline; cada
 waiver requiere causa, evidencia reproducible, owner, riesgo, vencimiento y
 aprobacion humana.
 
+Todo PR debe usar la plantilla versionada `.github/pull_request_template.md`.
+Antes de abrir o actualizar un PR se deben ejecutar las validaciones necesarias
+para completar sus secciones con resultados reales. La plantilla no se llena con
+intenciones, placeholders ni omisiones silenciosas; toda validacion no aplicable
+o pendiente debe indicar causa, riesgo residual y owner.
+
 ## Fases
 
 | ID | Fase | Estado | Resultado vigente |
