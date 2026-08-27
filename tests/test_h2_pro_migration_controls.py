@@ -120,3 +120,10 @@ def test_h2_pro_preflight_report_outputs_jit_digest_contract() -> None:
     assert "H2 expected cohort digest: " in text
     assert "h2_pro_preflight_report.py | tee h2-pro-preflight-report.json" in workflow
     assert "Upload H2 Pro preflight report" in workflow
+
+
+def test_h2_pro_expand_reconciles_empty_legacy_crawler_exclusions_drift() -> None:
+    migration = read("db/migrations/20260827_h2_pro_expand_schema_compat.sql")
+
+    assert "DROP TABLE IF EXISTS public.crawler_exclusions;" in migration
+    assert "canonical exclusions live in institution_site_profiles" in migration

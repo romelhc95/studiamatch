@@ -1,6 +1,10 @@
 -- H2 Pro expand: additive editorial schema and compatibility reader.
 -- Scope: Production DDL only after explicit JIT, backup/PITR and manifest approval.
 -- This migration must not revoke legacy public reads from public.courses.
+-- The legacy crawler exclusions table is empty and unreferenced in the Pro
+-- preflight; canonical exclusions live in institution_site_profiles.
+
+DROP TABLE IF EXISTS public.crawler_exclusions;
 
 CREATE SCHEMA IF NOT EXISTS private;
 
