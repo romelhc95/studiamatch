@@ -20,7 +20,7 @@
 
 | Pilar | Estado | Resultado validado |
 |---|---|---|
-| Funcionalidad |  |  |
+| Funcionalidad | `PENDIENTE/APROBADO` |  |
 | Escalabilidad |  |  |
 | Seguridad |  |  |
 | Mantenimiento |  |  |
