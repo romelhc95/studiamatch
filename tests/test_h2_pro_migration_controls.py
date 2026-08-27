@@ -115,6 +115,8 @@ def test_h2_pro_preflight_report_outputs_jit_digest_contract() -> None:
     assert "Duplicados institution_id+slug bloquean" in text
     assert "Objetos H2 Pro ya existen" in text
     assert "H2_ALLOW_CRAWLER_EXCLUSIONS_DRIFT" in text
+    assert "table_has_rows" in text
+    assert "crawler_exclusions_empty" in text
     assert "duplicate_institution_slug_groups" in text
     assert "H2 expected eligible count: " in text
     assert "H2 expected cohort digest: " in text
