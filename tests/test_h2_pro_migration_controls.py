@@ -13,6 +13,7 @@ def test_db_migrate_requires_closed_manifest_for_pro() -> None:
 
     assert "PRO_MIGRATION_MANIFESTS" in text
     assert '"h2-expand-compat"' in text
+    assert '"20260827_h2_pro_enable_legacy_cohort_rls"' in text
     assert '"h2-contract-public-reader"' in text
     assert '"h2-contract-legacy-cohort"' in text
     assert '"h2-rollback-public-reader-contract"' in text
@@ -87,7 +88,7 @@ def test_check_db_parity_has_h2_manifest_specific_contracts() -> None:
 def test_security_audit_runs_h2_pro_harness_and_allows_only_pro_remediation_paths() -> None:
     text = read(".github/workflows/security-audit.yml")
 
-    assert "20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract)" in text
+    assert "20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|enable_legacy_cohort_rls|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract)" in text
     assert "maintenance/(h2_(backfill_editorial_state|scan_unauthorized_writers)|h2_pro_preflight_report|db_migrate|check_db_parity)" in text
     assert "tests/sql/h2_pro_pg17_harness.sql" in text
     assert "tests/test_h2_pro_migration_controls.py" in text
