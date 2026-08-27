@@ -50,6 +50,7 @@ PRO_MIGRATION_MANIFESTS = {
         "20260827_h2_pro_seed_editorial_field_definitions",
         "20260827_h2_pro_backfill_editorial_state",
         "20260827_h2_pro_capture_legacy_cohort",
+        "20260827_h2_pro_enable_legacy_cohort_rls",
     ),
     "h2-contract-public-reader": (
         "20260827_h2_pro_contract_public_reader",

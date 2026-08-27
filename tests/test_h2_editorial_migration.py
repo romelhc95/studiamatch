@@ -16,6 +16,7 @@ PRO_EXPAND = ROOT / "db/migrations/20260827_h2_pro_expand_schema_compat.sql"
 PRO_SEED = ROOT / "db/migrations/20260827_h2_pro_seed_editorial_field_definitions.sql"
 PRO_BACKFILL = ROOT / "db/migrations/20260827_h2_pro_backfill_editorial_state.sql"
 PRO_COHORT = ROOT / "db/migrations/20260827_h2_pro_capture_legacy_cohort.sql"
+PRO_COHORT_RLS = ROOT / "db/migrations/20260827_h2_pro_enable_legacy_cohort_rls.sql"
 PRO_CONTRACT_PUBLIC = ROOT / "db/migrations/20260827_h2_pro_contract_public_reader.sql"
 PRO_CONTRACT_COHORT = ROOT / "db/migrations/20260827_h2_pro_contract_legacy_cohort.sql"
 PRO_ROLLBACK_PUBLIC = ROOT / "db/migrations/20260827_h2_pro_rollback_public_reader_contract.sql"
@@ -426,6 +427,14 @@ def test_h2_pro_expand_includes_idempotent_seed_backfill_and_baselined_cohort() 
     assert "SELECT count(*) INTO effective_count FROM public.courses_public_effective" in cohort
 
 
+def test_h2_pro_private_cohort_enables_rls_without_public_policies() -> None:
+    text = pro_sql(PRO_COHORT_RLS)
+
+    assert "ALTER TABLE private.h2_legacy_public_course_cohort ENABLE ROW LEVEL SECURITY" in text
+    assert "CREATE POLICY" not in text
+    assert "GRANT" not in text
+
+
 def test_h2_pro_contracts_are_separate_and_guarded() -> None:
     public_contract = pro_sql(PRO_CONTRACT_PUBLIC)
     cohort_contract = pro_sql(PRO_CONTRACT_COHORT)
@@ -448,7 +457,7 @@ def test_h2_pro_contracts_are_separate_and_guarded() -> None:
 
 
 def test_h2_pro_migrations_document_jit_scope() -> None:
-    for path in (PRO_EXPAND, PRO_SEED, PRO_BACKFILL, PRO_COHORT, PRO_CONTRACT_PUBLIC, PRO_CONTRACT_COHORT, PRO_ROLLBACK_PUBLIC):
+    for path in (PRO_EXPAND, PRO_SEED, PRO_BACKFILL, PRO_COHORT, PRO_COHORT_RLS, PRO_CONTRACT_PUBLIC, PRO_CONTRACT_COHORT, PRO_ROLLBACK_PUBLIC):
         text = pro_sql(path)
         assert "explicit JIT" in text
         assert "Production" in text
