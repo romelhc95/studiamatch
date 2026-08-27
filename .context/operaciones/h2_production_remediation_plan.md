@@ -79,8 +79,9 @@ compatible que deje operando simultaneamente:
 2. Agregar migraciones productivas separadas y ordenadas:
    - `20260827_h2_pro_expand_schema_compat.sql`: objetos H2 aditivos y vista, sin revocar `courses` legacy.
    - `20260827_h2_pro_seed_editorial_field_definitions.sql`: seed idempotente del diccionario editorial.
-   - `20260827_h2_pro_backfill_editorial_state.sql`: backfill idempotente de estados editoriales no publicados.
-   - `20260827_h2_pro_capture_legacy_cohort.sql`: DML controlado que captura los `224` elegibles de Pro.
+    - `20260827_h2_pro_backfill_editorial_state.sql`: backfill idempotente de estados editoriales no publicados.
+    - `20260827_h2_pro_capture_legacy_cohort.sql`: DML controlado que captura los `224` elegibles de Pro.
+    - `20260827_h2_pro_enable_legacy_cohort_rls.sql`: habilita RLS en la cohorte privada sin grants ni politicas publicas.
    - `20260827_h2_pro_contract_public_reader.sql`: revoca lectura directa a `courses` solo despues del deploy estable.
    - `20260827_h2_pro_contract_legacy_cohort.sql`: retira cohorte solo con paridad strict H2.
 3. Extender `scripts/maintenance/db_migrate.py` para aceptar manifiestos H2 Pro allowlisted, no orden alfabetico libre:
@@ -103,7 +104,7 @@ compatible que deje operando simultaneamente:
 
 | Manifest | Migrations | Gate operacional |
 |---|---|---|
-| `h2-expand-compat` | `20260827_h2_pro_expand_schema_compat`, `20260827_h2_pro_seed_editorial_field_definitions`, `20260827_h2_pro_backfill_editorial_state`, `20260827_h2_pro_capture_legacy_cohort` | Requiere `workflow_dispatch`, environment `Production`, `apply_authorized=true`, `backup_pitr_verified=true`, `ddl_authorization_id`, archivo de autorizacion con `Authorized manifest` y `Authorized candidate SHA`. |
+| `h2-expand-compat` | `20260827_h2_pro_expand_schema_compat`, `20260827_h2_pro_seed_editorial_field_definitions`, `20260827_h2_pro_backfill_editorial_state`, `20260827_h2_pro_capture_legacy_cohort`, `20260827_h2_pro_enable_legacy_cohort_rls` | Requiere `workflow_dispatch`, environment `Production`, `apply_authorized=true`, `backup_pitr_verified=true`, `ddl_authorization_id`, archivo de autorizacion con `Authorized manifest` y `Authorized candidate SHA`. |
 | `h2-contract-public-reader` | `20260827_h2_pro_contract_public_reader` | Solo despues de deploy estable H2 en `main` y ventana de rollback validada. |
 | `h2-contract-legacy-cohort` | `20260827_h2_pro_contract_legacy_cohort` | Solo cuando todo el catalogo requerido este `published + complete + available`; la migracion aborta si queda fila legacy-only. |
 | `h2-rollback-public-reader-contract` | `20260827_h2_pro_rollback_public_reader_contract` | Rollback forward-only de ACLs tras `contract-public-reader`; aborta si la cohorte legacy ya fue retirada. |
