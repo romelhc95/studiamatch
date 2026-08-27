@@ -92,6 +92,16 @@ def table_exists(db: DatabaseClient, table: str) -> bool:
     return res.status_code == 200
 
 
+def table_has_rows(db: DatabaseClient, table: str) -> bool:
+    res = service_get(db, f"{table}?select=*&limit=1")
+    if res.status_code != 200:
+        raise RuntimeError(
+            f"No se pudo verificar si {table} tiene filas: {res.status_code} {(res.text or '')[:200]}"
+        )
+    rows = res.json() if res.content else []
+    return bool(rows)
+
+
 def rpc_exists(db: DatabaseClient, name: str) -> bool:
     res = service_get(db, f"rpc/{name}")
     return res.status_code != 404
@@ -161,6 +171,9 @@ def main() -> None:
     joined = ",".join(public_ids).encode("utf-8")
     digest = "sha256:" + hashlib.sha256(joined).hexdigest()
     crawler_exclusions_present = table_exists(db, "crawler_exclusions")
+    crawler_exclusions_empty = (
+        not table_has_rows(db, "crawler_exclusions") if crawler_exclusions_present else True
+    )
     h2_objects_present = {
         "course_editorial_state": table_exists(db, "course_editorial_state"),
         "courses_public_effective": table_exists(db, "courses_public_effective"),
@@ -178,9 +191,11 @@ def main() -> None:
             "Objetos H2 Pro ya existen antes de h2-expand-compat; revisar drift parcial: "
             + ", ".join(stale_h2_objects)
         )
-    if crawler_exclusions_present and os.environ.get("H2_ALLOW_CRAWLER_EXCLUSIONS_DRIFT") != "true":
+    if crawler_exclusions_present and not crawler_exclusions_empty and os.environ.get(
+        "H2_ALLOW_CRAWLER_EXCLUSIONS_DRIFT"
+    ) != "true":
         raise RuntimeError(
-            "public.crawler_exclusions existe en Pro; corregir drift o versionar waiver JIT antes de h2-expand-compat"
+            "public.crawler_exclusions tiene filas en Pro; corregir drift o versionar waiver JIT antes de h2-expand-compat"
         )
 
     report = {
@@ -194,6 +209,7 @@ def main() -> None:
         "missing_from_public_count": len(missing_from_public),
         "unexpected_public_count": len(unexpected_public),
         "duplicate_institution_slug_groups": duplicate_pair_count,
+        "crawler_exclusions_empty": crawler_exclusions_empty,
         "h2_objects_present": h2_objects_present,
         "jit_lines": [
             "H2 expected eligible count: " + str(len(eligible_ids)),
