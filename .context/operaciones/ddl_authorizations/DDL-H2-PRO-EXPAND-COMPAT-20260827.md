@@ -2,9 +2,9 @@
 
 Status: APPROVED_FOR_PRODUCTION_DDL
 Authorized manifest: h2-expand-compat
-Authorized payload SHA: 3ab8f4874762ec887c5d68437035fde381027c84
+Authorized payload SHA: b6a1a838b94696560b5a32f0ae393803afb3b3f6
 Authorized base SHA: 78c00fc915bb758f907ababec01ea11df4cef118
-Authorized non-auth digest SHA256: sha256:66c4ddea5515d098543ef7844bd74a2220b6d1cbd279255746d51bc08bb35f21
+Authorized non-auth digest SHA256: sha256:558191daf4a60e38a3ddc868417a2893bcc34bc04a2e16b80cc55098803ec880
 H2 expected eligible count: 224
 H2 expected cohort digest: sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9
 Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED
