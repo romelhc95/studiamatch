@@ -1,8 +1,8 @@
 # Matriz Hito 002
 
-Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`.
+Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_CERTIFICATION_NO_MAIN_YET`.
 
-Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`.
+Veredicto PR: `PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE`.
 
 Fuente cliente validada: `SRC-REQ-002` via `ADENDA-REQ-EST-001-001`.
 
@@ -27,7 +27,8 @@ Grado de evidencia: `A`.
 | `H2-CA3` | Escalabilidad de lote | `PASS_IN_DEVELOPMENT` | Tests cubren batches hasta mas de `1000` registros y escenarios de `10000`. | El proceso esta preparado para crecer sin depender de una carga manual unica. |
 | `H2-CA3` | Validacion automatizada | `PASS_IN_DEVELOPMENT` | Suite H2 `91 passed`; harness PG17 `h2_pg17_harness_ok`; credential scan `PASS`. | La entrega esta respaldada por pruebas repetibles, no solo revision manual. |
 | `H2-CLIENT` | Validacion contra fuente cliente | `PASS_CLIENT_SOURCE_ATTESTED` | `SRC-REQ-002` contrastado mediante `ADENDA-REQ-EST-001-001`; CA2 completo y CA3 presentes. | La entrega responde a los criterios aprobados por el cliente sin exponer el documento privado. |
-| `H2-PR` | PR protegido a certificacion | `MERGED_TO_CERTIFICACION_CI_GREEN` | PR #458, PR #459 y PR #460 aprobados/mergeados; checks requeridos verdes. | H2 ya esta en la rama de certificacion y queda listo para QA read-only. |
+| `H2-PR` | PR protegido a certificacion | `PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE` | PR #458, PR #459, PR #460, PR #466 y PR #467 aprobados/mergeados; checks requeridos verdes; deployment `4cc2e34c` estable. | H2 ya esta en la rama de certificacion con compatibilidad legacy validada. |
+| `H2-PRO` | Preparacion productiva | `NO_GO_UNTIL_PRO_EXPAND_COMPAT_VERIFIED` | Pro read-only: `350` cursos totales, `224` activos/verificados elegibles, H2 schema ausente; plan productivo versionado. | Antes de produccion se prepara la base para que el catalogo no desaparezca. |
 
 ## Enlaces Canonicos
 
@@ -52,6 +53,8 @@ Grado de evidencia: `A`.
 | Definiciones privadas protegidas | 16 |
 | Columnas publicas efectivas | 28 |
 | Campos privados expuestos | 0 |
+| Cursos Pro baseline elegible | 224 |
+| Deployment certificacion estable | `4cc2e34c` |
 
 ## Validaciones Minimas Futuras
 
@@ -59,3 +62,4 @@ Grado de evidencia: `A`.
 - Pruebas SQL en PostgreSQL 17 cuando cambie `db/**`.
 - Evidencia por ambiente antes de promover.
 - Aprobacion JIT separada para cualquier DDL/DML, Supabase, backfill o writer.
+- Pro requiere `expand + compatibilidad` verificado antes de cualquier PR efectivo a `main`.

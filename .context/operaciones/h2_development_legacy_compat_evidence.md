@@ -1,6 +1,6 @@
 # H2 Development Legacy Compatibility Evidence
 
-Estado: `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`.
+Estado: `CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`.
 
 Ambiente objetivo: `desarrollo` / Supabase Free.
 
@@ -17,7 +17,7 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 | Compatibilidad funcional Desarrollo local/mock | `GO` | Tests, harness PG17 y smoke web mock validan que la vista compatible renderiza catalogo cuando la API entrega cursos. |
 | Compatibilidad funcional Desarrollo remoto | `GO_AFTER_FREE_MIGRATION` | Post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. |
 | Privacidad de datos editoriales | `GO` | La vista mantiene 28 columnas publicas y cero campos privados/editoriales. |
-| Transparencia para futuro main | `GO_CONDICIONADO` | La misma estrategia debe validarse en Pro con JIT read-only/DDL/DML antes de cualquier merge a `main`. |
+| Transparencia para futuro main | `NO_GO_UNTIL_PRO_EXPAND_COMPAT_VERIFIED` | La misma estrategia debe validarse en Pro con JIT read-only/DDL/DML antes de cualquier merge a `main`; ver [Plan De Remediacion Productiva H2](h2_production_remediation_plan.md). |
 
 ## Pilares Obligatorios
 
@@ -96,6 +96,8 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 | Comparador | `PASS`: `/compare/?ids=cafd93b2-4a2b-403e-b289-d7fd135316c7` carga `Big data`. |
 | Relacionados | `PASS`: `databricks-associate-cf7986c4`, `diploma-devops-engineer-9ff7e7ea` y `azure-data-engineering-13efdc78` responden `200` sin fallback. |
 | Consola navegador | `PASS_WITH_FONT_WARNINGS`: sin React #418 ni 401; solo warnings de preload de fonts no bloqueantes. |
+| PR #466 | `APPROVED_AND_MERGED_TO_DESARROLLO@e8376035d8d5c3e1b7893cbb1ede14f735ccd05d`. |
+| PR #467 | `APPROVED_AND_MERGED_TO_CERTIFICACION@2d499324bb21e750d9bc7c94cb80e7a193062b50`; deployment `4cc2e34c` estable. |
 
 ## Reglas De Cohorte
 
@@ -121,4 +123,5 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 - No autoriza Supabase Pro, produccion, schedules, canaries, deploys, merge a `main` ni publicacion masiva.
 - La aplicacion en Free requiere JIT separada para aplicar la migracion y verificar equivalencia real contra datos remotos.
 - Si el inventario remoto no encuentra cursos elegibles, se permite un seeder condicionado de fixtures solo en Free para validar comportamiento, no como evidencia de catalogo real.
-- PR #466 no debe mergearse sin revision humana. CI requerido, Cloudflare Pages y calidad remota ya estan verificados para `4b66837`.
+- PR #466 y PR #467 ya fueron aprobados y mergeados por flujo protegido.
+- `main` queda en `NO-GO` hasta remediacion productiva Pro: `expand + compatibilidad` verificado, DB Sync H2 por manifest y JIT separada.

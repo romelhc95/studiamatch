@@ -8,11 +8,11 @@
 
 ```text
 FASE = F11
-ESTADO = H2_MERGED_TO_CERTIFICACION_CI_GREEN
+ESTADO = H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED
 H2-H5 = REDEFINED_ACTIVE_SEQUENCE
 active_work_package = NONE_SUPERSEDED
-next_gate = CERTIFICATION_QA_H2_READ_ONLY
-DB = FREE_H2_VALIDATED_BLOCKED_FOR_NEW_DDL_DML_WITHOUT_JIT
+next_gate = PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN
+DB = FREE_H2_VALIDATED_PRO_EXPAND_PENDING_WITHOUT_JIT
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
 
@@ -27,7 +27,7 @@ feat/* o docs/* desde desarrollo
 
 ## Reglas
 
-- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 fue mergeado a `desarrollo` mediante PR #458, el gate documental por PR #459 y promocionado a `certificacion` por PR #460. Queda pendiente QA read-only en `certificacion`.
+- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 fue mergeado a `desarrollo` mediante PR #458, el gate documental por PR #459, promocionado a `certificacion` por PR #460, corregido por PR #466 y promovido nuevamente a `certificacion` por PR #467. Queda pendiente remediacion productiva Pro antes de `main`.
 - Antes de iniciar y al cerrar todo hito/task debe validarse contra la fuente privada cliente usando su atestacion sanitizada versionada; si falla, se corrige primero la documentacion y no se ejecuta el siguiente hito.
 - Work Packages, grants R3, digests documentales, Context Graph y promotion gates historicos quedan superseded y no autorizan ejecucion.
 - Cambios DB, DDL/DML, Supabase, writers, schedules, deploys, produccion, backups y acciones destructivas requieren aprobacion JIT separada.
@@ -47,7 +47,7 @@ feat/* o docs/* desde desarrollo
 
 | Hito | Estado | Gate futuro |
 |---|---|---|
-| H2 | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` | PR H2 separado y aprobacion JIT para DB. |
+| H2 | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | Pro `expand + compatibilidad` y DB Sync H2 por manifest antes de `main`. |
 | H3 | `PLANNED_AFTER_H2_ACCEPTED` | H2 aceptado. |
 | H4 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
 | H5 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
@@ -59,3 +59,4 @@ feat/* o docs/* desde desarrollo
 - Se intenta ejecutar DB Sync, DDL/DML o writer productivo.
 - Se intenta iniciar H2 con DDL/DML, Supabase o backfill sin aprobacion JIT separada.
 - Falta evidencia de compatibilidad, rollback o contraccion legacy para un cambio funcional, DB, UI, pipeline o despliegue.
+- Se intenta promover `certificacion -> main` antes de verificar Pro expandido con baseline `224` y vista `courses_public_effective` compatible.

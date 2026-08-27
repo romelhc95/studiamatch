@@ -12,8 +12,8 @@ CLIENT_SOURCE_HOME = "SRC-REQ-002-HOME"
 CLIENT_SOURCE_RESULTADOS = "SRC-REQ-002-RESULTADOS"
 SANITIZED_ATTESTATION_ID = "ADENDA-REQ-EST-001-001"
 SANITIZED_ATTESTATION_PATH = ".context/backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md"
-H2_CERTIFICATION_PR_STATE = "MERGED_TO_CERTIFICACION_CI_GREEN"
-H2_CURRENT_COMPAT_STATE = "H2_COMPAT_MERGED_TO_DESARROLLO_PENDING_CERTIFICATION"
+H2_CERTIFICATION_PR_STATE = "PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE"
+H2_CURRENT_COMPAT_STATE = "H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED"
 SOURCE_HASHES = {
     "Studiamatch_MVP_Requerimientos_v5.docx": "3537820F93F3A6880BBA22109C020CEDB4334F1AFD905ACEA70E809C9748B107",
     "studiamatch_home.html": "3E84696C000A9F9875853145C8C2CF227E606A5B5F8527184328629C3B1A135D",
@@ -191,7 +191,7 @@ def test_next_hito_pre_start_gate_is_backed_by_client_source_mapping() -> None:
     matrix3 = read(".context/matrices/matriz_hito_003.md")
     evidence3 = read(".context/evidencias_cliente/sprint_1/evidencia_hito_003.md")
 
-    assert "CERTIFICATION_PROMOTION_PR_REVIEW_AND_DEPLOY_VALIDATION" in state
+    assert "PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN" in state
     assert "| H3 | Administracion editorial autenticada | CA4 | H2 aceptado |" in plan
     assert "| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin despues de H2 aceptado. |" in backlog_index
     assert "`CA4` | Panel `/admin`" in attestation
