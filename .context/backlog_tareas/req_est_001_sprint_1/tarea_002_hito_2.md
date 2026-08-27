@@ -2,17 +2,17 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `H2_COMPAT_MERGED_TO_DESARROLLO_PENDING_CERTIFICATION` |
+| Estado | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Bloqueo | PR #466 pendiente de revision humana antes de merge; Pro/writers siguen bloqueados |
+| Bloqueo | Main queda NO-GO hasta remediacion Pro expand+compat verificada; Pro/writers siguen bloqueados sin JIT |
 
 ## Pendiente
 
-1. Revisar/mergear PR #466 solo tras revision humana.
+1. Versionar remediacion productiva H2 y gates para Pro/main.
 2. Mantener evidencia Free aplicada/verificada como anexo de certificacion.
-3. Autorizar DDL/DML Pro JIT solo despues de merge protegido a Desarrollo, promocion a certificacion y QA equivalente.
-4. Preservar veredicto `MERGED_TO_CERTIFICACION_CI_GREEN`, grado documental `A` y validacion contra fuente cliente sanitizada en CI.
+3. Autorizar DDL/DML Pro JIT solo despues de PR protegido de remediacion, backup/PITR y manifest H2 aprobado.
+4. Preservar veredicto de certificacion estable, grado documental `A` y validacion contra fuente cliente sanitizada en CI.
 
 ## Preparacion Actual
 
@@ -43,3 +43,9 @@ JIT separada. La limpieza de calidad de PR #466 retira rewrites de detalle,
 social proof anonimo fuera de Sprint 1 y defaults fabricados del comparador; no
 toca DB y queda validada en preview Cloudflare final `af2ac376` sin React #418,
 sin llamadas legacy `ratings`/`reviews` y sin 404 de rutas exportadas criticas.
+PR #467 promovio la compatibilidad a `certificacion` en
+`2d499324bb21e750d9bc7c94cb80e7a193062b50`; deployment Cloudflare `4cc2e34c`
+estable. El siguiente paso no es main directo: primero debe ejecutarse el plan
+productivo [H2 Production Remediation](../../operaciones/h2_production_remediation_plan.md),
+con `expand + compatibilidad` Pro aditivo, DB Sync H2 por manifest y verificacion
+del baseline Pro `224` antes del deploy frontend.

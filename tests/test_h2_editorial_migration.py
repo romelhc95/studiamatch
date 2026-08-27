@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -11,6 +12,13 @@ SECURITY_REMEDIATION = ROOT / "db/migrations/20260826_h2_security_advisor_remedi
 FIELD_DEFINITIONS_SEED = ROOT / "db/migrations/20260826_h2_seed_editorial_field_definitions.sql"
 PUBLIC_VIEW_FIELDS_FIX = ROOT / "db/migrations/20260826_h2_public_effective_view_public_fields_fix.sql"
 LEGACY_COMPAT = ROOT / "db/migrations/20260826_h2_development_legacy_public_compat.sql"
+PRO_EXPAND = ROOT / "db/migrations/20260827_h2_pro_expand_schema_compat.sql"
+PRO_SEED = ROOT / "db/migrations/20260827_h2_pro_seed_editorial_field_definitions.sql"
+PRO_BACKFILL = ROOT / "db/migrations/20260827_h2_pro_backfill_editorial_state.sql"
+PRO_COHORT = ROOT / "db/migrations/20260827_h2_pro_capture_legacy_cohort.sql"
+PRO_CONTRACT_PUBLIC = ROOT / "db/migrations/20260827_h2_pro_contract_public_reader.sql"
+PRO_CONTRACT_COHORT = ROOT / "db/migrations/20260827_h2_pro_contract_legacy_cohort.sql"
+PRO_ROLLBACK_PUBLIC = ROOT / "db/migrations/20260827_h2_pro_rollback_public_reader_contract.sql"
 
 PRIVATE_PUBLIC_SURFACE_FIELDS = (
     "editorial_status",
@@ -61,6 +69,10 @@ def public_view_fields_fix_sql() -> str:
 
 def legacy_compat_sql() -> str:
     return LEGACY_COMPAT.read_text(encoding="utf-8")
+
+
+def pro_sql(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
 def test_h2_migration_creates_editorial_layer_objects() -> None:
@@ -366,6 +378,104 @@ def test_h2_legacy_compat_preserves_legacy_visible_courses_without_frontend_fall
     assert "SELECT * FROM private.h2_public_courses_effective()" in text
     assert "GRANT SELECT ON TABLE public.courses TO anon" not in text
     assert_no_private_public_surface_fields(text)
+
+
+def test_h2_pro_expand_is_additive_and_preserves_legacy_courses_reader() -> None:
+    text = pro_sql(PRO_EXPAND)
+
+    assert "CREATE TABLE IF NOT EXISTS public.course_editorial_state" in text
+    assert "CREATE TABLE IF NOT EXISTS private.h2_legacy_public_course_cohort" in text
+    assert "CREATE OR REPLACE VIEW public.courses_public_effective" in text
+    assert "WITH (security_invoker = true)" in text
+    assert "is_strict_h2_public" in text
+    assert "is_legacy_public" in text
+    assert "REVOKE SELECT ON TABLE public.courses FROM anon, authenticated" not in text
+    assert "DROP POLICY IF EXISTS courses_select_public ON public.courses" not in text
+    assert "DROP POLICY IF EXISTS \"Public read for courses\" ON public.courses" not in text
+    assert "CREATE OR REPLACE FUNCTION public.h2_public_courses_effective()" not in text
+    assert "GRANT USAGE ON SCHEMA private TO anon, authenticated, service_role" in text
+    assert "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA private FROM PUBLIC, anon, authenticated" in text
+    assert "ALTER DEFAULT PRIVILEGES IN SCHEMA private REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated" in text
+    assert "GRANT EXECUTE ON FUNCTION private.h2_public_courses_effective() TO anon, authenticated, service_role" in text
+    assert "SELECT * FROM private.h2_public_courses_effective()" in text
+    assert "CREATE OR REPLACE FUNCTION public.h2_verify_expand_compat" in text
+    assert "GRANT EXECUTE ON FUNCTION public.h2_verify_expand_compat(INTEGER, TEXT) TO service_role" in text
+    assert "H2 cohort digest mismatch" in text
+    assert "https://canary.invalid/%" in text
+    assert "duplicate course institution_id+slug pairs block idx_courses_institution_slug_h2" in text
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_institution_slug_h2" in text
+    assert "ON public.courses (institution_id, slug)" in text
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_slug_global_h2" not in text
+    assert_no_private_public_surface_fields(text)
+
+
+def test_h2_pro_expand_includes_idempotent_seed_backfill_and_baselined_cohort() -> None:
+    seed = pro_sql(PRO_SEED)
+    backfill = pro_sql(PRO_BACKFILL)
+    cohort = pro_sql(PRO_COHORT)
+
+    assert "ON CONFLICT (field_key) DO UPDATE SET" in seed
+    assert "INSERT INTO public.course_editorial_state" in backfill
+    assert "ON CONFLICT (course_id) DO NOTHING" in backfill
+    assert "private.h2_required_missing_fields(c, '{}'::jsonb)" in backfill
+    assert "current_setting('app.h2_expected_eligible_count')::INTEGER" in cohort
+    assert "current_setting('app.h2_expected_cohort_digest')" in cohort
+    assert "snapshot_ids_sha256" in cohort
+    assert "H2 Pro cohort baseline drift" in cohort
+    assert "H2 Pro cohort digest drift" in cohort
+    assert "SELECT count(*) INTO effective_count FROM public.courses_public_effective" in cohort
+
+
+def test_h2_pro_contracts_are_separate_and_guarded() -> None:
+    public_contract = pro_sql(PRO_CONTRACT_PUBLIC)
+    cohort_contract = pro_sql(PRO_CONTRACT_COHORT)
+
+    assert "REVOKE SELECT ON TABLE public.courses FROM PUBLIC, anon, authenticated" in public_contract
+    assert "REVOKE INSERT ON TABLE public.leads" not in public_contract
+    assert "REVOKE EXECUTE ON FUNCTION public.increment_view_count" not in public_contract
+    assert "DROP TABLE private.h2_legacy_public_course_cohort" not in public_contract
+    assert "missing_count" in public_contract
+    assert "snapshot_ids_sha256" in public_contract
+    assert "remaining_legacy_only" in cohort_contract
+    assert "strict identity mismatch" in cohort_contract
+    assert "https://canary.invalid/%" in cohort_contract
+    assert "RAISE EXCEPTION 'H2 Pro cannot retire legacy cohort" in cohort_contract
+    assert "DROP TABLE private.h2_legacy_public_course_cohort" in cohort_contract
+    assert "DROP FUNCTION IF EXISTS public.h2_public_courses_effective()" in cohort_contract
+    assert "CREATE OR REPLACE FUNCTION public.h2_public_courses_effective()" not in cohort_contract
+    assert "SELECT * FROM private.h2_public_courses_effective()" in cohort_contract
+    assert_no_private_public_surface_fields(cohort_contract)
+
+
+def test_h2_pro_migrations_document_jit_scope() -> None:
+    for path in (PRO_EXPAND, PRO_SEED, PRO_BACKFILL, PRO_COHORT, PRO_CONTRACT_PUBLIC, PRO_CONTRACT_COHORT, PRO_ROLLBACK_PUBLIC):
+        text = pro_sql(path)
+        assert "explicit JIT" in text
+        assert "Production" in text
+
+
+def test_h2_pro_rollback_public_reader_contract_is_forward_only_and_guarded() -> None:
+    text = pro_sql(PRO_ROLLBACK_PUBLIC)
+
+    assert "to_regclass('private.h2_legacy_public_course_cohort') IS NULL" in text
+    assert "Cannot rollback public reader contract after legacy cohort retirement" in text
+    assert "GRANT SELECT ON TABLE public.courses TO anon, authenticated" in text
+    assert "CREATE POLICY courses_select_public" in text
+    assert "CREATE POLICY courses_select_authenticated" in text
+    assert "CREATE POLICY courses_exclude_release_canary" in text
+    assert "AS RESTRICTIVE" in text
+    assert "GRANT INSERT ON TABLE public.leads" not in text
+    assert "GRANT EXECUTE ON FUNCTION public.increment_view_count" not in text
+
+
+def test_h2_pro_security_definer_functions_use_safe_search_path() -> None:
+    for text in (pro_sql(PRO_EXPAND), pro_sql(PRO_CONTRACT_COHORT)):
+        for match in re.finditer(r"CREATE OR REPLACE FUNCTION .*?AS \$\$", text, flags=re.DOTALL):
+            header = match.group(0)
+            if "SECURITY DEFINER" not in header:
+                continue
+            assert "SET search_path = pg_catalog, pg_temp" in header
+            assert "SET search_path = public" not in header
 
 
 def assert_no_private_public_surface_fields(text: str) -> None:

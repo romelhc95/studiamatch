@@ -24,6 +24,16 @@ writers_paused="${PRODUCTION_WRITERS_PAUSED:-}"
 allow_writer="false"
 reason="unsupported_ref"
 
+if [ "$writer" = "DB-SYNC" ]; then
+  if [ "$event_name" != "workflow_dispatch" ]; then
+    reason="db_sync_requires_manual_dispatch"
+  elif [ "$writers_paused" != "true" ]; then
+    reason="production_writers_not_paused_for_db_sync"
+  else
+    allow_writer="true"
+    reason="production_db_sync_allowed"
+  fi
+else
 case "$ref_name" in
   main)
     if [ "$writer" = "PRODUCTION-CANARY" ]; then
@@ -36,15 +46,6 @@ case "$ref_name" in
       else
         allow_writer="true"
         reason="production_canary_allowed"
-      fi
-    elif [ "$writer" = "DB-SYNC" ]; then
-      if [ "$event_name" != "workflow_dispatch" ]; then
-        reason="db_sync_requires_manual_dispatch"
-      elif [ "$writers_paused" != "true" ]; then
-        reason="production_writers_not_paused_for_db_sync"
-      else
-        allow_writer="true"
-        reason="production_db_sync_allowed"
       fi
     elif [ "$event_name" = "schedule" ] && [ "$automation_enabled" != "true" ]; then
       reason="automation_disabled"
@@ -64,6 +65,7 @@ case "$ref_name" in
     fi
     ;;
 esac
+fi
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   {

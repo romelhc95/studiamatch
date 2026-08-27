@@ -62,6 +62,43 @@ REQUIRED_MIGRATIONS = {
     "fase116_public_grant_defense_in_depth",
 }
 
+H2_MANIFEST_MIGRATIONS = {
+    "f10-8-atomic-cleansing-provenance": set(),
+    "h2-expand-compat": {
+        "20260827_h2_pro_expand_schema_compat",
+        "20260827_h2_pro_seed_editorial_field_definitions",
+        "20260827_h2_pro_backfill_editorial_state",
+        "20260827_h2_pro_capture_legacy_cohort",
+    },
+    "h2-contract-public-reader": {
+        "20260827_h2_pro_contract_public_reader",
+    },
+    "h2-contract-legacy-cohort": {
+        "20260827_h2_pro_contract_legacy_cohort",
+    },
+    "h2-rollback-public-reader-contract": {
+        "20260827_h2_pro_rollback_public_reader_contract",
+    },
+}
+
+H2_MANIFEST_REQUIRED_LINEAGE = {
+    "h2-expand-compat": H2_MANIFEST_MIGRATIONS["h2-expand-compat"],
+    "h2-contract-public-reader": (
+        H2_MANIFEST_MIGRATIONS["h2-expand-compat"]
+        | H2_MANIFEST_MIGRATIONS["h2-contract-public-reader"]
+    ),
+    "h2-contract-legacy-cohort": (
+        H2_MANIFEST_MIGRATIONS["h2-expand-compat"]
+        | H2_MANIFEST_MIGRATIONS["h2-contract-public-reader"]
+        | H2_MANIFEST_MIGRATIONS["h2-contract-legacy-cohort"]
+    ),
+    "h2-rollback-public-reader-contract": (
+        H2_MANIFEST_MIGRATIONS["h2-expand-compat"]
+        | H2_MANIFEST_MIGRATIONS["h2-contract-public-reader"]
+        | H2_MANIFEST_MIGRATIONS["h2-rollback-public-reader-contract"]
+    ),
+}
+
 OPERATIONAL_TABLES = {
     "staging_raw",
     "cleansed_programs",
@@ -127,6 +164,56 @@ def service_select(db: DatabaseClient, table: str, columns: str, limit: int = 10
     if res.status_code == 200:
         return res.json()
     raise RuntimeError(f"REST select failed for {table}.{columns}: {res.status_code} {(res.text or '')[:160]}")
+
+
+def public_get(db: DatabaseClient, path: str) -> requests.Response:
+    return requests.get(
+        f"{db.supabase_url}/rest/v1/{path}",
+        headers=db._get_headers(use_service_role=False),
+        timeout=30,
+    )
+
+
+def service_get(db: DatabaseClient, path: str) -> requests.Response:
+    return requests.get(
+        f"{db.supabase_url}/rest/v1/{path}",
+        headers=db._get_headers(use_service_role=True),
+        timeout=30,
+    )
+
+
+def rest_select_all(db: DatabaseClient, table: str, columns: str, *, use_service_role: bool) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    offset = 0
+    limit = 1000
+    while True:
+        res = requests.get(
+            f"{db.supabase_url}/rest/v1/{table}?select={columns}&limit={limit}&offset={offset}",
+            headers=db._get_headers(use_service_role=use_service_role),
+            timeout=30,
+        )
+        if res.status_code != 200:
+            raise RuntimeError(f"REST select failed for {table}.{columns}: {res.status_code} {(res.text or '')[:160]}")
+        page = res.json() if res.content else []
+        rows.extend(page)
+        if len(page) < limit:
+            return rows
+        offset += limit
+
+
+def ordered_ids_digest(ids: list[str]) -> str:
+    import hashlib
+
+    return "sha256:" + hashlib.sha256(",".join(sorted(ids)).encode("utf-8")).hexdigest()
+
+
+def service_post_rpc(db: DatabaseClient, function_name: str, payload: dict[str, Any]) -> requests.Response:
+    return requests.post(
+        f"{db.supabase_url}/rest/v1/rpc/{function_name}",
+        headers=db._get_headers(use_service_role=True),
+        json=payload,
+        timeout=30,
+    )
 
 
 def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, Any]]:
@@ -247,21 +334,6 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
                 "Revisar RLS de courses/institution_site_profiles y production_enabled."
             )
 
-        public_profile_safe_url = (
-            f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
-            "?select=institution_id,production_enabled&production_enabled=eq.true&limit=1"
-        )
-        safe_profile_res = requests.get(
-            public_profile_safe_url,
-            headers=public_headers,
-            timeout=30,
-        )
-        if safe_profile_res.status_code != 200:
-            errors.append(
-                "La policy publica minima de institution_site_profiles no permite leer "
-                f"institution_id/production_enabled: {safe_profile_res.status_code} {(safe_profile_res.text or '')[:200]}"
-            )
-
         public_profile_sensitive_url = (
             f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
             "?select=exclusion_patterns&limit=1"
@@ -303,6 +375,144 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
     if errors:
         return "ERROR", errors
     print("  OK: schema contracts requeridos presentes")
+    return "OK", []
+
+
+def check_h2_manifest_contract(db_target: DatabaseClient, manifest: str | None):
+    if not manifest or manifest == "f10-8-atomic-cleansing-provenance":
+        return "OK", []
+
+    print(f"\n[CHECK H2] Production H2 manifest contract: {manifest}")
+    errors: list[str] = []
+
+    if manifest not in H2_MANIFEST_MIGRATIONS:
+        return "ERROR", [f"Manifest H2 no permitido: {manifest}"]
+
+    expected_count_raw = os.environ.get("H2_EXPECTED_ELIGIBLE_COUNT", "224")
+    expected_digest = os.environ.get("H2_EXPECTED_COHORT_DIGEST")
+    try:
+        expected_count = int(expected_count_raw)
+    except ValueError:
+        return "ERROR", [f"H2_EXPECTED_ELIGIBLE_COUNT invalido: {expected_count_raw}"]
+
+    try:
+        target_migrations = service_select(db_target, "supabase_migrations", "name") or []
+        applied = {row.get("name") for row in target_migrations if row.get("name")}
+        missing = sorted(H2_MANIFEST_REQUIRED_LINEAGE.get(manifest, set()) - applied)
+        if missing:
+            errors.append(f"Migraciones H2 Pro faltantes para {manifest}: {missing}")
+    except Exception as e:
+        errors.append(f"No se pudo verificar supabase_migrations para H2: {e}")
+
+    public_view = public_get(
+        db_target,
+        "courses_public_effective?select=id,slug,name,url,price_pen,price_status,mode,duration,start_date_text&limit=1",
+    )
+    if public_view.status_code != 200:
+        errors.append(
+            "courses_public_effective no esta disponible publicamente: "
+            f"{public_view.status_code} {(public_view.text or '')[:200]}"
+        )
+
+    if not expected_digest:
+        errors.append(f"H2_EXPECTED_COHORT_DIGEST es obligatorio para verificar {manifest}")
+    elif not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_digest):
+        errors.append("H2_EXPECTED_COHORT_DIGEST debe tener formato sha256:<64 hex chars>")
+    else:
+        try:
+            view_ids = [row["id"] for row in rest_select_all(db_target, "courses_public_effective", "id", use_service_role=False) if row.get("id")]
+            view_digest = ordered_ids_digest(view_ids)
+            if len(view_ids) < expected_count:
+                errors.append(f"courses_public_effective contiene menos filas que el baseline: {len(view_ids)} < {expected_count}")
+            if manifest in ("h2-expand-compat", "h2-contract-public-reader", "h2-contract-legacy-cohort", "h2-rollback-public-reader-contract") and view_digest != expected_digest:
+                errors.append(f"courses_public_effective digest mismatch: expected {expected_digest}, got {view_digest}")
+        except Exception as e:
+            errors.append(f"No se pudo verificar identidad publica H2: {e}")
+
+        if manifest == "h2-expand-compat":
+            verify_res = service_post_rpc(
+                db_target,
+                "h2_verify_expand_compat",
+                {
+                    "p_expected_count": expected_count,
+                    "p_expected_cohort_digest": expected_digest,
+                },
+            )
+            if verify_res.status_code not in (200, 201):
+                errors.append(
+                    "h2_verify_expand_compat fallo: "
+                    f"{verify_res.status_code} {(verify_res.text or '')[:240]}"
+                )
+
+    for field in ("editorial_status", "quality_status", "manual_overrides", "missing_fields"):
+        private_field = public_get(
+            db_target,
+            f"courses_public_effective?select={field}&limit=1",
+        )
+        if private_field.status_code == 200:
+            errors.append(f"courses_public_effective expone campo editorial privado: {field}")
+
+    service_view = service_get(db_target, "courses_public_effective?select=id&limit=1")
+    if service_view.status_code != 200:
+        errors.append(
+            "courses_public_effective falla con service role: "
+            f"{service_view.status_code} {(service_view.text or '')[:200]}"
+        )
+
+    public_courses = public_get(db_target, "courses?select=id&limit=1")
+    if manifest in ("h2-expand-compat", "h2-rollback-public-reader-contract"):
+        if public_courses.status_code != 200:
+            errors.append(
+                f"{manifest} debe preservar lectura publica legacy de courses: "
+                f"{public_courses.status_code} {(public_courses.text or '')[:200]}"
+            )
+    else:
+        if public_courses.status_code == 200:
+            errors.append("h2 contract debe retirar lectura publica directa de courses")
+
+    sensitive_profile = public_get(db_target, "institution_site_profiles?select=exclusion_patterns&limit=1")
+    if sensitive_profile.status_code == 200:
+        errors.append("institution_site_profiles.exclusion_patterns esta expuesto publicamente")
+
+    public_headers = db_target._get_headers(use_service_role=False)
+    rpc_checks = [
+        (
+            "atomic_enrichment_promote",
+            {
+                "p_enriched_data": [],
+                "p_cleansed_id": "00000000-0000-0000-0000-000000000000",
+            },
+        ),
+        ("exec_sql", {"sql_text": "select 1"}),
+        (
+            "h2_update_course_quality",
+            {
+                "p_course_id": "00000000-0000-0000-0000-000000000000",
+                "p_missing_fields": [],
+                "p_field_sources": {},
+                "p_field_timestamps": {},
+                "p_request_id": "public-deny-check",
+                "p_payload_hash": "public-deny-check",
+            },
+        ),
+        ("h2_update_course_quality_batch", {"p_items": []}),
+    ]
+    for function_name, payload in rpc_checks:
+        rpc_res = requests.post(
+            f"{db_target.supabase_url}/rest/v1/rpc/{function_name}",
+            headers=public_headers,
+            json=payload,
+            timeout=30,
+        )
+        if rpc_res.status_code not in (401, 403, 404):
+            errors.append(
+                f"RPC {function_name} no fue denegada con publishable key: "
+                f"{rpc_res.status_code} {(rpc_res.text or '')[:160]}"
+            )
+
+    if errors:
+        return "ERROR", errors
+    print("  OK: contrato H2 Pro verificado")
     return "OK", []
 
 
@@ -479,15 +689,22 @@ def main() -> None:
         action="store_true",
         help="Valida solo el target con las credenciales del environment actual. Uso CI cuando GitHub no expone secrets de dos environments en un job.",
     )
+    parser.add_argument(
+        "--h2-manifest",
+        choices=sorted(H2_MANIFEST_MIGRATIONS),
+        help="Ajusta la verificacion target-only al manifiesto Pro aplicado.",
+    )
     args = parser.parse_args()
 
     if args.target_only:
         load_environment(args.env)
         assert_environment(args.env)
         db_target = DatabaseClient()
+        legacy_public_required = args.h2_manifest in (None, "f10-8-atomic-cleansing-provenance", "h2-expand-compat")
         results = [
             ("target_columns", check_target_columns(db_target)),
-            ("schema_contracts", check_schema_contracts(db_target)),
+            ("schema_contracts", check_schema_contracts(db_target, check_public=legacy_public_required)),
+            ("h2_manifest_contract", check_h2_manifest_contract(db_target, args.h2_manifest)),
         ]
         has_error = any(status == "ERROR" for _, (status, _) in results)
         print(f"\n{'=' * 60}")

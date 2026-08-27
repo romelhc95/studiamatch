@@ -23,13 +23,13 @@ def read(path: Path) -> str:
 def test_h2_development_compatibility_closes_hito_acceptance_criteria() -> None:
     text = read(EVIDENCE)
 
-    assert "Estado: `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`" in text
+    assert "Estado: `CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`" in text
     assert "`H2-CA2` Modelo editorial separado | `GO`" in text
     assert "`H2-CA3` Pipeline tolerante a incompletos | `GO`" in text
     assert "Compatibilidad funcional Desarrollo local/mock | `GO`" in text
     assert "Compatibilidad funcional Desarrollo remoto | `GO_AFTER_FREE_MIGRATION`" in text
     assert "Privacidad de datos editoriales | `GO`" in text
-    assert "Transparencia para futuro main | `GO_CONDICIONADO`" in text
+    assert "Transparencia para futuro main | `NO_GO_UNTIL_PRO_EXPAND_COMPAT_VERIFIED`" in text
 
 
 def test_h2_development_compatibility_does_not_overstate_required_pillars() -> None:
@@ -105,7 +105,7 @@ def test_h2_development_readonly_preflight_records_remote_delta() -> None:
     assert "Vista efectiva actual | `227` cursos" in text
     assert "Missing legacy IDs | `0`" in text
     assert "Unexpected effective IDs | `0`" in text
-    assert "PR #466 no debe mergearse sin revision humana" in text
+    assert "PR #466 y PR #467 ya fueron aprobados" in text
 
 
 def test_h2_quality_gate_records_remote_preview_verification() -> None:

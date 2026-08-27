@@ -71,6 +71,20 @@ BEARER_IDENTITY_PATTERN = re.compile(
 # Bearer is denied unless path, runtime identity, provider and source variable
 # all match this closed inventory.
 APPROVED_BEARERS = {
+    ".github/workflows/db-sync-to-pro.yml": {
+        "identities": {"SUPABASE_ACCESS_TOKEN"},
+        "provider": "supabase-management-api",
+        "provider_marker": "api.supabase.com",
+        "provider_env": "SUPABASE_ACCESS_TOKEN",
+        "derivation_marker": "SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}",
+    },
+    ".github/workflows/security-audit.yml": {
+        "identities": {"GITHUB_TOKEN"},
+        "provider": "github-actions-api",
+        "provider_marker": "api.github.com",
+        "provider_env": "GITHUB_TOKEN",
+        "derivation_marker": "GITHUB_TOKEN: ${{ github.token }}",
+    },
     "scripts/core/enrichment_worker.py": {
         "identities": {"CF_API_TOKEN"},
         "provider": "cloudflare-workers-ai",
@@ -171,6 +185,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/maintenance/force_harvest_up.py": "supabase-data-api",
     "scripts/maintenance/generate_sitemap.py": "supabase-data-api",
     "scripts/maintenance/h2_backfill_editorial_state.py": "supabase-data-api-h2-jit-backfill",
+    "scripts/maintenance/h2_pro_preflight_report.py": "supabase-data-api",
     "scripts/maintenance/lightweight_ping.py": "supabase-data-api",
     "scripts/maintenance/merge_exclusions_to_profiles.py": "supabase-data-api",
     "scripts/maintenance/metadata_quality_report.py": "supabase-data-api",
