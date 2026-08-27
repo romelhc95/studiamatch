@@ -59,6 +59,9 @@ def test_db_sync_workflow_uses_manifest_and_authorization_gate() -> None:
     assert '"critical", "high", "error"' in text
     assert "supabase-security-advisors.json" in text
     assert "supabase-performance-advisors.json" in text
+    assert "/advisors/security" in text
+    assert "/advisors/performance" in text
+    assert "/advisors?type=" not in text
     assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in text
     assert "production_control_preflight.sh DB-SYNC --enforce" in text
 

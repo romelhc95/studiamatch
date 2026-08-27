@@ -537,10 +537,10 @@ jobs:
           PY
           mkdir -p h2-production-expand-evidence
           curl -fsSL -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Accept: application/json" \
-            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/advisors?type=security" \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/advisors/security" \
             > h2-production-expand-evidence/supabase-security-advisors.json
           curl -fsSL -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Accept: application/json" \
-            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/advisors?type=performance" \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/advisors/performance" \
             > h2-production-expand-evidence/supabase-performance-advisors.json
           python3 - <<'PY'
           import json
