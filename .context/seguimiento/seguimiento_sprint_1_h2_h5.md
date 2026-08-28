@@ -23,7 +23,8 @@
 | Certificacion tree | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` |
 | Redefinicion de flujo | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` |
 | Acciones remotas | `NORMAL_FLOW_RESTORED` |
-| DB | `FREE_H2_COMPAT_REMOTE_VERIFIED` |
+| DB Free | `FREE_H2_COMPAT_REMOTE_VERIFIED` |
+| DB Pro | `PRO_EXPAND_APPLIED_VERIFY_PENDING` |
 | GO documental | `RECEIVED` |
 | PR H2 a desarrollo | `APPROVED_AND_MERGED_458@0c9e40f81f2a38141c9c2af170e26ab594b7533d` |
 | PR gate documental | `APPROVED_AND_MERGED_459@4f7061585202301760d8068e13edc5c93b0f94e2` |
@@ -35,7 +36,11 @@
 | PR H2 compat desarrollo | `APPROVED_AND_MERGED_466@e8376035d8d5c3e1b7893cbb1ede14f735ccd05d` |
 | PR H2 compat certificacion | `APPROVED_AND_MERGED_467@2d499324bb21e750d9bc7c94cb80e7a193062b50` |
 | Certificacion deployment | `STABLE_4cc2e34c` |
-| Pro remediacion | `PLAN_READY_NO_PRO_APPLY_NO_MAIN_PROMOTION` |
+| PR #477 Security Advisor endpoint | `MERGED_TO_DESARROLLO_AND_CERTIFICATION` |
+| PR #478 RLS cohorte privada | `MERGED_TO_CERTIFICATION` |
+| PR #480/#481 DB Sync verify gate | `MERGED_TO_DESARROLLO_AND_CERTIFICATION` |
+| Pro remediacion | `PRO_EXPAND_APPLIED_VERIFY_PENDING` |
+| Pro verify artifact | `PENDING_DB_SYNC_VERIFY_ON_CERTIFICACION` |
 | Proximo gate unico | `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN` |
 
 ## Porcentaje De Avance
@@ -116,13 +121,14 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 ## Siguientes Pasos
 
-1. Preparar remediacion productiva H2 para Pro/main mediante flujo protegido, sin aplicar Pro ni abrir PR efectivo a `main` hasta tener `expand + compatibilidad` verificado.
-2. Verificar/publicar las tres fuentes solo si los archivos locales estan disponibles, inspeccionados y sus hashes coinciden.
-3. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
+1. Ejecutar `DB Sync to Production` con `operation=verify` sobre `certificacion` para generar el artifact H2 y validar advisors Pro sin hallazgos HIGH/CRITICAL.
+2. Versionar `.context/operaciones/h2_main_production_expand_evidence.json` con el artifact validado.
+3. Abrir PR `certificacion -> main` y asegurar que el gate `H2 Main Production Expand Gate` este verde.
+4. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
 
 ## Fecha
 
-2026-08-25
+2026-08-27
 
 ## Proximo Prompt Cavernicola
 

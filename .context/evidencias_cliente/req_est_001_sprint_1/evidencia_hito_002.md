@@ -85,6 +85,11 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | Gate fuente privada | `tests/test_requirement_client_source_validation.py` con `STUDIAMATCH_PRIVATE_SOURCE_DIR`: `6 passed`. |
 | Veredicto PR | `PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE`. |
 | Remediacion productiva | `PLAN_READY_NO_PRO_APPLY_NO_MAIN_PROMOTION`: ver [Plan De Remediacion Productiva H2](../../operaciones/h2_production_remediation_plan.md). |
+| PR #477 Security Advisor endpoint | `MERGED_TO_DESARROLLO_AND_CERTIFICATION`: forward-fix del endpoint de advisors soportado por Supabase. |
+| PR #478 RLS cohorte privada | `MERGED_TO_CERTIFICATION`: proteccion RLS sobre `private.h2_legacy_public_course_cohort`. |
+| PR #480/#481 DB Sync verify | `MERGED_TO_DESARROLLO_AND_CERTIFICATION`: workflow `db-sync-to-pro.yml` permite no-op apply success bajo `operation=verify` para generar artifact H2. |
+| Pro apply `h2-expand-compat` | `APPLIED_ADITIVE_WITH_BACKUP_PITR`: baseline elegible `224`; writers/schedules/deploys siguen pausados. |
+| Pro verify pendiente | `PENDING_DB_SYNC_VERIFY_ARTIFACT`: se requiere `operation=verify` sobre `certificacion` para validar advisors y versionar evidencia. |
 
 ## Alcance No Incluido
 

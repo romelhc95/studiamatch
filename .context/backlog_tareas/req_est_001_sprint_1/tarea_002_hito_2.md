@@ -9,10 +9,11 @@
 
 ## Pendiente
 
-1. Versionar remediacion productiva H2 y gates para Pro/main.
-2. Mantener evidencia Free aplicada/verificada como anexo de certificacion.
-3. Autorizar DDL/DML Pro JIT solo despues de PR protegido de remediacion, backup/PITR y manifest H2 aprobado.
+1. Ejecutar `DB Sync to Production` con `operation=verify` sobre `certificacion` para generar el artifact H2 y validar advisors Pro sin hallazgos HIGH/CRITICAL.
+2. Versionar `.context/operaciones/h2_main_production_expand_evidence.json` y abrir PR `certificacion -> main`.
+3. Mantener evidencia Free aplicada/verificada como anexo de certificacion.
 4. Preservar veredicto de certificacion estable, grado documental `A` y validacion contra fuente cliente sanitizada en CI.
+5. Cualquier DDL/DML Pro adicional, writer, schedule o deploy requiere aprobacion JIT separada.
 
 ## Preparacion Actual
 
@@ -36,16 +37,15 @@ frontend a `courses`. Post-apply Free detecto `227` cursos legacy elegibles,
 `227` en cohorte, `227` efectivos, `0` faltantes y `0` inesperados; preview #466
 muestra catalogo, detalle y comparador reales. PR #458 fue aprobado y
 mergeado a `desarrollo` con CI verde; PR #459 y PR #460 tambien fueron mergeados
-con CI verde, dejando H2 en `certificacion`. El cierre se valida contra
-`SRC-REQ-002` mediante `ADENDA-REQ-EST-001-001`. Pro, writers, schedules,
-canaries, deploys y cualquier DDL/DML adicional quedan bloqueados sin aprobacion
-JIT separada. La limpieza de calidad de PR #466 retira rewrites de detalle,
-social proof anonimo fuera de Sprint 1 y defaults fabricados del comparador; no
-toca DB y queda validada en preview Cloudflare final `af2ac376` sin React #418,
-sin llamadas legacy `ratings`/`reviews` y sin 404 de rutas exportadas criticas.
-PR #467 promovio la compatibilidad a `certificacion` en
-`2d499324bb21e750d9bc7c94cb80e7a193062b50`; deployment Cloudflare `4cc2e34c`
-estable. El siguiente paso no es main directo: primero debe ejecutarse el plan
-productivo [H2 Production Remediation](../../operaciones/h2_production_remediation_plan.md),
-con `expand + compatibilidad` Pro aditivo, DB Sync H2 por manifest y verificacion
-del baseline Pro `224` antes del deploy frontend.
+con CI verde, dejando H2 en `certificacion`. Post-certificacion se integraron:
+forward-fix del endpoint Security Advisor (PR #477), proteccion RLS sobre la
+cohorte privada (PR #478) y correccion del workflow `DB Sync to Production` para
+verificacion post-apply (PRs #480/#481). El apply del manifiesto Pro
+`h2-expand-compat` fue ejecutado de forma aditiva con backup/PITR verificado y
+baseline elegible `224`. El cierre se valida contra `SRC-REQ-002` mediante
+`ADENDA-REQ-EST-001-001`. Pro, writers, schedules, canaries, deploys y cualquier
+DDL/DML adicional quedan bloqueados sin aprobacion JIT separada. El siguiente paso
+no es main directo: primero debe ejecutarse `DB Sync to Production` con
+`operation=verify` sobre `certificacion`, versionar
+`.context/operaciones/h2_main_production_expand_evidence.json` y abrir el PR
+`certificacion -> main`, segun [H2 Production Remediation](../../operaciones/h2_production_remediation_plan.md).
