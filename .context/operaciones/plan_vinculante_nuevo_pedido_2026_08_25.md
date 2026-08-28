@@ -8,10 +8,10 @@
 
 ```text
 FASE = F11
-ESTADO = H2_MERGED_TO_CERTIFICACION_CI_GREEN
+ESTADO = H2_CLOSED_MAIN_H3_READY_FOR_PROMPT_CONTINUA
 AUTORIDAD = AGENTS.md + .context/estado_del_proyecto.md + Obsidian versionado
 SOPORTE_TEMPORAL_RAIZ = REMOVED
-DB = FREE_H2_VALIDATED_BLOCKED_FOR_NEW_DDL_DML_WITHOUT_JIT
+DB = H2_PRO_EXPAND_VERIFIED_MAIN_PROMOTED
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
 
@@ -141,6 +141,15 @@ RLS/RPC, cola por cursor, filtros por estado editorial/calidad, edicion
 allowlisted, optimistic locking por `version`, publicar/despublicar/archivar con
 auditoria atomica y conflicto visible entre sesiones.
 
+### Pre-arranque H3
+
+Antes de cualquier plan o build se debe listar el plan ejecutable, sus gates y
+la evidencia esperada. La implementacion funcional inicia solo despues del
+prompt humano `continua`. El prompt no sustituye JIT para Supabase/Auth,
+DDL/DML, push, PR, merge o deploy. Cada cambio debe cerrar con checks locales
+en Docker, pilares, criterios de aceptacion, documentacion Obsidian y
+promocion protegida `desarrollo -> certificacion -> main`.
+
 Contrato de credenciales: API key moderna solo en `apikey`; JWT de sesion Auth en
 `Authorization: Bearer`; publishable/secret keys nunca como bearer token.
 
@@ -219,14 +228,15 @@ leads o rutas `/courses`, porque son incompatibles con el nuevo contrato.
 3. JIT Free: inventario, DDL, backfill y RLS.
 4. Promocion H2 por `desarrollo -> certificacion -> main`.
 5. JIT Pro de H2.
-6. PR H3: Auth, RPC y `/admin`.
-7. UAT en Certification y promocion protegida.
-8. PR H1: readiness operacional.
-9. JIT individual para FG1, FG2 y FG3.
-10. PR H4: Home y CA7.
-11. PR H5: Resultados.
-12. Certificacion visual y funcional.
-13. Promocion final a `main`.
+6. Plan H3 listado y prompt `continua` recibido.
+7. PR H3: Auth, RPC y `/admin`.
+8. UAT en Certification y promocion protegida.
+9. PR H1: readiness operacional.
+10. JIT individual para FG1, FG2 y FG3.
+11. PR H4: Home y CA7.
+12. PR H5: Resultados.
+13. Certificacion visual y funcional.
+14. Promocion final a `main`.
 
 Push, PR, merges, mutaciones DB, configuracion Auth, schedules, writers y deploys
 requieren instrucciones humanas separadas.
