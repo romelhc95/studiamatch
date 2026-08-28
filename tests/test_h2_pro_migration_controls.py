@@ -104,6 +104,8 @@ def test_security_audit_runs_h2_pro_harness_and_allows_only_pro_remediation_path
     assert "PR_HEAD_SHA" in text
     assert "git merge-base --is-ancestor \"$evidence_candidate\" \"$PR_HEAD_SHA\"" in text
     assert "change after verified H2 candidate is not allowed" in text
+    assert "governance documentation" in text
+    assert "tests/test_(obsidian_context_state|requirement_client_source_validation|security_flow)" in text
     assert "h2 advisors must be reviewed before main" in text
     assert "committed H2 expand evidence differs from DB Sync artifact" in text
 
