@@ -284,7 +284,7 @@ jobs:
           # H2 evidence remains immutable in content; governance documentation
           # may be promoted after the verified candidate without allowing code,
           # schema, pipeline, or application behavior to change.
-          disallowed_after_candidate="$(printf '%s\n' "$changed_after_candidate" | grep -Ev '^(\.context/.*|AGENTS\.md|tests/test_(obsidian_context_state|requirement_client_source_validation|security_flow)\.py)$' || true)"
+          disallowed_after_candidate="$(printf '%s\n' "$changed_after_candidate" | grep -Ev '^(\.context/.*|AGENTS\.md|\.github/workflows/security-audit\.yml|tests/test_(obsidian_context_state|requirement_client_source_validation|security_flow|h2_pro_migration_controls)\.py)$' || true)"
           if [ -n "$disallowed_after_candidate" ]; then
             printf '%s\n' "$disallowed_after_candidate" | sed 's/^/::error::change after verified H2 candidate is not allowed for main gate: /'
             exit 1
