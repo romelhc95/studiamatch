@@ -2,10 +2,10 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION` |
+| Estado | `READY_FOR_PROMPT_CONTINUA` |
 | Work package | `SUPERSEDED` |
 | Criterio | `H3-CA4` |
-| Gate | Gate fuente cliente aprobado; ejecucion requiere instruccion humana separada |
+| Gate | Fuente cliente aprobada; requiere plan listado y prompt `continua` antes de implementar |
 
 ## Alcance
 
@@ -33,4 +33,4 @@ El pre-arranque de H3 valida `H3-CA4` contra la fuente privada cliente `SRC-REQ-
 
 ## Gate
 
-No ejecuta codigo, DB, UI ni PR de implementacion antes de pasar el gate de fuente cliente y recibir instruccion humana separada. Playwright se habilita desde este hito para UAT y regresion visual/interactiva.
+No ejecuta codigo, DB, UI ni PR de implementacion antes de listar el plan y recibir el prompt `continua`. Playwright se habilita desde este hito para UAT y regresion visual/interactiva. JIT separado sigue siendo obligatorio para cambios Supabase/Auth, DDL/DML, push, PR, merge y deploy.

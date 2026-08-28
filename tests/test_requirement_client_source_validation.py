@@ -14,6 +14,7 @@ SANITIZED_ATTESTATION_ID = "ADENDA-REQ-EST-001-001"
 SANITIZED_ATTESTATION_PATH = ".context/backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md"
 H2_CERTIFICATION_PR_STATE = "PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE"
 H2_CURRENT_COMPAT_STATE = "H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED"
+H2_CLOSED_STATE = "CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN"
 SOURCE_HASHES = {
     "Studiamatch_MVP_Requerimientos_v5.docx": "3537820F93F3A6880BBA22109C020CEDB4334F1AFD905ACEA70E809C9748B107",
     "studiamatch_home.html": "3E84696C000A9F9875853145C8C2CF227E606A5B5F8527184328629C3B1A135D",
@@ -127,7 +128,7 @@ def test_h2_closed_evidence_validates_against_sanitized_client_attestation() -> 
     assert "marcado pendiente/completo" in attestation
 
     for text in [evidence, hito, task, matrix]:
-        assert H2_CERTIFICATION_PR_STATE in text or H2_CURRENT_COMPAT_STATE in text
+        assert H2_CERTIFICATION_PR_STATE in text or H2_CURRENT_COMPAT_STATE in text or H2_CLOSED_STATE in text
         assert CLIENT_SOURCE_ID in text
         assert SANITIZED_ATTESTATION_ID in text
 
@@ -191,7 +192,7 @@ def test_next_hito_pre_start_gate_is_backed_by_client_source_mapping() -> None:
     matrix3 = read(".context/matrices/matriz_hito_003.md")
     evidence3 = read(".context/evidencias_cliente/sprint_1/evidencia_hito_003.md")
 
-    assert "PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN" in state
+    assert "H3_READY_FOR_PROMPT_CONTINUA" in state
     assert "| H3 | Administracion editorial autenticada | CA4 | H2 aceptado |" in plan
     assert "| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin despues de H2 aceptado. |" in backlog_index
     assert "`CA4` | Panel `/admin`" in attestation
@@ -202,7 +203,7 @@ def test_next_hito_pre_start_gate_is_backed_by_client_source_mapping() -> None:
     assert SANITIZED_ATTESTATION_ID in attestation
 
     for text in [hito3, task3, matrix3, evidence3]:
-        assert "PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION" in text
+        assert "READY_FOR_PROMPT_CONTINUA" in text
         assert "H3-CA4" in text
         assert CLIENT_SOURCE_ID in text
         assert SANITIZED_ATTESTATION_ID in text
