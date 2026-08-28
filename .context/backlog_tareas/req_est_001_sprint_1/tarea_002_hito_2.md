@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` |
+| Estado | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Bloqueo | Main queda NO-GO hasta remediacion Pro expand+compat verificada; Pro/writers siguen bloqueados sin JIT |

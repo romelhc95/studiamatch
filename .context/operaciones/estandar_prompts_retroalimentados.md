@@ -35,6 +35,8 @@ analizar
 7. No se ocultan fallos clasificandolos genericamente como historicos o fuera de alcance sin demostrar baseline reproducible.
 8. Cada waiver requiere causa, evidencia reproducible, owner, riesgo, vencimiento y aprobacion humana.
 9. Antes de abrir o actualizar un PR se debe usar `.github/pull_request_template.md` y ejecutar las validaciones necesarias para completar sus tablas con resultados reales. La plantilla no admite placeholders finales ni checks declarados por intencion; si algo no aplica o queda pendiente, se registra causa, riesgo residual y owner.
+10. Antes de cualquier plan o build, el agente debe listar las tareas que ejecutara, los gates y la evidencia esperada. La implementacion funcional solo comienza despues del prompt humano `continua`; ese prompt no reemplaza aprobaciones JIT ni aprobaciones protegidas.
+11. El cierre de cada ciclo exige checks locales en Docker, pilares y criterios de aceptacion, actualizacion Obsidian, transicion `expand -> compatibilidad -> deploy -> contract`, rollback y promocion protegida `desarrollo -> certificacion -> main`. Cualquier NO-GO bloquea el avance hasta su remediacion y revalidacion.
 
 ## H2REQ1
 

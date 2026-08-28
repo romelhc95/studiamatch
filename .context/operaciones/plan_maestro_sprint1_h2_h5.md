@@ -8,7 +8,7 @@
 
 ```text
 FASE = F11
-ESTADO = H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED
+ESTADO = H2_CLOSED_MAIN_H3_READY_FOR_PROMPT_CONTINUA
 H2-H5 = REDEFINED_ACTIVE_SEQUENCE
 active_work_package = NONE_SUPERSEDED
 next_gate = PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN
@@ -47,7 +47,7 @@ feat/* o docs/* desde desarrollo
 
 | Hito | Estado | Gate futuro |
 |---|---|---|
-| H2 | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | Pro `expand + compatibilidad` y DB Sync H2 por manifest antes de `main`. |
+| H2 | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | Pro `expand + compatibilidad` y DB Sync H2 verificados; promoción protegida a `main` completada. |
 | H3 | `PLANNED_AFTER_H2_ACCEPTED` | H2 aceptado. |
 | H4 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
 | H5 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |

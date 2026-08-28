@@ -2,7 +2,7 @@
 
 | Unidad | Estado | Evidencia requerida |
 |---|---|---|
-| `H3-CA4` | `PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION` | Fuente cliente `SRC-REQ-002` validada via `ADENDA-REQ-EST-001-001`; Auth, acceso negativo, cola paginada, edicion allowlisted, optimistic locking, publicar/despublicar, auditoria, static export y UAT Certification. |
+| `H3-CA4` | `READY_FOR_PROMPT_CONTINUA` | Fuente cliente `SRC-REQ-002` validada via `ADENDA-REQ-EST-001-001`; Auth, acceso negativo, cola paginada, edicion allowlisted, optimistic locking, publicar/despublicar, auditoria, static export y UAT Certification. |
 
 ## Validaciones Minimas Futuras
 

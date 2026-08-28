@@ -1,6 +1,6 @@
 # Plan De Remediacion Productiva H2
 
-Estado: `PLAN_IMPLEMENTED_LOCALLY_NO_PRO_APPLY_NO_MAIN_PROMOTION`.
+Estado: `H2_EXPAND_VERIFIED_AND_PROMOTED_MAIN`.
 
 Alias historico preservado para trazabilidad: `PLAN_READY_NO_PRO_APPLY_NO_MAIN_PROMOTION`.
 

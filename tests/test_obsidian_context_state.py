@@ -3,14 +3,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-POST_H2_MERGE_STATE = "H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED"
-POST_H2_PHASE_STATE = "H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED"
+POST_H2_MERGE_STATE = "CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN"
+POST_H2_PHASE_STATE = "H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA"
 H2_MERGE_COMMIT = "0c9e40f81f2a38141c9c2af170e26ab594b7533d"
 H2_CONTEXT_GATE_COMMIT = "4f7061585202301760d8068e13edc5c93b0f94e2"
 H2_CERTIFICATION_MERGE_COMMIT = "0ed6afeec741c698f1111c2ea27357160fa77279"
 H2_COMPAT_DEVELOPMENT_MERGE_COMMIT = "e8376035d8d5c3e1b7893cbb1ede14f735ccd05d"
 H2_COMPAT_CERTIFICATION_MERGE_COMMIT = "2d499324bb21e750d9bc7c94cb80e7a193062b50"
-NEXT_GATE = "PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN"
+NEXT_GATE = "H3_READY_FOR_PROMPT_CONTINUA"
 
 OBSOLETE_POST_MERGE_TOKENS = [
     "DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED",
@@ -54,7 +54,7 @@ def test_obsidian_context_graph_records_h2_post_merge_state() -> None:
     assert f"| `HITO-002` | `{POST_H2_MERGE_STATE}` | `TASK-H2-001` |" in state
     assert f"| Estado | `{POST_H2_MERGE_STATE}` |" in hito
     assert f"| Estado | `{POST_H2_MERGE_STATE}` |" in task
-    assert "Estado: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`" in evidence
+    assert "Estado: `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN`" in evidence
     assert "Veredicto PR: `PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE`" in evidence
     assert "Veredicto PR: `PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE`" in matrix
     assert "GO_AFTER_FREE_MIGRATION" in evidence
@@ -88,7 +88,7 @@ def test_obsidian_context_graph_has_no_obsolete_post_h2_states() -> None:
 def test_obsidian_context_graph_links_are_existing_files() -> None:
     state = read(".context/estado_del_proyecto.md")
 
-    assert "backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md" not in state
+    assert "backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md" in state
     assert (ROOT / ".context/hitos/hito_002.md").exists()
     assert (ROOT / ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md").exists()
     assert (ROOT / ".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md").exists()

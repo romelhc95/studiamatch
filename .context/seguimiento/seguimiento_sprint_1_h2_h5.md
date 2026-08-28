@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F11_H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`
+`F11_H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`
 
 | Control | Estado |
 |---|---|
@@ -24,7 +24,7 @@
 | Redefinicion de flujo | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` |
 | Acciones remotas | `NORMAL_FLOW_RESTORED` |
 | DB Free | `FREE_H2_COMPAT_REMOTE_VERIFIED` |
-| DB Pro | `PRO_EXPAND_APPLIED_VERIFY_PENDING` |
+| DB Pro | `PRO_EXPAND_VERIFIED_MAIN` |
 | GO documental | `RECEIVED` |
 | PR H2 a desarrollo | `APPROVED_AND_MERGED_458@0c9e40f81f2a38141c9c2af170e26ab594b7533d` |
 | PR gate documental | `APPROVED_AND_MERGED_459@4f7061585202301760d8068e13edc5c93b0f94e2` |
@@ -39,7 +39,7 @@
 | PR #477 Security Advisor endpoint | `MERGED_TO_DESARROLLO_AND_CERTIFICATION` |
 | PR #478 RLS cohorte privada | `MERGED_TO_CERTIFICATION` |
 | PR #480/#481 DB Sync verify gate | `MERGED_TO_DESARROLLO_AND_CERTIFICATION` |
-| Pro remediacion | `PRO_EXPAND_APPLIED_VERIFY_PENDING` |
+| Pro remediacion | `PRO_EXPAND_VERIFIED_MAIN` |
 | Pro verify artifact | `PENDING_DB_SYNC_VERIFY_ON_CERTIFICACION` |
 | Proximo gate unico | `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN` |
 
@@ -49,8 +49,8 @@
 
 | Unidad | Estado | Puntos |
 |---|---|---:|
-| `H2-CA2` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | 99 |
-| `H2-CA3` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | 99 |
+| `H2-CA2` | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | 100 |
+| `H2-CA3` | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | 100 |
 | `H3-CA4` | `NEXT_AFTER_H2_CERTIFICATION_QA` | 0 |
 | `H4-CA5` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA6` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
@@ -70,7 +70,7 @@
 
 ## Porcentaje De Desviacion
 
-`H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`.
+`H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`.
 
 La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
