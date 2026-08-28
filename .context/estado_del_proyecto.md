@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-26-F11-H2-CERTIFICATION-STABLE-PRO-REMEDIATION-PLANNED`.
+Snapshot: `SNAPSHOT-2026-08-27-F11-H2-CERT-VERIFY-ARTIFACT-PENDING`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -59,7 +59,7 @@ o pendiente debe indicar causa, riesgo residual y owner.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | H2 compat fue aprobado y mergeado a `certificacion` por PR #467 en `2d499324bb21e750d9bc7c94cb80e7a193062b50`; Cloudflare `4cc2e34c`, CI verde y smoke post-merge estable. Promocion a `main` queda en `NO-GO` hasta ejecutar la remediacion productiva Pro documentada y verificar `expand + compatibilidad` antes del deploy frontend. |
+| `F11` | Activacion documental del nuevo pedido | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | H2 compat fue aprobado y mergeado a `certificacion` por PR #467 en `2d499324bb21e750d9bc7c94cb80e7a193062b50`; Cloudflare `4cc2e34c`, CI verde y smoke post-merge estable. Forward-fix de endpoint Security Advisor (PR #477), ajuste de RLS para cohorte privada (PR #478) y correccion del workflow `DB Sync to Production` para verificacion post-apply (PRs #480/#481) ya estan en `certificacion`. El apply de `h2-expand-compat` en Pro fue completado; promocion a `main` queda en `NO-GO` hasta generar el artifact de verificacion H2 y validar `expand + compatibilidad`. |
 
 ## Subfases F10
 
@@ -119,7 +119,8 @@ o pendiente debe indicar causa, riesgo residual y owner.
 | Soporte temporal raiz | `REMOVED` | `REDEFINICION.md` eliminado definitivamente; no debe recrearse. |
 | Plan vinculante | `MOVED_TO_OBSIDIAN` | [Plan vinculante nuevo pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md). |
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
-| Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED_PRO_EXPAND_PENDING` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed, fix de vista y compatibilidad aplicados/verificados en Supabase Free. Pro read-only confirma que H2 schema aun no existe y que el baseline elegible productivo es `224`. |
+| CI/CD DB Sync Pro | `H2_VERIFY_NO_OP_APPLY_GATE_FIXED` | Workflow `db-sync-to-pro.yml` ajustado en PRs #480/#481 para que el job `Apply pending migrations` tenga exito como no-op bajo `operation=verify` cuando no hay migraciones pendientes, permitiendo generar el artifact H2 requerido por `security-audit`. |
+| Base de datos | `PRO_EXPAND_APPLIED_VERIFY_PENDING` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed, fix de vista y compatibilidad legacy aplicados/verificados en Supabase Free. El apply del manifiesto `h2-expand-compat` fue ejecutado en Pro de forma aditiva con backup/PITR verificado; baseline elegible productivo `224`. Pendiente ejecutar `DB Sync to Production` con `operation=verify` sobre `certificacion` para generar el artifact H2 y validar advisors sin hallazgos HIGH/CRITICAL. |
 | Evidencia cliente | `GRADE_A_CLIENT_SOURCE_VALIDATED_H2_CERTIFICACION` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, validacion contra `SRC-REQ-002` via adenda sanitizada, PRs #458/#459/#460 mergeados y QA read-only definida. |
 | QA certificacion previa | `PASS_CERTIFICATION_READ_ONLY_QA` | [QA H2/H3 read-only](operaciones/h2_h3_certification_readonly_qa.md) ejecutada antes de la compatibilidad legacy: suite `108 passed`, build/static smoke PASS, vista publica sin privados y advisors sin bloqueantes H2. |
 | Compatibilidad Desarrollo | `MERGED_TO_DESARROLLO_READY_FOR_CERTIFICATION_PROMOTION` | PR #466 mergeado a `desarrollo` en `e8376035d8d5c3e1b7893cbb1ede14f735ccd05d`; post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Preview final `af2ac376` valida Home, detalle, comparador, HTML inicial correcto, bundle sin `ratings`/`reviews` y rutas relacionadas `200`. |
@@ -155,8 +156,12 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es remediacion productiva H2 por flujo protegido: aplicar y
-verificar el manifiesto `h2-expand-compat` en Pro de forma aditiva,
-validar backup/PITR y verificar Pro antes de cualquier PR efectivo a `main`.
-Pro, writers, schedules, produccion, deploys manuales y cambios remotos
-adicionales siguen bloqueados sin JIT separada.
+El siguiente gate es `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`:
+generar la evidencia canonica de verificacion H2 en Pro ejecutando
+`DB Sync to Production` con `operation=verify` sobre `certificacion`,
+confirmar advisors sin hallazgos HIGH/CRITICAL, versionar
+`.context/operaciones/h2_main_production_expand_evidence.json` y abrir el PR
+`certificacion -> main`. Solo con el gate `H2 Main Production Expand Gate`
+verde se autoriza el merge a `main`. Pro, writers, schedules, produccion,
+deploys manuales y cambios remotos adicionales siguen bloqueados sin JIT
+separada.
