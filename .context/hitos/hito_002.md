@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` |
+| Estado | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Gate | Remediacion productiva Pro `h2-expand-compat` antes de PR efectivo a main; Pro/writers/main requieren nueva JIT |

@@ -1,6 +1,6 @@
 # Evidencia Hito 003
 
-Estado: `PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION`. No acredita PASS funcional ni ejecucion H3.
+Estado: `READY_FOR_PROMPT_CONTINUA`. No acredita PASS funcional ni ejecucion H3.
 
 | Campo | Valor requerido |
 |---|---|
