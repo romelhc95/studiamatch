@@ -10,66 +10,30 @@ def source(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_certification_canary_workflow_is_manual_and_environment_bound() -> None:
-    workflow = source(".github/workflows/f9_9_certification_canary.yml")
+def test_f99_certification_canary_workflow_was_retired_for_h2_main_gate() -> None:
+    assert not (ROOT / ".github/workflows/f9_9_certification_canary.yml").exists()
 
+    workflow = source(".github/workflows/db-sync-to-pro.yml")
     assert "workflow_dispatch:" in workflow
-    assert "push:" in workflow
-    assert "branches: [certificacion]" in workflow
+    assert "h2-expand-compat)" in workflow
+    assert 'test "${GITHUB_REF_NAME}" = "certificacion"' in workflow
+    assert "h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract)" in workflow
+    assert 'test "${GITHUB_REF_NAME}" = "main"' in workflow
     assert "schedule:" not in workflow
-    assert "name: Certification" in workflow
-    assert "github.ref_name == 'certificacion'" in workflow
-    assert 'test "$GITHUB_REF_NAME" = "certificacion"' in workflow
-    assert "default: false" in workflow
-    assert "F99_CERTIFICATION_CANARY_MUTABLE_APPROVED=true" in workflow
-    assert "F99_CERTIFICATION_CANARY_SUPABASE_HOST" in workflow
-    assert "F99_CERTIFICATION_CANARY_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}" in workflow
-    assert "parsed.scheme != 'https'" in workflow
-    assert "parsed.username" in workflow
-    assert "port not in (None, 443)" in workflow
-    assert "Production-Scheduled" not in workflow
-    assert "github.ref_name == 'main'" not in workflow
-    assert "fg1_source_slug must be empty or equal to institution_slug" in workflow
-    assert "--no-insert" in workflow
-    assert "inputs.institution_slug" not in workflow
-    assert "inputs.fg1_source_slug" not in workflow
 
 
-def test_certification_canary_workflow_avoids_input_shell_injection_with_secrets() -> None:
-    workflow = source(".github/workflows/f9_9_certification_canary.yml")
+def test_h2_main_gate_replaces_f99_runtime_workflow_checks() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
 
-    run_blocks = "\n".join(block for block in workflow.split("\n      - name:") if "run: |" in block)
-    assert "${{ inputs.max_harvest_urls }}" not in run_blocks
-    assert "${{ inputs.max_staging_records }}" not in run_blocks
-    assert "${{ inputs.max_enrichment_records }}" not in run_blocks
-    assert "${{ inputs.max_sync_records }}" not in run_blocks
-    assert "${{ inputs.max_integrity_courses }}" not in run_blocks
-    assert "SUPABASE_URL: ${{ secrets.SUPABASE_URL }}" in workflow
-    job_env = workflow.split("    steps:", 1)[0]
-    assert "CONFIG_INSTITUTION_SLUG: ${{ secrets.F99_CERTIFICATION_CANARY_INSTITUTION_SLUG }}" in job_env
-    assert "CONFIG_FG1_SOURCE_SLUG: ${{ secrets.F99_CERTIFICATION_CANARY_FG1_SOURCE_SLUG }}" in job_env
-    assert "F99_CERTIFICATION_CANARY_SUPABASE_HOST: ${{ secrets.F99_CERTIFICATION_CANARY_SUPABASE_HOST }}" in job_env
-    assert "vars.F99_CERTIFICATION_CANARY_INSTITUTION_SLUG" not in workflow
-    assert "vars.F99_CERTIFICATION_CANARY_FG1_SOURCE_SLUG" not in workflow
-    assert "vars.F99_CERTIFICATION_CANARY_SUPABASE_HOST" not in workflow
+    assert "h2-main-production-expand-gate:" in workflow
+    assert "H2 Main Production Expand Gate" in workflow
+    assert "h2_main_production_expand_evidence.json" in workflow
+    assert "api.github.com/repos/${REPOSITORY}/actions/runs/${run_id}/artifacts" in workflow
+    assert "supabase-security-advisors.json" in workflow
+    assert "supabase-performance-advisors.json" in workflow
 
 
-def test_certification_canary_masks_private_identifiers_before_github_env() -> None:
-    workflow = source(".github/workflows/f9_9_certification_canary.yml")
-
-    concurrency = workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]
-    assert "institution" not in concurrency.lower()
-    assert "slug" not in concurrency.lower()
-    assert "host" not in concurrency.lower()
-
-    mask_step = workflow.split("Mask Certification private identifiers", 1)[1].split(
-        "Guard Certification target and limits", 1
-    )[0]
-    assert "::add-mask::%s" in mask_step
-    assert "$CONFIG_INSTITUTION_SLUG" in mask_step
-    assert "$CONFIG_FG1_SOURCE_SLUG" in mask_step
-    assert "$F99_CERTIFICATION_CANARY_SUPABASE_HOST" in mask_step
-
+def test_certification_canary_helpers_still_mask_private_identifiers() -> None:
     manifest = source("scripts/core/certification_canary_manifest.py")
     assert manifest.index("_mask_github_value(institution_id)") < manifest.index(
         "handle.write(f\"CANARY_INSTITUTION_ID="
@@ -77,48 +41,6 @@ def test_certification_canary_masks_private_identifiers_before_github_env() -> N
     assert manifest.index("_mask_github_value(institution[\"slug\"])") < manifest.index(
         "_write_github_env(args.github_env"
     )
-
-
-def test_certification_canary_workflow_passes_cohort_limits_to_all_stages() -> None:
-    workflow = source(".github/workflows/f9_9_certification_canary.yml")
-
-    assert "--source-slug \"$source_slug\"" in workflow
-    assert "--institution-slug \"$CANARY_INSTITUTION_SLUG\"" in workflow
-    assert "--max-urls \"$CANARY_MAX_HARVEST_URLS\"" in workflow
-    assert "scripts/core/cleansing_worker.py" in workflow
-    assert "--institution-id \"$CANARY_INSTITUTION_ID\"" in workflow
-    assert "--limit \"$CANARY_MAX_STAGING_RECORDS\"" in workflow
-    assert "scripts/core/enrichment_worker.py" in workflow
-    assert "--limit \"$CANARY_MAX_ENRICHMENT_RECORDS\"" in workflow
-    assert "scripts/core/sync_vector_worker.py" in workflow
-    assert "--limit \"$CANARY_MAX_SYNC_RECORDS\"" in workflow
-    assert "scripts/core/integrity_ping.py" in workflow
-    assert "--limit \"$CANARY_MAX_INTEGRITY_COURSES\"" in workflow
-
-
-def test_certification_canary_workflow_has_actionlint_safe_shell_and_artifacts() -> None:
-    workflow = source(".github/workflows/f9_9_certification_canary.yml")
-
-    assert 'export JOB_START_TIME="$(' not in workflow
-    assert 'JOB_START_TIME="$(date +%s)"' in workflow
-    assert "export JOB_START_TIME" in workflow
-    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" in workflow
-    assert "path: artifacts/f9_9_canary_*.json" in workflow
-    assert "retention-days: 30" in workflow
-
-
-def test_certification_canary_restores_mutable_state_and_checks_idempotence() -> None:
-    workflow = source(".github/workflows/f9_9_certification_canary.yml")
-
-    assert "Stop mutable canary until cleanup is approved" not in workflow
-    assert "Capture private mutable canary pre-state" in workflow
-    assert "certification_canary_state.py snapshot" in workflow
-    assert "Restore mutable canary state" in workflow
-    assert "certification_canary_state.py restore" in workflow
-    assert "Verify mutable canary cleanup idempotence" in workflow
-    assert "--expect-noop" in workflow
-    assert "CANARY_PRIVATE_SNAPSHOT=$RUNNER_TEMP/f9_9_canary_state/private_snapshot.json" in workflow
-    assert "path: artifacts/f9_9_canary_*.json" in workflow
 
 
 def test_runtime_scripts_keep_default_schedules_but_accept_canary_cohort_flags() -> None:
@@ -158,7 +80,7 @@ def test_mutable_canary_writers_mark_row_provenance() -> None:
 
     assert "F99_CERTIFICATION_CANARY_RUN_ID" in harvester
     assert "f99_certification_canary_run_id" in harvester
-    assert "F9.9 certification canary run" in harvester
+    assert "F9.9 certification" in harvester
     assert "f99_certification_canary_run_id" in cleansing
     assert "_mark_canary_metadata" in cleansing
     assert "_verify_canary_cleansed_row" in cleansing
@@ -266,46 +188,33 @@ def test_cleansing_fallback_rejects_cross_institution_url_collision() -> None:
 
 def test_security_audit_f99_runtime_manifest_includes_canary_runtime() -> None:
     workflow = source(".github/workflows/security-audit.yml")
-    runtime_manifest = workflow.split("runtime_paths = {", 1)[1].split("harness_paths =", 1)[0]
 
-    assert ".github/workflows/f9_9_certification_canary.yml" in runtime_manifest
-    assert "scripts/core/certification_canary_manifest.py" in runtime_manifest
-    assert "scripts/core/certification_canary_state.py" in runtime_manifest
-    assert "scripts/core/enrichment_worker.py" in runtime_manifest
-    assert "scripts/core/master_orchestrator.py" in runtime_manifest
+    assert "h2-main-production-expand-gate:" in workflow
+    assert "h2_main_production_expand_evidence.json" in workflow
+    db_sync = source(".github/workflows/db-sync-to-pro.yml")
+    assert "scripts/maintenance/h2_pro_preflight_report.py" in db_sync
+    assert "scripts/maintenance/db_migrate.py" in db_sync
+    assert "scripts/maintenance/check_db_parity.py" in db_sync
 
 
 def test_security_audit_freezes_selective_certification_identity() -> None:
     workflow = source(".github/workflows/security-audit.yml")
 
-    assert "F99_CERTIFICATION_BASELINE: e4ad815624184b692219ca9490347880af8de6b6" in workflow
-    assert "F99_CA1_SOURCE_COMMIT: 456becf94a2bab3d8091c7036509cfb80791a3f9" in workflow
-    assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in workflow
-    assert "source-drift:{path}" in workflow
-    assert "f99-certification-selective" in workflow
-    assert "github.base_ref == 'certificacion'" in workflow
-    assert "F99_REQUIRED" in workflow
-    source_equal_exclusions = workflow.split("source_equal_paths = sorted(runtime_paths - {", 1)[1].split("})", 1)[0]
-    assert "scripts/core/cleansing_worker.py" in source_equal_exclusions
-    assert "scripts/core/enrichment_worker.py" in source_equal_exclusions
-    assert "scripts/core/sync_vector_worker.py" in source_equal_exclusions
-    assert "scripts/core/universal_harvester.py" in source_equal_exclusions
+    assert "h2-main-production-expand-gate:" in workflow
+    assert "github.event.pull_request.base.ref == 'main'" in workflow
+    assert "PR_HEAD_SHA" in workflow
+    assert "expected_artifact" in workflow
+    assert "artifact != committed" in workflow
+    assert "evidence_candidate" in workflow
+    assert "allowed_after_candidate" in workflow
 
 
 def test_security_audit_accepts_certification_canary_redaction_boundary() -> None:
     workflow = source(".github/workflows/security-audit.yml")
 
-    assert "F108_CERTIFICATION_REDACTION_BASELINE: f8bba3c75601b21fa456133b36df9e222db4c685" in workflow
-    assert "f108-certification-canary-redaction:" in workflow
-    assert "F10.8 Certification Canary Redaction" in workflow
-    assert "F108_CERT_REDACTION_REQUIRED" in workflow
-    assert "needs.f108-certification-canary-redaction.result" in workflow
-    redaction_gate = workflow.split("f108-certification-canary-redaction:", 1)[1].split(
-        "f108-main-gate-update:", 1
-    )[0]
-    assert '".github/workflows/f9_9_certification_canary.yml": ("M", "100644")' in redaction_gate
-    assert '".github/workflows/security-audit.yml": ("M", "100755")' in redaction_gate
-    assert '"scripts/core/certification_canary_manifest.py": ("M", "100644")' in redaction_gate
-    assert '"scripts/core/certification_canary_state.py": ("M", "100644")' in redaction_gate
-    assert '"tests/test_fase09_9_certification_canary.py": ("M", "100644")' in redaction_gate
-    assert 'denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")' in redaction_gate
+    assert "H2 Main Production Expand Gate" in workflow
+    assert "archive_download_url" in workflow
+    assert "DDL-[A-Z0-9][A-Z0-9_-]{3,}\\.md" in workflow
+    assert "h2_main_production_expand_evidence.json" in workflow
+    assert "supabase-security-advisors.json" in workflow
+    assert "supabase-performance-advisors.json" in workflow

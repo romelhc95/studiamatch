@@ -2,14 +2,18 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PLANNED_NOT_ACTIVE` |
+| Estado | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | Nuevo pedido explicito y aprobacion DB JIT cuando corresponda |
+| Gate | Remediacion productiva Pro `h2-expand-compat` antes de PR efectivo a main; Pro/writers/main requieren nueva JIT |
 
 ## Alcance
 
-Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. No hay ejecucion activa en F10.11.
+Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. La DDL Free inicial, el forward-fix, la remediacion Security Advisor, el backfill editorial, el seed versionado de `editorial_field_definitions`, el fix `20260826_h2_public_effective_view_public_fields_fix.sql` y la compatibilidad legacy fueron aplicados/verificados en Supabase Free bajo JIT consumidas. PR #458 fue aprobado y mergeado a `desarrollo`; PR #459 agrego el gate documental post-merge; PR #460 promovio H2 base a `certificacion`; PR #466 corrigio compatibilidad/calidad en `desarrollo`; PR #467 promovio la compatibilidad a `certificacion`, todos con checks verdes.
+
+## Validacion Contra Fuente Cliente
+
+El cierre H2 valida `H2-CA2` y `H2-CA3` contra la fuente privada cliente `SRC-REQ-002` mediante la atestacion sanitizada versionada [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md). La fuente privada no se versiona ni se expone en PRs.
 
 ## Contrato Editorial
 
@@ -63,4 +67,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-No inicia durante F10.11. Requiere nuevo pedido explicito, alcance actualizado y aprobacion JIT separada para cualquier DDL/DML.
+DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql`, fix `20260826_h2_public_effective_view_public_fields_fix.sql` y compatibilidad `20260826_h2_development_legacy_public_compat.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`; post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Limpieza de calidad para PR #466 elimina rewrites rotos de detalle, llamadas legacy `ratings`/`reviews` y defaults fabricados del comparador; PR #467 promovio esa compatibilidad a `certificacion` en `2d499324bb21e750d9bc7c94cb80e7a193062b50` con deployment `4cc2e34c` estable. Post-certificacion se aplicaron: forward-fix del endpoint Security Advisor (PR #477), proteccion RLS sobre la cohorte privada `private.h2_legacy_public_course_cohort` (PR #478) y correccion del workflow `DB Sync to Production` para que la verificacion post-apply genere el artifact H2 requerido por el gate de `main` (PRs #480/#481). Pro read-only ya no reporta brecha: el manifiesto Pro `h2-expand-compat` fue aplicado de forma aditiva con backup/PITR verificado y baseline elegible `224`. El cierre a `main` queda en `NO-GO` hasta ejecutar `DB Sync to Production` con `operation=verify` sobre `certificacion`, validar advisors sin hallazgos HIGH/CRITICAL y versionar `.context/operaciones/h2_main_production_expand_evidence.json`, segun [Plan De Remediacion Productiva H2](../operaciones/h2_production_remediation_plan.md). Pro, writers, schedules, canaries, deploys manuales, `main` o cualquier DML adicional requieren aprobacion separada.

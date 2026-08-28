@@ -2,10 +2,10 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PENDING` |
+| Estado | `PLANNED_AFTER_H2_CONTRACT_STABLE` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H5-CA8`, `H5-CA9/CA12`, `H5-CA10`, `H5-CA11`, `H5-CA13R` |
-| Gate | Nuevo pedido explicito |
+| Gate | Contrato H2 estable |
 
 ## Alcance
 

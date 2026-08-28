@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F10.11_SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO_DB_BLOCKED`
+`F11_H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`
 
 | Control | Estado |
 |---|---|
@@ -21,12 +21,27 @@
 | O2 certificacion | `COMPLETED` mediante PR #416 |
 | Certificacion commit | `4e7e41a9fac08e657308849701b4b1f70b994e3b` |
 | Certificacion tree | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` |
-| Redefinicion de flujo | `DEPLOYED_TO_MAIN` |
+| Redefinicion de flujo | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` |
 | Acciones remotas | `NORMAL_FLOW_RESTORED` |
-| DB | `BLOCKED_NO_DDL_DML` |
-| GO cliente | `PENDING` |
+| DB Free | `FREE_H2_COMPAT_REMOTE_VERIFIED` |
+| DB Pro | `PRO_EXPAND_APPLIED_VERIFY_PENDING` |
+| GO documental | `RECEIVED` |
+| PR H2 a desarrollo | `APPROVED_AND_MERGED_458@0c9e40f81f2a38141c9c2af170e26ab594b7533d` |
+| PR gate documental | `APPROVED_AND_MERGED_459@4f7061585202301760d8068e13edc5c93b0f94e2` |
+| PR H2 a certificacion | `APPROVED_AND_MERGED_460@0ed6afeec741c698f1111c2ea27357160fa77279` |
+| Validacion fuente cliente | `SRC-REQ-002_VALIDATED_VIA_ADENDA_SANITIZADA` |
+| Gate fuente privada local | `PASSED_6_TESTS_HASH_MATCH` |
 | Work package activo | `NONE_SUPERSEDED` |
-| Proximo gate unico | `CLIENT_GO_FOR_NEXT_SCOPE` |
+| QA read-only H2/H3 previa | `PASS_CERTIFICATION_READ_ONLY_QA` |
+| PR H2 compat desarrollo | `APPROVED_AND_MERGED_466@e8376035d8d5c3e1b7893cbb1ede14f735ccd05d` |
+| PR H2 compat certificacion | `APPROVED_AND_MERGED_467@2d499324bb21e750d9bc7c94cb80e7a193062b50` |
+| Certificacion deployment | `STABLE_4cc2e34c` |
+| PR #477 Security Advisor endpoint | `MERGED_TO_DESARROLLO_AND_CERTIFICATION` |
+| PR #478 RLS cohorte privada | `MERGED_TO_CERTIFICATION` |
+| PR #480/#481 DB Sync verify gate | `MERGED_TO_DESARROLLO_AND_CERTIFICATION` |
+| Pro remediacion | `PRO_EXPAND_APPLIED_VERIFY_PENDING` |
+| Pro verify artifact | `PENDING_DB_SYNC_VERIFY_ON_CERTIFICACION` |
+| Proximo gate unico | `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN` |
 
 ## Porcentaje De Avance
 
@@ -34,20 +49,20 @@
 
 | Unidad | Estado | Puntos |
 |---|---|---:|
-| `H2-CA2` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H2-CA3` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H3-CA4` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H4-CA5` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H4-CA6` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H4-CA7` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H4-CA13H` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H5-CA8` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H5-CA9/CA12` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H5-CA10` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H5-CA11` | `PLANNED_NOT_ACTIVE` | 0 |
-| `H5-CA13R` | `PLANNED_NOT_ACTIVE` | 0 |
+| `H2-CA2` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | 99 |
+| `H2-CA3` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | 99 |
+| `H3-CA4` | `NEXT_AFTER_H2_CERTIFICATION_QA` | 0 |
+| `H4-CA5` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H4-CA6` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H4-CA7` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H4-CA13H` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H5-CA8` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H5-CA9/CA12` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H5-CA10` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H5-CA11` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
+| `H5-CA13R` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 
-`Progreso H2-H5 = 0 / 1200 x 100 = 0%`
+`Progreso H2-H5 = 198 / 1200 x 100 = 16.50%`
 
 ### Homologacion
 
@@ -55,18 +70,18 @@
 
 ## Porcentaje De Desviacion
 
-`SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO`.
+`H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`.
 
-La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos y trazabilidad insuficiente. La desviacion queda registrada como remediacion documental obligatoria antes de O3.
+La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
 ## Cumplimiento De Criterios
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
-- Hito 2: `PLANNED_NOT_ACTIVE`; no ejecutable sin nuevo pedido explicito y aprobacion JIT para DB.
-- Hitos 3-5: `PENDING`.
+- Hito 2: DDL Free remediada, backfill editorial, seed diccionario, fix de vista publica y compatibilidad legacy aplicados/verificados; PR #458, PR #459, PR #460, PR #466 y PR #467 aprobados/mergeados con CI verde; post-apply Free detecto `227` cursos legacy elegibles, `227` efectivos, `0` faltantes y `0` inesperados; certificacion `4cc2e34c` muestra catalogo, detalle y comparador sin React #418, 401 ni 404 de rutas exportadas criticas; criterios contrastados contra `SRC-REQ-002` via adenda sanitizada.
+- Hitos 3-5: planificados segun dependencias del nuevo plan vinculante.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
-- Redefinicion: `DEPLOYED_TO_MAIN`.
+- Redefinicion: `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO`.
 - Rutas protegidas: sin cambios frente a `origin/main@9b48614`.
 - Leads: schema/flags y CTA visual solamente; cero captura/egress.
 - Schedules: requieren autorizacion separada para cambios de estado.
@@ -75,9 +90,19 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 - PR #414, #415 y #416 fueron fusionados mediante PR protegidos.
 - El flujo normal de PR protegido queda restaurado para cambios futuros.
-- No iniciar H2-H5 sin nuevo pedido explicito.
+- H2 compat esta mergeado en `certificacion` por PR #467 y el despliegue esta estable. La siguiente accion es remediacion productiva Pro/main: `expand + compatibilidad` aditivo, DB Sync H2 por manifest y verificacion de baseline Pro `224` antes de cualquier PR efectivo a `main`. Cualquier DDL/DML adicional requiere JIT separada.
 - API de tipo de cambio permanece backlog.
 - Ruta canonica contractual futura: `/programas/[slug]`.
+- H2 remediacion Free: `20260826_h2_security_advisor_remediation.sql` aplicado y verificado read-only; backfill Free aplicado con segundo `NOOP`; seed `editorial_field_definitions` aplicado con 41 definiciones y visibilidad publica acotada; `20260826_h2_public_effective_view_public_fields_fix.sql` aplicado y verificado con `0` campos privados en `courses_public_effective` remoto.
+
+### Backlog Tecnico Post Requerimiento 1
+
+- `BACKLOG-HIGIENE-EOL-001`: se detectaron nueve archivos con ruido exclusivo CRLF/LF; `git diff --ignore-space-at-eol` no mostro cambios funcionales y fueron restaurados a HEAD para no contaminar H2. Si reaparece el ruido, normalizar EOL en tarea separada.
+- `BACKLOG-MAINT-WRITERS-001`: `scripts/maintenance/lightweight_ping.py` y `scripts/maintenance/preventive_cleanup.py` son herramientas manuales con capacidad de escritura/borrado sobre datos; quedan fuera del alcance H2 actual y deben revisarse despues de cerrar el requerimiento 1 antes de conservarlas, retirarlas o endurecerlas.
+- `BACKLOG-MAINT-REPORTS-001`: reportes legacy en `scripts/maintenance/*audit*.py` y `metadata_quality_report.py` siguen leyendo `courses` directamente; deben evaluarse frente al contrato H2 `courses_public_effective`, RLS/grants y pipeline tolerante antes de reutilizarlos.
+- `BACKLOG-TEST-LEGACY-001`: `tests/test_harvester.py` contiene pruebas de integracion vivas contra Supabase y supuestos legacy sobre `courses`; requiere clasificacion posterior para mantenerlo, aislarlo o migrarlo al contrato H2.
+- `BACKLOG-UTILS-ACTIVE-001`: `scripts/shared/utils.py` es dependencia activa de workers core; no debe eliminarse como basura. Solo corresponde normalizar EOL o modificarlo con alcance tecnico explicito.
+- Estos hallazgos no autorizan cambios de codigo, DB, writers, backfill, schedules ni limpieza destructiva durante H2; se revisaran al finalizar el requerimiento 1.
 
 ## Avances
 
@@ -88,24 +113,26 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 - Archives de desarrollo y certificacion preservados.
 - Fuentes locales verificadas y hasheadas sin versionar contenido.
 - T_CANONICO construido desde PR #327.
-- Flujo simple desplegado; `REDEFINICION.md` queda como soporte temporal sin autoridad independiente.
+- Flujo simple desplegado y luego superseded por GO documental.
+- Soporte temporal raiz eliminado definitivamente; autoridad queda en `AGENTS.md` y Obsidian.
 - WP/digest/Context Graph dejan de ser autoridad ejecutable.
 - PR #413 cerrado sin merge y excluido.
 - PR #414, #415 y #416 fusionados.
 
 ## Siguientes Pasos
 
-1. Esperar GO explicito del cliente para el siguiente alcance.
-2. Archivar o eliminar `REDEFINICION.md` por PR normal cuando exista ese GO.
-3. No tocar DB ni activar H2-H5 sin aprobacion JIT separada cuando aplique.
+1. Ejecutar `DB Sync to Production` con `operation=verify` sobre `certificacion` para generar el artifact H2 y validar advisors Pro sin hallazgos HIGH/CRITICAL.
+2. Versionar `.context/operaciones/h2_main_production_expand_evidence.json` con el artifact validado.
+3. Abrir PR `certificacion -> main` y asegurar que el gate `H2 Main Production Expand Gate` este verde.
+4. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
 
 ## Fecha
 
-2026-08-25
+2026-08-27
 
 ## Proximo Prompt Cavernicola
 
 ```text
-Solicita GO explicito del cliente para el siguiente alcance.
-No autoriza DB, Supabase, schedules, writers ni produccion sin aprobacion JIT separada.
+Preparar remediacion productiva H2: DB Sync H2 por manifest, expand+compat Pro y gates para PR protegido certificacion a main.
+No autoriza Supabase Pro, schedules, writers, deploys manuales, main ni produccion sin aprobacion JIT separada.
 ```

@@ -18,6 +18,7 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
+from shared.editorial_contract import CONTRACT_VERSION, canonical_quality_hash, compute_editorial_state
 from integrity_ping import is_safe_public_url
 from shared.roi_engine import (
     compute_roi,
@@ -365,7 +366,7 @@ class SyncVectorWorker:
             "course_type": enriched.get('degree_type'),
             "category": main_category,
             "is_active": course_is_active,
-            "is_verified": True,
+            "is_verified": is_real_enrichment,
             "last_scraped_at": datetime.now(timezone.utc).isoformat(),
             "provider_used": _mark_canary_provider(enriched.get('provider_used', 'mock')),
             "is_mock_data": not is_real_enrichment,
@@ -395,16 +396,29 @@ class SyncVectorWorker:
                 existing_metadata=enriched.get('metadata'),
             )
             return False
-        manually_disabled = (
-            existing_course.get('is_active') is False
-            or existing_course.get('last_404_at') is not None
-        )
+        manually_disabled = existing_course.get('last_404_at') is not None
         if manually_disabled:
             logger.info(f"⏭️ [SKIP] {name} — manually deactivated, skipping sync")
             self.update_enriched_status(
                 e_id, "synced", existing_metadata=enriched.get('metadata')
             )
             return True
+
+        existing_state = {}
+        if existing_course.get('id'):
+            existing_state_rows = self.db.select_service_raise(
+                'course_editorial_state',
+                filters=f"course_id=eq.{quote(str(existing_course['id']), safe='')}",
+                columns='manual_overrides,field_sources,field_timestamps,manual_updated_at,editorial_status',
+                limit=1,
+            )
+            existing_state = existing_state_rows[0] if existing_state_rows else {}
+            if existing_state.get('editorial_status') == 'archived':
+                logger.info(f"⏭️ [SKIP] {name} — archived editorial state, skipping course sync")
+                self.update_enriched_status(
+                    e_id, "synced", existing_metadata=enriched.get('metadata')
+                )
+                return True
 
         if (
             not is_real_enrichment
@@ -436,6 +450,44 @@ class SyncVectorWorker:
                     roi_payload["roi_months"] = roi_months
                 course_id = synced_course.get('id')
                 if course_id:
+                    if not existing_state:
+                        existing_state_rows = self.db.select_service_raise(
+                            'course_editorial_state',
+                            filters=f"course_id=eq.{quote(str(course_id), safe='')}",
+                            columns='manual_overrides,field_sources,field_timestamps,manual_updated_at,editorial_status',
+                            limit=1,
+                        )
+                        existing_state = existing_state_rows[0] if existing_state_rows else {}
+                    editorial_state = compute_editorial_state(
+                        {**course_data, **synced_course},
+                        manual_overrides=existing_state.get('manual_overrides') or {},
+                        pipeline_timestamp=course_data["last_scraped_at"],
+                        manual_timestamp=existing_state.get('manual_updated_at'),
+                    )
+                    field_timestamps = dict(editorial_state.field_timestamps)
+                    existing_sources = existing_state.get('field_sources') or {}
+                    existing_timestamps = existing_state.get('field_timestamps') or {}
+                    if isinstance(existing_sources, dict) and isinstance(existing_timestamps, dict):
+                        for field, source in editorial_state.field_sources.items():
+                            if source == 'manual_override' and existing_sources.get(field, 'manual_override') == 'manual_override':
+                                existing_timestamp = existing_timestamps.get(field)
+                                if existing_timestamp:
+                                    field_timestamps[field] = existing_timestamp
+                    quality_payload = {
+                        "quality_status": editorial_state.quality_status,
+                        "missing_fields": editorial_state.missing_fields,
+                        "field_sources": editorial_state.field_sources,
+                        "field_timestamps": field_timestamps,
+                    }
+                    payload_hash = canonical_quality_hash(quality_payload)
+                    self.db.rpc_raise('h2_update_course_quality', {
+                        "p_course_id": str(course_id),
+                        "p_missing_fields": quality_payload["missing_fields"],
+                        "p_field_sources": quality_payload["field_sources"],
+                        "p_field_timestamps": quality_payload["field_timestamps"],
+                        "p_request_id": f"sync-vector:{CONTRACT_VERSION}:{e_id}:{payload_hash}",
+                        "p_payload_hash": payload_hash,
+                    })
                     try:
                         self.db.patch_exact_one_raise(
                             'courses',

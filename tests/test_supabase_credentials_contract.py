@@ -71,6 +71,20 @@ BEARER_IDENTITY_PATTERN = re.compile(
 # Bearer is denied unless path, runtime identity, provider and source variable
 # all match this closed inventory.
 APPROVED_BEARERS = {
+    ".github/workflows/db-sync-to-pro.yml": {
+        "identities": {"SUPABASE_ACCESS_TOKEN"},
+        "provider": "supabase-management-api",
+        "provider_marker": "api.supabase.com",
+        "provider_env": "SUPABASE_ACCESS_TOKEN",
+        "derivation_marker": "SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}",
+    },
+    ".github/workflows/security-audit.yml": {
+        "identities": {"GITHUB_TOKEN"},
+        "provider": "github-actions-api",
+        "provider_marker": "api.github.com",
+        "provider_env": "GITHUB_TOKEN",
+        "derivation_marker": "GITHUB_TOKEN: ${{ github.token }}",
+    },
     "scripts/core/enrichment_worker.py": {
         "identities": {"CF_API_TOKEN"},
         "provider": "cloudflare-workers-ai",
@@ -170,6 +184,8 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/maintenance/fix_taxonomy_roi.py": "supabase-data-api",
     "scripts/maintenance/force_harvest_up.py": "supabase-data-api",
     "scripts/maintenance/generate_sitemap.py": "supabase-data-api",
+    "scripts/maintenance/h2_backfill_editorial_state.py": "supabase-data-api-h2-jit-backfill",
+    "scripts/maintenance/h2_pro_preflight_report.py": "supabase-data-api",
     "scripts/maintenance/lightweight_ping.py": "supabase-data-api",
     "scripts/maintenance/merge_exclusions_to_profiles.py": "supabase-data-api",
     "scripts/maintenance/metadata_quality_report.py": "supabase-data-api",
@@ -189,9 +205,12 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/maintenance/validate_dmc_pro_coverage.py": "supabase-data-api",
     "scripts/maintenance/validate_profile_extraction_config.py": "supabase-data-api",
     "scripts/maintenance/verify_pro_schema.py": "supabase-management-api",
+    "scripts/security/h2_web_mock_smoke.sh": "supabase-pattern-test-only",
     "scripts/deprecated/add_exclusion.py": "supabase-data-api",
     "scripts/deprecated/fase32b_migrate_free_to_pro.py": "supabase-data-and-management-api",
     "scripts/deprecated/seed_crawler_exclusions.py": "supabase-data-api",
+    "tests/test_h2_development_legacy_compat.py": "supabase-pattern-test-only",
+    "tests/test_h2_writer_scan.py": "supabase-pattern-test-only",
     "scripts/deprecated/harvesters/continental_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/idat_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/nacional_harvester.py": "supabase-data-api",
@@ -872,6 +891,8 @@ def test_direct_supabase_consumer_inventory_is_complete():
         "supabase-edge-function",
         "supabase-ci",
         "supabase-data-api-test",
+        "supabase-data-api-h2-jit-backfill",
+        "supabase-pattern-test-only",
     }
 
 

@@ -1,18 +1,18 @@
 # Plan Maestro Sprint 1 H2-H5
 
 > Esta nota no crea alcance ni autoriza ejecucion. La autoridad viva esta en
-> [`estado_del_proyecto.md`](../estado_del_proyecto.md). [`REDEFINICION.md`](../../REDEFINICION.md)
-> se conserva como soporte temporal sin autoridad independiente.
+> [`estado_del_proyecto.md`](../estado_del_proyecto.md) y el nuevo plan activo
+> esta en [Plan Vinculante Nuevo Pedido](plan_vinculante_nuevo_pedido_2026_08_25.md).
 
 ## Estado
 
 ```text
-FASE = F10.11
-ESTADO = SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO
-H2-H5 = PLANNED_NOT_ACTIVE
+FASE = F11
+ESTADO = H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED
+H2-H5 = REDEFINED_ACTIVE_SEQUENCE
 active_work_package = NONE_SUPERSEDED
-next_gate = CLIENT_GO_FOR_NEXT_SCOPE
-DB = BLOCKED_NO_DDL_DML_WITHOUT_JIT
+next_gate = PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN
+DB = FREE_H2_VALIDATED_PRO_EXPAND_PENDING_WITHOUT_JIT
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
 
@@ -27,11 +27,13 @@ feat/* o docs/* desde desarrollo
 
 ## Reglas
 
-- H2-H5 no inician durante F10.11.
+- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 fue mergeado a `desarrollo` mediante PR #458, el gate documental por PR #459, promocionado a `certificacion` por PR #460, corregido por PR #466 y promovido nuevamente a `certificacion` por PR #467. Queda pendiente remediacion productiva Pro antes de `main`.
+- Antes de iniciar y al cerrar todo hito/task debe validarse contra la fuente privada cliente usando su atestacion sanitizada versionada; si falla, se corrige primero la documentacion y no se ejecuta el siguiente hito.
 - Work Packages, grants R3, digests documentales, Context Graph y promotion gates historicos quedan superseded y no autorizan ejecucion.
 - Cambios DB, DDL/DML, Supabase, writers, schedules, deploys, produccion, backups y acciones destructivas requieren aprobacion JIT separada.
 - `security-audit` permanece como check requerido.
 - DB Sync permanece manual-only.
+- Todo cambio debe documentar transicion transparente `expand -> compatibilidad -> deploy -> contract`, preservando funcionalidad legacy durante construccion/promocion y retirandola tras estabilizar produccion.
 
 ## Bases De Transicion
 
@@ -45,14 +47,16 @@ feat/* o docs/* desde desarrollo
 
 | Hito | Estado | Gate futuro |
 |---|---|---|
-| H2 | `PLANNED_NOT_ACTIVE` | Nuevo pedido explicito y aprobacion JIT para DB si aplica. |
-| H3 | `PENDING` | H2 aceptado y nuevo pedido explicito. |
-| H4 | `PENDING` | Nuevo pedido explicito. |
-| H5 | `PENDING` | Nuevo pedido explicito. |
+| H2 | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | Pro `expand + compatibilidad` y DB Sync H2 por manifest antes de `main`. |
+| H3 | `PLANNED_AFTER_H2_ACCEPTED` | H2 aceptado. |
+| H4 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
+| H5 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
 
 ## Stop Conditions
 
 - Aparece un secreto o valor credential-like.
 - Cambia una ruta protegida sin aprobacion separada.
 - Se intenta ejecutar DB Sync, DDL/DML o writer productivo.
-- Se intenta iniciar nuevo alcance sin GO del cliente.
+- Se intenta iniciar H2 con DDL/DML, Supabase o backfill sin aprobacion JIT separada.
+- Falta evidencia de compatibilidad, rollback o contraccion legacy para un cambio funcional, DB, UI, pipeline o despliegue.
+- Se intenta promover `certificacion -> main` antes de verificar Pro expandido con baseline `224` y vista `courses_public_effective` compatible.

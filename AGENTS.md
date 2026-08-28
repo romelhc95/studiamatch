@@ -2,7 +2,7 @@
 
 ## Regla De Ejecucion
 
-La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), con estas reglas de ejecucion como contrato operativo. [`REDEFINICION.md`](REDEFINICION.md) es soporte temporal hasta el GO para nuevos pedidos del cliente; no crea autoridad independiente. Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
+La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), con estas reglas de ejecucion como contrato operativo. La documentacion Obsidian versionada bajo [`.context/`](.context/) conserva alcance, decisiones, planes y trazabilidad; ningun documento raiz temporal crea autoridad independiente. Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
 
 Flujo normal:
 
@@ -19,6 +19,12 @@ Reglas obligatorias:
 2. Push, PR, merge, deploys, schedules y cambios de ramas protegidas requieren instruccion humana separada.
 3. Cambios DB, migraciones SQL, DDL/DML, writes Supabase, writers productivos, secretos, backup/restore y acciones destructivas requieren aprobacion JIT separada.
 4. Si aparece drift de scope, baseline, ambiente, secreto o ruta protegida, detente y consulta.
+5. El pedido nuevo de Sprint 1 queda gobernado por `.context/estado_del_proyecto.md` y el plan vinculante Obsidian; `REDEFINICION.md` fue retirado definitivamente y no debe recrearse.
+6. Todo desarrollo futuro del producto debe preservar continuamente funcionalidad, escalabilidad, seguridad, mantenimiento, calidad y rendimiento; ningun hito, task o requerimiento puede cerrarse sin validar esas premisas frente al alcance ejecutado.
+7. Para cualquier nuevo desarrollo con requerimiento cliente, antes de iniciar y al cerrar un hito o task vinculado a un requerimiento, la evidencia canonica debe validar los criterios de aceptacion contra el documento privado del cliente mediante su atestacion sanitizada versionada. El documento privado no se versiona ni se expone en PRs. Si el gate documental contra fuente cliente falla, no se puede ejecutar codigo, DB, UI, pipeline ni PR del hito siguiente hasta corregir la atestacion sanitizada.
+8. Todo cambio funcional, DB, UI, pipeline o despliegue debe planificar una transicion transparente: durante construccion y promocion debe existir una fase de compatibilidad que preserve el comportamiento legacy necesario para que la aplicacion siga funcionando; al llegar y estabilizarse en produccion debe existir una fase de contraccion que retire la funcionalidad legacy y deje activo el nuevo contrato solicitado. Ningun cambio puede cerrarse ni promoverse si no documenta `expand -> compatibilidad -> deploy -> contract`, rollback y evidencia de que funcionalidad no se degrada.
+9. Todo prompt futuro de desarrollo queda bajo `PROMPT_RETROALIMENTADO_REQUIRED`: debe operar por ciclos de analizar, implementar, validar, revisar, convertir hallazgos en tareas, corregir y revalidar hasta cumplir sus criterios de GO. Si requiere JIT, push, PR, merge, deploy, workflow_dispatch, Supabase writes, ramas protegidas o acciones destructivas, debe detenerse y pedir aprobacion humana separada mediante opciones concretas. Ningun GO se declara por intencion, implementacion parcial o pruebas locales cuando el alcance exige evidencia canonica o remota; el cierre exige ausencia de hallazgos HIGH/CRITICAL y cada waiver requiere causa, evidencia reproducible, owner, riesgo, vencimiento y aprobacion humana.
+10. Todo PR debe usar la plantilla versionada `.github/pull_request_template.md`. Antes de abrir o actualizar un PR se deben ejecutar las validaciones necesarias para completar sus tablas con resultados reales; no se permite llenar la plantilla con intenciones, placeholders, omisiones silenciosas ni checks no ejecutados. Si una validacion no aplica o queda pendiente, debe declararse con causa, riesgo residual y owner.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
@@ -93,7 +99,7 @@ python3 scripts/maintenance/<script>.py
 | Free (Desarrollo/Certificación) | `aqrldlmlszjtgpqiegaa` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `.env.local` / `.env.gitdesa` | `Development` / `Certification` |
 | Pro (Producción) | `xwhtiqmboljkshrtviyw` | `https://xwhtiqmboljkshrtviyw.supabase.co` | `.env.gitprod` | `Production` |
 
-**Requisito crítico para Pro**: La función RPC `public.exec_sql(sql_text text)` debe existir en el proyecto Pro para que `db_migrate.py` pueda aplicar migrations. Si `db-sync-to-pro.yml` falla con `PGRST202`, crear la función manualmente en Supabase Dashboard → SQL Editor:
+**Requisito crítico para Pro**: La función RPC `public.exec_sql(sql_text text)` debe existir en el proyecto Pro para que `db_migrate.py` pueda aplicar migrations. Si `db-sync-to-pro.yml` falla con `PGRST202`, primero se debe detener la operación y solicitar aprobación JIT DDL separada. Solo con esa aprobación humana explícita se puede crear o reemplazar la función manualmente en Supabase Dashboard → SQL Editor:
 ```sql
 CREATE OR REPLACE FUNCTION public.exec_sql(sql_text text)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$

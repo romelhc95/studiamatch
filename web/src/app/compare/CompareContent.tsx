@@ -76,42 +76,38 @@ export default function CompareContent() {
       try {
         setLoading(true);
         const queryIds = ids.join(',');
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?id=in.(${queryIds})&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`, {
-          headers: {
-            'apikey': SUPABASE_PUBLISHABLE_KEY
-          }
-        });
+        const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
+        const [response, institutionsResponse, categoriesResponse] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?id=in.(${queryIds})&select=${COURSE_PUBLIC_FIELDS}`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name`, { headers })
+        ]);
 
         if (!response.ok) throw new Error("Failed to fetch courses");
 
         const rawData = await response.json();
+        const institutions = institutionsResponse.ok ? await institutionsResponse.json() : [];
+        const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
         const dataArray = Array.isArray(rawData) ? rawData : [];
+        const institutionArray = Array.isArray(institutions) ? institutions : [];
+        const categoryArray = Array.isArray(categories) ? categories : [];
 
         const enriched = dataArray.map(c => {
-          // Cálculo seguro de ROI en el frontend si falla el backend
-          const investment = c.price_pen || 0;
-          const salary = c.expected_monthly_salary || 4500;
-          const calculatedRoi = investment > 0 ? (investment / salary) : 0;
+          const investment = typeof c.price_pen === "number" && c.price_pen > 0 ? c.price_pen : null;
+          const salary = typeof c.expected_monthly_salary === "number" && c.expected_monthly_salary > 0 ? c.expected_monthly_salary : null;
+          const calculatedRoi = investment && salary ? investment / salary : null;
 
           return {
             ...c,
-            roi_months: c.roi_months || calculatedRoi || 12,
-            institution_name: c.institutions?.name || "StudIAMatch",
-            institution_slug: c.institutions?.slug || "general",
-            category: c.categories?.name || c.category
+            roi_months: c.roi_months || calculatedRoi,
+            institution_name: institutionArray.find((i: { id: string; name: string }) => i.id === c.institution_id)?.name || "StudIAMatch",
+            institution_slug: institutionArray.find((i: { id: string; slug: string }) => i.id === c.institution_id)?.slug || "general",
+            category: categoryArray.find((category: { id: string; name: string }) => category.id === c.category_id)?.name || c.category
           };
         });
 
         setCourses(enriched);
 
-        // Fase 82A: Increment comparison_count for each loaded course
-        enriched.forEach((c: Course) => {
-          fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY },
-            body: JSON.stringify({ p_course_id: c.id })
-          }).catch((e) => console.warn("increment_view_count failed:", e));
-        });
       } catch (error) {
         console.error("Error fetching courses for comparison:", error);
       } finally {
@@ -229,13 +225,13 @@ export default function CompareContent() {
                     <div className="bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-brand-gray/30 dark:border-white/5">
                       <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Inversión</div>
                       <div className="text-lg font-bold text-brand-slate dark:text-white">
-                        {course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Gratis")}
+                        {course.price_status === 'consultar' || !course.price_pen || course.price_pen <= 0 ? "Consultar" : `S/ ${course.price_pen.toLocaleString()}`}
                       </div>
                     </div>
                     <div className="bg-emerald-50 dark:bg-emerald-500/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-500/20">
                       <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-1">ROI Est.</div>
                       <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
-                        {course.roi_months ? course.roi_months.toFixed(1) : "12.0"} meses
+                        {course.roi_months ? `${course.roi_months.toFixed(1)} meses` : "No disponible"}
                       </div>
                     </div>
                   </div>
@@ -277,7 +273,7 @@ export default function CompareContent() {
                       </div>
                       <div>
                         <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Salario Inicial</div>
-                        <div className="text-sm font-bold">S/ {course.expected_monthly_salary?.toLocaleString() || "4,500"}</div>
+                        <div className="text-sm font-bold">{course.expected_monthly_salary ? `S/ ${course.expected_monthly_salary.toLocaleString()}` : "No disponible"}</div>
                       </div>
                     </div>
                   </div>
