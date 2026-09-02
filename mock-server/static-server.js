@@ -39,7 +39,12 @@ http.createServer((req, res) => {
   }
   if (requestPath.endsWith('/')) filePath = path.join(filePath, 'index.html');
   const ext = path.extname(filePath).toLowerCase() || '.html';
-  fs.readFile(filePath, (err, data) => {
+  const relativePath = path.relative(rootPath, filePath);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    return res.end('Forbidden');
+  }
+  fs.readFile(path.join(rootPath, relativePath), (err, data) => {
     if (err) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       return res.end('Not found');
