@@ -8,6 +8,8 @@
 |---|---|---|
 | `H3-CA4` | `H3_PR_DEVELOPMENT_READY_LOCAL` | Bloqueadores HIGH/CRITICAL de CI, DB, MFA real, cobertura E2E y artifacts resueltos en el ciclo de corrección local del 2026-09-02; UAT canónica 47/47 y 141/141 PASS con 0 retries y evidencia regenerada. Commit + push + PR protegido a `desarrollo` autorizados por instrucción humana separada; acciones remotas posteriores siguen como gates separados. |
 
+Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate de pre-arranque documental anterior.
+
 ## Criterios de cierre ampliados
 
 | ID | Criterio | Evidencia GO requerida |

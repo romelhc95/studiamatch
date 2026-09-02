@@ -11,6 +11,8 @@
 | Criterio | `H3-CA4` |
 | Bloqueo | Resuelto en el ciclo de corrección local del 2026-09-02: CI H3 completo (allowlist + `db-gate` con harness PG17), invariantes DB garantizadas, MFA con secreto/QR y `aal` real, UAT canónica E2E 47/47 y 141/141 PASS, rollback reversible y evidencia vinculada al candidato. Build normal/mock PASS; waiver static export superseded. Commit + push + PR autorizados por instrucción humana separada. |
 
+Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` correspondió al pre-arranque documental anterior; la tarea vigente está en `H3_PR_DEVELOPMENT_READY_LOCAL`.
+
 ## Explicación Simple De La Tarea
 
 Esta tarea construye una oficina privada para revisar cursos y administrar usuarios.

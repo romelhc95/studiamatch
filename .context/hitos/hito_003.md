@@ -11,6 +11,8 @@
 | Criterio | `H3-CA4` |
 | Gate | READY_LOCAL: GO para PR. Los bloqueadores HIGH/CRITICAL que la auditoría de readiness detectó (CI H3, invariantes DB, MFA real, cobertura E2E, rollback y trazabilidad) fueron resueltos en el ciclo de corrección local del 2026-09-02; UAT canónica 47/47 y 141/141 PASS con 0 retries. Commit + push + PR autorizados por instrucción humana separada. |
 
+Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate previo al inicio del ciclo H3 y no representa el estado vigente.
+
 ## Lectura Rápida Para Una Persona No Técnica
 
 - **Objetivo:** crear una oficina privada dentro del sitio para corregir cursos y

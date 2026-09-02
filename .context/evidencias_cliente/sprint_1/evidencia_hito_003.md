@@ -13,6 +13,8 @@ revalidado PASS. Commit + push + PR protegido a `desarrollo` fueron autorizados 
 instrucción humana separada; las acciones remotas posteriores (JIT Supabase
 Free/Auth, Cloudflare, certificación, merge y deploy) siguen sin autorizar.
 
+Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate documental previo; la evidencia vigente acredita `H3_PR_DEVELOPMENT_READY_LOCAL`.
+
 ## Explicación Para Cliente No Técnico
 
 Se está construyendo una oficina privada para corregir información de cursos y
