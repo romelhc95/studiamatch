@@ -175,7 +175,7 @@ o pendiente debe indicar causa, riesgo residual y owner.
 
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-003](hitos/hito_003.md).
-- Tarea H3: `TASK-H3-001` en el backlog canónico versionado.
+- Tarea H3: `TASK-H3-001` en el backlog canónico versionado: `backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md`.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
@@ -225,7 +225,7 @@ Los porcentajes son estimaciones separadas: implementación no equivale a acepta
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | `TASK-H2-001` |
+| `HITO-002` | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | `TASK-H2-001` |
 | `HITO-003` | `H3_PR_DEVELOPMENT_READY_LOCAL` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
