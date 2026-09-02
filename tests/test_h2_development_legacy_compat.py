@@ -57,7 +57,7 @@ def test_h2_quality_gate_removes_broken_detail_rewrites() -> None:
 def test_h2_quality_gate_allows_redirect_cleanup_in_protected_paths() -> None:
     workflow = read(ROOT / ".github/workflows/security-audit.yml")
 
-    assert "web/(public/_redirects|src/" in workflow
+    assert "web/(public/_redirects|src/(lib/" in workflow
 
 
 def test_h2_quality_gate_removes_public_social_proof_calls() -> None:
