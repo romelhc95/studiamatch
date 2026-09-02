@@ -1,9 +1,93 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-28-F11-H2-CLOSED-H3-READY-FOR-PROMPT-CONTINUA`.
+Snapshot: `SNAPSHOT-2026-09-02-H3-PR-DEVELOPMENT-READY-LOCAL`.
+
+Historical gates preserved: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`, `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`, `H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`, `H3_READY_FOR_PROMPT_CONTINUA`, `H3_GO_LOCAL_CLOSED_READY_FOR_SUPABASE_FREE_JIT`, `H3_SUPABASE_FREE_AUTH_JIT_VALIDATION`, `H3_LOCAL_EXPANDED_NO_GO` (histórico del ciclo anterior, fechado 2026-08-30), `H3_PR_DEVELOPMENT_NO_GO` (readiness, resuelto por el ciclo de corrección local del 2026-09-02).
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
+
+## Resumen H3 En Lenguaje Simple
+
+### Qué se intenta construir
+
+H3 agrega una zona privada para que personas autorizadas revisen y corrijan la
+información de los cursos. Hay dos tipos de personas: `user`, que completa datos
+faltantes, y `admin`, que además aprueba cambios y administra usuarios. El acceso
+debe usar una segunda comprobación de seguridad y la zona privada no debe aparecer
+en la dirección pública normal.
+
+### Qué significa el estado actual
+
+`H3_PR_DEVELOPMENT_READY_LOCAL` significa: **GO local alcanzado para el PR
+protegido a `desarrollo`**. El ciclo de corrección local del 2026-09-02 (detalle
+en [Siguiente Gate](#siguiente-gate)) resolvió los bloqueadores HIGH/CRITICAL de
+CI, DB, MFA real, UAT y evidencia que había detectado la auditoría de readiness
+previa (`H3_PR_DEVELOPMENT_NO_GO`, histórico). La UAT canónica volvió a pasar
+47/47 casos y 141/141 ejecuciones con cero reintentos. Quedan pendientes
+únicamente los gates remotos posteriores y separados (JIT Supabase Free/Auth,
+Cloudflare, revisión/merge del PR y promoción).
+
+### Qué se corrigió desde la prueba fallida anterior
+
+La corrida inicial falló porque las páginas privadas no aparecían en la copia
+servida. El programa de pruebas se corrigió para esperar a que la página terminara
+de cargar antes de interactuar (espera de hidratación), se validó el bloqueo
+público `studiamatch.com/admin/ → 404` sobre un servidor de perímetro real
+(`static-server.js`) y se corrigió un selector de prueba.
+
+### Qué acredita la evidencia actual
+
+- UAT canónica `h3_local_uat.mjs` regenerada el 2026-09-02: **`47/47` casos y
+  `141/141` ejecuciones PASS, 141 screenshots, 0 retries**, evidencia en
+  `.context/evidencia/h3-expanded/`.
+- Build normal y `build:mock` ejecutados en Docker el 2026-09-02: compilación
+  exitosa y rutas `web/out/admin/{index,login,edit,users}/index.html` presentes.
+  El waiver de static export queda superseded para este candidato.
+- Suite CI-local seleccionada: 142 tests PASS; TypeScript PASS; lint sin errores
+  (9 warnings históricos); `py_compile`, credential scan y `git diff --check`
+  PASS. Harnesses H3 en PG17: `h3_pg17_harness_ok` y `h3_pg17_harness_local_ok`.
+- La corrida completa indiscriminada `pytest -q` no es un gate válido en este
+  checkout porque recolecta worktrees históricos montados bajo `local/worktrees/`
+  y tests de integración que requieren entorno; produjo 540 errores de colección.
+  El PR usa el conjunto versionado del job `python-check` y documenta esta
+  exclusión.
+
+### Qué resolvió el ciclo de corrección local (2026-09-02)
+
+El ciclo descrito en [Siguiente Gate](#siguiente-gate) eliminó los bloqueadores
+HIGH/CRITICAL que la auditoría de readiness había identificado en CI, contratos
+DB, MFA real, UAT/evidencia y rollback:
+
+1. `security-audit.yml` corregido (YAML válido), allowlist H3 explícita y
+   `db-gate` con harness H3 en PG17; gate emulado localmente `GATE_OK`.
+2. Migración `20260902_h3_pr_contract.sql`: lector efectivo de valores y gate de
+   publicabilidad; seed idempotente con categorías para los 30 cursos.
+3. MFA: `admin-auth.ts` y login muestran secreto/QR y resuelven `aal` real sin
+   forzarlo; retirado el spec UAT duplicado.
+4. Perímetro 3002 con `Host` mapping correcto (`/admin/login` 200 en admin
+   origin, `/admin/` 404 en `studiamatch.com`).
+
+### Qué sigue ahora
+
+Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
+instrucción humana separada** y se ejecutan con la plantilla
+`.github/pull_request_template.md` llena con resultados reales del ciclo.
+Permanecen como gates remotos posteriores y separados: `security-audit` en
+GitHub y revisión del PR, JIT Supabase Free/Auth, Cloudflare Access/DNS,
+promoción a `certificacion`, merge y deploy. No se ejecuta ninguna de esas
+acciones sin su aprobación.
+
+### Diccionario mínimo
+
+- `GO`: evidencia suficiente para pasar al siguiente control; no significa publicar.
+- `NO_GO`: hay fallas o evidencia insuficiente; se debe corregir y volver a probar.
+- `build`: proceso que convierte el código en las páginas que se pueden servir.
+- `UAT`: prueba que usa la interfaz como lo haría una persona.
+- `PASS` / `FAIL`: comprobación aprobada / comprobación fallida.
+- `mock`: imitación local de un servicio real, usada para probar sin tocar internet.
+- `JIT`: autorización humana puntual para una acción concreta y sensible.
+- `PR`: solicitud para revisar cambios antes de integrarlos.
 
 ## Pilares Transversales Obligatorios
 
@@ -59,7 +143,7 @@ o pendiente debe indicar causa, riesgo residual y owner.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA` | H2 compat fue promovido a `main` por PR #486; `h2-expand-compat` fue aplicado y verificado en Pro. El evidence canonico conserva el run `33143730910` y el rerun `33188932351` tambien termino en success. H3 queda listo para iniciar el ciclo de plan/build despues de `continua`, sin autorizar aun cambios funcionales, DB, Auth, push, PR o deploy. |
+| `F11` | H3REQ1 ampliado: campos, MFA, invitaciones y hostname | `H3_PR_DEVELOPMENT_READY_LOCAL` | Bloqueadores HIGH/CRITICAL de CI, DB, MFA real, UAT/evidencia y rollback resueltos en el ciclo de corrección local del 2026-09-02; UAT canónica 47/47 y 141/141 PASS con 0 retries. PR protegido a `desarrollo` autorizado por instrucción humana separada; validación remota y promoción siguen como gates posteriores. |
 
 ## Subfases F10
 
@@ -91,20 +175,58 @@ o pendiente debe indicar causa, riesgo residual y owner.
 
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-003](hitos/hito_003.md).
-- Tarea: [TASK-H3-001](backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md).
+- Tarea H3: `TASK-H3-001` en el backlog canónico versionado.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `H3_READY_FOR_PROMPT_CONTINUA`.
-- Proximo gate unico: `H3_PLAN_AND_BUILD_AFTER_CONTINUA`.
+- Gate vigente: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR; ciclo de corrección 2026-09-02).
+- UAT canónica regenerada: `47/47` casos y `141/141` ejecuciones PASS con 141
+  screenshots y 0 retries, evidencia en `.context/evidencia/h3-expanded/`.
+- Build normal/mock revalidado en Docker: PASS; rutas admin exportadas presentes.
+  El waiver de static export queda superseded para el candidato actual.
+- Gates reejecutados: suite CI-local 142 PASS; TypeScript PASS; lint 0 errores y 9
+  warnings históricos; py_compile PASS; credential scan PASS; `git diff --check`
+  limpio; harnesses H3 PG17 `h3_pg17_harness_ok` y `h3_pg17_harness_local_ok`;
+  gate `protected-paths` emulado `GATE_OK`. `pytest -q` global indiscriminado no es
+  válido por recolectar worktrees históricos y tests de integración fuera del gate,
+  y produjo 540 errores de colección.
+- Auditorías especializadas del ciclo previo (`SECURITY_PR_READY=NO`,
+  `QA_PR_READY=false`, `DB_PR_READY=NO`) quedaron resueltas por las correcciones
+  listadas en [Siguiente Gate](#siguiente-gate); sin hallazgos HIGH/CRITICAL
+  pendientes para el gate local.
+- Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
+  instrucción humana separada** y se ejecutan con la plantilla de PR.
+- Gates remotos posteriores y separados: `security-audit` en GitHub y revisión del
+  PR, JIT Supabase Free/Auth, Cloudflare Access/DNS, promoción a `certificacion`,
+  merge y deploy. No se ejecutan sin su aprobación.
+
+### Matriz de avance H3REQ1 ampliado
+
+Los porcentajes son estimaciones separadas: implementación no equivale a aceptación; validación exigida solo por evidencia ejecutada y reproducible. La UAT local acredita el cierre local; las validaciones remotas quedan pendientes de JIT.
+
+| Criterio | Implementación | Validación verificable | Bloqueo principal |
+|---|---:|---:|---|
+| H3-CA4 local | 78.7% provisional | 61.8% provisional | `H3_PR_DEVELOPMENT_READY_LOCAL`; porcentajes previos conservados solo como estimación, no readiness. Bloqueadores QA/seguridad/DB del ciclo previo resueltos localmente. |
+| H3-CA4.1 Auth/RBAC | 90% | 85% | UAT local cubre RBAC y negativos; Auth real pendiente de JIT. |
+| H3-CA4.2 Ownership | 85% | 75% | 13 campos y `missing_fields` cubiertos por UAT; falta entorno real. |
+| H3-CA4.3 Transporte independiente | 60% | 40% | Fixture E2E diferenciando cuatro campos validado local; falta entorno real. |
+| H3-CA4.4 Cola | 85% | 70% | Paginación, cursor y filtros cubiertos por UAT; falta entorno real. |
+| H3-CA4.5 Mutaciones | 90% | 75% | Mutaciones admin y locking cubiertos por UAT; falta entorno real. |
+| H3-CA4.6 Auditoría | 85% | 60% | Auditoría append-only cubierta por UAT; falta entorno real. |
+| H3-CA4.7 MFA/`aal2` | 80% | 55% | Mock `aal2` positivo y negativos `aal1` cubiertos por UAT; falta Auth real. |
+| H3-CA4.8 Membresías/invitaciones | 75% | 45% | Gestión, último admin e invitación mock cubiertos por UAT; falta Edge Function real. |
+| H3-CA4.9 Hostname/perímetro | 60% | 40% | 404 público validado sobre perímetro real; falta allowlist de despliegue y Access. |
+| H3-CA4.10 Convergencia Pro/Free/local | 55% | 35% | PG17 y snapshot Pro; falta diff completo/remoto con JIT. |
+| H3-CA4.11 UAT/artifacts | 100% estructural | 55% contractual | UAT canónica 47/47 y 141/141 PASS con 0 retries regenerada el 2026-09-02; evidencia autocontenida en `.context/evidencia/h3-expanded/`; falta UAT real en Free/Certification. |
+| **Promedio simple** | **78.7% provisional** | **57.7% provisional** | **`H3_PR_DEVELOPMENT_READY_LOCAL`; GO local para PR a `desarrollo`. Validación remota (Free/Auth, Cloudflare, certificación) pendiente de JIT/promoción separada.** |
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | `TASK-H2-001` |
-| `HITO-003` | `READY_FOR_PROMPT_CONTINUA` | `TASK-H3-001` |
+| `HITO-002` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | `TASK-H2-001` |
+| `HITO-003` | `H3_PR_DEVELOPMENT_READY_LOCAL` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
 
@@ -160,7 +282,56 @@ H2REQ1 esta cerrado: `h2-expand-compat` fue aplicado y verificado en Pro,
 la evidencia canonica esta en `.context/operaciones/h2_main_production_expand_evidence.json`
 y la promocion `certificacion -> main` fue completada por PR #486.
 
-El siguiente gate es `H3_READY_FOR_PROMPT_CONTINUA`: listar el plan H3, ejecutar
-solo el ciclo autorizado por `continua`, validar cada pilar y promover mediante
-`desarrollo -> certificacion -> main`. Cualquier cambio Supabase, Auth, DDL/DML,
-push, PR, merge o deploy conserva sus aprobaciones separadas.
+La UAT ampliada de H3REQ1 alcanzó dos corridas estructurales 47/47 y 141/141 PASS,
+pero la auditoría de readiness posterior revocó el GO para PR y dejó el estado
+`H3_PR_DEVELOPMENT_NO_GO` (histórico). El build normal y mock ya pasaban en Docker
+y las rutas admin se exportaban, por lo que el waiver de static export quedó
+superseded; persistían bloqueadores reproducibles en CI, invariantes DB, MFA
+real, cobertura E2E, rollback y vinculación de evidencia al candidato. La
+atestación sanitizada
+`.context/evidencias_cliente/sprint_1/atestado_h3_ampliacion_prompt_humano_sanitizado.md`
+autorizó la corrección local hasta GO verificable. El ciclo siguiente resolvió esos
+bloqueadores y dejó el estado `H3_PR_DEVELOPMENT_READY_LOCAL`.
+
+### Ciclo de corrección local (2026-09-02) — bloqueadores HIGH/CRITICAL resueltos
+
+Correcciones aplicadas y revalidadas en Docker (sin push/PR/remoto):
+
+1. `security-audit.yml`: eliminada la línea corrupta bajo `h2-main-production-expand-gate:`
+   (YAML parse OK) y reescrita la allowlist de `protected-paths` con el contrato H3
+   explícito (`20260828_h3_admin_*`, `20260829_h3_rbac_users`, `20260830_h3_expanded_contract`,
+   `20260902_h3_pr_contract`, seed, harnesses, archivos admin web, workflows). El job
+   `db-gate` ahora también crea la DB `h3_gate` y ejecuta `h3_pg17_harness.sql`.
+   Gate replicado localmente con el set de archivos del PR: `GATE_OK` (28 archivos en scope).
+2. Migración `20260902_h3_pr_contract.sql`: `admin_get_course_editorial` devuelve valores
+   efectivos consistentes (`current_values` + `current_value` por field) y
+   `admin_publish_course` aplica gate de publicabilidad (rechaza `pending`/missing con
+   error `Course is not publishable: pending quality or missing fields`).
+3. Seed `h3_admin_seed_local.sql` idempotente (`ON CONFLICT DO NOTHING`) y con categorías
+   asignadas a los 30 cursos fixture; el recompute de calidad tras ediciones ya no
+   degrada cursos completos (30/30 con `category_id`).
+4. Harness `h3_pg17_harness.sql` (CI, destructivo): re-run de seed idempotente, lector
+   efectivo, rechazo de publish en draft incompleto y publish exitoso con auditoría.
+   Verificado en PG17 (`h3_gate3`): `h3_pg17_harness_ok`.
+5. Harness `h3_pg17_harness_local.sql` (local, rollback): guard de idempotencia de seed +
+   gate de publish + lector efectivo. Verificado en `studiamatch_h3`:
+   `h3_pg17_harness_local_ok` (baseline DB restaurado a la seed canónica).
+6. MFA: `admin-auth.ts` normaliza `enrollTotp` (shape anidada real y top-level mock),
+   resuelve `aal` (top-level → decode JWT → `aal1`) sin forzar `aal2`, y el login
+   (`web/src/app/admin/login/page.tsx`) muestra el panel “Registra tu autenticador”
+   (QR `data:image`, secreto agrupado, `otpauth URI`) cuando el factor no está verificado.
+7. Harness local spec `tests/h3_local_uat.spec.mjs` retirado (duplicado del runner canónico).
+8. `.gitignore` actualizado (evidencia stale, `.worktrees/`, logs y node_modules del mock).
+
+Validaciones del ciclo (local, Docker): TypeScript `tsc --noEmit` 0 errores; `npm run lint`
+0 errores; `build:mock` estático OK (exporta `/admin`, `/admin/login`, `/admin/edit`,
+`/admin/users`, cursos mock y rutas públicas); perímetro 3002 con `Host` mapping correcto
+(`/admin/login` 200 en admin origin, `/admin/` 404 en `studiamatch.com`); UAT canónica
+`h3_local_uat.mjs` **PASS 47/47 casos y 141/141 ejecuciones, 141 screenshots, 0 retries**;
+evidencia regenerada en `.context/evidencia/h3-expanded/`.
+
+Estado resultante: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR). Commit + push + PR
+protegido a `desarrollo` fueron autorizados por instrucción humana separada y se
+ejecutan con la plantilla `.github/pull_request_template.md` llena con validaciones
+reales del ciclo. Luego siguen, cada una con aprobación separada: JIT Supabase
+Free/Auth, Cloudflare, certificación y deploy como flujo posterior.

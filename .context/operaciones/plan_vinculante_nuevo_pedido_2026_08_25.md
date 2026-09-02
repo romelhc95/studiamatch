@@ -8,7 +8,7 @@
 
 ```text
 FASE = F11
-ESTADO = H2_CLOSED_MAIN_H3_READY_FOR_PROMPT_CONTINUA
+ESTADO = H3_PR_DEVELOPMENT_READY_LOCAL
 AUTORIDAD = AGENTS.md + .context/estado_del_proyecto.md + Obsidian versionado
 SOPORTE_TEMPORAL_RAIZ = REMOVED
 DB = H2_PRO_EXPAND_VERIFIED_MAIN_PROMOTED
@@ -18,6 +18,8 @@ PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 Para cualquier nuevo desarrollo con requerimiento cliente, antes de iniciar y al cerrar un hito o task vinculado al requerimiento debe validar sus criterios contra la fuente privada cliente mediante atestacion sanitizada versionada.
 El documento privado no se versiona ni se expone en PRs.
 Si el gate falla, se corrige primero la atestacion sanitizada y no se ejecuta el hito siguiente.
+La ampliación H3 está respaldada por la atestación sanitizada `H3-EXPANDED-PROMPT-2026-08-30`, que autoriza únicamente ejecución local Docker hasta GO local. Supabase writes, Auth remoto, Cloudflare, DNS, push, PR, merge, deploy, schedules y `workflow_dispatch` requieren aprobaciones separadas.
+Pro es la fuente autoritativa de schema, tipos, constraints, campos y últimas migraciones H2; Free y PostgreSQL 17 local deben converger hacia Pro. No se usa Free/local para modificar Pro ni se sincronizan datos operativos como mecanismo normal. Las migraciones H3 ya validadas en Docker se conservan y reutilizan como candidato; deben rebasarse sobre la forma Pro y solo requieren deltas idempotentes si una incompatibilidad es demostrada.
 
 Todo cambio funcional, DB, UI, pipeline o despliegue debe tener transicion
 transparente documentada: `expand -> compatibilidad -> deploy -> contract`.
@@ -134,12 +136,44 @@ cohorte son fases `contract` posteriores, no parte del `expand` inicial.
 
 ## H3 Admin
 
-Ruta estatica `/admin/` compatible con `output: 'export'`. Debe usar Supabase
-Auth con email/password para usuarios preprovisionados, signup publico
-deshabilitado, membresia `admin_members`, datos y mutaciones protegidos por
-RLS/RPC, cola por cursor, filtros por estado editorial/calidad, edicion
-allowlisted, optimistic locking por `version`, publicar/despublicar/archivar con
-auditoria atomica y conflicto visible entre sesiones.
+`admin.studiamatch.com` como hostname canónico exclusivo del panel, protegido por
+Cloudflare Access y compatible con `output: 'export'`. Debe usar Supabase Auth con
+email/password y MFA TOTP obligatorio para `admin` y `user`; las operaciones
+sensibles requieren sesión `aal2`. Signup público deshabilitado, membresía
+`admin_members`, datos y mutaciones protegidos por RLS/RPC, cola por cursor,
+filtros por estado editorial/calidad, edición allowlisted, optimistic locking por
+`version`, publicar/despublicar/archivar con auditoría atómica y conflicto visible
+entre sesiones.
+
+Contrato de roles confirmado: el hostname administrativo es compartido por los
+roles editoriales. Un `user` activo puede consultar la cola y completar únicamente
+campos incluidos en `missing_fields`. Un `admin` activo hereda las capacidades de
+`user` y además puede publicar, despublicar, archivar, actualizar `quality_status`
+y gestionar membresías. Un usuario autenticado sin membresía y un usuario inactivo
+quedan bloqueados. El admin puede invitar usuarios por correo mediante una Edge
+Function protegida, cambiar el rol y activar/desactivar cualquier miembro `admin` o
+`user` mediante botón o checkbox; nunca se expone `service_role` y siempre se
+conserva al menos un admin activo.
+
+`studiamatch.com/admin/` debe responder 404 y no servir el panel. El despliegue,
+DNS, Access, redirect URLs Auth y variables de origen requieren JIT separado.
+
+### Estado de cierre local H3 actualizado
+
+El estado vigente es `H3_PR_DEVELOPMENT_READY_LOCAL`. La auditoría de readiness
+del 2026-09-02 dejó inicialmente `H3_PR_DEVELOPMENT_NO_GO` (histórico): dos
+corridas UAT reportaban 47/47 y 141/141 PASS, pero se clasificaron como evidencia
+estructural insuficiente para readiness. El ciclo de corrección local del
+2026-09-02 resolvió los bloqueadores (workflow/allowlist/db-gate H3, invariantes
+DB, MFA real, cobertura E2E, rollback y artifacts vinculados al candidato) y
+regeneró la UAT canónica: **47/47 casos y 141/141 ejecuciones PASS, 141
+screenshots, 0 retries**, evidencia en `.context/evidencia/h3-expanded/`. Build
+normal/mock revalidado PASS; waiver static export superseded.
+
+Commit + push + PR protegido a `desarrollo` fueron autorizados por instrucción
+humana separada y quedan en ejecución. Supabase Free/Auth, Cloudflare, DNS,
+Certification, merge y deploy permanecen bloqueados hasta sus aprobaciones
+separadas. `sessionStorage` mantiene su riesgo pre-Certification.
 
 ### Pre-arranque H3
 
@@ -207,10 +241,22 @@ mutuamente excluyentes.
 Offline y Docker: credential scan, Python compile, pytest de seguridad,
 contratos y pipeline, ESLint, TypeScript, static build, actionlint y shellcheck.
 
-H2/H3: matriz RLS `anon`, `authenticated`, non-admin, admin y service/CI;
-pipeline incapaz de publicar; preservacion de overrides; auditoria append-only;
-backfill reanudable y segundo run `NOOP`; mas de 1000 filas; conflictos de
-edicion; casos Auth positivos y negativos.
+H2/H3: matriz RLS `anon`, `authenticated`, user, admin y service/CI; pipeline
+incapaz de publicar; preservación de overrides; auditoría append-only; segunda
+corrida `NOOP`; más de 1000 filas; conflictos de edición; casos Auth positivos y
+negativos; ownership y transporte de los 13 campos editoriales.
+
+H3 ampliado: MFA TOTP obligatorio para admin/user, `aal1` rechazado y `aal2`
+permitido en mutaciones sensibles; enrollment, challenge, verify, renovación,
+revocación y último admin protegido; invitación por correo sin `service_role` en
+cliente; cambio de rol y activación/desactivación de cualquier miembro `admin` o
+`user` mediante botón o checkbox, auditados; `admin.studiamatch.com` permitido por
+Access y `studiamatch.com/admin/` con HTTP 404; Pro como baseline autoritativo y
+Free/local PG17 convergentes en schema, campos y migraciones; second-run `NOOP`.
+
+La prueba de Cloudflare Access/MFA perimetral requiere JIT Cloudflare y no puede
+simularse como evidencia de producción únicamente con el mock local. Supabase
+Auth MFA y el enforcement `aal2` deben probarse además en Free con JIT separado.
 
 H4/H5: unit tests para filtros, orden, formatos, query string y contador;
 Playwright desktop/mobile; network assertions contra leads, email, webhook y
@@ -229,14 +275,18 @@ leads o rutas `/courses`, porque son incompatibles con el nuevo contrato.
 4. Promocion H2 por `desarrollo -> certificacion -> main`.
 5. JIT Pro de H2.
 6. Plan H3 listado y prompt `continua` recibido.
-7. PR H3: Auth, RPC y `/admin`.
-8. UAT en Certification y promocion protegida.
-9. PR H1: readiness operacional.
-10. JIT individual para FG1, FG2 y FG3.
-11. PR H4: Home y CA7.
-12. PR H5: Resultados.
-13. Certificacion visual y funcional.
-14. Promocion final a `main`.
+7. Cierre local ampliado de H3 con campos, MFA, hostname, invitaciones y UAT completa: 47 casos lógicos únicos, 141 ejecuciones en tres viewports y dos corridas estables.
+8. Preparación local del paquete H3 para PR usando la plantilla versionada, sin commit, push ni creación remota hasta aprobación humana separada.
+9. Con `H3_LOCAL_EXPANDED_GO`, autorización humana separada para commit + push + PR H3 protegido a `desarrollo`; el PR se abre antes de las pruebas Free para incorporar su evidencia al mismo candidato sin mergearlo.
+10. JIT independiente Supabase Free/Auth: inventario read-only, migraciones H3, MFA TOTP, Edge Function protegida de invitación y validación real. Cloudflare DNS/Access permanece en otra aprobación JIT y no se agrupa por defecto.
+11. Incorporar resultados Free/Auth al PR H3, repetir validaciones y `security-audit`; merge a `desarrollo` solo mediante aprobación humana posterior.
+12. UAT en Certification y promoción protegida.
+11. PR H1: readiness operacional.
+12. JIT individual para FG1, FG2 y FG3.
+13. PR H4: Home y CA7.
+14. PR H5: Resultados.
+15. Certificacion visual y funcional.
+16. Promocion final a `main`.
 
 Push, PR, merges, mutaciones DB, configuracion Auth, schedules, writers y deploys
 requieren instrucciones humanas separadas.
