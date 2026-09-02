@@ -27,7 +27,7 @@ servicios reales de acceso cuando se otorgue el permiso correspondiente.
 
 | Campo | Valor requerido |
 |---|---|
-| Commit/tree | Rama `feat/h3req1-extended`; commits locales `525e972` (implementacion H3 READY_LOCAL) y `ce6aacc` (docs/evidencia H3 READY_LOCAL). Push/PR protegido a `desarrollo` en ejecución tras autorización separada (ver "Aprobacion humana") |
+| Commit/tree | Rama `feat/h3req1-extended`; commits locales `525e972` (implementacion H3 READY_LOCAL), `ce6aacc` (docs/evidencia H3 READY_LOCAL), `cb9c7ab` (registro SHA) y `d6fe216` (fix allowlist protected-paths). Push/PR protegido a `desarrollo` en ejecución tras autorización separada (ver "Aprobacion humana") |
 | Ambiente | Development local Docker: `studiamatch-dev` + `studiamatch-h2-pg-test` |
 | Work package | `NONE_SUPERSEDED`; readiness PR `H3_PR_DEVELOPMENT_READY_LOCAL` |
 | Criterio | `H3-CA4` |

@@ -302,7 +302,9 @@ Correcciones aplicadas y revalidadas en Docker (sin push/PR/remoto):
    explícito (`20260828_h3_admin_*`, `20260829_h3_rbac_users`, `20260830_h3_expanded_contract`,
    `20260902_h3_pr_contract`, seed, harnesses, archivos admin web, workflows). El job
    `db-gate` ahora también crea la DB `h3_gate` y ejecuta `h3_pg17_harness.sql`.
-   Gate replicado localmente con el set de archivos del PR: `GATE_OK` (28 archivos en scope).
+   Gate replicado localmente con el diff real de `protected-paths` vs baseline
+   `9b486146…`: `GATE_OK` (57 archivos en scope, todos allowlisted, incluida la
+   restauración del sufijo `\.sql` compartido de migraciones H2/H3).
 2. Migración `20260902_h3_pr_contract.sql`: `admin_get_course_editorial` devuelve valores
    efectivos consistentes (`current_values` + `current_value` por field) y
    `admin_publish_course` aplica gate de publicabilidad (rechaza `pending`/missing con
