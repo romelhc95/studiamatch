@@ -7,6 +7,7 @@ PyPDF2
 curl_cffi
 json-repair
 psycopg2-binary
+pytest
 regex
 openai==1.82.1
 

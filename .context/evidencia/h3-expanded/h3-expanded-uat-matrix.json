@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 2,
+  "environment": "local-docker-mock",
+  "generatedAt": "2026-09-02T13:46:41.061Z",
+  "baseURL": "http://localhost:3000",
+  "mockURL": "http://localhost:3001",
+  "retries": 0,
+  "expected": {
+    "logicalCases": 47,
+    "viewportExecutions": 141,
+    "screenshots": 141
+  },
+  "actual": {
+    "logicalCases": 47,
+    "logicalCasesPassed": 47,
+    "viewportExecutions": 141,
+    "viewportExecutionsPassed": 141,
+    "screenshots": 141
+  },
+  "distribution": {
+    "H3-CA4.1": 5,
+    "H3-CA4.2": 5,
+    "H3-CA4.3": 2,
+    "H3-CA4.4": 5,
+    "H3-CA4.5": 6,
+    "H3-CA4.6": 4,
+    "H3-CA4.7": 6,
+    "H3-CA4.8": 6,
+    "H3-CA4.9": 3,
+    "H3-CA4.10": 2,
+    "H3-CA4.11": 3
+  },
+  "byViewport": {
+    "desktop": {
+      "expected": 47,
+      "actual": 47,
+      "passed": 47
+    },
+    "tablet": {
+      "expected": 47,
+      "actual": 47,
+      "passed": 47
+    },
+    "mobile": {
+      "expected": 47,
+      "actual": 47,
+      "passed": 47
+    }
+  },
+  "fatalError": null,
+  "result": "PASS",
+  "logicalCases": [
+    {
+      "id": "H3-UAT-001",
+      "title": "anonymous admin access redirects to login",
+      "requirementId": "H3-CA4.1",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-002",
+      "title": "active admin reaches the editorial dashboard",
+      "requirementId": "H3-CA4.1",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-003",
+      "title": "active user reaches the limited dashboard",
+      "requirementId": "H3-CA4.1",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-004",
+      "title": "user is denied membership administration",
+      "requirementId": "H3-CA4.1",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-005",
+      "title": "logout clears the local session",
+      "requirementId": "H3-CA4.1",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-006",
+      "title": "admin editor exposes editorial fields",
+      "requirementId": "H3-CA4.2",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-007",
+      "title": "user editor limits ownership to missing fields",
+      "requirementId": "H3-CA4.2",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-008",
+      "title": "user read-only fields are disabled",
+      "requirementId": "H3-CA4.2",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-009",
+      "title": "user receives an ownership explanation",
+      "requirementId": "H3-CA4.2",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-010",
+      "title": "editor renders effective current values",
+      "requirementId": "H3-CA4.2",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-011",
+      "title": "independent enrichment fields remain distinct in pipeline code",
+      "requirementId": "H3-CA4.3",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-012",
+      "title": "all thirteen editorial transport fields are defined",
+      "requirementId": "H3-CA4.3",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-013",
+      "title": "queue count and rows agree",
+      "requirementId": "H3-CA4.4",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-014",
+      "title": "queue exposes both status filters",
+      "requirementId": "H3-CA4.4",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-015",
+      "title": "page-local queue search filters visible rows",
+      "requirementId": "H3-CA4.4",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-016",
+      "title": "queue edit/public links follow editorial state",
+      "requirementId": "H3-CA4.4",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-017",
+      "title": "cursor pagination contract exposes paired controls",
+      "requirementId": "H3-CA4.4",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-018",
+      "title": "admin save control is enabled",
+      "requirementId": "H3-CA4.5",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-019",
+      "title": "admin publication control is state aware",
+      "requirementId": "H3-CA4.5",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-020",
+      "title": "admin archive control is available",
+      "requirementId": "H3-CA4.5",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-021",
+      "title": "admin quality transition is explicit",
+      "requirementId": "H3-CA4.5",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-022",
+      "title": "user cannot invoke privileged mutations",
+      "requirementId": "H3-CA4.5",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-023",
+      "title": "editor conflict recovery contract exists",
+      "requirementId": "H3-CA4.5",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-024",
+      "title": "editorial updates carry an audit reason",
+      "requirementId": "H3-CA4.6",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-025",
+      "title": "publication transitions carry audit reasons",
+      "requirementId": "H3-CA4.6",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-026",
+      "title": "membership changes carry action identity",
+      "requirementId": "H3-CA4.6",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-027",
+      "title": "audit tables are append-only by migration contract",
+      "requirementId": "H3-CA4.6",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-028",
+      "title": "login form is labeled and password-protected",
+      "requirementId": "H3-CA4.7",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-029",
+      "title": "invalid credentials are rejected",
+      "requirementId": "H3-CA4.7",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-030",
+      "title": "invalid TOTP is rejected",
+      "requirementId": "H3-CA4.7",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-031",
+      "title": "admin session reaches aal2",
+      "requirementId": "H3-CA4.7",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-032",
+      "title": "user session reaches aal2",
+      "requirementId": "H3-CA4.7",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-033",
+      "title": "refresh contract preserves assurance",
+      "requirementId": "H3-CA4.7",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-034",
+      "title": "admin users surface lists memberships",
+      "requirementId": "H3-CA4.8",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-035",
+      "title": "membership invitation form exposes email and role",
+      "requirementId": "H3-CA4.8",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-036",
+      "title": "invalid membership email is rejected by protected RPC",
+      "requirementId": "H3-CA4.8",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-037",
+      "title": "duplicate membership is rejected",
+      "requirementId": "H3-CA4.8",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-038",
+      "title": "invalid membership role is rejected",
+      "requirementId": "H3-CA4.8",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-039",
+      "title": "membership controls cover state and role changes",
+      "requirementId": "H3-CA4.8",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-040",
+      "title": "local administrative hostname serves admin",
+      "requirementId": "H3-CA4.9",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-041",
+      "title": "public hostname hides admin with 404",
+      "requirementId": "H3-CA4.9",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-042",
+      "title": "public routes remain available",
+      "requirementId": "H3-CA4.9",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-043",
+      "title": "PG17 harness carries convergence sentinel",
+      "requirementId": "H3-CA4.10",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-044",
+      "title": "migration contracts are idempotent for second run",
+      "requirementId": "H3-CA4.10",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-045",
+      "title": "runtime resources and browser diagnostics are clean",
+      "requirementId": "H3-CA4.11",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-046",
+      "title": "layout has no horizontal overflow",
+      "requirementId": "H3-CA4.11",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    },
+    {
+      "id": "H3-UAT-047",
+      "title": "basic keyboard and accessible-name contract holds",
+      "requirementId": "H3-CA4.11",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 3,
+      "result": "PASS"
+    }
+  ]
+}

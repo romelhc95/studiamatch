@@ -95,6 +95,8 @@ python3 scripts/maintenance/<script>.py
 ## Configuración de Ambientes Supabase (Fuente de Verdad)
 
 > **Regla Inmutable**: La siguiente tabla es la fuente de verdad para los refs de proyectos Supabase. Cualquier discrepancia debe reportarse y corregirse inmediatamente.
+>
+> Para H3REQ1, Pro es además el baseline autoritativo de schema, tipos, constraints, campos y últimas migraciones H2. Free y PostgreSQL 17 local deben converger hacia Pro; no se usa Free/local para modificar Pro ni se sincronizan datos operativos como mecanismo normal.
 
 | Ambiente | Project Ref | URL | Archivo local | GitHub Environment |
 |---|---|---|---|---|
@@ -142,6 +144,13 @@ El archivo `.env.gitprod` (gitignored) contiene:
 **IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.gitprod`.
 
 ## Convenciones del Proyecto
+
+### H3REQ1: Baseline y membresías
+
+- Pro (`xwhtiqmboljkshrtviyw`) es la autoridad de schema, tipos, constraints, campos y últimas migraciones H2.
+- Free (`aqrldlmlszjtgpqiegaa`) y PostgreSQL 17 local deben converger hacia Pro. No se corrige Pro por diferencias de Free/local ni se sincronizan datos operativos como flujo normal.
+- El rol `admin` puede invitar por correo, cambiar el rol y activar/desactivar cualquier membresía `admin`/`user` desde el panel mediante botón o checkbox, pero no puede dejar el sistema sin un admin activo ni auto-bloquear accidentalmente al último admin.
+- Las migraciones H3 ya validadas en Docker se reutilizan; deben rebasarse contra el baseline Pro en una base PG17 limpia. Solo se crean deltas idempotentes cuando exista incompatibilidad demostrada; los datos de prueba locales no se promueven.
 
 ### Sincronización Cross-Ambiente
 - La sincronización operativa Free -> Pro de `staging_raw`, `cleansed_programs`, `enriched_programs` o `courses` NO es parte del flujo normal; solo se permite como backfill/remediación explícita, documentada y aprobada.
