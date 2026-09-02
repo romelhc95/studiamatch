@@ -124,7 +124,7 @@ function LoginForm() {
           </Button>
          </form>
          )}
- 
+
          <p className="mt-4 text-center text-xs text-slate-400">
           <Link href="/" className="underline">Volver al inicio</Link>
         </p>

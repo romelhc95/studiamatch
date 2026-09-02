@@ -1,9 +1,9 @@
 # H3REQ1 — Waiver Técnico: Static Export
 
-**Fecha**: 2026-09-02  
-**Estado**: SUPERSEDED_BY_REVALIDATION  
-**Severidad**: MEDIUM  
-**Owner**: Build/DevOps  
+**Fecha**: 2026-09-02
+**Estado**: SUPERSEDED_BY_REVALIDATION
+**Severidad**: MEDIUM
+**Owner**: Build/DevOps
 **Vencimiento**: 2026-12-31
 
 ## Causa Raíz

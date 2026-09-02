@@ -60,7 +60,7 @@ BEGIN
   IF _user_id IS NULL THEN
     RETURN 'anon';
   END IF;
-  
+
   SELECT am.role INTO _role
   FROM public.admin_members am
   WHERE am.user_id = _user_id
@@ -87,7 +87,7 @@ BEGIN
   IF _user_id IS NULL THEN
     RETURN false;
   END IF;
-  
+
   RETURN EXISTS (
     SELECT 1
     FROM public.admin_members am
