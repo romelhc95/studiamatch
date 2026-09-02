@@ -134,6 +134,13 @@ APPROVED_BEARERS = {
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
+    "web/src/lib/admin-auth.ts": {
+        "identities": {"accessToken", "session.refreshToken", "session.accessToken"},
+        "provider": "supabase-auth",
+        "provider_marker": "auth/v1/token",
+        "provider_env": "SUPABASE_PUBLISHABLE_KEY",
+        "derivation_marker": "Authorization: `Bearer ${session.accessToken}`",
+    },
     "supabase/functions/send-lead-emails/index.ts": {
         "identities": {"RESEND_API_KEY"},
         "provider": "resend-api",
@@ -223,6 +230,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/deprecated/harvesters/usil_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/utp_harvester.py": "supabase-data-api",
     "web/src/lib/supabase.ts": "supabase-data-api",
+    "web/src/lib/admin-auth.ts": "supabase-data-api",
     "web/src/app/HomeContent.tsx": "supabase-data-api",
     "web/src/app/page.tsx": "supabase-data-api",
     "web/src/app/compare/CompareContent.tsx": "supabase-data-api",

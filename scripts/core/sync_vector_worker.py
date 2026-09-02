@@ -344,6 +344,17 @@ class SyncVectorWorker:
         duration_hours = enriched.get('duration_hours') or duration_months_to_hours(enriched.get('duration_months'))
         seniority_level = infer_seniority(enriched.get('degree_type'), duration_hours)
 
+        enrichment_metadata = enriched.get('metadata') if isinstance(enriched.get('metadata'), dict) else {}
+        def enriched_field(*keys):
+            for key in keys:
+                value = enriched.get(key)
+                if value not in (None, ''):
+                    return value
+                value = enrichment_metadata.get(key)
+                if value not in (None, ''):
+                    return value
+            return None
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
@@ -357,11 +368,12 @@ class SyncVectorWorker:
             "start_date": parsed_date.isoformat() if parsed_date else None,
             "description_long": enriched.get('ai_summary'),
             "requirements": list_to_str(enriched.get('requirements')),
-            "objectives": enriched.get('graduate_profile'),
-            "target_audience": enriched.get('graduate_profile'),
+            "objectives": enriched_field('objectives', 'learning_objectives'),
+            "target_audience": enriched_field('target_audience') or enriched.get('graduate_profile'),
             "syllabus": self._curriculum_to_text(enriched.get('curriculum_summary')),
             "brochure_url": enriched.get('brochure_url'),
-            "certification": "",
+            "certification": enriched_field('certification', 'certifications'),
+            "benefits": enriched_field('benefits', 'benefit_summary'),
             "seniority_level": seniority_level,
             "course_type": enriched.get('degree_type'),
             "category": main_category,

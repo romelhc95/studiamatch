@@ -53,6 +53,10 @@ export const dynamicParams = false;
 export async function generateStaticParams() {
   const defaultPath = [{ institution: 'pucp', slug: 'estudios-generales' }];
 
+  if (process.env.NEXT_PUBLIC_H3_ALLOW_MOCK_BUILD === 'true') {
+    return [{ institution: 'mock', slug: 'mock-course' }];
+  }
+
   try {
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       console.warn("No environment variables found for static generation. Using defaults.");
