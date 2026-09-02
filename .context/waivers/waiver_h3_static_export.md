@@ -52,5 +52,5 @@ y no puede usarse para omitir el required check `static-build` del PR.
 Si el fallo reaparece, debe abrirse un waiver nuevo con evidencia reproducible,
 owner, riesgo residual, vencimiento y aprobación humana explícita.
 
-**Aprobado por**: No aplica; waiver no aprobado y superseded por revalidación  
+**Aprobado por**: No aplica; waiver no aprobado y superseded por revalidación
 **Revisión siguiente**: Solo si reaparece el fallo

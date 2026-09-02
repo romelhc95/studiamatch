@@ -65,7 +65,7 @@ BEGIN
   FROM public.admin_members am
   WHERE am.user_id = _user_id
     AND am.is_active = true;
-  
+
   RETURN COALESCE(_role, 'authenticated');
 EXCEPTION
   WHEN OTHERS THEN
