@@ -14,7 +14,7 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 CREATE SCHEMA auth;
 CREATE TABLE auth.users (
     id UUID PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
     encrypted_password TEXT,
     role TEXT,
     aud TEXT,
@@ -128,6 +128,7 @@ $$;
 \ir ../../db/migrations/20260828_h3_admin_queue_rpc.sql
 \ir ../../db/migrations/20260829_h3_rbac_users.sql
 \ir ../../db/migrations/20260902_h3_pr_contract.sql
+\ir ../../db/migrations/20260903_h3_rbac_contract_fix.sql
 \ir ../../db/seeds/h3_admin_seed_local.sql
 
 DO $$
@@ -276,6 +277,39 @@ BEGIN
     END IF;
     IF (SELECT count(*) FROM public.course_editorial_audit WHERE course_id = first_course AND action = 'publish') <> 1 THEN
         RAISE EXCEPTION 'publish audit was not appended';
+    END IF;
+END;
+$$;
+
+-- Regression: JIT-A remote findings A6 (42804 email type) and A13 (42702 role ambiguity).
+DO $$
+DECLARE
+    member_row RECORD;
+    member_count INTEGER;
+    adm1 UUID := '30000000-0000-0000-0000-000000000001';
+    adm2 UUID := '30000000-0000-0000-0000-000000000002';
+    upd_result RECORD;
+BEGIN
+    SELECT count(*) INTO member_count FROM public.admin_list_members();
+    IF member_count <> 5 THEN
+        RAISE EXCEPTION 'expected 5 listed members, got %', member_count;
+    END IF;
+
+    SELECT * INTO member_row
+    FROM public.admin_list_members()
+    WHERE user_id = '30000000-0000-0000-0000-000000000001';
+    IF member_row.email <> 'admin@studiamatch.com' THEN
+        RAISE EXCEPTION 'unexpected listed admin email %', member_row.email;
+    END IF;
+
+    SELECT * INTO upd_result FROM public.admin_update_member(adm2, NULL, false);
+    IF NOT upd_result.success OR upd_result.is_active THEN
+        RAISE EXCEPTION 'admin deactivation failed: %', upd_result.error;
+    END IF;
+
+    SELECT * INTO upd_result FROM public.admin_update_member(adm2, NULL, true);
+    IF NOT upd_result.success OR NOT upd_result.is_active THEN
+        RAISE EXCEPTION 'admin reactivation failed: %', upd_result.error;
     END IF;
 END;
 $$;
