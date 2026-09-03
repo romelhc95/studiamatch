@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { adminRpc, requireAdmin, signOutAdmin } from '@/lib/admin-auth';
+import { adminRpc, inviteAdminMember, requireAdmin, signOutAdmin } from '@/lib/admin-auth';
 
 interface Member {
   user_id: string;
@@ -16,12 +16,6 @@ interface Member {
   role: string;
   is_active: boolean;
   created_at: string;
-}
-
-interface CreateRow {
-  success: boolean;
-  user_id: string | null;
-  error: string | null;
 }
 
 interface UpdateRow {
@@ -71,16 +65,12 @@ function AdminUsersManager() {
     setError(null);
     try {
       await requireAdmin();
-      const rows = (await adminRpc('admin_create_member', { p_email: email, p_role: role })) as CreateRow[];
-      const result = rows[0];
-      if (!result || !result.success) {
-        throw new Error(result?.error || 'Error al crear usuario.');
-      }
-      setMessage('Usuario agregado correctamente.');
+      await inviteAdminMember(email, role as 'admin' | 'user');
+      setMessage('Usuario invitado correctamente. Se le envió un correo para confirmar su acceso.');
       setEmail('');
       void loadMembers();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Error al crear usuario.');
+      setError(reason instanceof Error ? reason.message : 'Error al invitar al usuario.');
     } finally {
       setCreating(false);
     }
@@ -126,7 +116,7 @@ function AdminUsersManager() {
 
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-slate-900">Agregar usuario</h2>
-          <p className="mt-1 text-xs text-slate-500">Solo registra la membresía; el usuario Auth debe existir previamente.</p>
+          <p className="mt-1 text-xs text-slate-500">Invita por correo al usuario editorial y registra su membresía (admin/user).</p>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="member-email">Email</Label>

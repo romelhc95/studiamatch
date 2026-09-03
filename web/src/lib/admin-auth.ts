@@ -205,6 +205,30 @@ export async function adminRpc(functionName: string, params: unknown): Promise<u
   return null;
 }
 
+export interface InviteMemberResult {
+  success: boolean;
+  user_id: string | null;
+  email: string;
+}
+
+export async function inviteAdminMember(email: string, role: 'admin' | 'user'): Promise<InviteMemberResult> {
+  const session = await getFreshSession();
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-invite`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify({ email, role }),
+  });
+  const data = (await response.json().catch(() => ({}))) as Partial<InviteMemberResult> & { error?: string };
+  if (!response.ok || data.success !== true) {
+    throw new Error(data.error || `admin-invite failed: ${response.status}`);
+  }
+  return data as InviteMemberResult;
+}
+
 export async function listFactors(): Promise<AuthenticatorFactor[]> {
   const session = await getFreshSession();
   const response = await fetch(`${SUPABASE_URL}/auth/v1/factors`, {
