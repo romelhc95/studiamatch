@@ -29,7 +29,7 @@
 
 | Pilar | Estado | Resultado validado |
 |---|---|---|
-| Funcionalidad | `APROBADO LOCAL` | UAT histórica 47/47 casos y 141/141 ejecuciones; regresión PG17 A6/A13 PASS. Cierre remoto pendiente. |
+| Funcionalidad | `PENDIENTE/APROBADO` — `APROBADO LOCAL` | UAT histórica 47/47 casos y 141/141 ejecuciones; regresión PG17 A6/A13 PASS. Cierre remoto pendiente. |
 | Escalabilidad | `APROBADO LOCAL` | PG17 limpio, harness idempotente y regresión de contrato; validación remota pendiente. |
 | Seguridad | `PENDIENTE REMOTO` | Credential scan/actionlint/shellcheck PASS; `sessionStorage` sin waiver formal y `npm audit` reporta 10 high. |
 | Mantenimiento | `APROBADO LOCAL` | Delta SQL idempotente, rollback documentado y compatibilidad explícita. |
