@@ -1,20 +1,20 @@
 # JIT — Supabase Auth + Cloudflare Access/MFA
 
-Status: `PREPARED_PENDING_JIT`
-Fecha: 2026-09-02
-Rama de trabajo local: `docs/jit-supabase-auth-cloudflare-access-mfa` (desde `origin/desarrollo` `c675ef1`, merge PR #494).
+Status: `JIT_A_JIT_B_PARTIAL_EVIDENCE_READY`
+Fecha de actualización: 2026-09-03
+Rama candidata local: `feat/h3-jit-supabase-admin-combined` desde `origin/desarrollo` `c675ef1`.
 
-> Este documento prepara el paquete necesario para **iniciar** la configuración JIT que habilita (A) Supabase Auth/MFA real en el proyecto Free de desarrollo y (B) la integración perimetral Cloudflare Access/DNS para `admin.studiamatch.com`. No autoriza por sí mismo ninguna acción remota; cada paquete requiere su frase de aprobación separada (ver [Autorizaciones](#autorizaciones)). Ningún paso remoto de este documento fue ejecutado.
+> Este documento consolida el paquete JIT-A/JIT-B y la evidencia de las acciones remotas ya ejecutadas bajo aprobaciones separadas. No autoriza acciones adicionales: la aplicación remota del delta `20260903`, la revalidación A6/A13, la dependencia de build, la configuración Auth pendiente, la certificación, el merge y el deploy conservan aprobaciones independientes.
 
 ## 1. Objetivo
 
-1. Dejar listo y reproducible el paquete JIT-A **Supabase Free/Auth**: inventario read-only previo, habilitación de Auth email/password, MFA TOTP, aplicación de migraciones H3 en Free, bootstrap de membresías admin/user de prueba y validación remota de MFA real con sesión `aal2`.
-2. Dejar listo y reproducible el paquete JIT-B **Cloudflare Access/DNS**: `admin.studiamatch.com` protegido por Cloudflare Access como perímetro del panel editorial, `studiamatch.com/admin/` con HTTP 404, redirect URLs de Auth y validación de la integración.
+1. Dejar listo y reproducible el paquete JIT-A **Supabase Free/Auth**: inventario read-only previo, habilitación de Auth email/password, MFA TOTP, aplicación de migraciones H3 en Free, bootstrap de membresías admin/user de prueba y validación remota de MFA real con sesión `aal2`. La evidencia ejecutada cubre el payload hasta `20260902`; el payload candidato añade `20260903` y exige revalidación A6/A13.
+2. Dejar listo y reproducible el paquete JIT-B **Cloudflare Access/DNS**: `admin.studiamatch.com` protegido por Cloudflare Access como perímetro del panel editorial, `studiamatch.com/admin/` con HTTP 404, redirect URLs de Auth y validación de la integración. La ejecución actual valida solo E1/E3/E4/E8; E2/E5/E6/E7 siguen pendientes.
 3. Ejecutar **todas las pruebas ejecutables hoy sin JIT** (validación offline Docker) y dejar la matriz de pruebas remotas que se ejecutarán tras cada aprobación.
 
 ## 2. Contexto Y Referencias
 
-- Estado vigente: `H3_PR_DEVELOPMENT_READY_LOCAL` con PR #494 mergeado a `desarrollo` (`c675ef1`); `security-audit` remoto PASS en el merge.
+- Estado vigente: `H3_PR_DEVELOPMENT_READY_LOCAL`; `origin/desarrollo` permanece en `c675ef1` y la rama candidata local contiene el paquete documental JIT-A/JIT-B y el fix de contrato.
 - Secuencia de entrega: pasos 10–12 del [Plan Vinculante Nuevo Pedido](../operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md): JIT Free/Auth independiente; Cloudflare DNS/Access en otra aprobación JIT (no agrupada por defecto).
 - Criterios objetivo (ver [HITO-003](../hitos/hito_003.md)): H3-CA4.7 (MFA/aal2), H3-CA4.8 (Edge Function invitación) y H3-CA4.9 (hostname/perímetro).
 - Contrato de aceptación de Edge/Perímetro (HITO-003): "Cloudflare Access protege `admin.studiamatch.com`; `studiamatch.com/admin/` responde HTTP 404 y no sirve el panel"; "invitación de usuarios por correo mediante Edge Function protegida con `verify_jwt=true`; `service_role` nunca llega al navegador".
@@ -31,7 +31,8 @@ Rama de trabajo local: `docs/jit-supabase-auth-cloudflare-access-mfa` (desde `or
 | `db/migrations/20260829_h3_rbac_users.sql` | Presente | `admin_list_members`, `admin_create_member(p_email,p_role)`, `admin_is_active_editor`, auditoría. |
 | `db/migrations/20260830_h3_expanded_contract.sql` | Presente | `admin_has_aal2`, `admin_require_aal2` (gates `aal2` en mutaciones), gestión membresías con invariante último admin. |
 | `db/migrations/20260902_h3_pr_contract.sql` | Presente | Reafirma `admin_require_aal2` en contract y lector efectivo. |
-| Migraciones H3 en Free | **No aplicadas** | Requieren JIT-A (JIT DDL Free). No son parte de este documento ejecutarlas. |
+| `db/migrations/20260903_h3_rbac_contract_fix.sql` | Presente | Delta idempotente para corregir A6/A13; validado en harness PG17, pendiente de aplicación remota y nueva matriz A. |
+| Migraciones H3 en Free | **Aplicadas hasta 20260902** | JIT-A remoto ejecutado sobre Free; `20260903` aún requiere aprobación JIT DDL separada. |
 | `supabase/functions/send-lead-emails/index.ts` | Presente (legacy H1) | Única Edge Function existente. |
 | Edge Function de invitación | **No existe** | Código a construir (ver dependencia 6.1). |
 | Pages Function / Worker para 404 público | **No existe** | Solo emulado por `mock-server/static-server.js` local. |
@@ -86,8 +87,9 @@ Aplicar únicamente tras aprobación JIT-A con payload exacto. Archivos candidat
 - `db/migrations/20260829_h3_rbac_users.sql`
 - `db/migrations/20260830_h3_expanded_contract.sql`
 - `db/migrations/20260902_h3_pr_contract.sql`
+- `db/migrations/20260903_h3_rbac_contract_fix.sql` — delta posterior al hallazgo remoto A6/A13; aplicar únicamente con aprobación JIT DDL separada.
 
-**Exclusiones**: `db/seeds/h3_admin_seed_local.sql` es SOLO local Docker (datos de prueba no se promueven). No DML operativo, no backfill.
+**Exclusiones**: `db/seeds/h3_admin_seed_local.sql` es SOLO local Docker (datos de prueba no se promueven). No DML operativo, no backfill. La evidencia histórica A1–A14 cubre el payload hasta `20260902`; A6/A13 deben repetirse después de aplicar `20260903`. Esta incorporación documental no afirma que el delta remoto ya haya sido aplicado.
 
 Post-apply verificaciones read-only: funciones presentes (`admin_current_user_role`, `admin_is_active_editor`, `admin_has_aal2`, `admin_require_aal2`, `admin_list_members`, `admin_create_member`), tabla `admin_members`, políticas RLS, `h3_*_contract` lector efectivo.
 
@@ -174,7 +176,7 @@ Ejecutar contra Free real tras JIT-A. Cada caso con evidencia (captura/curl + sa
 
 ## 7. Pruebas Ejecutadas Hoy (offline, Docker) — Resultado Local
 
-Rama `docs/jit-supabase-auth-cloudflare-access-mfa` desde `origin/desarrollo` (`c675ef1`), dentro de `studiamatch-dev`. Fecha 2026-09-02.
+Rama `feat/h3-jit-supabase-admin-combined` desde `origin/desarrollo` (`c675ef1`), dentro de `studiamatch-dev`. Fecha de esta revalidación: 2026-09-03.
 
 | Validación | Resultado |
 |---|---|
@@ -183,12 +185,14 @@ Rama `docs/jit-supabase-auth-cloudflare-access-mfa` desde `origin/desarrollo` (`
 | `pytest` (subset CI: credentials contract, security flow, obsidian state, requirement client source, editorial contract, H2 editorial/backfill/client docs/legacy compat/pro migration controls/pipeline/writer scan) | **142 passed** |
 | `npm run lint` | PASS — 0 errores, 9 warnings históricos |
 | `npx tsc --noEmit` | PASS |
-| `npm run build` (env CI-equivalent) | PASS — rutas estáticas exportadas: `/`, `/admin`, `/admin/edit`, `/admin/login`, `/admin/users`, `/compare`, `/courses`, `/courses/[institution]/[slug]` (SSG) |
+| `npm run build` y `npm run build:mock` | PASS — rutas estáticas exportadas: `/`, `/admin`, `/admin/edit`, `/admin/login`, `/admin/users`, `/compare`, `/courses`, `/courses/[institution]/[slug]` (SSG) |
 | `scripts/security/h2_web_mock_smoke.sh` | PASS (`h2_web_mock_smoke_ok`) |
-| `scripts/security/scan_credentials.sh --tree` | PASS (credential scan passed) |
+| `scripts/security/scan_credentials.sh --tree` y `--diff origin/desarrollo HEAD` | PASS (credential scan passed) |
+| `actionlint` y `shellcheck` sobre workflows/hooks/scripts | PASS (Docker) |
 | `git diff --check` (origin/desarrollo..HEAD) | Limpio |
+| H2/H2-Pro/H3 PG17 (`h3_pg17_harness.sql`, incluyendo regresión A6/A13) | PASS — `h3_pg17_harness_ok` |
 
-**No ejecutables hoy (requieren JIT y ambiente remoto):** matriz JIT-A (A1–A14), matriz JIT-B (E1–E8), invitación Edge Function, y pruebas de MFA TOTP real/Access. La UAT local con mock (47/47 y 141/141) no es evidencia de producción para Access/MFA perimetral.
+**No ejecutables o no cerrados en esta fase (requieren ambiente remoto/aprobación separada):** revalidación A6/A13 después de aplicar `20260903` en Free, configuración Auth pendiente, matriz JIT-B E2/E5/E6/E7, invitación Edge Function, mecanismo 404 público estable, UAT real en Free/Certification y `security-audit`/CodeQL/Pages preview remotos. La UAT local con mock (47/47 y 141/141) no es evidencia de producción para Access/MFA perimetral. `pytest -q` global no es gate válido en este checkout porque recoge worktrees históricos y pruebas de integración fuera del alcance; el job CI usa el subset anterior.
 
 ## 8. Rollback
 
@@ -218,17 +222,17 @@ JIT-B:
 - Cualquier secreto/PII en outputs/PRs.
 - No hay Gates HIGH/CRITICAL pendientes; cada waiver con causa, evidencia, owner, riesgo, vencimiento y aprobación humana.
 
-## 11. Siguientes Pasos (tras aprobación humana)
+## 11. Siguientes Pasos
 
-1. Push + PR protegido de este paquete documental a `desarrollo` (requiere instrucción separada; plantilla `.github/pull_request_template.md`).
-2. Ejecutar JIT-A con su frase de aprobación; incorporar resultados/evidencia.
-3. Ejecutar JIT-B con su frase de aprobación (Cloudflare Access/DNS) + dependencia build del 404 y de la Edge Function de invitación.
-4. Promoción `desarrollo → certificacion → main` posterior (otra autorización).
+1. Abrir el PR protegido a `desarrollo` con la plantilla `.github/pull_request_template.md`; el PR separa GO local de evidencia remota parcial.
+2. Aplicar `20260903_h3_rbac_contract_fix.sql` en Free con JIT DDL separado y repetir A6/A13; incorporar la evidencia al PR sin hacer merge automático.
+3. Completar configuración Auth, E2/E5/E6/E7, Edge Function de invitación y mecanismo estable de 404 mediante sus aprobaciones independientes.
+4. Ejecutar `security-audit`, revisión humana, UAT de Certification y promoción `desarrollo → certificacion → main` solo con autorizaciones posteriores.
 
 ## 12. Frases De Aprobacion Esperadas
 
 ```text
-Apruebo JIT-A Supabase Free/Auth para el paquete .context/operaciones/jit_supabase_auth_cloudflare_access_mfa.md sobre el proyecto Free aqrldlmlszjtgpqiegaa, exclusivamente para: inventario read-only, habilitación Auth email/password, MFA TOTP, aplicación de las migraciones H3 listadas, bootstrap de membresías de prueba y validación remota de MFA aal2. No autorizo Pro, DML operativo, seed local en remoto, writers, schedules, deploys ni push/PR/merge.
+Apruebo JIT-A Supabase Free/Auth para el paquete .context/operaciones/jit_supabase_auth_cloudflare_access_mfa.md sobre el proyecto Free aqrldlmlszjtgpqiegaa, exclusivamente para: inventario read-only, habilitación Auth email/password, MFA TOTP, aplicación de las migraciones H3 listadas hasta `20260902` y del delta `20260903` solo si se aprueba expresamente, bootstrap de membresías de prueba y validación remota de MFA aal2. No autorizo Pro, DML operativo, seed local en remoto, writers, schedules, deploys ni push/PR/merge.
 
 Apruebo JIT-B Cloudflare Access/DNS para el paquete .context/operaciones/jit_supabase_auth_cloudflare_access_mfa.md, exclusivamente para: custom domain admin.studiamatch.com, aplicación/política Cloudflare Access con MFA de perímetro, edge 404 público de /admin y smoke perimetral. No autorizo cambios de código de aplicación fuera de la vía aprobada, push/PR/merge ni deploy de producción.
 

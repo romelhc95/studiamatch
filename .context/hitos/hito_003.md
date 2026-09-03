@@ -97,22 +97,19 @@ El alcance base de H3 (`/admin`, cola, edición manual y publicación) se valida
 
 ## Gate
 
-Estado vigente: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR). Los bloqueadores
-HIGH/CRITICAL que QA, seguridad y DB detectaron (workflow/gates H3, invariantes
-DB, enrollment y confirmación MFA real, pruebas E2E, rollback y evidencia
-autocontenida vinculada al candidato) fueron resueltos en el ciclo de corrección
-local del 2026-09-02 y revalidados en Docker: `security-audit.yml` corregido con
-allowlist H3 y `db-gate` con harness PG17, contrato `20260902_h3_pr_contract.sql`
-con lector efectivo y gate de publicabilidad, seed idempotente con categorías,
-harnesses `h3_pg17_harness_ok` y `h3_pg17_harness_local_ok`, MFA con secreto/QR y
-`aal` real, UAT canónica 47/47 y 141/141 PASS con 0 retries y evidencia
-regenerada en `.context/evidencia/h3-expanded/`.
+Estado vigente: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO local para PR). Los bloqueadores
+locales que QA, seguridad y DB detectaron fueron corregidos y revalidados en Docker:
+`security-audit.yml` con allowlist H3 y `db-gate` PG17, contrato
+`20260902_h3_pr_contract.sql`, seed idempotente, harnesses H3, MFA mock con
+`aal` real, UAT canónica y evidencia vinculada al candidato. El delta
+`20260903_h3_rbac_contract_fix.sql` añade la corrección de los hallazgos remotos
+A6/A13 y la regresión PG17 correspondiente.
 
-Commit + push + PR protegido a `desarrollo` quedaron autorizados por instrucción
-humana separada y se ejecutan con la plantilla
-`.github/pull_request_template.md`. Permanece bloqueada toda acción remota
-posterior (JIT Supabase Free/Auth, Cloudflare, certificación, merge y deploy)
-hasta su aprobación separada.
+JIT-A se ejecutó remotamente hasta `20260902`: A6/A13 permanecen como FAIL históricos
+hasta aplicar y revalidar el delta `20260903`. JIT-B tiene E1/E3/E4/E8 PASS y
+E2/E5/E6/E7 pendientes. La documentación no presenta estas validaciones parciales
+como cierre contractual. La plantilla `.github/pull_request_template.md` debe
+reflejar esta separación entre GO local y pendientes remotos.
 
 ## Matriz de avance por criterio
 

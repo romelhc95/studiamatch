@@ -34,5 +34,8 @@
 3. **E2/E5/E6/E7 pendientes**: requieren (a) sesión Access interactiva — OTP al correo `romelhc95@gmail.com`; (b) build de la Edge Function de invitación (H3-CA4.8) + 404; (c) config Auth Supabase (Site URL `https://admin.studiamatch.com`, redirects) vía Dashboard/Management API (sin token en entorno). JIT-B queda **parcial** vs E2/E5; el perímetro (E1/E3/E4/E8) queda validado.
 4. Entorno Pages/GitHub `Development`/`Certification`: variables apuntando a `admin.studiamatch.com` son writes de entorno → requieren aprobación aparte.
 
+## Estado sincronizado para el PR
+El PR incorpora exclusivamente documentación, el delta SQL `20260903` y la regresión PG17. La evidencia de este documento sigue siendo parcial y no se eleva a PASS global: E1/E3/E4/E8 están validados; E2/E5/E6/E7 requieren pasos remotos o de build independientes. El 404 E3 observado sobre `www.studiamatch.com` es coyuntural hasta instalar el mecanismo estable por hostname.
+
 ## Alcance respetado
-Custom domain + Access app/policy + smoke. **Sin** cambios de código de aplicación, sin push/PR/merge, sin deploy de producción, sin tocar apps existentes (`omni`, App Launcher).
+La ejecución JIT-B ya realizada fue custom domain + Access app/policy + smoke, sin cambios de código de aplicación, sin push/PR/merge, sin deploy de producción y sin tocar apps existentes (`omni`, App Launcher). El PR actual añade únicamente el delta correctivo versionado, los tests del contrato y documentación; no autoriza acciones remotas posteriores.

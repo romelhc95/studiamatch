@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-09-02-H3-PR-DEVELOPMENT-READY-LOCAL`.
+Snapshot: `SNAPSHOT-2026-09-03-H3-JIT-DOCS-SYNCED-PR-CANDIDATE`.
 
 Historical gates preserved: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`, `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`, `H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`, `H3_READY_FOR_PROMPT_CONTINUA`, `H3_GO_LOCAL_CLOSED_READY_FOR_SUPABASE_FREE_JIT`, `H3_SUPABASE_FREE_AUTH_JIT_VALIDATION`, `H3_LOCAL_EXPANDED_NO_GO` (histórico del ciclo anterior, fechado 2026-08-30), `H3_PR_DEVELOPMENT_NO_GO` (readiness, resuelto por el ciclo de corrección local del 2026-09-02).
 
@@ -24,9 +24,9 @@ protegido a `desarrollo`**. El ciclo de corrección local del 2026-09-02 (detall
 en [Siguiente Gate](#siguiente-gate)) resolvió los bloqueadores HIGH/CRITICAL de
 CI, DB, MFA real, UAT y evidencia que había detectado la auditoría de readiness
 previa (`H3_PR_DEVELOPMENT_NO_GO`, histórico). La UAT canónica volvió a pasar
-47/47 casos y 141/141 ejecuciones con cero reintentos. Quedan pendientes
-únicamente los gates remotos posteriores y separados (JIT Supabase Free/Auth,
-Cloudflare, revisión/merge del PR y promoción).
+47/47 casos y 141/141 ejecuciones con cero reintentos. JIT-A y JIT-B ya tienen
+evidencia parcial documentada; quedan pendientes la aplicación/revalidación del
+delta A6/A13, los casos remotos restantes, revisión/merge del PR y promoción.
 
 ### Qué se corrigió desde la prueba fallida anterior
 
@@ -41,23 +41,25 @@ público `studiamatch.com/admin/ → 404` sobre un servidor de perímetro real
 - UAT canónica `h3_local_uat.mjs` regenerada el 2026-09-02: **`47/47` casos y
   `141/141` ejecuciones PASS, 141 screenshots, 0 retries**, evidencia en
   `.context/evidencia/h3-expanded/`.
-- Build normal y `build:mock` ejecutados en Docker el 2026-09-02: compilación
+- Build normal y `build:mock` ejecutados en Docker el 2026-09-03: compilación
   exitosa y rutas `web/out/admin/{index,login,edit,users}/index.html` presentes.
   El waiver de static export queda superseded para este candidato.
 - Suite CI-local seleccionada: 142 tests PASS; TypeScript PASS; lint sin errores
-  (9 warnings históricos); `py_compile`, credential scan y `git diff --check`
-  PASS. Harnesses H3 en PG17: `h3_pg17_harness_ok` y `h3_pg17_harness_local_ok`.
+  (9 warnings históricos); `py_compile`, credential scan, actionlint, shellcheck,
+  mock smoke y `git diff --check` PASS. H2/H2-Pro/H3 PG17 PASS; el harness H3
+  termina en `h3_pg17_harness_ok` e incluye regresión A6/A13.
 - La corrida completa indiscriminada `pytest -q` no es un gate válido en este
   checkout porque recolecta worktrees históricos montados bajo `local/worktrees/`
   y tests de integración que requieren entorno; produjo 540 errores de colección.
   El PR usa el conjunto versionado del job `python-check` y documenta esta
   exclusión.
 
-### Qué resolvió el ciclo de corrección local (2026-09-02)
+### Qué resolvió el ciclo de corrección local (2026-09-02) y la sincronización documental (2026-09-03)
 
 El ciclo descrito en [Siguiente Gate](#siguiente-gate) eliminó los bloqueadores
-HIGH/CRITICAL que la auditoría de readiness había identificado en CI, contratos
-DB, MFA real, UAT/evidencia y rollback:
+locales que la auditoría de readiness había identificado en CI, contratos DB, MFA
+local, UAT/evidencia y rollback; la sincronización del 2026-09-03 incorporó el
+delta A6/A13 y separó explícitamente la evidencia remota parcial:
 
 1. `security-audit.yml` corregido (YAML válido), allowlist H3 explícita y
    `db-gate` con harness H3 en PG17; gate emulado localmente `GATE_OK`.
@@ -74,9 +76,9 @@ Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
 instrucción humana separada** y se ejecutan con la plantilla
 `.github/pull_request_template.md` llena con resultados reales del ciclo.
 Permanecen como gates remotos posteriores y separados: `security-audit` en
-GitHub y revisión del PR, JIT Supabase Free/Auth, Cloudflare Access/DNS,
-promoción a `certificacion`, merge y deploy. No se ejecuta ninguna de esas
-acciones sin su aprobación.
+GitHub y revisión del PR, aplicación/revalidación de `20260903` en Free,
+configuración Auth, Cloudflare restante, promoción a `certificacion`, merge y
+deploy. No se ejecuta ninguna de esas acciones sin su aprobación.
 
 ### Diccionario mínimo
 
@@ -143,7 +145,7 @@ o pendiente debe indicar causa, riesgo residual y owner.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | H3REQ1 ampliado: campos, MFA, invitaciones y hostname | `H3_PR_DEVELOPMENT_READY_LOCAL` | Bloqueadores HIGH/CRITICAL de CI, DB, MFA real, UAT/evidencia y rollback resueltos en el ciclo de corrección local del 2026-09-02; UAT canónica 47/47 y 141/141 PASS con 0 retries. PR protegido a `desarrollo` autorizado por instrucción humana separada; validación remota y promoción siguen como gates posteriores. |
+| `F11` | H3REQ1 ampliado: campos, MFA, invitaciones y hostname | `H3_PR_DEVELOPMENT_READY_LOCAL` | Gates locales revalidados el 2026-09-03, incluyendo delta `20260903_h3_rbac_contract_fix.sql` y regresión PG17 A6/A13; UAT canónica 47/47 y 141/141 PASS con 0 retries. PR protegido a `desarrollo` autorizado por instrucción humana separada; validación remota y promoción siguen como gates posteriores. |
 
 ## Subfases F10
 
@@ -179,21 +181,23 @@ o pendiente debe indicar causa, riesgo residual y owner.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR; ciclo de corrección 2026-09-02).
-- UAT canónica regenerada: `47/47` casos y `141/141` ejecuciones PASS con 141
-  screenshots y 0 retries, evidencia en `.context/evidencia/h3-expanded/`.
+- Gate vigente: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO local para PR; documentación sincronizada 2026-09-03).
+- UAT canónica histórica: `47/47` casos y `141/141` ejecuciones PASS con 141
+  screenshots y 0 retries, evidencia en `.context/evidencia/h3-expanded/`. La
+  regresión A6/A13 del delta `20260903` fue revalidada separadamente en PG17.
 - Build normal/mock revalidado en Docker: PASS; rutas admin exportadas presentes.
   El waiver de static export queda superseded para el candidato actual.
-- Gates reejecutados: suite CI-local 142 PASS; TypeScript PASS; lint 0 errores y 9
-  warnings históricos; py_compile PASS; credential scan PASS; `git diff --check`
-  limpio; harnesses H3 PG17 `h3_pg17_harness_ok` y `h3_pg17_harness_local_ok`;
+- Gates reejecutados en Docker: suite CI-local 142 PASS; TypeScript PASS; lint 0
+  errores y 9 warnings históricos; py_compile PASS; credential scan PASS;
+  `git diff --check` limpio; actionlint/shellcheck PASS; H2/H2-Pro/H3 PG17
+  `h3_pg17_harness_ok` (incluye regresión A6/A13);
   gate `protected-paths` emulado `GATE_OK`. `pytest -q` global indiscriminado no es
   válido por recolectar worktrees históricos y tests de integración fuera del gate,
   y produjo 540 errores de colección.
-- Auditorías especializadas del ciclo previo (`SECURITY_PR_READY=NO`,
-  `QA_PR_READY=false`, `DB_PR_READY=NO`) quedaron resueltas por las correcciones
-  listadas en [Siguiente Gate](#siguiente-gate); sin hallazgos HIGH/CRITICAL
-  pendientes para el gate local.
+- Auditorías especializadas del ciclo previo quedaron resueltas para el alcance
+  local. La evidencia JIT-A mantiene A6/A13 FAIL sobre el payload hasta `20260902`;
+  el delta `20260903` está probado localmente, pero aún no aplicado ni revalidado
+  en Free. JIT-B tiene E1/E3/E4/E8 PASS; E2/E5/E6/E7 siguen pendientes.
 - Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
   instrucción humana separada** y se ejecutan con la plantilla de PR.
 - Gates remotos posteriores y separados: `security-audit` en GitHub y revisión del
@@ -300,7 +304,8 @@ Correcciones aplicadas y revalidadas en Docker (sin push/PR/remoto):
 1. `security-audit.yml`: eliminada la línea corrupta bajo `h2-main-production-expand-gate:`
    (YAML parse OK) y reescrita la allowlist de `protected-paths` con el contrato H3
    explícito (`20260828_h3_admin_*`, `20260829_h3_rbac_users`, `20260830_h3_expanded_contract`,
-   `20260902_h3_pr_contract`, seed, harnesses, archivos admin web, workflows). El job
+   `20260902_h3_pr_contract`, `20260903_h3_rbac_contract_fix`, seed, harnesses,
+   archivos admin web, workflows). El job
    `db-gate` ahora también crea la DB `h3_gate` y ejecuta `h3_pg17_harness.sql`.
    Gate replicado localmente con el diff real de `protected-paths` vs baseline
    `9b486146…`: `GATE_OK` (57 archivos en scope, todos allowlisted, incluida la
@@ -313,7 +318,8 @@ Correcciones aplicadas y revalidadas en Docker (sin push/PR/remoto):
    asignadas a los 30 cursos fixture; el recompute de calidad tras ediciones ya no
    degrada cursos completos (30/30 con `category_id`).
 4. Harness `h3_pg17_harness.sql` (CI, destructivo): re-run de seed idempotente, lector
-   efectivo, rechazo de publish en draft incompleto y publish exitoso con auditoría.
+   efectivo, rechazo de publish en draft incompleto y publish exitoso con auditoría;
+   desde el candidato actual también cubre la regresión A6/A13 del delta `20260903`.
    Verificado en PG17 (`h3_gate3`): `h3_pg17_harness_ok`.
 5. Harness `h3_pg17_harness_local.sql` (local, rollback): guard de idempotencia de seed +
    gate de publish + lector efectivo. Verificado en `studiamatch_h3`:
@@ -326,14 +332,15 @@ Correcciones aplicadas y revalidadas en Docker (sin push/PR/remoto):
 8. `.gitignore` actualizado (evidencia stale, `.worktrees/`, logs y node_modules del mock).
 
 Validaciones del ciclo (local, Docker): TypeScript `tsc --noEmit` 0 errores; `npm run lint`
-0 errores; `build:mock` estático OK (exporta `/admin`, `/admin/login`, `/admin/edit`,
-`/admin/users`, cursos mock y rutas públicas); perímetro 3002 con `Host` mapping correcto
-(`/admin/login` 200 en admin origin, `/admin/` 404 en `studiamatch.com`); UAT canónica
-`h3_local_uat.mjs` **PASS 47/47 casos y 141/141 ejecuciones, 141 screenshots, 0 retries**;
-evidencia regenerada en `.context/evidencia/h3-expanded/`.
+0 errores; build normal y `build:mock` estáticos PASS (rutas admin presentes);
+`scripts/security/h2_web_mock_smoke.sh` PASS; actionlint y shellcheck PASS; suite CI-local
+142 tests PASS; `py_compile`, credential scan y `git diff --check` PASS; H2/H2-Pro/H3
+PG17 PASS con `h3_pg17_harness_ok` y regresión A6/A13.
 
-Estado resultante: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR). Commit + push + PR
-protegido a `desarrollo` fueron autorizados por instrucción humana separada y se
-ejecutan con la plantilla `.github/pull_request_template.md` llena con validaciones
-reales del ciclo. Luego siguen, cada una con aprobación separada: JIT Supabase
-Free/Auth, Cloudflare, certificación y deploy como flujo posterior.
+Estado resultante: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR a `desarrollo`). El PR
+incluye el delta `20260903` y documentación JIT sincronizada, sin afirmar aplicación
+remota posterior. JIT-A mantiene A6/A13 históricos FAIL hasta revalidación; JIT-B
+mantiene E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Commit + push + PR protegido a
+`desarrollo` siguen la plantilla `.github/pull_request_template.md`; la aplicación
+remota del delta, configuración Auth, dependencia build, certificación y deploy
+requieren aprobaciones separadas.

@@ -37,18 +37,20 @@ UAT estructural 47/47 y 141/141 preservada
 ### Versión técnica
 
 ```text
-H3 local: ciclo de corrección 2026-09-02 completado (workflow/gates H3, invariantes
-DB, MFA real, UAT E2E/artifacts, auditorías sin HIGH/CRITICAL) -> H3_PR_DEVELOPMENT_READY_LOCAL
+H3 local: ciclo de corrección 2026-09-02 y revalidación documental 2026-09-03 completados
+(workflow/gates H3, invariantes DB, regresión A6/A13 PG17, MFA local, UAT E2E/artifacts,
+auditorías locales) -> H3_PR_DEVELOPMENT_READY_LOCAL
 -> commit + push + PR protegido a desarrollo (autorización humana separada otorgada)
 -> security-audit + revisión + aprobación separada de merge a desarrollo
--> JIT separado Supabase Free/Auth y evidencia remota en el PR abierto
+-> JIT separado Supabase Free/Auth: payload remoto hasta 20260902; delta 20260903 pendiente
+de aplicación/revalidación antes del cierre remoto
 -> PR protegido desarrollo a certificacion
 -> PR protegido certificacion a main
 ```
 
 ## Reglas
 
-- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 conserva su historia de promoción. H3 queda `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR): el ciclo de corrección local del 2026-09-02 resolvió los bloqueadores HIGH/CRITICAL que QA/seguridad/DB habían detectado (estado previo `H3_PR_DEVELOPMENT_NO_GO`, histórico) en CI, DB, MFA, E2E, rollback y artifacts, y regeneró la UAT canónica 47/47 y 141/141 PASS con 0 retries. Build normal/mock PASS; waiver static export superseded. Commit + push + PR autorizados por instrucción humana separada; acciones remotas posteriores permanecen bloqueadas.
+- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 conserva su historia de promoción. H3 queda `H3_PR_DEVELOPMENT_READY_LOCAL` (GO local para PR): el ciclo de corrección y la revalidación documental 2026-09-03 dejaron en verde los gates locales, incluyendo regresión PG17 A6/A13 para `20260903_h3_rbac_contract_fix.sql`. JIT-A remoto hasta `20260902` conserva A6/A13 FAIL históricos; JIT-B conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Build normal/mock PASS; waiver static export superseded. Commit + push + PR autorizados por instrucción humana separada; acciones remotas posteriores permanecen bloqueadas.
 - Antes de iniciar y al cerrar todo hito/task debe validarse contra la fuente privada cliente usando su atestación sanitizada versionada; si falla, se corrige primero la documentación y no se ejecuta el siguiente hito.
 - La ampliación H3 está respaldada por la atestación sanitizada `H3-EXPANDED-PROMPT-2026-08-30`, que autoriza ejecución local Docker hasta GO local; las acciones remotas, promoción y despliegue siguen bloqueadas por aprobaciones separadas.
 - Pro es la fuente autoritativa de schema, tipos, constraints, campos y migraciones H2; Free y PostgreSQL 17 local convergen hacia Pro. No se usa Free/local para modificar Pro ni se sincronizan datos operativos como mecanismo normal.
@@ -72,7 +74,7 @@ DB, MFA real, UAT E2E/artifacts, auditorías sin HIGH/CRITICAL) -> H3_PR_DEVELOP
 | Hito | Estado | Gate futuro |
 |---|---|---|
 | H2 | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | Pro `expand + compatibilidad` y DB Sync H2 verificados; promoción protegida a `main` completada. |
-| H3 | `H3_PR_DEVELOPMENT_READY_LOCAL` | Bloqueadores QA/seguridad/DB resueltos en el ciclo de corrección local: CI H3, invariantes DB, MFA real, E2E, rollback y evidencia vinculada. Audits repetidos sin HIGH/CRITICAL. Commit + push + PR a desarrollo autorizados; luego JIT Free/Auth, certificación y main. |
+| H3 | `H3_PR_DEVELOPMENT_READY_LOCAL` | Gates locales revalidados, delta `20260903_h3_rbac_contract_fix.sql` probado con regresión PG17 A6/A13 y documentación JIT sincronizada. JIT-A remoto conserva A6/A13 FAIL históricos; JIT-B conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Commit + push + PR a desarrollo autorizados; luego JIT remoto, certificación y main. |
 | H4 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
 | H5 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
 

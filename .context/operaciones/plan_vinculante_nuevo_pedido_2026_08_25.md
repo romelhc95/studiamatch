@@ -164,15 +164,19 @@ DNS, Access, redirect URLs Auth y variables de origen requieren JIT separado.
 El estado vigente es `H3_PR_DEVELOPMENT_READY_LOCAL`. La auditoría de readiness
 del 2026-09-02 dejó inicialmente `H3_PR_DEVELOPMENT_NO_GO` (histórico): dos
 corridas UAT reportaban 47/47 y 141/141 PASS, pero se clasificaron como evidencia
-estructural insuficiente para readiness. El ciclo de corrección local del
-2026-09-02 resolvió los bloqueadores (workflow/allowlist/db-gate H3, invariantes
-DB, MFA real, cobertura E2E, rollback y artifacts vinculados al candidato) y
-regeneró la UAT canónica: **47/47 casos y 141/141 ejecuciones PASS, 141
-screenshots, 0 retries**, evidencia en `.context/evidencia/h3-expanded/`. Build
-normal/mock revalidado PASS; waiver static export superseded.
+estructural insuficiente para readiness. El ciclo de corrección local y la
+revalidación documental del 2026-09-03 resolvieron los bloqueadores locales
+(workflow/allowlist/db-gate H3, invariantes DB, regresión PG17 A6/A13, MFA local,
+cobertura E2E, rollback y artifacts vinculados al candidato) y mantienen la UAT
+canónica en **47/47 casos y 141/141 ejecuciones PASS, 141 screenshots, 0 retries**,
+evidencia en `.context/evidencia/h3-expanded/`. Build normal/mock revalidado PASS;
+waiver static export superseded.
 
 Commit + push + PR protegido a `desarrollo` fueron autorizados por instrucción
-humana separada y quedan en ejecución. Supabase Free/Auth, Cloudflare, DNS,
+humana separada. JIT-A Supabase Free/Auth y JIT-B Cloudflare/DNS ya tienen
+acciones parciales documentadas: JIT-A conserva A6/A13 FAIL históricos sobre el
+payload hasta `20260902`, y JIT-B conserva E1/E3/E4/E8 PASS con E2/E5/E6/E7
+pendientes. La aplicación de `20260903`, configuración Auth, dependencia build,
 Certification, merge y deploy permanecen bloqueados hasta sus aprobaciones
 separadas. `sessionStorage` mantiene su riesgo pre-Certification.
 
