@@ -69,7 +69,7 @@ Estado histórico preservado: `F11_H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA` y `H3
 
 `Progreso H2-H5 ponderado por criterios = 265 / 1200 x 100 = 22.08%`.
 
-`H3-CA4 = H3_PR_DEVELOPMENT_READY_LOCAL. UAT canónica 47/47 y 141/141 PASS con 0 retries regenerada el 2026-09-02; bloqueadores HIGH/CRITICAL de CI, DB, MFA real, E2E, rollback y artifacts resueltos en el ciclo de corrección local. Build normal/mock PASS y waiver static export superseded. Commit + push + PR a desarrollo autorizados por instrucción humana separada.`
+`H3-CA4 = H3_PR_DEVELOPMENT_READY_LOCAL. UAT canónica 47/47 y 141/141 PASS con 0 retries regenerada el 2026-09-02; gates locales revalidados el 2026-09-03, incluyendo regresión PG17 A6/A13 para el delta 20260903. JIT-A remoto hasta 20260902 conserva A6/A13 FAIL históricos; JIT-B conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Build normal/mock PASS y waiver static export superseded. Commit + push + PR a desarrollo autorizados por instrucción humana separada.`
 
 ### Homologacion
 
@@ -77,7 +77,7 @@ Estado histórico preservado: `F11_H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA` y `H3
 
 ## Porcentaje De Desviacion
 
-`H3_PR_DEVELOPMENT_READY_LOCAL`: el audit de readiness previo revocó el GO para PR (histórico `H3_PR_DEVELOPMENT_NO_GO`); el ciclo de corrección local del 2026-09-02 resolvió CI H3, contratos DB, MFA real, E2E, rollback y artifacts vinculados, y regeneró la UAT canónica 47/47 y 141/141 PASS con 0 retries. Commit + push + PR autorizados por instrucción humana separada; JIT remoto posterior sigue separado.
+`H3_PR_DEVELOPMENT_READY_LOCAL`: el audit de readiness previo revocó el GO para PR (histórico `H3_PR_DEVELOPMENT_NO_GO`); el ciclo de corrección y la revalidación documental del 2026-09-03 resolvieron los gates locales e incorporaron el delta `20260903_h3_rbac_contract_fix.sql` con regresión PG17 A6/A13. JIT-A remoto hasta `20260902` conserva A6/A13 FAIL históricos; JIT-B conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Commit + push + PR autorizados por instrucción humana separada; JIT remoto posterior sigue separado.
 
 La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
@@ -85,7 +85,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
 - Hito 2: DDL Free remediada, backfill editorial, seed diccionario, fix de vista publica y compatibilidad legacy aplicados/verificados; PR #458, PR #459, PR #460, PR #466 y PR #467 aprobados/mergeados con CI verde; post-apply Free detecto `227` cursos legacy elegibles, `227` efectivos, `0` faltantes y `0` inesperados; certificacion `4cc2e34c` muestra catalogo, detalle y comparador sin React #418, 401 ni 404 de rutas exportadas criticas; criterios contrastados contra `SRC-REQ-002` via adenda sanitizada.
-- Hito 3: `H3_PR_DEVELOPMENT_READY_LOCAL`. Bloqueadores HIGH/CRITICAL de QA/seguridad/DB resueltos en el ciclo de corrección local; UAT canónica 47/47 y 141/141 PASS con 0 retries; build normal/mock PASS.
+- Hito 3: `H3_PR_DEVELOPMENT_READY_LOCAL`. Gates locales revalidados el 2026-09-03, delta `20260903_h3_rbac_contract_fix.sql` probado con regresión PG17 A6/A13, UAT canónica histórica 47/47 y 141/141 PASS con 0 retries, build normal/mock PASS; JIT-A/JIT-B remotos mantienen los pendientes documentados en sus evidencias.
 - Hitos 4-5: planificados según dependencias del nuevo plan vinculante.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
