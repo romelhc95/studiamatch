@@ -68,13 +68,7 @@ UAT canónica histórica 47/47 y 141/141 PASS con 0 retries; el candidato actual
 además valida en PG17 la regresión A6/A13 del delta `20260903`. JIT-A/JIT-B tienen
 evidencia remota parcial documentada; sus pendientes no se presentan como PASS.
 
-### Siguiente gate
-
-Resuelto en el ciclo local: workflow/allowlist/db-gate H3 (`GATE_OK`), invariantes
-DB, regresión PG17 A6/A13 del delta `20260903`, MFA local, cobertura E2E, rollback
-reversible y artifacts vinculados al candidato. Commit + push + PR a `desarrollo`
-autorizados por instrucción humana separada; JIT-A/JIT-B remotos permanecen
-parciales y documentados con sus gates posteriores.
+### Siguiente gate\r\n\r\nResuelto en el ciclo local: workflow/allowlist/db-gate H3 (`GATE_OK`), invariantes\r\nDB, regresión PG17 A6/A13 del delta `20260903`, MFA local, cobertura E2E, rollback\r\nreversible y artifacts vinculados al candidato. El PR #495 fue mergeado a `desarrollo`\r\nen `e3d21c1`. El siguiente gate es UAT Development sobre Free + preview de `desarrollo`\r\n`88f02c53.studiamatch-aty.pages.dev`, no sobre `admin.studiamatch.com`.
 
 ### Pendiente vigente (gates posteriores y separados)
 

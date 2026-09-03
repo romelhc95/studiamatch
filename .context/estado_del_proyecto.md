@@ -195,18 +195,20 @@ o pendiente debe indicar causa, riesgo residual y owner.
   válido por recolectar worktrees históricos y tests de integración fuera del gate,
   y produjo 540 errores de colección.
 - Auditorías especializadas del ciclo previo quedaron resueltas para el alcance
-  local. La evidencia JIT-A mantiene A6/A13 FAIL sobre el payload hasta `20260902`;
-  el delta `20260903` está probado localmente, pero aún no aplicado ni revalidado
-  en Free. JIT-B tiene E1/E3/E4/E8 PASS; E2/E5/E6/E7 siguen pendientes.
+  local. JIT-A remoto tiene `20260903` aplicado en Free y A6/A13 corregidos; JIT-DEV
+  dejó el ambiente limpio después de probar usuarios/factores temporales. JIT-B
+  valida el perímetro y membresía Cloudflare, pero la UAT administrativa completa
+  debe usar el deployment/preview correcto por ambiente; E2/E5/E6/E7 no se cierran
+  contra `admin.studiamatch.com` mientras este siga asociado al proyecto productivo.
 - Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
   instrucción humana separada** y se ejecutan con la plantilla de PR.
-- Gates remotos posteriores y separados: `security-audit` en GitHub y revisión del
-  PR, JIT Supabase Free/Auth, Cloudflare Access/DNS, promoción a `certificacion`,
-  merge y deploy. No se ejecutan sin su aprobación.
+- Gates remotos posteriores y separados: UAT administrativa por ambiente, proyecto/
+  artefacto Pages admin separado, políticas Access por ambiente, 404 público estable,
+  promoción a `certificacion`, merge y deploy. No se ejecutan sin su aprobación.
 
 ### Matriz de avance H3REQ1 ampliado
 
-Los porcentajes son estimaciones separadas: implementación no equivale a aceptación; validación exigida solo por evidencia ejecutada y reproducible. La UAT local acredita el cierre local; las validaciones remotas quedan pendientes de JIT.
+Los porcentajes son estimaciones separadas: implementación no equivale a aceptación; validación exigida solo por evidencia ejecutada y reproducible. La UAT local acredita el cierre local. Development remoto sobre Free valida actualmente el contrato A6/A13 y el entorno de datos; la UAT administrativa/Pages/Access debe ejecutarse contra el deployment correcto de la rama antes de certificar.
 
 | Criterio | Implementación | Validación verificable | Bloqueo principal |
 |---|---:|---:|---|
@@ -219,10 +221,10 @@ Los porcentajes son estimaciones separadas: implementación no equivale a acepta
 | H3-CA4.6 Auditoría | 85% | 60% | Auditoría append-only cubierta por UAT; falta entorno real. |
 | H3-CA4.7 MFA/`aal2` | 80% | 55% | Mock `aal2` positivo y negativos `aal1` cubiertos por UAT; falta Auth real. |
 | H3-CA4.8 Membresías/invitaciones | 75% | 45% | Gestión, último admin e invitación mock cubiertos por UAT; falta Edge Function real. |
-| H3-CA4.9 Hostname/perímetro | 60% | 40% | 404 público validado sobre perímetro real; falta allowlist de despliegue y Access. |
-| H3-CA4.10 Convergencia Pro/Free/local | 55% | 35% | PG17 y snapshot Pro; falta diff completo/remoto con JIT. |
+| H3-CA4.9 Hostname/perímetro | 60% | 40% | Perímetro Access y 404 público parcial; falta separar el deployment admin por ambiente y validar cada hostname contra su SHA. |
+| H3-CA4.10 Convergencia Pro/Free/local | 55% | 35% | PG17 y Free validados; falta diff completo/remoto con Pro como baseline y configuración por ambiente. |
 | H3-CA4.11 UAT/artifacts | 100% estructural | 55% contractual | UAT canónica 47/47 y 141/141 PASS con 0 retries regenerada el 2026-09-02; evidencia autocontenida en `.context/evidencia/h3-expanded/`; falta UAT real en Free/Certification. |
-| **Promedio simple** | **78.7% provisional** | **57.7% provisional** | **`H3_PR_DEVELOPMENT_READY_LOCAL`; GO local para PR a `desarrollo`. Validación remota (Free/Auth, Cloudflare, certificación) pendiente de JIT/promoción separada.** |
+| **Promedio simple** | **78.7% provisional** | **57.7% provisional** | **`H3_DEVELOPMENT_REMOTE_PARTIAL`; Free/A6-A13 y perímetro Cloudflare validados parcialmente. UAT administrativa por ambiente, separación Pages/Access y Certification pendientes.** |
 
 ## Estado De Hitos Sprint 1
 

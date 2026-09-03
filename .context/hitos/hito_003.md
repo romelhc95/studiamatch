@@ -105,11 +105,12 @@ locales que QA, seguridad y DB detectaron fueron corregidos y revalidados en Doc
 `20260903_h3_rbac_contract_fix.sql` añade la corrección de los hallazgos remotos
 A6/A13 y la regresión PG17 correspondiente.
 
-JIT-A se ejecutó remotamente hasta `20260902`: A6/A13 permanecen como FAIL históricos
-hasta aplicar y revalidar el delta `20260903`. JIT-B tiene E1/E3/E4/E8 PASS y
-E2/E5/E6/E7 pendientes. La documentación no presenta estas validaciones parciales
-como cierre contractual. La plantilla `.github/pull_request_template.md` debe
-reflejar esta separación entre GO local y pendientes remotos.
+JIT-A Development se ejecutó remotamente sobre Free con `20260903` aplicado. `studiamatch.com`/`www.studiamatch.com` permanecen como producción (`main`); la URL `88f02c53.studiamatch-aty.pages.dev` es el preview reproducible de `desarrollo`:
+A6/A13 fueron corregidos y validados; el ambiente quedó limpio tras las pruebas
+con usuarios/factores temporales. JIT-B valida membresía Cloudflare y perímetro
+E1/E3/E4/E8, pero E2/E5/E6/E7 requieren un hostname/deployment administrativo
+correcto por ambiente. La documentación no presenta estas validaciones parciales
+como cierre contractual.
 
 ## Matriz de avance por criterio
 

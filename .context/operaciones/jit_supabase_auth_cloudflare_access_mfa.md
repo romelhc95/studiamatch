@@ -130,14 +130,20 @@ Ejecutar contra Free real tras JIT-A. Cada caso con evidencia (captura/curl + sa
 
 ### 6.1 Preflight read-only Cloudflare
 
-1. Verificar zona `studiamatch.com`, proyecto Cloudflare Pages `studiamatch`, build/production branch (main → studiamatch.com; desarrollo → `.pages.dev`).
-2. Verificar si hay una aplicación/Worker/Pages Function que hoy sirva `admin.studiamatch.com` (no debería existir aún).
-3. Inventariar IdPs disponibles en Zero Trust para la política Access (One-time PIN / correo u otro IdP con MFA).
+1. Verificar zona `studiamatch.com`, proyecto Cloudflare Pages `studiamatch`, build/production branch (`main` → producción; `desarrollo` → preview `.pages.dev`).
+2. Verificar si hay una aplicación/Worker/Pages Function que hoy sirva el panel por hostname administrativo y si ese hostname apunta al proyecto/deployment correcto del ambiente bajo prueba.
+3. Inventariar IdPs disponibles en Zero Trust para la política Access (Cloudflare/One-time PIN/correo u otro IdP con MFA).
+4. No asociar `admin.studiamatch.com` al proyecto público si se pretende validar una rama preview: ese custom domain pertenece al deployment de producción del proyecto actual y no representa automáticamente `desarrollo`.
 
 ### 6.2 DNS + hostname
 
-1. Añadir dominio `admin.studiamatch.com` como custom domain del Pages project (o decisión de proyecto Pages separado para el panel) con tráfico proxy (naranja) para que Access pueda interceptar; Universal SSL.
-2. Registrar CNAME/DNS y esperar emisión de certificado.
+1. Separar explícitamente el hostname por ambiente antes de una nueva UAT perimetral:
+   - producción: `admin.studiamatch.com` → proyecto administrativo de producción, rama `main`;
+   - desarrollo: alias de rama estable o hostname administrativo de preview dedicado, nunca el custom domain de producción;
+   - certificación: hostname/preview dedicado de `certificacion`.
+2. Para una separación de bajo riesgo, conservar `studiamatch-aty.pages.dev` como dominio del proyecto y usar las URLs de commit como evidencia inmutable; si el alias estable de rama no está disponible/configurado para Pages, crear un proyecto Pages administrativo separado por ambiente o una ruta/Worker explícita con destino preview.
+3. Añadir DNS/custom domain únicamente después de confirmar el destino del ambiente; tráfico proxy y Universal SSL deben validarse sobre ese destino, no asumirse por el nombre.
+4. Registrar CNAME/DNS, deployment ID, commit SHA, rama y estado de certificado en la evidencia de cada corrida.
 
 ### 6.3 Edge 404 público `studiamatch.com/admin/`
 
@@ -150,29 +156,31 @@ Ejecutar contra Free real tras JIT-A. Cada caso con evidencia (captura/curl + sa
 
 ### 6.4 Cloudflare Access (MFA de perímetro)
 
-1. Zero Trust → Access → Applications: crear aplicación (self-hosted) para `admin.studiamatch.com` (todos los paths `/admin/*`).
+1. Zero Trust → Access → Applications: crear una aplicación self-hosted por ambiente/hostname. La app administrativa de producción protege `admin.studiamatch.com`; una prueba de `desarrollo` debe proteger el hostname/preview que realmente apunta al deployment de `desarrollo`.
 2. Política: permitir acceso tras autenticación del IdP elegido. Definir factor MFA en la política/IdP:
-   - Opción recomendada a validar en JIT: One-time PIN (email) como factor perimetral + sesión acotada; la MFA de aplicación real (TOTP/`aal2`) la exige Supabase dentro del panel. Documentar capa por capa: perímetro Access (identidad/MFA de entrada) → Supabase Auth (login) → TOTP `aal2` (mutaciones sensibles).
-   - Registrar IdP, duración de sesión y política exacta en la evidencia del JIT.
-3. No exponer rutas del panel por otro hostname.
+   - La policy debe permitir al usuario/grupo de prueba y la configuración del IdP debe ser compatible con esa policy. `restrict_to_account_members=true` obliga a que cada identidad que atraviese el IdP sea miembro del account Cloudflare; un selector de email no sustituye esa membresía.
+   - La MFA de aplicación real (TOTP/`aal2`) la exige Supabase dentro del panel. Documentar capa por capa: perímetro Access (identidad/MFA de entrada) → Supabase Auth (login) → TOTP `aal2` (mutaciones sensibles).
+   - Registrar IdP, duración de sesión, miembros aceptados, policy exacta, hostname, deployment ID, commit SHA y rama.
+3. No exponer rutas del panel por otro hostname. Si el dominio Pages directo/preview permite bypass del custom domain, protegerlo o deshabilitarlo explícitamente para el panel.
 
 ### 6.5 Redirect URLs / entorno Supabase
 
-- Con Access activo, confirmar Site URL/redirect URLs de Auth (5.2) apuntando a `https://admin.studiamatch.com` y que los enlaces de confirmación/correo no rompan el flujo detrás de Access.
-- Variables de entorno (nombres, sin valores): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` en GitHub env `Development`/`Certification` y en el proyecto Pages correspondiente.
+- Con Access activo, confirmar Site URL/redirect URLs de Auth apuntando al hostname administrativo del ambiente bajo prueba, no siempre a producción: `admin.studiamatch.com` solo para producción; hostname/preview de `desarrollo` para Development; hostname de `certificacion` para Certification.
+- Variables de entorno (nombres, sin valores): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` en GitHub env `Development`/`Certification` y en el proyecto Pages correspondiente. Nunca reutilizar el endpoint/key de producción en el preview de desarrollo.
+- Registrar explícitamente el par `hostname → Supabase project ref` en cada evidencia para impedir pruebas cruzadas.
 
 ### 6.6 Validación perimetral real (JIT-B) — matriz de pruebas
 
 | # | Prueba | Esperado |
 |---|---|---|
-| E1 | `curl -I https://admin.studiamatch.com/admin/` sin sesión Access | Redirección a login de Access (302 a `{team}.cloudflareaccess.com/…`). |
-| E2 | Acceso tras autenticación Access (factor perimetral) | `200` en `/admin/login`/panel. |
-| E3 | `curl -I https://studiamatch.com/admin/` (host público) | `404`, no sirve panel. |
-| E4 | `curl -I https://studiamatch.com/` | `200` normal (sin regresión pública). |
-| E5 | Login Supabase + enrollment/verify TOTP dentro de `admin.studiamatch.com` | Sesión `aal2`; QR/secreto visibles; RPCs sensibles OK. |
+| E1 | `curl -I` del hostname administrativo del ambiente sin sesión Access | Redirección a login de Access (302 a `{team}.cloudflareaccess.com/…`), registrando rama/SHA/deployment. |
+| E2 | Acceso tras autenticación Access (factor perimetral) | `200` en `/admin/login`/panel del mismo ambiente; no se valida contra `admin.studiamatch.com` si la prueba es `desarrollo`. |
+| E3 | `curl -I https://studiamatch.com/admin/` y equivalente `www` | `404`, no sirve panel público. |
+| E4 | `curl -I https://studiamatch.com/` y `www` | `200` normal (sin regresión pública). |
+| E5 | Login Supabase + enrollment/verify TOTP dentro del hostname del ambiente | Sesión `aal2`; QR/secreto visibles; RPCs sensibles OK y project ref correcto. |
 | E6 | Negativos: `aal1` en mutación, usuario sin membresía, código MFA inválido | Rechazo (misma expectativa A5/A11/A4). |
-| E7 | Headers/cabeceras en panel y público | Sin leaks; cabeceras estáticas presentes. |
-| E8 | Segunda corrida `NOOP` y revisión advisors | Sin drift; sin hallazgos HIGH/CRITICAL. |
+| E7 | Headers/cabeceras en panel y público | Sin leaks; cabeceras estáticas presentes; no bypass por URL hash/dominio Pages. |
+| E8 | Segunda corrida `NOOP` y revisión advisors | Sin drift; deployment/branch/hostname constantes; sin hallazgos HIGH/CRITICAL. |
 
 ## 7. Pruebas Ejecutadas Hoy (offline, Docker) — Resultado Local
 
@@ -192,7 +200,7 @@ Rama `feat/h3-jit-supabase-admin-combined` desde `origin/desarrollo` (`c675ef1`)
 | `git diff --check` (origin/desarrollo..HEAD) | Limpio |
 | H2/H2-Pro/H3 PG17 (`h3_pg17_harness.sql`, incluyendo regresión A6/A13) | PASS — `h3_pg17_harness_ok` |
 
-**No ejecutables o no cerrados en esta fase (requieren ambiente remoto/aprobación separada):** revalidación A6/A13 después de aplicar `20260903` en Free, configuración Auth pendiente, matriz JIT-B E2/E5/E6/E7, invitación Edge Function, mecanismo 404 público estable, UAT real en Free/Certification y `security-audit`/CodeQL/Pages preview remotos. La UAT local con mock (47/47 y 141/141) no es evidencia de producción para Access/MFA perimetral. `pytest -q` global no es gate válido en este checkout porque recoge worktrees históricos y pruebas de integración fuera del alcance; el job CI usa el subset anterior.
+**Estado tras el PR mergeado y la primera UAT remota:** `20260903` ya está aplicado en Free y A6/A13 fueron validados con el ambiente limpio al cierre. La prueba de membresía Cloudflare para `romelhc95@gmail.com` también fue aceptada. Permanecen no cerrados: UAT administrativa E2/E5/E6/E7 contra el deployment correcto de `desarrollo`, separación Pages/Access por ambiente, configuración Auth por hostname, invitación Edge Function, mecanismo 404 público estable, UAT en Free/Certification y promoción. La UAT local con mock (47/47 y 141/141) no es evidencia de producción para Access/MFA perimetral. `pytest -q` global no es gate válido en este checkout porque recoge worktrees históricos y pruebas de integración fuera del alcance; el job CI usa el subset anterior.
 
 ## 8. Rollback
 
@@ -224,10 +232,13 @@ JIT-B:
 
 ## 11. Siguientes Pasos
 
-1. Abrir el PR protegido a `desarrollo` con la plantilla `.github/pull_request_template.md`; el PR separa GO local de evidencia remota parcial.
-2. Aplicar `20260903_h3_rbac_contract_fix.sql` en Free con JIT DDL separado y repetir A6/A13; incorporar la evidencia al PR sin hacer merge automático.
-3. Completar configuración Auth, E2/E5/E6/E7, Edge Function de invitación y mecanismo estable de 404 mediante sus aprobaciones independientes.
-4. Ejecutar `security-audit`, revisión humana, UAT de Certification y promoción `desarrollo → certificacion → main` solo con autorizaciones posteriores.
+1. Mantener `studiamatch.com`/`www.studiamatch.com` como público de producción (`main`) y no usarlos para UAT de `desarrollo`.
+2. Validar `desarrollo` mediante la URL de commit `88f02c53.studiamatch-aty.pages.dev` o un alias estable real de rama; registrar deployment ID, SHA y Supabase Free ref.
+3. Corregir la topología Pages/Access: `admin.studiamatch.com` queda reservado al panel de producción; desarrollo y certificación requieren hostnames/targets administrativos propios o proyectos/artefactos separados.
+4. Crear policies Access separadas por ambiente; proteger también dominios Pages directos si permiten bypass.
+5. Configurar Auth Site URL/redirects y keys por ambiente; repetir E2–E8 únicamente contra el deployment correcto.
+6. Implementar Edge Function de invitación y mecanismo 404 público estable antes de promover H3 a `main`.
+7. Ejecutar UAT completa sobre `desarrollo` + Free; después PR protegido a `certificacion`, UAT completa allí y finalmente PR a `main` + validación Pro/producción.
 
 ## 12. Frases De Aprobacion Esperadas
 
