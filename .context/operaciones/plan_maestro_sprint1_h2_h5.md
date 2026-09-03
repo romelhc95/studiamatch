@@ -39,18 +39,19 @@ UAT estructural 47/47 y 141/141 preservada
 ```text
 H3 local: ciclo de corrección 2026-09-02 y revalidación documental 2026-09-03 completados
 (workflow/gates H3, invariantes DB, regresión A6/A13 PG17, MFA local, UAT E2E/artifacts,
-auditorías locales) -> H3_PR_DEVELOPMENT_READY_LOCAL
--> commit + push + PR protegido a desarrollo (autorización humana separada otorgada)
--> security-audit + revisión + aprobación separada de merge a desarrollo
--> JIT separado Supabase Free/Auth: payload remoto hasta 20260902; delta 20260903 pendiente
-de aplicación/revalidación antes del cierre remoto
+auditorías locales) -> PR protegido a desarrollo (mergeado en `e3d21c1`)
+-> validación remota Development sobre Free + preview Pages de `desarrollo` (Free/A6-A13 PASS; UAT admin pendiente por despliegue)
+-> corrección y validación de separación Pages/Access por ambiente
 -> PR protegido desarrollo a certificacion
+-> validación remota Certification sobre Free + preview/hostname de `certificacion`
 -> PR protegido certificacion a main
+-> validación remota Production sobre Pro + `admin.studiamatch.com`
+-> contract de legacy y cierre documental
 ```
 
 ## Reglas
 
-- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 conserva su historia de promoción. H3 queda `H3_PR_DEVELOPMENT_READY_LOCAL` (GO local para PR): el ciclo de corrección y la revalidación documental 2026-09-03 dejaron en verde los gates locales, incluyendo regresión PG17 A6/A13 para `20260903_h3_rbac_contract_fix.sql`. JIT-A remoto hasta `20260902` conserva A6/A13 FAIL históricos; JIT-B conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Build normal/mock PASS; waiver static export superseded. Commit + push + PR autorizados por instrucción humana separada; acciones remotas posteriores permanecen bloqueadas.
+- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 conserva su historia de promoción. H3 mantiene `H3_PR_DEVELOPMENT_READY_LOCAL` y el PR ya fue mergeado a `desarrollo` (`e3d21c1`). La validación remota Development debe ejecutarse sobre Free y el deployment/preview real de `desarrollo`, no sobre `admin.studiamatch.com`, que permanece reservado al deployment productivo. El candidato local incluye `20260903_h3_rbac_contract_fix.sql`; su validación remota en Free PASS debe conservarse como evidencia de Development. JIT-B mantiene E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes hasta corregir hostname/build/Access. Build normal/mock PASS; waiver static export superseded.
 - Antes de iniciar y al cerrar todo hito/task debe validarse contra la fuente privada cliente usando su atestación sanitizada versionada; si falla, se corrige primero la documentación y no se ejecuta el siguiente hito.
 - La ampliación H3 está respaldada por la atestación sanitizada `H3-EXPANDED-PROMPT-2026-08-30`, que autoriza ejecución local Docker hasta GO local; las acciones remotas, promoción y despliegue siguen bloqueadas por aprobaciones separadas.
 - Pro es la fuente autoritativa de schema, tipos, constraints, campos y migraciones H2; Free y PostgreSQL 17 local convergen hacia Pro. No se usa Free/local para modificar Pro ni se sincronizan datos operativos como mecanismo normal.
@@ -65,9 +66,9 @@ de aplicación/revalidación antes del cierre remoto
 
 | Rama | Commit | Estado |
 |---|---|---|
-| `desarrollo` | `8ed8e36259af53a16e1f473ad906b5beadd5b09c` | PR #451 mergeado con flujo simple. |
-| `certificacion` | `8b843ac3714866dbce7b44958362fe7243ae06b9` | PR #452 mergeado con reconciliacion. |
-| `main` | `6128e5861ade426840a650335f7f859c803e5431` | PR #453 mergeado; Cloudflare Pages automatico exitoso. |
+| `desarrollo` | `e3d21c1b0de7faa224b0b34f830b3ecbc5d6921d` | PR #495 mergeado; preview Pages `88f02c53.studiamatch-aty.pages.dev` validado como deployment del SHA de desarrollo. |
+| `certificacion` | `8b843ac3714866dbce7b44958362fe7243ae06b9` | PR #452 mergeado con reconciliacion; pendiente promoción H3. |
+| `main` | `6128e5861ade426840a650335f7f859c803e5431` | Producción Pages; `admin.studiamatch.com` no debe usarse para validar `desarrollo`. |
 
 ## Hitos y siguientes gates
 

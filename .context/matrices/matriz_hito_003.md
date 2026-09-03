@@ -6,7 +6,7 @@
 
 | Unidad | Estado | Evidencia requerida |
 |---|---|---|
-| `H3-CA4` | `H3_PR_DEVELOPMENT_READY_LOCAL` | Gates locales revalidados el 2026-09-03, incluyendo delta `20260903_h3_rbac_contract_fix.sql` y regresión PG17 A6/A13; UAT canónica 47/47 y 141/141 PASS con 0 retries y evidencia regenerada. JIT-A remoto hasta `20260902` conserva A6/A13 FAIL históricos; JIT-B E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Commit + push + PR protegido a `desarrollo` autorizados por instrucción humana separada; acciones remotas posteriores siguen como gates separados. |
+| `H3-CA4` | `H3_DEVELOPMENT_REMOTE_PARTIAL` | Gates locales revalidados el 2026-09-03, incluyendo delta `20260903_h3_rbac_contract_fix.sql` y regresión PG17 A6/A13; UAT canónica 47/47 y 141/141 PASS con 0 retries y evidencia regenerada. JIT-A Development sobre Free aplicó `20260903` y validó A6/A13; JIT-B valida membresía y perímetro, pero la UAT administrativa debe ejecutarse sobre el deployment correcto de cada ambiente. El PR fue mergeado a `desarrollo` en `e3d21c1`; `admin.studiamatch.com` queda reservado a producción. |
 
 Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate de pre-arranque documental anterior.
 
@@ -28,35 +28,33 @@ Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate de pre-arr
 
 ## Estado de validación
 
-### Estado de cierre local
+### Estado de validación Development remoto
 
-`H3_PR_DEVELOPMENT_READY_LOCAL`: los bloqueadores locales que QA, seguridad y DB
-detectaron fueron resueltos y revalidados en Docker: workflow/allowlist/db-gate H3,
-contrato `20260902_h3_pr_contract.sql`, seed idempotente, harnesses PG17, MFA mock
-con `aal` real, y UAT canónica 47/47 y 141/141 PASS con 0 retries y evidencia
-regenerada en `.context/evidencia/h3-expanded/`. El delta
-`20260903_h3_rbac_contract_fix.sql` corrige localmente A6/A13 y está incluido en el
-candidato. JIT-A remoto hasta `20260902` conserva A6/A13 FAIL históricos; JIT-B
-conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Commit + push + PR a
-`desarrollo` quedaron autorizados por instrucción humana separada.
+`H3_DEVELOPMENT_REMOTE_PARTIAL`: los bloqueadores locales que QA, seguridad y DB
+detectaron fueron resueltos y revalidados en Docker. El delta
+`20260903_h3_rbac_contract_fix.sql` fue aplicado en Free y A6/A13 fueron validados
+remotamente; los fixtures temporales quedaron eliminados. JIT-B valida membresía
+Cloudflare y perímetro E1/E3/E4/E8. La UAT web E2/E5/E6/E7 queda pendiente hasta
+usar el deployment correcto de `desarrollo`; `admin.studiamatch.com` queda reservado
+a producción. El PR #495 fue mergeado a `desarrollo` en `e3d21c1`.
 
 ### Porcentaje de avance histórico
 
 | Criterio | Implementación | Validación | Estado resumido |
 |---|---:|---:|---|
-| H3-CA4 global | 78.7% provisional | 57.7% provisional | `H3_PR_DEVELOPMENT_READY_LOCAL`; GO local para PR; validación remota pendiente de JIT. |
-| H3-CA4.1 Auth/RBAC | 90% | 85% | RBAC y negativos locales cubiertos por UAT; Auth real pendiente. |
+| H3-CA4 global | 78.7% provisional | 57.7% provisional | `H3_DEVELOPMENT_REMOTE_PARTIAL`; Free/A6-A13 y parte del perímetro Cloudflare validados; UAT administrativa por ambiente y Certification pendientes. |
+| H3-CA4.1 Auth/RBAC | 90% | 85% | RBAC y negativos locales/Free cubiertos parcialmente; UAT web por ambiente pendiente. |
 | H3-CA4.2 Ownership | 85% | 75% | Allowlist y `missing_fields` cubiertos por UAT; falta entorno real. |
 | H3-CA4.3 Transporte | 60% | 40% | Mapeos y fixture E2E diferenciado; falta entorno real. |
 | H3-CA4.4 Cola | 85% | 70% | RPC/UI y paginación cubiertos por UAT; falta entorno real. |
 | H3-CA4.5 Mutaciones | 90% | 75% | RPCs y locking cubiertos por UAT; falta entorno real. |
 | H3-CA4.6 Auditoría | 85% | 60% | Append-only y eventos cubiertos por UAT; falta entorno real. |
-| H3-CA4.7 MFA | 80% | 55% | Mock `aal2` positivo y negativos `aal1` cubiertos por UAT; falta Auth real. |
-| H3-CA4.8 Membresías | 75% | 45% | Gestión, último admin e invitación mock cubiertos por UAT; falta Edge Function real. |
-| H3-CA4.9 Hostname | 60% | 40% | 404 público validado sobre perímetro real; falta allowlist de despliegue y Access. |
-| H3-CA4.10 Convergencia | 55% | 35% | PG17 y snapshot Pro; falta diff completo/remoto con JIT. |
-| H3-CA4.11 UAT | 100% estructural | 55% contractual | Dos corridas locales reportadas; faltan UAT real en Free/Certification y cierre contractual remoto. |
-| **Promedio** | **78.7% provisional** | **57.7% provisional** | **READY_LOCAL para PR; corrección local completada, JIT remoto posterior.** |
+| H3-CA4.7 MFA | 80% | 65% | Supabase Free Auth/MFA temporal validado con `aal2`, negativos y limpieza; UAT web Access por ambiente pendiente. |
+| H3-CA4.8 Membresías | 75% | 45% | Gestión, último admin e invitación mock cubiertos; falta Edge Function real y alta desde flujo productivo. |
+| H3-CA4.9 Hostname | 60% | 40% | Perímetro Access/membresía y 404 público parcial; falta separar deployment admin por ambiente y validar SHA. |
+| H3-CA4.10 Convergencia | 55% | 35% | PG17 y Free validados; falta diff completo/remoto con Pro como baseline y configuración por ambiente. |
+| H3-CA4.11 UAT | 100% estructural | 60% contractual | UAT local histórica y Free parcial reportadas; faltan UAT web por ambiente, Certification y cierre contractual remoto. |
+| **Promedio** | **78.7% provisional** | **60.2% provisional** | **`H3_DEVELOPMENT_REMOTE_PARTIAL`; Free/A6-A13 y perímetro parcial validados; UAT administrativa por ambiente y Certification pendientes.** |
 
 Los porcentajes distinguen presencia de implementación de evidencia ejecutada y no
 sustituyen los gates obligatorios de cierre.
@@ -70,13 +68,13 @@ sustituyen los gates obligatorios de cierre.
   pycompile, credential scan y `git diff --check` PASS.
 - Harness H3 PG17 termina en `h3_pg17_harness_ok` e incluye la regresión A6/A13
   del delta `20260903`; el harness local conserva `h3_pg17_harness_local_ok`.
-- Hostname público `studiamatch.com/admin/ → 404` validado sobre perímetro local;
-  Cloudflare JIT-B valida E1/E3/E4/E8, mientras E2/E5/E6/E7 siguen pendientes.
+- Hostname público `studiamatch.com/admin/ → 404` validado; `www` público responde 200 en `/` y 404 en `/admin/`.
+- Cloudflare confirma `romelhc95@gmail.com` como miembro `accepted`; E1/E3/E4/E8 PASS.
+- Preview `88f02c53.studiamatch-aty.pages.dev` corresponde a `desarrollo`/`e3d21c1`; E2/E5/E6/E7 del panel requieren completar UAT sobre ese deployment, no sobre `admin.studiamatch.com`.
 
-### Pendiente (gates posteriores y separados)
+### Siguientes correcciones
 
-- Commit + push + PR protegido a `desarrollo`: autorizados por instrucción humana
-  separada y ahora preparados con la plantilla del PR.
-- Aplicación/revalidación de `20260903` en Free, configuración Auth, Edge Function,
-  404 estable, JIT-B restante, Certification, merge y deploy permanecen bajo
-  JIT/promoción posterior separada.
+- Separar Pages/Access por ambiente: producción `main`/`admin.studiamatch.com`, desarrollo preview `88f02c53.studiamatch-aty.pages.dev` o alias real documentado, certificación preview propio.
+- Definir hostname administrativo estable para cada ambiente y registrar SHA, deployment ID y Supabase project ref.
+- Implementar Edge Function de invitación y mecanismo 404 público estable antes de promover H3 a `main`.
+- Repetir UAT E2–E8 por ambiente; no promover a `certificacion` hasta que el deployment de `desarrollo` y el hostname administrativo estén verificados.

@@ -24,11 +24,9 @@ H3 es una oficina privada del sitio. Un `user` completa información que falta y
 readiness determinó que dos corridas UAT (47/47 y 141/141) solo verificaban
 presencia de código o controles en parte de la matriz y dejó el estado en
 `H3_PR_DEVELOPMENT_NO_GO` (histórico). El ciclo de corrección local del 2026-09-02
-resolvió los bloqueadores HIGH/CRITICAL de CI, DB, MFA real, UAT/evidencia y
-rollback, regeneró la UAT canónica (47/47 casos y 141/141 ejecuciones PASS con 0
-retries) y dejó el candidato en `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR).
-Commit + push + PR a `desarrollo` quedaron autorizados por instrucción humana
-separada.
+resolvió los bloqueadores locales, regeneró la UAT canónica (47/47 casos y 141/141
+ejecuciones PASS con 0 retries) y dejó el candidato en `H3_PR_DEVELOPMENT_READY_LOCAL`.
+El PR #495 fue posteriormente mergeado a `desarrollo` en `e3d21c1`.
 
 El static export ya no es bloqueante: `npm run build` y `npm run build:mock` fueron
 re-ejecutados en Docker el 2026-09-03, compilaron correctamente y produjeron las
@@ -58,10 +56,10 @@ Orden cumplido para el cierre:
 
 ## Estado documental del candidato PR
 
-- Payload JIT-A remoto ejecutado hasta `20260902`; `20260903_h3_rbac_contract_fix.sql` incluido como delta candidato y probado en PG17.
-- A6/A13 remotos permanecen FAIL históricos hasta aplicar y revalidar el delta.
+- Payload JIT-A Development ejecutado en Free hasta `20260903_h3_rbac_contract_fix.sql`; A6/A13 corregidos y validados en remoto.
+- Evidencia JIT-B permanece parcial: el perímetro/membresía están validados, pero la UAT debe usar el deployment administrativo correcto por ambiente.
 - JIT-B mantiene E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes.
-- Este reporte acredita GO local para revisión, no cierre contractual remoto ni autorización de promoción.
+- Este reporte acredita estado remoto Development parcial; no cierre contractual ni autorización de promoción.
 
 ## Contrato de roles
 
@@ -371,13 +369,10 @@ allowed origins y deep-links requieren JIT separado.
 
 ## Veredicto
 
-`H3_PR_DEVELOPMENT_READY_LOCAL` — GO local para PR ready-for-review a
-`desarrollo`. El candidato incluye `20260903_h3_rbac_contract_fix.sql`, corrige
-localmente A6/A13 y lo cubre con regresión PG17. La evidencia JIT-A documenta la
-corrida remota hasta `20260902` con A6/A13 FAIL históricos; la evidencia JIT-B
-documenta E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Los gates locales del
-candidato están revalidados: `security-audit.yml`, `db-gate` PG17, suite CI-local,
-TypeScript, lint, builds normal/mock, mock smoke, actionlint, shellcheck,
-pycompile, credential scan, UAT canónica y rollback documentado. El PR es apto para
-revisión; no declara cierre contractual remoto ni autoriza aplicación remota del delta,
-configuración Auth, dependencia build, certificación, merge ni deploy.
+`H3_DEVELOPMENT_REMOTE_PARTIAL` — el PR #495 fue revisado y mergeado a `desarrollo`
+(`e3d21c1`). JIT-A Development ejecutó `20260903_h3_rbac_contract_fix.sql` en Free y
+validó A6/A13; el ambiente quedó limpio tras eliminar fixtures temporales. JIT-B
+valida membresía Cloudflare y perímetro E1/E3/E4/E8, pero E2/E5/E6/E7 requieren que
+cada hostname administrativo apunte al deployment correcto de su ambiente. La UAT
+siguiente debe usar la preview de `desarrollo` y no `admin.studiamatch.com`, que queda
+reservado a producción. No se declara cierre contractual ni autorización de promoción.

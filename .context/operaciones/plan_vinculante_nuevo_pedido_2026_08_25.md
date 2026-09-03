@@ -161,7 +161,10 @@ DNS, Access, redirect URLs Auth y variables de origen requieren JIT separado.
 
 ### Estado de cierre local H3 actualizado
 
-El estado vigente es `H3_PR_DEVELOPMENT_READY_LOCAL`. La auditoría de readiness
+El estado vigente es `H3_PR_DEVELOPMENT_READY_LOCAL`. El PR #495 ya fue mergeado a
+`desarrollo` en `e3d21c1`. Desde este punto, toda UAT de Development debe apuntar al
+preview/deployment de `desarrollo` y al proyecto Free; `admin.studiamatch.com` queda
+reservado para producción y no sirve como evidencia de Development. La auditoría de readiness
 del 2026-09-02 dejó inicialmente `H3_PR_DEVELOPMENT_NO_GO` (histórico): dos
 corridas UAT reportaban 47/47 y 141/141 PASS, pero se clasificaron como evidencia
 estructural insuficiente para readiness. El ciclo de corrección local y la
