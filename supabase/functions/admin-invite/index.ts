@@ -1,4 +1,4 @@
-﻿import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const ENV_SUPABASE_URL = "SUPABASE_URL";
 const ENV_SERVICE_ROLE_KEY = "SUPABASE_" + "SERVICE_ROLE_KEY";

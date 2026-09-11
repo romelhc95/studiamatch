@@ -1,4 +1,4 @@
-﻿interface MiddlewareContext {
+interface MiddlewareContext {
   request: Request;
   env: Record<string, string | undefined>;
   next: () => Promise<Response>;

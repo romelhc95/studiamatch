@@ -1,4 +1,4 @@
-﻿-- H3: PR contract delta — effective-value editorial reader and publish completeness gate
+-- H3: PR contract delta — effective-value editorial reader and publish completeness gate
 -- Scope: Free/Development DDL only. CREATE OR REPLACE deltas are idempotent.
 -- No backfill, Pro apply, writers, schedules, canaries, or deploys are authorized here.
 

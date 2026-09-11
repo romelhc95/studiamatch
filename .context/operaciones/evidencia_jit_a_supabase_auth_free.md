@@ -1,4 +1,4 @@
-﻿# Evidencia JIT-A — Supabase Free Auth (email/password + MFA TOTP)
+# Evidencia JIT-A — Supabase Free Auth (email/password + MFA TOTP)
 
 - **Fecha de ejecución remota**: 2026-09-02
 - **Fecha de actualización documental**: 2026-09-03

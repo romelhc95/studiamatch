@@ -1,4 +1,4 @@
-﻿# RF-01 Build Report - GIT and RELEASE GOVERNANCE
+# RF-01 Build Report - GIT and RELEASE GOVERNANCE
 
 > STATUS: TARGET / NOT ACTIVE. Informe de evidencia del ciclo RF-01 BUILD.
 > NO usar para promover H3 actual. Autoridad viva: `estado_del_proyecto.md`.

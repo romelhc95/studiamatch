@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Configuración inicial dentro del contenedor
 
 echo "🔄 Iniciando configuración de entorno StudIAMatch (Linux)..."

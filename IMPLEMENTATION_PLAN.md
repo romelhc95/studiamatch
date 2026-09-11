@@ -1,4 +1,4 @@
-﻿# Plan de Implementación: StudIAMatch - Tech Education Intelligence
+# Plan de Implementación: StudIAMatch - Tech Education Intelligence
 
 ## Premisas Obligatorias de Ingeniería (Nivel 0)
 
