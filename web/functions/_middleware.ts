@@ -1,11 +1,11 @@
-﻿interface MiddlewareContext {
+interface MiddlewareContext {
   request: Request;
   env: Record<string, string | undefined>;
   next: () => Promise<Response>;
 }
 
 const PUBLIC_HOSTS = new Set(["studiamatch.com", "www.studiamatch.com"]);
-const SLASH_REDIRECT_PATHS = new Set(["/admin", "/admin/login", "/admin/edit", "/admin/users"]);
+const SLASH_REDIRECT_PATHS = new Set(["/admin", "/admin/login", "/admin/edit", "/admin/users", "/admin/auth/callback", "/admin/accept-invite", "/admin/setup-password"]);
 
 function isAdminPath(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/");

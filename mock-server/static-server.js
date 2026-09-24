@@ -33,7 +33,7 @@ http.createServer((req, res) => {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     return res.end('Forbidden');
   }
-  if (requestPath === '/admin' || requestPath === '/admin/login' || requestPath === '/admin/edit' || requestPath === '/admin/users') {
+if (requestPath === '/admin' || requestPath === '/admin/login' || requestPath === '/admin/edit' || requestPath === '/admin/users' || requestPath === '/admin/auth/callback' || requestPath === '/admin/accept-invite' || requestPath === '/admin/setup-password') {
     res.writeHead(302, { Location: `${requestPath}/` });
     return res.end();
   }

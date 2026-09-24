@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 const h3MockUrl = process.env.NEXT_PUBLIC_H3_MOCK_URL?.trim();
@@ -29,6 +31,16 @@ if (h3MockUrl) {
 
 export const SUPABASE_URL = h3MockUrl || supabaseUrl;
 export const SUPABASE_PUBLISHABLE_KEY = supabasePublishableKey || "local-publishable-key";
+
+export const supabaseBrowserClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    flowType: 'pkce',
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    storage: typeof window === 'undefined' ? undefined : window.sessionStorage,
+  },
+});
 
 export const COURSE_PUBLIC_FIELDS = 'id,institution_id,category_id,name,slug,url,price_pen,price_status,mode,duration,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,start_date,start_date_text,course_type,brochure_url,expected_monthly_salary,seniority_level,roi_months,view_count,comparison_count,created_at,updated_at';
 
