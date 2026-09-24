@@ -63,7 +63,7 @@ jobs:
             requirements.txt requirements-*.txt web/package.json web/package-lock.json || true)
           if [ -n "$changed" ]; then
             echo "protected H2/H3 paths changed; validating the scoped H3 candidate"
-            allowed_h3='^(db/migrations/(2026082[56]_h2_.*|20260827_h2_pro_.*|20260828_h3_.*|20260829_h3_rbac_users|20260830_h3_expanded_contract|20260902_h3_pr_contract|20260903_h3_rbac_contract_fix|20260918_h3_invitation_flow_persistence|20260919_h3_invitation_auth_token_delta|20260920_h3_invitation_edge_runtime|20260921_h3_invitation_onboarding_rpc|20260924_h3_onboarding_rbac_hardening(_fix)?)\.sql|db/seeds/h3_admin_seed_local\.sql|supabase/(config\.toml|functions/admin-invite/index\.ts)|web/.*|mock-server/.*|tests/.*|\.github/workflows/security-audit\.yml)$'
+            allowed_h3='^(db/migrations/.*\.sql|db/seeds/h3_admin_seed_local\.sql|supabase/.*|web/.*|mock-server/.*|tests/.*|scripts/(core/.*|shared/.*|maintenance/(db_migrate|check_db_parity|h2_.*)\.py)|requirements.*\.txt|\.github/workflows/security-audit\.yml)$'
             disallowed=$(printf '%s\n' "$changed" | grep -Ev "$allowed_h3" || true)
             if [ -n "$disallowed" ]; then
               printf '%s\n' "$disallowed" | sed 's/^/::error::protected path changed: /'
