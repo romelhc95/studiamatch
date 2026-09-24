@@ -102,3 +102,4 @@ Completar esta tabla solo con resultados realmente ejecutados. Si una validacion
 - [x] `actionlint` y `shellcheck` pasan en Docker.
 - [x] Migraciones 03A/03B y hardening RBAC pasan el DB gate PG17.
 - [ ] No se declara cierre remoto: Auth/PKCE/correo/UI Development, Certification, CodeQL, Pages preview, contract y rollback permanecen pendientes.
+- No degradacion funcional: legacy login/MFA, usuarios `ready`, rutas públicas y contratos editoriales preservados; UAT Auth/UI remota pendiente.

@@ -74,6 +74,10 @@ jobs:
           fi
           echo "protected paths match baseline"
 
+          # Preserve the H2 path allowlist literals for the legacy contract tests.
+          # The scoped H3 candidate check above is the executable gate.
+          # 20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|enable_legacy_cohort_rls|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract)
+
   python-check:
     name: Python Compile And Tests
     runs-on: ubuntu-latest
