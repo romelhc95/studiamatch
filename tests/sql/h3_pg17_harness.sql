@@ -129,6 +129,37 @@ $$;
 \ir ../../db/migrations/20260829_h3_rbac_users.sql
 \ir ../../db/migrations/20260902_h3_pr_contract.sql
 \ir ../../db/migrations/20260903_h3_rbac_contract_fix.sql
+\ir ../../db/migrations/20260918_h3_invitation_flow_persistence.sql
+
+-- Legacy compatibility fixture: the Auth-owned delta must preserve an
+-- existing application-managed hash while making future hashes optional.
+INSERT INTO auth.users (id, email)
+VALUES ('39000000-0000-0000-0000-000000000001', 'legacy-invitation@local.test');
+INSERT INTO public.admin_invitations (
+    email, role, token_hash, created_by_user_id, expires_at
+) VALUES (
+    'legacy-invitation@local.test', 'user',
+    encode(digest('legacy-token-h3-local-validation', 'sha256'), 'hex'),
+    '39000000-0000-0000-0000-000000000001', now() + interval '48 hours'
+);
+
+\ir ../../db/migrations/20260919_h3_invitation_auth_token_delta.sql
+-- Re-run the delta to prove DDL idempotency on the same PG17 schema.
+\ir ../../db/migrations/20260919_h3_invitation_auth_token_delta.sql
+\ir ../../db/migrations/20260920_h3_invitation_edge_runtime.sql
+\ir ../../db/migrations/20260921_h3_invitation_onboarding_rpc.sql
+\ir ../../db/migrations/20260924_h3_onboarding_rbac_hardening.sql
+
+DO $$
+BEGIN
+    IF (SELECT token_hash FROM public.admin_invitations
+        WHERE email = 'legacy-invitation@local.test') IS DISTINCT FROM
+        encode(digest('legacy-token-h3-local-validation', 'sha256'), 'hex') THEN
+        RAISE EXCEPTION 'legacy invitation token hash was not preserved';
+    END IF;
+END;
+$$;
+
 \ir ../../db/seeds/h3_admin_seed_local.sql
 
 DO $$
@@ -136,7 +167,7 @@ DECLARE
     actual INTEGER;
 BEGIN
     SELECT count(*) INTO actual FROM auth.users;
-    IF actual <> 5 THEN RAISE EXCEPTION 'expected five local auth users, got %', actual; END IF;
+    IF actual <> 6 THEN RAISE EXCEPTION 'expected six local auth users including legacy invitation fixture, got %', actual; END IF;
 
     SELECT count(*) INTO actual FROM public.admin_members WHERE is_active AND role = 'admin';
     IF actual <> 2 THEN RAISE EXCEPTION 'expected two active admins, got %', actual; END IF;
@@ -175,7 +206,7 @@ DECLARE
     actual INTEGER;
 BEGIN
     SELECT count(*) INTO actual FROM auth.users;
-    IF actual <> 5 THEN RAISE EXCEPTION 'idempotent seed re-run changed auth user count to %', actual; END IF;
+    IF actual <> 6 THEN RAISE EXCEPTION 'idempotent seed re-run changed auth user count to %', actual; END IF;
 
     SELECT count(*) INTO actual FROM public.admin_members WHERE is_active AND role = 'admin';
     IF actual <> 2 THEN RAISE EXCEPTION 'idempotent seed re-run changed active admin count to %', actual; END IF;
@@ -432,4 +463,336 @@ BEGIN
 END;
 $$;
 
+-- Invitation Flow persistence regression (design H3-DESIGN-DB-01):
+-- legacy backfill, lifecycle transitions, constraints, single pending per email,
+-- token immutability, append-only invitations, audit vocabulary.
+DO $$
+DECLARE
+    admin_id UUID := '30000000-0000-0000-0000-000000000001';
+    invited_id UUID := '30000000-0000-0000-0000-000000000003';
+    invitee_user UUID := '30000000-0000-0000-0000-000000000002';
+    invitation_id UUID;
+    stale_token TEXT;
+    inv_invited_at TIMESTAMPTZ;
+    inv_accepted_at TIMESTAMPTZ;
+    inv_password_at TIMESTAMPTZ;
+    revoked_active BOOLEAN;
+    revoked_at_ts TIMESTAMPTZ;
+    legacy_ready INTEGER;
+    audit_count INTEGER;
+BEGIN
+    -- Backfill: every legacy seed member must be account_status = 'ready'.
+    SELECT count(*) INTO legacy_ready
+    FROM public.admin_members WHERE account_status <> 'ready';
+    IF legacy_ready <> 0 THEN
+        RAISE EXCEPTION 'legacy members were not backfilled to ready: % rows', legacy_ready;
+    END IF;
+
+    -- An invited member is persisted with an open onboarding state.
+    -- (Editorial denial of invited members is enforced later, when RPCs adopt
+    -- account_status = 'ready'; this build keeps current RPC behavior unchanged.)
+    -- Design machine: ready cannot re-invite directly; the path is ready -> inactive -> invited.
+    UPDATE public.admin_members SET account_status = 'inactive', is_active = false
+    WHERE user_id = invited_id;
+    UPDATE public.admin_members SET account_status = 'invited', is_active = true
+    WHERE user_id = invited_id;
+    SELECT account_status, invited_at, accepted_at, password_set_at
+    INTO stale_token, inv_invited_at, inv_accepted_at, inv_password_at
+    FROM public.admin_members WHERE user_id = invited_id;
+    IF stale_token <> 'invited' OR inv_invited_at IS NULL OR inv_accepted_at IS NOT NULL OR inv_password_at IS NOT NULL THEN
+        RAISE EXCEPTION 'invited member persistence is inconsistent (status=%, invited_at=%, accepted_at=%, password_set_at=%)',
+            stale_token, inv_invited_at, inv_accepted_at, inv_password_at;
+    END IF;
+    PERFORM set_config('request.jwt.claim.sub', admin_id::text, false);
+
+    -- Invitation lifecycle: invite -> accept -> password_set -> ready.
+    INSERT INTO public.admin_invitations (
+        admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+    ) VALUES (
+        invited_id,
+        'invited-flow@local.test',
+        'user',
+        encode(digest('invitation-token-h3-local-validation-0001', 'sha256'), 'hex'),
+        admin_id,
+        now() + interval '48 hours'
+    )
+    RETURNING id INTO invitation_id;
+
+    UPDATE public.admin_members
+    SET account_status = 'accepted', last_invitation_id = invitation_id
+    WHERE user_id = invited_id;
+    UPDATE public.admin_members
+    SET account_status = 'password_pending'
+    WHERE user_id = invited_id;
+    UPDATE public.admin_members
+    SET account_status = 'ready',
+        password_set_at = now(),
+        last_invitation_id = invitation_id
+    WHERE user_id = invited_id;
+
+    SELECT account_status INTO stale_token FROM public.admin_members WHERE user_id = invited_id;
+    IF stale_token <> 'ready' THEN
+        RAISE EXCEPTION 'invitation lifecycle did not reach ready, got %', stale_token;
+    END IF;
+    SELECT accepted_at, password_set_at INTO inv_accepted_at, inv_password_at
+    FROM public.admin_members WHERE user_id = invited_id;
+    IF inv_accepted_at IS NULL OR inv_password_at IS NULL THEN
+        RAISE EXCEPTION 'ready member is missing accepted_at/password_set_at';
+    END IF;
+
+    -- The used invitation must be closed so the email can be invited again later.
+    UPDATE public.admin_invitations
+    SET status = 'accepted', accepted_user_id = invitee_user
+    WHERE id = invitation_id;
+
+    -- ready -> invited directly is forbidden by design (requires deactivation first).
+    BEGIN
+        UPDATE public.admin_members SET account_status = 'invited' WHERE user_id = invited_id;
+        RAISE EXCEPTION 'ready -> invited direct transition was not rejected';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM NOT LIKE 'admin_members invalid status transition ready -> invited%' THEN
+            RAISE EXCEPTION 'unexpected transition error: %', SQLERRM;
+        END IF;
+    END;
+
+    -- New onboarding cycle for the negative test: ready -> inactive -> invited -> accepted -> password_pending.
+    UPDATE public.admin_members SET account_status = 'inactive', is_active = false
+    WHERE user_id = invited_id;
+    UPDATE public.admin_members SET account_status = 'invited', is_active = true
+    WHERE user_id = invited_id;
+    INSERT INTO public.admin_invitations (
+        admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+    ) VALUES (
+        invited_id, 'invited-flow@local.test', 'user',
+        encode(digest('invitation-token-h3-local-validation-0002', 'sha256'), 'hex'),
+        admin_id, now() + interval '48 hours'
+    );
+    UPDATE public.admin_members
+    SET account_status = 'accepted',
+        last_invitation_id = (SELECT id FROM public.admin_invitations
+                              WHERE email = 'invited-flow@local.test' AND status = 'pending')
+    WHERE user_id = invited_id;
+    UPDATE public.admin_members SET account_status = 'password_pending' WHERE user_id = invited_id;
+
+    -- Transition to ready without password_set_at must fail (accepted_at is already set).
+    BEGIN
+        UPDATE public.admin_members SET account_status = 'ready' WHERE user_id = invited_id;
+        RAISE EXCEPTION 'ready transition without accepted/password timestamps was not rejected';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM NOT LIKE 'admin_members transition to ready requires%' THEN
+            RAISE EXCEPTION 'unexpected transition error: %', SQLERRM;
+        END IF;
+    END;
+
+    -- Positive completion: with password_set_at the member becomes ready again.
+    UPDATE public.admin_members
+    SET account_status = 'ready', password_set_at = now()
+    WHERE user_id = invited_id;
+
+    -- A revoked member is blocked and timestamped (guard enforces is_active = false).
+    UPDATE public.admin_members SET account_status = 'revoked'
+    WHERE user_id = invited_id;
+    SELECT is_active, revoked_at, accepted_at, password_set_at
+    INTO revoked_active, revoked_at_ts, inv_accepted_at, inv_password_at
+    FROM public.admin_members WHERE user_id = invited_id;
+    IF revoked_active THEN
+        RAISE EXCEPTION 'revoked member must not remain active';
+    END IF;
+    IF revoked_at_ts IS NULL OR inv_accepted_at IS NULL OR inv_password_at IS NULL THEN
+        RAISE EXCEPTION 'revoked member is missing revoked_at or onboarding timestamps';
+    END IF;
+    PERFORM set_config('request.jwt.claim.sub', invited_id::text, false);
+    IF public.admin_is_active_editor() THEN
+        RAISE EXCEPTION 'revoked member with active flag false must not be an editor';
+    END IF;
+    PERFORM set_config('request.jwt.claim.sub', admin_id::text, false);
+
+    -- Close the invitation used by the second onboarding cycle.
+    UPDATE public.admin_invitations
+    SET status = 'accepted', accepted_user_id = invitee_user
+    WHERE email = 'invited-flow@local.test' AND status = 'pending'
+      AND token_hash = encode(digest('invitation-token-h3-local-validation-0002', 'sha256'), 'hex');
+
+    -- New pending invitation for the same email is allowed once none is pending.
+    INSERT INTO public.admin_invitations (
+        admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+    ) VALUES (
+        invited_id, 'invited-flow@local.test', 'user',
+        encode(digest('invitation-token-h3-local-validation-0003', 'sha256'), 'hex'),
+        admin_id, now() + interval '48 hours'
+    );
+    BEGIN
+        INSERT INTO public.admin_invitations (
+            admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+        ) VALUES (
+            invited_id, 'invited-flow@local.test', 'user',
+            encode(digest('invitation-token-h3-local-validation-0004', 'sha256'), 'hex'),
+            admin_id, now() + interval '48 hours'
+        );
+        RAISE EXCEPTION 'second pending invitation for the same email was not rejected';
+    EXCEPTION WHEN unique_violation THEN
+        NULL;
+    END;
+
+    -- Supersede (resend): pending -> superseded, then a new pending row is allowed.
+    UPDATE public.admin_invitations SET status = 'superseded'
+    WHERE email = 'invited-flow@local.test' AND status = 'pending';
+    INSERT INTO public.admin_invitations (
+        admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+    ) VALUES (
+        invited_id, 'invited-flow@local.test', 'user',
+        encode(digest('invitation-token-h3-local-validation-0004', 'sha256'), 'hex'),
+        admin_id, now() + interval '48 hours'
+    );
+
+    -- Non-pending invitations are frozen (accept after supersede must fail).
+    BEGIN
+        UPDATE public.admin_invitations
+        SET status = 'accepted', accepted_user_id = invitee_user
+        WHERE email = 'invited-flow@local.test' AND status = 'superseded';
+        RAISE EXCEPTION 'superseded invitation was accepted';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM NOT LIKE 'admin_invitations invalid status transition%' THEN
+            RAISE EXCEPTION 'unexpected invitation transition error: %', SQLERRM;
+        END IF;
+    END;
+
+    -- token_hash/email/created_by/created_at are immutable.
+    BEGIN
+        UPDATE public.admin_invitations
+        SET token_hash = encode(digest('forged-token', 'sha256'), 'hex')
+        WHERE email = 'invited-flow@local.test' AND status = 'pending';
+        RAISE EXCEPTION 'token_hash mutation was not rejected';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM NOT LIKE 'admin_invitations.token_hash is immutable%' THEN
+            RAISE EXCEPTION 'unexpected token immutability error: %', SQLERRM;
+        END IF;
+    END;
+
+    -- Invitations are append-only.
+    BEGIN
+        DELETE FROM public.admin_invitations WHERE email = 'invited-flow@local.test';
+        RAISE EXCEPTION 'invitation deletion was not rejected';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM NOT LIKE 'admin_invitations is append-only%' THEN
+            RAISE EXCEPTION 'unexpected delete guard error: %', SQLERRM;
+        END IF;
+    END;
+
+    -- Opcion A: Auth owns the token, so a new invitation may omit token_hash.
+    INSERT INTO public.admin_invitations (
+        admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+    ) VALUES (
+        invited_id, 'auth-owned-token@local.test', 'user', NULL,
+        admin_id, now() + interval '48 hours'
+    ) RETURNING id INTO invitation_id;
+
+    IF (SELECT token_hash FROM public.admin_invitations WHERE id = invitation_id) IS NOT NULL THEN
+        RAISE EXCEPTION 'Auth-owned invitation unexpectedly persisted a token hash';
+    END IF;
+
+    -- A failed send/persistence attempt is explicit, auditable and retryable.
+    UPDATE public.admin_invitations
+    SET status = 'send_failed', failure_code = 'persistence_failed'
+    WHERE id = invitation_id;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.admin_invitations
+        WHERE id = invitation_id AND status = 'send_failed'
+          AND token_hash IS NULL AND failure_code = 'persistence_failed'
+    ) THEN
+        RAISE EXCEPTION 'send_failed invitation state was not persisted';
+    END IF;
+
+    BEGIN
+        UPDATE public.admin_invitations
+        SET status = 'pending'
+        WHERE id = invitation_id;
+        RAISE EXCEPTION 'send_failed -> pending transition was not rejected';
+    EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM NOT LIKE 'admin_invitations invalid status transition%' THEN
+            RAISE EXCEPTION 'unexpected send_failed transition error: %', SQLERRM;
+        END IF;
+    END;
+
+    INSERT INTO public.admin_invitations (
+        admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+    ) VALUES (
+        invited_id, 'auth-owned-token@local.test', 'user', NULL,
+        admin_id, now() + interval '48 hours'
+    );
+
+    BEGIN
+        INSERT INTO public.admin_invitations (
+            admin_member_user_id, email, role, token_hash, created_by_user_id, expires_at
+        ) VALUES (
+            invited_id, 'auth-owned-token@local.test', 'user', NULL,
+            admin_id, now() + interval '48 hours'
+        );
+        RAISE EXCEPTION 'second pending Auth-owned invitation was not rejected';
+    EXCEPTION WHEN unique_violation THEN
+        NULL;
+    END;
+
+    BEGIN
+        INSERT INTO public.admin_invitations (
+            admin_member_user_id, email, role, token_hash, created_by_user_id,
+            expires_at, status
+        ) VALUES (
+            invited_id, 'auth-owned-failure@local.test', 'user', NULL,
+            admin_id, now() + interval '48 hours', 'send_failed'
+        );
+        RAISE EXCEPTION 'send_failed insert without failure_code was not rejected';
+    EXCEPTION WHEN check_violation THEN
+        NULL;
+    END;
+
+    INSERT INTO public.admin_membership_audit (
+        actor_user_id, target_user_id, entity_type, invitation_id, action,
+        old_values, new_values, metadata
+    ) VALUES (
+        admin_id, invited_id, 'invitation', invitation_id, 'send_failed',
+        '{"status":"pending"}'::jsonb,
+        '{"status":"send_failed","failure_code":"persistence_failed"}'::jsonb,
+        '{"source":"harness"}'::jsonb
+    );
+
+    -- Audit vocabulary: lifecycle events must be insertable and append-only.
+    INSERT INTO public.admin_membership_audit (
+        actor_user_id, target_user_id, entity_type, invitation_id, action,
+        old_values, new_values, metadata
+    )
+    SELECT admin_id, invited_id, 'invitation', i.id, 'invite',
+           '{}'::jsonb, jsonb_build_object('status', 'pending', 'role', 'user'),
+           jsonb_build_object('source', 'harness')
+    FROM public.admin_invitations i
+    WHERE i.email = 'invited-flow@local.test' AND i.status = 'pending';
+    INSERT INTO public.admin_membership_audit (
+        actor_user_id, target_user_id, entity_type, action, old_values, new_values
+    )
+    VALUES (admin_id, invited_id, 'invitation', 'accept', '{"status":"pending"}'::jsonb, '{"status":"accepted"}'::jsonb),
+           (admin_id, invited_id, 'invitation', 'password_set', '{"status":"password_pending"}'::jsonb, '{"status":"ready"}'::jsonb),
+           (admin_id, invited_id, 'invitation', 'resend', '{"status":"pending"}'::jsonb, '{"status":"superseded"}'::jsonb),
+           (admin_id, invited_id, 'invitation', 'expire', '{"status":"pending"}'::jsonb, '{"status":"expired"}'::jsonb),
+           (admin_id, invited_id, 'membership', 'revoke', '{"account_status":"ready"}'::jsonb, '{"account_status":"revoked"}'::jsonb);
+
+    SELECT count(*) INTO audit_count
+    FROM public.admin_membership_audit
+    WHERE target_user_id = invited_id AND action IN ('invite', 'accept', 'password_set', 'resend', 'expire', 'revoke');
+    IF audit_count < 6 THEN
+        RAISE EXCEPTION 'invitation lifecycle audit events missing: %', audit_count;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM public.admin_membership_audit WHERE action NOT IN (
+        'invite', 'resend', 'send_failed', 'accept', 'password_set',
+            'role_change', 'activation', 'deactivation', 'revoke', 'expire'
+        )
+    ) THEN
+        RAISE EXCEPTION 'audit constraint vocabulary mismatch';
+    END IF;
+END;
+$$;
+
+\ir ../../tests/sql/h3_invitation_onboarding_harness.sql
 SELECT 'h3_pg17_harness_ok' AS result;

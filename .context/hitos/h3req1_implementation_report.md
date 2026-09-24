@@ -4,12 +4,13 @@
 
 - **Hito**: HITO-003 / H3REQ1
 - **Criterio**: H3-CA4
-- **Estado**: `H3_PR_DEVELOPMENT_READY_LOCAL`
-- **Fecha de actualización**: 2026-09-03
+- **Estado técnico local**: `H3_PR_DEVELOPMENT_READY_LOCAL`
+- **Estado de cierre contractual**: `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`
+- **Fecha de actualización**: 2026-09-23
 - **Ciclo**: auditoría de readiness para PR (`H3_PR_DEVELOPMENT_NO_GO`, histórica)
    seguida del ciclo de corrección local y la sincronización documental JIT-A/JIT-B;
    los bloqueadores locales quedaron resueltos y el candidato permanece en GO local
-   para PR (`READY_LOCAL`)
+    para PR (`READY_LOCAL`); la auditoría final no acredita cierre remoto.
 
 La atestación sanitizada `H3-EXPANDED-PROMPT-2026-08-30` autorizó inicialmente
 solo ejecución local Docker hasta GO local. La autorización humana posterior de
@@ -238,10 +239,12 @@ y la segunda corrida `NOOP`.
 
 ## MFA, invitaciones y hostname
 
-MFA TOTP es obligatorio para ambos roles. El mock local implementa enrollment,
-challenge, verify, refresh y unenroll con sesión `aal2`, y las RPC H3 cuentan con
-helper de enforcement `aal2`. Esto es evidencia local de contrato, no validación
-de Supabase Auth remoto; las pruebas reales requieren JIT separado.
+MFA TOTP/`aal2` queda fuera del gate de aceptación por decisión de alcance, debido
+a la complejidad de prueba y porque no bloquea la funcionalidad principal H3REQ1.
+La implementación existente se conserva como compatibilidad y mejora evolutiva.
+El mock local implementa enrollment, challenge, verify, refresh y unenroll; esto no
+se usa como criterio bloqueante ni sustituye la validación de autenticación
+administrativa existente.
 
 La migración local incorpora auditoría append-only de membresías y la RPC de
 actualización de miembros con protección del último admin y del auto-bloqueo
@@ -249,6 +252,21 @@ accidental. El contrato de invitación por correo mediante Edge Function protegi
 con `verify_jwt=true`, cambio de rol, activación/desactivación y revocación sigue
 requiriendo cobertura UAT completa y posterior validación remota. El navegador no
 debe recibir `service_role`.
+
+### Addendum H3-BUILD-03B DB - 2026-09-21
+
+El Edge Function 03A ya cuenta con implementación local y harness validado. El
+subgate DB 03B también quedó implementado localmente mediante
+`db/migrations/20260921_h3_invitation_onboarding_rpc.sql`, con las RPC
+`admin_accept_current_invitation`, `admin_complete_password_setup` y
+`admin_get_onboarding_status`, TTL de 24 horas, expiración lazy, locks,
+idempotencia, auditoría y grants mínimos.
+
+Resultados reales: `h3_invitation_onboarding_harness_ok`,
+`h3_pg17_harness_ok` y `h3_invitation_edge_runtime_harness_ok` en PostgreSQL 17
+Docker limpio. No hubo writes remotos, deploy, commit, push, PR o merge.
+El frontend/Auth local y Mock UAT-02 quedaron validados; la validación Auth/Free,
+UAT por ambiente, Certification y Pro permanece separada.
 
 `mock-server/static-server.js` contiene el bloqueo para `studiamatch.com/admin/`
 y la última prueba observó HTTP 404; falta repetir el smoke test con un único
@@ -294,12 +312,12 @@ allowed origins y deep-links requieren JIT separado.
 | H3-CA4.4 Cola | 85% | 70% | Segunda página y cursor en entorno real. |
 | H3-CA4.5 Mutaciones | 90% | 75% | Locking de estados en entorno real. |
 | H3-CA4.6 Auditoría | 85% | 60% | Auditoría de todas las mutaciones en entorno real. |
-| H3-CA4.7 MFA/aal2 | 80% | 55% | Supabase Auth real y negativos remotos. |
+| H3-CA4.7 MFA/aal2 (fuera del gate) | Evolutivo | No bloqueante | Implementación existente conservada como compatibilidad/mejora evolutiva; no es criterio de cierre H3REQ1. |
 | H3-CA4.8 Membresías | 75% | 45% | Invitación por correo (Edge Function) y Auth real. |
 | H3-CA4.9 Hostname | 60% | 40% | Allowlist positiva, smoke en despliegue y Cloudflare Access. |
 | H3-CA4.10 Convergencia | 55% | 35% | Diff Pro/Free/local y validación remota JIT. |
 | H3-CA4.11 UAT/artifacts | 100% estructural | 55% contractual | UAT local canónica 47/47 y 141/141 PASS; falta UAT real en Free/Certification. |
-| **Promedio simple** | **78.7% provisional** | **57.7% provisional** | **`H3_PR_DEVELOPMENT_READY_LOCAL`; GO local para PR; validación remota pendiente de JIT.** |
+| **Cierre H3REQ1** | **78.7% provisional** | **No-GO remoto** | **`NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`; GO técnico local preservado, evidencia remota pendiente.** |
 
 ### Siguiente gate
 
@@ -369,7 +387,9 @@ allowed origins y deep-links requieren JIT separado.
 
 ## Veredicto
 
-`H3_DEVELOPMENT_REMOTE_PARTIAL` — el PR #495 fue revisado y mergeado a `desarrollo`
+`NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE` — el GO técnico local y el PR
+en `desarrollo` se conservan como antecedentes, pero la auditoría final no permite
+cerrar H3REQ1. El PR #495 fue revisado y mergeado a `desarrollo`
 (`e3d21c1`). JIT-A Development ejecutó `20260903_h3_rbac_contract_fix.sql` en Free y
 validó A6/A13; el ambiente quedó limpio tras eliminar fixtures temporales. JIT-B
 valida membresía Cloudflare y perímetro E1/E3/E4/E8, pero E2/E5/E6/E7 requieren que

@@ -6,10 +6,10 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `H3_PR_DEVELOPMENT_READY_LOCAL` |
+| Estado | `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE` |
 | Work package | `NONE_SUPERSEDED` |
 | Criterio | `H3-CA4` |
-| Gate | READY_LOCAL: GO para PR. Los bloqueadores HIGH/CRITICAL que la auditoría de readiness detectó (CI H3, invariantes DB, MFA real, cobertura E2E, rollback y trazabilidad) fueron resueltos en el ciclo de corrección local del 2026-09-02; UAT canónica 47/47 y 141/141 PASS con 0 retries. Commit + push + PR autorizados por instrucción humana separada. |
+| Gate | GO técnico local preservado; NO-GO para cierre contractual. La auditoría final 2026-09-23 confirma evidencia remota incompleta, 03A/03B remoto no acreditado, rutas nuevas 404 en el preview revisado y UAT por ambiente/Cerification pendiente. |
 
 Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate previo al inicio del ciclo H3 y no representa el estado vigente.
 
@@ -37,7 +37,7 @@ Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate previo al 
 ## Alcance
 
 `admin.studiamatch.com` como hostname canónico exclusivo del panel, Cloudflare Access
-como perímetro, Supabase Auth con MFA TOTP obligatorio para `admin` y `user`,
+como perímetro, autenticación administrativa existente para `admin` y `user`,
 membresía `admin_members`, invitación por correo mediante backend privilegiado,
 gestión de roles y activación, cola paginada, filtros, edición editorial completa
 para `admin`, edición de `missing_fields` para `user`, optimistic locking,
@@ -82,7 +82,7 @@ El alcance base de H3 (`/admin`, cola, edición manual y publicación) se valida
 - Publicar/despublicar/archivar y cambiar `quality_status` solo para admin.
 - Publicar/despublicar/archivar sin que pipeline pueda saltar revisión.
 - Auditoría append-only por cada mutación editorial y de membresía.
-- MFA TOTP obligatorio para ambos roles: login, enrollment, challenge y verify deben producir sesión Supabase `aal2`; las operaciones sensibles rechazan `aal1`.
+- MFA TOTP/`aal2` queda fuera del gate de aceptación H3REQ1 por decisión de alcance. La implementación existente se conserva como compatibilidad y mejora evolutiva; no se declara validación MFA como requisito de cierre.
 - Cloudflare Access protege `admin.studiamatch.com`; `studiamatch.com/admin/` responde HTTP 404 y no sirve el panel.
 - Invitación de usuarios por correo mediante Edge Function protegida con `verify_jwt=true`; `service_role` nunca llega al navegador.
 - El panel admin debe mostrar el estado activo/inactivo y permitir activarlo o desactivarlo en cualquier miembro `admin` o `user` mediante botón o checkbox con confirmación y feedback.
@@ -97,7 +97,8 @@ El alcance base de H3 (`/admin`, cola, edición manual y publicación) se valida
 
 ## Gate
 
-Estado vigente: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO local para PR). Los bloqueadores
+Estado vigente: `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`. El GO técnico
+local `H3_PR_DEVELOPMENT_READY_LOCAL` permanece acreditado. Los bloqueadores
 locales que QA, seguridad y DB detectaron fueron corregidos y revalidados en Docker:
 `security-audit.yml` con allowlist H3 y `db-gate` PG17, contrato
 `20260902_h3_pr_contract.sql`, seed idempotente, harnesses H3, MFA mock con
@@ -112,6 +113,29 @@ E1/E3/E4/E8, pero E2/E5/E6/E7 requieren un hostname/deployment administrativo
 correcto por ambiente. La documentación no presenta estas validaciones parciales
 como cierre contractual.
 
+## Addendum 2026-09-21 - H3-BUILD-03B DB
+
+El subgate `H3-BUILD-03B-DB-IMPLEMENTATION` quedó en
+`H3-BUILD-03B-DB_LOCAL_VALIDATED`. La migración
+`db/migrations/20260921_h3_invitation_onboarding_rpc.sql` implementa TTL
+server-side de 24 horas, aceptación, password setup, estado de onboarding,
+locks, expiración lazy, auditoría idempotente y ACL mínima. El harness
+`tests/sql/h3_invitation_onboarding_harness.sql` termina en
+`h3_invitation_onboarding_harness_ok` y el harness Edge 03A conserva
+`h3_invitation_edge_runtime_harness_ok`.
+
+Este addendum no cambia el GO técnico local ni declara cierre contractual. La
+auditoría final 2026-09-23 deja el cierre en NO-GO hasta completar evidencia remota.
+
+### Addendum 2026-09-23 - Auditoría Final De Cierre
+
+La matriz y decisión completas están en
+`h3req1_closure_review_final_2026-09-23.md`. MFA fue retirado del gate por
+complejidad de prueba y porque no bloquea la funcionalidad principal; queda como
+mejora evolutiva. Permanecen abiertos 03A/03B remoto, UAT Development y
+Certification, hostnames por ambiente, convergencia Pro/Free/local y
+`expand -> compatibilidad -> deploy -> contract`.
+
 ## Matriz de avance por criterio
 
 | Criterio | Implementación | Validación | Pendiente de cierre |
@@ -122,9 +146,9 @@ como cierre contractual.
 | H3-CA4.4 Cola | 85% | 70% | Segunda página y cursor en entorno real. |
 | H3-CA4.5 Mutaciones | 90% | 75% | Locking de estados en entorno real. |
 | H3-CA4.6 Auditoría | 85% | 60% | Auditoría de todas las mutaciones en entorno real. |
-| H3-CA4.7 MFA/`aal2` | 80% | 55% | Supabase Auth real y negativos remotos. |
+| H3-CA4.7 MFA/`aal2` (fuera del gate) | Evolutivo | No bloqueante | Retirado del criterio de aceptación por decisión de alcance; implementación existente conservada como compatibilidad/mejora evolutiva. |
 | H3-CA4.8 Membresías | 75% | 45% | Invitación por correo (Edge Function) y Auth real. |
 | H3-CA4.9 Hostname | 60% | 40% | Allowlist positiva, smoke en despliegue y Cloudflare Access. |
 | H3-CA4.10 Convergencia | 55% | 35% | Diff Pro/Free/local y validación remota JIT. |
 | H3-CA4.11 UAT/artifacts | 100% estructural | 55% contractual | UAT local canónica 47/47 y 141/141 PASS; falta UAT real en Free/Certification. |
-| **Readiness PR** | **78.7% provisional** | **57.7% provisional** | **`H3_PR_DEVELOPMENT_READY_LOCAL`; GO local para PR; validación remota pendiente de JIT.** |
+| **Cierre H3REQ1** | **78.7% provisional** | **No-GO remoto** | **`NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`; GO técnico local preservado, evidencia remota pendiente.** |

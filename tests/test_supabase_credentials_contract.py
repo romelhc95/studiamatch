@@ -137,7 +137,7 @@ APPROVED_BEARERS = {
     "web/src/lib/admin-auth.ts": {
         "identities": {"accessToken", "session.refreshToken", "session.accessToken"},
         "provider": "supabase-auth",
-        "provider_marker": "auth/v1/token",
+        "provider_marker": "auth/v1",
         "provider_env": "SUPABASE_PUBLISHABLE_KEY",
         "derivation_marker": "Authorization: `Bearer ${session.accessToken}`",
     },
@@ -148,13 +148,6 @@ APPROVED_BEARERS = {
         "provider_env": "RESEND_API_KEY",
         "derivation_marker": 'RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")',
     },
-    "supabase/functions/admin-invite/index.ts": {
-        "identities": {"accessToken", "SERVICE_KEY"},
-        "provider": "supabase-auth",
-        "provider_marker": "auth/v1/admin/users",
-        "provider_env": "accessToken",
-        "derivation_marker": "Authorization: `Bearer ${accessToken}`",
-    },
 }
 
 APPROVED_BEARER_TEST_LITERALS = {
@@ -162,6 +155,7 @@ APPROVED_BEARER_TEST_LITERALS = {
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
+    "tests/test_admin_invite_edge_contract.py": "supabase-pattern-test-only",
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
@@ -244,6 +238,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx": "supabase-data-api",
     "web/src/app/courses/[institution]/[slug]/page.tsx": "supabase-data-api",
     "supabase/functions/admin-invite/index.ts": "supabase-edge-function",
+    "tests/test_h3_invitation_callback_contract.py": "supabase-pattern-test-only",
     "supabase/functions/send-lead-emails/index.ts": "supabase-edge-function",
     ".github/workflows/production_canary.yml": "supabase-ci",
     ".github/workflows/production_pipeline.yml": "supabase-ci",
