@@ -108,11 +108,11 @@ jobs:
             tests/test_h2_client_evidence_docs.py \
             tests/test_h2_development_legacy_compat.py \
             tests/test_h2_pro_migration_controls.py \
-          tests/test_h2_pipeline_contract.py \
-          tests/test_h2_writer_scan.py \
-          tests/test_h3_invitation_callback_contract.py \
-          tests/test_h3_mock_invitation_contract.py \
-          tests/test_admin_invite_edge_contract.py \
+            tests/test_h2_pipeline_contract.py \
+            tests/test_h2_writer_scan.py \
+            tests/test_h3_invitation_callback_contract.py \
+            tests/test_h3_mock_invitation_contract.py \
+            tests/test_admin_invite_edge_contract.py \
           -q
           python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
 
