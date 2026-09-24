@@ -45,6 +45,7 @@
 | `contract` | No ejecutado: cleanup, retiro legacy y promoción quedan bloqueados hasta UAT/Certification. |
 | Rollback | Requiere migración inversa y rollback Edge versionado; no ejecutado. |
 | No degradación funcional | PG17/harness/mock/build PASS; UAT Auth/UI remota aún pendiente. |
+| Compatibilidad y no degradación | Legacy login/MFA, usuarios `ready`, rutas públicas y contratos editoriales preservados; UAT Auth/UI remota pendiente. |
 
 ## Evidencia Para Cliente
 

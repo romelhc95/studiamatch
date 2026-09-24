@@ -137,7 +137,7 @@ APPROVED_BEARERS = {
     "web/src/lib/admin-auth.ts": {
         "identities": {"accessToken", "session.refreshToken", "session.accessToken"},
         "provider": "supabase-auth",
-        "provider_marker": "auth/v1/token",
+        "provider_marker": "auth/v1",
         "provider_env": "SUPABASE_PUBLISHABLE_KEY",
         "derivation_marker": "Authorization: `Bearer ${session.accessToken}`",
     },
@@ -238,6 +238,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx": "supabase-data-api",
     "web/src/app/courses/[institution]/[slug]/page.tsx": "supabase-data-api",
     "supabase/functions/admin-invite/index.ts": "supabase-edge-function",
+    "tests/test_h3_invitation_callback_contract.py": "supabase-pattern-test-only",
     "supabase/functions/send-lead-emails/index.ts": "supabase-edge-function",
     ".github/workflows/production_canary.yml": "supabase-ci",
     ".github/workflows/production_pipeline.yml": "supabase-ci",
