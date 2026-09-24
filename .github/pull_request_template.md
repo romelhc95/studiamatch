@@ -28,7 +28,7 @@
 
 | Pilar | Estado | Resultado validado |
 |---|---|---|
-| Funcionalidad | `PASS PARCIAL` | DB/Edge Free metadata y local UAT PASS; Auth/correo/UI remota pendiente. |
+| Funcionalidad | `PENDIENTE/APROBADO` | `PASS PARCIAL`: DB/Edge Free metadata y local UAT PASS; Auth/correo/UI remota pendiente. |
 | Escalabilidad | `PASS LOCAL` | PG17 limpio, harness idempotente y locks; validación operativa remota pendiente. |
 | Seguridad | `PENDIENTE REMOTO` | Credential scan PASS; sessionStorage, rate limiting/payload y npm audit quedan como riesgos residuales documentados. |
 | Mantenimiento | `APROBADO LOCAL` | Delta SQL idempotente, rollback documentado y compatibilidad explícita. |
