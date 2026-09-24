@@ -107,7 +107,7 @@ jobs:
             tests/test_h2_pipeline_contract.py \
             tests/test_h2_writer_scan.py \
              -q
-           python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
+          python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
 
   lint:
     name: ESLint
