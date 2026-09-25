@@ -1,9 +1,10 @@
-import playwright from '/tmp/h3-playwright/node_modules/playwright/index.js';
+import { createRequire } from 'node:module';
 import { createHash } from 'crypto';
 import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'fs/promises';
 import { dirname, join, resolve, sep } from 'path';
 
-const { chromium } = playwright;
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.H3_PLAYWRIGHT_MODULE || '/app/mock-server/node_modules/playwright');
 
 const EXPECTED_DISTRIBUTION = Object.freeze({
   'H3-CA4.1': 5,
@@ -95,10 +96,16 @@ async function login(page, role) {
 
 async function sessionInfo(page) {
   return page.evaluate(() => {
-    const raw = sessionStorage.getItem('studiamatch_admin_session');
+    const key = Object.keys(sessionStorage).find((item) => item.endsWith('-auth-token') && !item.endsWith('-code-verifier'));
+    const raw = key ? sessionStorage.getItem(key) : null;
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return { aal: parsed.aal, expiresAt: parsed.expiresAt, hasAccessToken: Boolean(parsed.accessToken), hasRefreshToken: Boolean(parsed.refreshToken) };
+    return {
+      aal: parsed.aal,
+      expiresAt: parsed.expires_at,
+      hasAccessToken: Boolean(parsed.access_token),
+      hasRefreshToken: Boolean(parsed.refresh_token),
+    };
   });
 }
 
@@ -118,9 +125,10 @@ async function openUsers(page) {
 
 async function rpc(page, functionName, params = {}, tokenOverride = null) {
   const response = await page.evaluate(async ({ mockURL, functionName, params, tokenOverride }) => {
-    const raw = sessionStorage.getItem('studiamatch_admin_session');
+    const key = Object.keys(sessionStorage).find((item) => item.endsWith('-auth-token') && !item.endsWith('-code-verifier'));
+    const raw = key ? sessionStorage.getItem(key) : null;
     const session = raw ? JSON.parse(raw) : null;
-    const token = tokenOverride || session?.accessToken;
+    const token = tokenOverride || session?.access_token;
     const result = await fetch(`${mockURL}/rest/v1/rpc/${functionName}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: 'local-publishable-key', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -156,7 +164,7 @@ const CASES = Object.freeze([
     await login(page, 'user'); check('no users link', await page.getByRole('link', { name: 'Usuarios' }).count() === 0); await page.goto(`${BASE_URL}/admin/users/`); await page.waitForURL(`${BASE_URL}/admin/`); return 'users link absent and direct route returned to dashboard';
   }),
   defineCase('H3-CA4.1', 'logout clears the local session', 'admin', '/admin/', 'logout returns to login and removes browser session state', async ({ page, check }) => {
-    await login(page, 'admin'); await page.getByRole('button', { name: 'Cerrar sesión' }).click(); await page.waitForURL(`${BASE_URL}/admin/login/`); check('session cleared', await page.evaluate(() => sessionStorage.getItem('studiamatch_admin_session') === null)); return 'session cleared';
+    await login(page, 'admin'); await page.getByRole('button', { name: 'Cerrar sesión' }).click(); await page.waitForURL(`${BASE_URL}/admin/login/`); check('session cleared', await page.evaluate(() => !Object.keys(sessionStorage).some((item) => item.endsWith('-auth-token') && !item.endsWith('-code-verifier')))); return 'session cleared';
   }),
 
   defineCase('H3-CA4.2', 'admin editor exposes editorial fields', 'admin', '/admin/edit/', 'admin can edit the editorial allowlist', async ({ page, check }) => {
@@ -246,7 +254,7 @@ const CASES = Object.freeze([
     await login(page, 'user'); const session = await sessionInfo(page); check('aal2', session?.aal === 'aal2'); return `aal=${session?.aal}`;
   }),
   defineCase('H3-CA4.7', 'refresh contract preserves assurance', 'admin', '/admin/', 'refresh response preserves an established aal2 session', async ({ page, check }) => {
-    await login(page, 'admin'); const result = await page.evaluate(async (mockURL) => { const session = JSON.parse(sessionStorage.getItem('studiamatch_admin_session')); const response = await fetch(`${mockURL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: session.refreshToken }) }); const body = await response.json(); return { status: response.status, aal: body.aal || session.aal, hasToken: Boolean(body.access_token) }; }, MOCK_URL); check('refresh 200', result.status === 200); check('aal2 preserved', result.aal === 'aal2'); check('new token', result.hasToken); return 'refresh preserved aal2';
+    await login(page, 'admin'); const result = await page.evaluate(async (mockURL) => { const key = Object.keys(sessionStorage).find((item) => item.endsWith('-auth-token') && !item.endsWith('-code-verifier')); const session = key ? JSON.parse(sessionStorage.getItem(key) || '{}') : {}; const response = await fetch(`${mockURL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: session.refresh_token }) }); const body = await response.json(); return { status: response.status, aal: body.aal || session.aal, hasToken: Boolean(body.access_token) }; }, MOCK_URL); check('refresh 200', result.status === 200); check('aal2 preserved', result.aal === 'aal2'); check('new token', result.hasToken); return 'refresh preserved aal2';
   }),
 
   defineCase('H3-CA4.8', 'admin users surface lists memberships', 'admin', '/admin/users/', 'admin sees existing admin/user memberships', async ({ page, check }) => {
@@ -505,7 +513,10 @@ let browser;
 let fatalError = null;
 let summary;
 try {
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({
+    headless: true,
+    executablePath: process.env.H3_CHROMIUM_PATH || '/ms-playwright/chromium-1228/chrome-linux64/chrome',
+  });
   for (const viewport of VIEWPORTS) {
     await restoreFixture(viewport.name);
     for (const testCase of CASES) executions.push(await runExecution(browser, testCase, viewport));
