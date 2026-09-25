@@ -16,6 +16,9 @@ interface Member {
   role: string;
   is_active: boolean;
   created_at: string;
+  invitation_status?: string | null;
+  account_status?: string | null;
+  expires_at?: string | null;
 }
 
 interface UpdateRow {
@@ -41,7 +44,7 @@ function AdminUsersManager() {
     setError(null);
     try {
       await requireAdmin();
-      const rows = (await adminRpc('admin_list_members', {})) as Member[];
+       const rows = (await adminRpc('admin_list_members_onboarding', {})) as Member[];
       setMembers(Array.isArray(rows) ? rows : []);
     } catch (reason) {
       if (reason instanceof Error && reason.message === 'Admin required') {
@@ -65,8 +68,8 @@ function AdminUsersManager() {
     setError(null);
     try {
       await requireAdmin();
-      await inviteAdminMember(email, role as 'admin' | 'user');
-      setMessage('Usuario invitado correctamente. Se le envió un correo para confirmar su acceso.');
+      const result = await inviteAdminMember(email, role as 'admin' | 'user');
+      setMessage(result.resent ? 'Invitación reenviada correctamente. Estado: pendiente.' : 'Invitación creada correctamente. Estado: pendiente; se envió el correo de acceso.');
       setEmail('');
       void loadMembers();
     } catch (reason) {
@@ -99,6 +102,8 @@ function AdminUsersManager() {
     await signOutAdmin();
     router.replace('/admin/login/');
   };
+
+  const formatDate = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'No disponible';
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-8">
@@ -149,12 +154,16 @@ function AdminUsersManager() {
           ) : members.length === 0 ? (
             <p className="mt-4 text-sm text-slate-600">No hay usuarios registrados.</p>
           ) : (
-            <table className="mt-4 w-full text-left text-sm">
+               <div className="mt-4 overflow-x-auto">
+               <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
                   <th className="py-2">Email</th>
                   <th className="py-2">Rol</th>
                    <th className="py-2">Estado</th>
+                   <th className="py-2">Invitación</th>
+                   <th className="py-2">Cuenta</th>
+                   <th className="py-2">Expira</th>
                    <th className="py-2">Acciones</th>
                  </tr>
               </thead>
@@ -162,8 +171,11 @@ function AdminUsersManager() {
                 {members.map((member) => (
                   <tr key={member.user_id} data-membership-row className="border-b border-slate-100">
                     <td className="py-2">{member.email}</td>
-                    <td className="py-2">{member.role}</td>
-                     <td className="py-2">{member.is_active ? 'Activo' : 'Inactivo'}</td>
+                      <td className="py-2">{member.role}</td>
+                      <td className="py-2">{member.is_active ? 'Activo' : 'Inactivo'}</td>
+                      <td className="py-2">{member.invitation_status || 'No expuesta'}</td>
+                      <td className="py-2">{member.account_status || (member.is_active ? 'ready (legacy)' : 'No expuesto')}</td>
+                      <td className="py-2">{formatDate(member.expires_at)}</td>
                      <td className="space-x-2 py-2">
                        <Button type="button" variant="outline" size="sm" onClick={() => { if (window.confirm('¿Confirmar cambio de estado?')) void handleMemberUpdate(member, { is_active: !member.is_active }, member.is_active ? 'deactivation' : 'activation'); }}>
                          {member.is_active ? 'Desactivar' : 'Activar'}
@@ -174,8 +186,9 @@ function AdminUsersManager() {
                      </td>
                    </tr>
                 ))}
-              </tbody>
-            </table>
+               </tbody>
+             </table>
+             </div>
           )}
         </Card>
       </main>

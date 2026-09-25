@@ -10,4 +10,3 @@ psycopg2-binary
 pytest
 regex
 openai==1.82.1
-

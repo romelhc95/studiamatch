@@ -148,13 +148,6 @@ APPROVED_BEARERS = {
         "provider_env": "RESEND_API_KEY",
         "derivation_marker": 'RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")',
     },
-    "supabase/functions/admin-invite/index.ts": {
-        "identities": {"accessToken", "SERVICE_KEY"},
-        "provider": "supabase-auth",
-        "provider_marker": "auth/v1/admin/users",
-        "provider_env": "accessToken",
-        "derivation_marker": "Authorization: `Bearer ${accessToken}`",
-    },
 }
 
 APPROVED_BEARER_TEST_LITERALS = {
@@ -162,6 +155,8 @@ APPROVED_BEARER_TEST_LITERALS = {
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
+    "tests/test_admin_invite_edge_contract.py": "supabase-pattern-test-only",
+    "tests/test_h3_invitation_callback_contract.py": "supabase-pattern-test-only",
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",

@@ -213,17 +213,19 @@ BEGIN
    SELECT count(*) INTO list_count FROM public.admin_list_members();
   IF list_count < 4 THEN RAISE EXCEPTION 'expected at least 4 members, got %', list_count; END IF;
 
-  SELECT * INTO create_result FROM public.admin_create_member('h3-auth@local.test', 'user');
-  IF NOT create_result.success THEN RAISE EXCEPTION 'admin_create_member failed: %', create_result.error; END IF;
+   SELECT * INTO create_result FROM public.admin_create_member('h3-auth@local.test', 'user');
+   IF create_result.success OR create_result.error <> 'Legacy membership creation disabled; use admin-invite' THEN
+       RAISE EXCEPTION 'legacy admin_create_member bypass was not blocked: %', create_result.error;
+   END IF;
 
-  SELECT * INTO create_result FROM public.admin_create_member('h3-auth@local.test', 'user');
-  IF create_result.success OR create_result.error NOT LIKE 'Duplicate email%' THEN
-    RAISE EXCEPTION 'duplicate membership not rejected';
-  END IF;
+   SELECT * INTO create_result FROM public.admin_create_member('h3-auth@local.test', 'user');
+   IF create_result.success OR create_result.error <> 'Legacy membership creation disabled; use admin-invite' THEN
+     RAISE EXCEPTION 'legacy admin_create_member retry was not blocked';
+   END IF;
 
-  SELECT * INTO create_result FROM public.admin_create_member('h3-auth@local.test', 'superuser');
-  IF create_result.success OR create_result.error NOT LIKE 'Invalid role%' THEN
-    RAISE EXCEPTION 'invalid role not rejected';
+    SELECT * INTO create_result FROM public.admin_create_member('h3-auth@local.test', 'superuser');
+   IF create_result.success OR create_result.error <> 'Invalid role: must be admin or user' THEN
+     RAISE EXCEPTION 'invalid role not rejected';
   END IF;
 
   SELECT * INTO create_result FROM public.admin_create_member('no-existe@local.test', 'user');
