@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-09-24-H3-CYCLE4-NO-GO-REMOTE-DRIFT`.
+Snapshot: `SNAPSHOT-2026-09-24-H3-DEVELOPMENT-FREE-CONTRACT-APPLIED-NO-GO-UAT-INCOMPLETE`.
 
 Historical gates preserved: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`, `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`, `H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`, `H3_READY_FOR_PROMPT_CONTINUA`, `H3_GO_LOCAL_CLOSED_READY_FOR_SUPABASE_FREE_JIT`, `H3_SUPABASE_FREE_AUTH_JIT_VALIDATION`, `H3_LOCAL_EXPANDED_NO_GO` (histórico del ciclo anterior, fechado 2026-08-30), `H3_PR_DEVELOPMENT_NO_GO` (readiness, resuelto por el ciclo de corrección local del 2026-09-02).
 
@@ -20,13 +20,15 @@ en la dirección pública normal.
 ### Qué significa el estado actual
 
 `H3_PR_DEVELOPMENT_READY_LOCAL` acredita **GO técnico local**, no cierre
-contractual. El ciclo read-only 2 del 2026-09-24 mantiene
-`NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`: Free ahora registra las
-migraciones 03A/03B y los hardenings 20260924, pero Pro sigue sin migraciones H3,
-tablas ni RPCs consultables. También faltan UAT
-remota completa, hostnames por ambiente, Certification y la transición
-`deploy -> contract`. La UAT canónica local conserva 47/47 casos y 141/141
-ejecuciones PASS con cero reintentos.
+contractual. La auditoría read-only inicial del 2026-09-24 detectó la ausencia
+del contrato Free; posteriormente, con autorización humana explícita para
+Development/Free, se aplicaron las migraciones 03A/03B y se actualizó
+`admin-invite`. La evidencia posterior está en
+`.context/evidencia/h3req1_development_validation_2026-09-24.md`.
+El estado vivo sigue siendo `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`:
+faltan UAT Auth/PKCE/correo real, UI/hostname Development, reconciliación,
+Certification, contract/cleanup y rollback. La UAT canónica local conserva
+47/47 casos y 141/141 ejecuciones PASS con cero reintentos.
 
 ### Qué se corrigió desde la prueba fallida anterior
 
@@ -72,13 +74,12 @@ delta A6/A13 y separó explícitamente la evidencia remota parcial:
 
 ### Qué sigue ahora
 
-Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
-instrucción humana separada** y se ejecutan con la plantilla
-`.github/pull_request_template.md` llena con resultados reales del ciclo.
-Permanecen como gates remotos posteriores y separados: `security-audit` en
-GitHub y revisión del PR, aplicación/revalidación de `20260903` en Free,
-configuración Auth, Cloudflare restante, promoción a `certificacion`, merge y
-deploy. No se ejecuta ninguna de esas acciones sin su aprobación.
+El PR hacia `desarrollo` está autorizado para prepararse con la plantilla
+`.github/pull_request_template.md`. La aplicación Free y el Edge Development
+quedaron ejecutados bajo autorización JIT del ciclo actual. Permanecen como
+gates separados: `security-audit`, revisión humana del PR, UAT Auth/correo/UI
+Development, Certification, Pro, contract/cleanup, rollback y promoción
+protegida. No se ejecutan esas etapas automáticamente.
 
 ### Auditoría Final De Cierre H3REQ1 (2026-09-23)
 
@@ -92,12 +93,12 @@ La decisión es `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`.
   existente se conserva como compatibilidad y mejora evolutiva.
 - La evidencia local permanece PASS: core H3 47/47 y 141/141, builds,
   contratos, PG17, Edge 03A, DB 03B y Mock UAT-02.
-- La evidencia remota permanece parcial: `admin-invite` está ACTIVE con
-  `verify_jwt=true`, pero las migraciones 03A/03B no aparecen en los inventarios
-  remotos revisados; el preview de Development devuelve 404 para callback,
-  aceptación y setup de password.
-- No se autoriza promoción `desarrollo -> certificacion -> main`, deploy, merge,
-  push ni writes adicionales con la evidencia actual.
+- La evidencia remota Free posterior acredita las cuatro migraciones, tablas,
+  RPCs y `admin-invite` ACTIVE con `verify_jwt=true`; el Edge quedó en versión 2.
+  La UI/preview Development, Auth/PKCE/correo real, contract y rollback siguen
+  pendientes.
+- No se autoriza promoción `desarrollo -> certificacion -> main`, merge,
+  cleanup, rollback remoto ni acciones sobre Pro con la evidencia actual.
 
 ### Diccionario mínimo
 
@@ -474,73 +475,3 @@ UAT por ambiente, hostnames Development/Certification, Certification, Pro H3,
 deploy y `contract/cleanup`. No se declara cierre definitivo. MFA/`aal2` permanece
 fuera del gate H3REQ1 y como mejora evolutiva; su compatibilidad existente no fue
 retirada.
-
-### Ciclo 3 — afinación documental del plan y baseline local
-
-El 2026-09-24 se afinó únicamente `.context/operaciones/h3req1_remediation_plan_2026-09-24.md`
-y la ficha read-only del ciclo 2. No se modificó código, SQL, Edge, frontend ni
-pruebas; tampoco se ejecutaron DDL, writes, Auth, correo, deploy, push, PR,
-merge, cleanup, rollback o promoción. R1 queda clasificado como `PASS` por la
-captura read-only, mientras H3-001 sigue `FAIL` por drift Pro y H3-002/H3-003/
-H3-004 siguen `BLOCKED`. El siguiente paso autorizado es preparar el delta
-exacto y solicitar los paquetes JIT separados; no aplicar migraciones ni iniciar
-UAT con la evidencia actual.
-
-La validación Docker/PG17 del ciclo 3 cerró `LOCAL-VAL-001` y `LOCAL-VAL-002`
-como `PASS`: harness canónico limpio en `h3_cycle3_clean`, con resultados
-`h3_pg17_harness_ok` y `h3_invitation_onboarding_harness_ok`. Los contratos H3
-focalizados quedaron 8/8 `PASS`, la UAT mock de invitación 9/9 `PASS`, build
-mock, TypeScript, credential scan, sintaxis y perímetro local `PASS`. `pytest`
-continúa `BLOCKED` porque no está instalado en la imagen Docker y no se infiere
-PASS por otra herramienta.
-
-La revalidación remota read-only del ciclo 3 confirma: Free con 15 migraciones
-H3 relacionadas y `admin-invite` v3 `ACTIVE`/`verify_jwt=true`; Pro con 0
-migraciones H3, sin `admin_members`, `admin_membership_audit` ni
-`admin_invitations`, y sin `admin-invite`. En aquel snapshot el hardening
-registrado en Free no tenía archivo correspondiente en el checkout. El ciclo 4
-lo recuperó y lo validó localmente; queda pendiente únicamente su
-reconciliación after-apply remota. Estado contractual: H3-001 `FAIL`;
-H3-002/H3-003/H3-004 `BLOCKED`; no se solicita Certification.
-
-### Ciclo 4 — hardening local H3REQ1
-
-Se corrigió el bloqueador local de SQL no reproducible: las migraciones de
-hardening 20260924 fueron reincorporadas al checkout principal desde el
-worktree de remediación y validadas en PG17 limpio. El nuevo harness acredita
-protección de onboarding incompleto, RBAC de admin/user/inactivo, último admin,
-auditoría append-only compatible y preservación legacy. Resultado local:
-`h3_onboarding_rbac_hardening_harness_ok` y `h3_pg17_harness_ok`.
-
-También quedaron `PASS` los 60 tests focalizados con pytest, TypeScript,
-build normal, build mock, credential scan, sintaxis y UAT mock 9/9. Las
-dependencias de pytest quedaron versionadas con hashes en
-`requirements-pipeline.txt`. Los 9
-warnings ESLint históricos permanecen sin errores.
-
-Esto no cierra el gate remoto. H3-001 sigue `FAIL` porque Pro no tiene el
-baseline H3; H3-002/H3-003/H3-004 siguen `BLOCKED` por falta de DDL, Auth/correo,
-Edge/Pages, contract, cleanup y rollback autorizados. Estado: `NO-GO`.
-
-El ciclo 5 corrigió los dos hallazgos locales HIGH/MEDIUM del auditor: la ruta
-legacy `admin_create_member` ahora rechaza creación directa y el harness PG17
-comprueba ACL/RLS de roles PostgREST. Los tests focalizados siguen 60/60
-`PASS`; esto mantiene GO técnico local, pero no convierte evidencia local en
-GO contractual remoto.
-
-El ciclo 6 cerró la brecha de visibilidad operativa: se añadió el lector
-aditivo `admin_list_members_onboarding` y la pantalla de miembros lo consume,
-sin retirar el RPC legacy. TypeScript, build mock, lint sin errores, credential
-scan, harness PG17 y tests focalizados permanecen `PASS`.
-
-El ciclo 6 también alineó el mock server con ese RPC aditivo y limpió el lock
-de Pygments para que `requirements-pipeline.txt` mantenga un único bloque con
-hash reproducible. El gate remoto continúa `NO-GO` hasta las autorizaciones JIT
-y la convergencia Free/Pro.
-
-La reauditoría del ciclo 7 cerró los hallazgos locales restantes: mock reader
-protegido por RPC, fixture PG17 coherente, legacy guard probado contra un user
-`ready` real, lock pytest/Pygments reproducible y sin HIGH/MEDIUM local abierto.
-H3REQ1 queda en `GO técnico local`, pero sigue `NO-GO contractual remoto` por
-Pro sin baseline H3 y por falta de DDL/Auth/Edge/Pages/contract/rollback con
-autorización JIT.

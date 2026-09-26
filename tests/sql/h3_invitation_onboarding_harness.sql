@@ -232,6 +232,19 @@ BEGIN
     IF old_account_status <> 'admin' AND old_account_status <> 'user' THEN
         RAISE EXCEPTION 'legacy ready member lost operational role: %', old_account_status;
     END IF;
+
+    -- Onboarding-aware RBAC: incomplete memberships cannot be activated by the
+    -- administrative mutation path, while legacy ready rows remain authorized.
+    PERFORM set_config('request.jwt.claim.sub', actor_id::text, false);
+    SELECT * INTO result_row
+    FROM public.admin_update_member(setup_user, NULL, true, 'activation');
+    IF result_row.success OR result_row.error <> 'Membership onboarding is not ready' THEN
+        RAISE EXCEPTION 'incomplete membership was activated by admin_update_member: %', result_row.error;
+    END IF;
+    PERFORM set_config('request.jwt.claim.sub', legacy_user::text, false);
+    IF public.admin_current_user_role() <> 'admin' THEN
+        RAISE EXCEPTION 'legacy ready membership lost admin authorization after hardening';
+    END IF;
 END;
 $$;
 

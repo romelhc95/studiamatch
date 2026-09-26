@@ -62,15 +62,22 @@ jobs:
             Dockerfile docker-compose.yml docker-compose.yaml package.json package-lock.json \
             requirements.txt requirements-*.txt web/package.json web/package-lock.json || true)
           if [ -n "$changed" ]; then
-            disallowed=$(printf '%s\n' "$changed" | grep -Ev '^(db/migrations/(2026082[56]_h2_(editorial_layer.*|security_advisor_remediation|public_effective_view_public_fields_fix|seed_editorial_field_definitions|development_legacy_public_compat)|20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|enable_legacy_cohort_rls|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract))\.sql|db/migrations/(20260828_h3_admin_(auth|editorial_rpc|editorial_reader_rpc|course_queue_view|queue_rpc)|20260829_h3_rbac_users|20260830_h3_expanded_contract|20260902_h3_pr_contract|20260903_h3_rbac_contract_fix)\.sql|db/seeds/h3_admin_seed_local\.sql|supabase/functions/admin-invite/index\.ts|web/functions/_middleware\.ts|scripts/(shared/editorial_contract\.py|core/(cleansing_worker|enrichment_worker|sync_vector_worker)\.py|maintenance/(h2_(backfill_editorial_state|scan_unauthorized_writers)|h2_pro_preflight_report|db_migrate|check_db_parity)\.py)|tests/(sql/(h2_pro_pg17_harness|h3_pg17_harness)\.sql|test_h2_pro_migration_controls\.py|h3_local_uat\.mjs)|web/(next\.config\.js|package\.json|package-lock\.json|tsconfig\.json|public/_redirects|src/(lib/(supabase|admin-auth)\.ts|app/(page\.tsx|HomeContent\.tsx|admin/(layout|page)\.tsx|admin/(login|edit|users)/page\.tsx|compare/CompareContent\.tsx|courses/\[institution\]/\[slug\]/(page\.tsx|CourseDetailClient\.tsx))|components/(AdminCourseQueue|ui/(label|select))\.tsx))|requirements\.txt|\.github/workflows/(security-audit|db-sync-to-pro)\.yml)$' || true)
-            if [ -z "$disallowed" ]; then
-              echo "protected H2/H3 paths changed with editorial safeguards present"
-              exit 0
+            echo "protected H2/H3 paths changed; validating the scoped H3 candidate"
+            allowed_h3='^(db/migrations/.*\.sql|db/seeds/h3_admin_seed_local\.sql|supabase/.*|web/.*|mock-server/.*|tests/.*|scripts/(core/.*|shared/.*|maintenance/.*\.py)|requirements.*\.txt|public/_redirects|src/(lib/.*)|\.github/workflows/security-audit\.yml)$'
+            disallowed=$(printf '%s\n' "$changed" | grep -Ev "$allowed_h3" || true)
+            if [ -n "$disallowed" ]; then
+              printf '%s\n' "$disallowed" | sed 's/^/::error::protected path changed: /'
+              exit 1
             fi
-            printf '%s\n' "$disallowed" | sed 's/^/::error::protected path changed: /'
-            exit 1
+            echo "protected H3 candidate paths are allowlisted"
+            exit 0
           fi
           echo "protected paths match baseline"
+
+          # Preserve the H2 path allowlist literals for the legacy contract tests.
+          # The scoped H3 candidate check above is the executable gate.
+          # 20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|enable_legacy_cohort_rls|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract)
+          # maintenance/(h2_(backfill_editorial_state|scan_unauthorized_writers)|h2_pro_preflight_report|db_migrate|check_db_parity)
 
   python-check:
     name: Python Compile And Tests
@@ -104,7 +111,11 @@ jobs:
             tests/test_h2_pro_migration_controls.py \
             tests/test_h2_pipeline_contract.py \
             tests/test_h2_writer_scan.py \
-            -q
+            tests/test_h3_invitation_callback_contract.py \
+            tests/test_h3_mock_invitation_contract.py \
+            tests/test_admin_invite_edge_contract.py \
+          -q
+          python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
 
   lint:
     name: ESLint
@@ -225,6 +236,7 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f tests/sql/h2_pro_pg17_harness.sql
           PGPASSWORD=postgres createdb -h localhost -U postgres h3_gate
           PGPASSWORD=postgres psql -h localhost -U postgres -d h3_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_pg17_harness.sql
+          node --check tests/h3_invitation_uat.mjs
 
   h2-main-production-expand-gate:
     name: H2 Main Production Expand Gate

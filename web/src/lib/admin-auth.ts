@@ -2,11 +2,6 @@
 
 import { supabaseBrowserClient, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/lib/supabase';
 
-// Supabase Auth is the approved session-auth consumer for the browser session.
-// The data API remains keyed by `apikey`; this marker keeps the credential
-// contract inventory explicit for static analysis.
-void '/auth/v1/token';
-
 const SESSION_COOKIE = 'studiamatch_admin_session';
 const SESSION_AAL = 'studiamatch_admin_aal';
 

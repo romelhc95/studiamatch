@@ -1,10 +1,6 @@
 from pathlib import Path
 import unittest
 
-# This module is intentionally a source-level contract test and is inventoried
-# by the credential contract as a test-only Supabase consumer.
-SUPABASE_PATTERN_TEST_ONLY = True
-
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web/src"

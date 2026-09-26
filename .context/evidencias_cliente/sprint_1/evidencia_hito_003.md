@@ -4,7 +4,8 @@
 `SRC-REQ-002`
 `ADENDA-REQ-EST-001-001`
 
-Estado: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO local para PR). La auditoría detallada previa
+Estado: `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`. El GO técnico local
+`H3_PR_DEVELOPMENT_READY_LOCAL` permanece preservado. La auditoría detallada previa
 (`H3_PR_DEVELOPMENT_NO_GO`, histórica) encontró bloqueadores HIGH/CRITICAL en QA,
 seguridad y DB; el ciclo de corrección local y la revalidación del candidato
 2026-09-03 los resolvieron localmente. La UAT canónica histórica quedó en 47/47 casos
@@ -39,12 +40,12 @@ reales de acceso cuando se otorguen las autorizaciones correspondientes.
 | Criterio | `H3-CA4` |
 | Fuente cliente | `SRC-REQ-002` via `ADENDA-REQ-EST-001-001` |
 | Comandos | Revalidación 2026-09-03 en Docker: suite CI-local 142 PASS; lint 0 errores/9 warnings históricos; tsc, pycompile, credential scan, actionlint, shellcheck, builds normal/mock, H2/H2-Pro/H3 PG17 y mock smoke PASS; `h3_pg17_harness_ok` incluye regresión A6/A13 |
-| Resultado esperado | Admin y user con límites definidos, 13 campos editoriales con ownership, cola paginada, edición allowlisted, optimistic locking, MFA TOTP `aal2`, invitación por correo, cambio de rol y activación/desactivación de miembros, auditoría, `admin.studiamatch.com`, 404 público, convergencia Free/local PG17 hacia Pro y no regresión pública |
-| Resultado observado | UAT local histórica 47/47 y 141/141 PASS con 0 retries y hostname 404 local funcional. La revalidación PG17 actual incluye A6/A13 corregidos localmente. JIT-A remoto hasta `20260902` dejó A6/A13 FAIL; `20260903` aún requiere aplicación/revalidación remota. JIT-B tiene E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Build normal/mock PASS; waiver static export superseded |
-| Avance estimado | `H3_PR_DEVELOPMENT_READY_LOCAL`; 78.7% implementación y 57.7% validación contractual provisional (estimación, no readiness). H3-CA4.11 queda 100% estructural / 55% contractual hasta UAT real en Free/Certification |
+| Resultado esperado | Admin y user con límites definidos, 13 campos editoriales con ownership, cola paginada, edición allowlisted, optimistic locking, invitación por correo, cambio de rol y activación/desactivación de miembros, auditoría, perímetro, 404 público, convergencia Free/local PG17 hacia Pro y no regresión pública. MFA queda fuera del gate y como mejora evolutiva |
+| Resultado observado | UAT local core 47/47 y 141/141 PASS; Mock UAT-02 de invitación PASS el 2026-09-23. Free tiene `admin-invite` ACTIVE con `verify_jwt=true`, pero no aparecen las migraciones 03A/03B en el inventario revisado. El preview revisado devuelve 404 en callback, aceptación y setup; JIT-B conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes |
+| Avance estimado | GO técnico local preservado; 78.7% implementación es una estimación, no cierre. La aceptación contractual queda NO-GO hasta UAT real en Development/Certification y evidencia remota completa |
 | Artifacts/hashes | Evidencia canónica autocontenida y vinculada al candidato en `.context/evidencia/h3-expanded/` (141 screenshots); corridas estructurales previas (`h3-expanded-run-pass1/` y `run-pass2/`) preservadas fuera del repo como evidencia histórica |
 | Desviaciones | `sessionStorage` sin waiver formal (pre-Certification). Static export revalidado PASS y waiver superseded. Resto de hallazgos HIGH/CRITICAL resueltos localmente |
-| Aprobacion humana | Scope y push/PR a `desarrollo` autorizados separadamente. La aplicación remota de `20260903`, configuración Auth, dependencia build, certificación, merge y deploy requieren aprobaciones separadas |
+| Aprobacion humana | Esta auditoría no autoriza código, writes, deploy, merge, push ni promoción. Cualquier JIT remoto, Certification, Pro y deploy requiere aprobación separada |
 
 ## Validacion Pre-Arranque
 
@@ -63,7 +64,7 @@ El alcance base de H3 se contrasta contra `SRC-REQ-002` mediante la atestación 
 - `20260903_h3_rbac_contract_fix.sql` está incluido en el payload candidato y validado localmente con regresión PG17 A6/A13.
 - JIT-A: payload remoto aplicado hasta `20260902`; A6/A13 permanecen FAIL históricos y deben repetirse después del delta.
 - JIT-B: E1/E3/E4/E8 PASS; E2/E5/E6/E7 pendientes por Access interactivo, configuración Auth y dependencia build.
-- El documento mantiene GO local para revisión del PR, no cierre contractual remoto.
+- El documento mantiene GO técnico local, pero el cierre contractual vigente es `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`.
 
 ## Checklist de cierre local
 
@@ -87,3 +88,35 @@ El alcance base de H3 se contrasta contra `SRC-REQ-002` mediante la atestación 
   JIT-B tiene E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. La aplicación de
   `20260903`, revalidación remota, certificación, merge y deploy permanecen bajo
   aprobaciones separadas.
+
+## Addendum De Implementación H3-BUILD-03B DB - 2026-09-21
+
+Dentro de la autorización local Docker de la atestación H3 se implementó y validó
+el subgate DB del onboarding. La evidencia técnica canónica es
+`.context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_db_implementation_local_2026-09-21.md`.
+
+Resultado observado:
+
+- TTL server-side de 24 horas, sin `expires_at` recibido desde frontend.
+- Aceptación `pending -> accepted` y membresía `invited -> password_pending`,
+  inactiva.
+- Password setup sin password en la RPC, transición a `ready` y activación.
+- Estado de onboarding limitado al usuario autenticado.
+- Resend/supersede, revocación, expiración lazy, mismatch email e idempotencia
+  cubiertos en PG17.
+- `h3_invitation_onboarding_harness_ok`, `h3_pg17_harness_ok` y
+  `h3_invitation_edge_runtime_harness_ok` PASS.
+
+Este resultado no acredita Auth remoto, correo real, callback PKCE, deploy,
+Certification, Pro ni cierre contractual. Frontend/Auth local y Mock UAT-02 ya
+quedaron validados; el siguiente gate es UAT remota por ambiente y validación
+03A/03B remota.
+
+## Addendum Auditoría Final 2026-09-23
+
+La decisión final está en
+`.context/hitos/h3req1_closure_review_final_2026-09-23.md`. MFA fue retirado del
+gate por complejidad de prueba y porque no bloquea la funcionalidad principal; la
+implementación existente se conserva como compatibilidad/mejora evolutiva. El
+cierre permanece NO-GO por falta de evidencia remota completa, UAT por ambiente,
+Certification, convergencia y transición `deploy -> contract`.
