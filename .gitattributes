@@ -1,4 +1,7 @@
-* text=auto
+# Canonical text EOL
+* text=auto eol=lf
+
+# Existing explicit LF locks
 .gitattributes text eol=lf
 .githooks/* text eol=lf
 *.sh text eol=lf
@@ -8,3 +11,18 @@ scripts/core/production_canary_*.py text eol=lf
 tests/test_fase09_10_pre_main_controls.py text eol=lf
 tests/test_fase10_main_boundary.py text eol=lf
 tests/test_fase10_production_canary.py text eol=lf
+
+# Binary formats currently present
+*.png -text
+*.ico -text
+
+# Inherently binary formats
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.webp -text
+*.pdf -text
+*.zip -text
+*.woff -text
+*.woff2 -text
+*.ttf -text

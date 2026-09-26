@@ -44,7 +44,7 @@ function AdminUsersManager() {
     setError(null);
     try {
       await requireAdmin();
-      const rows = (await adminRpc('admin_list_members', {})) as Member[];
+       const rows = (await adminRpc('admin_list_members_onboarding', {})) as Member[];
       setMembers(Array.isArray(rows) ? rows : []);
     } catch (reason) {
       if (reason instanceof Error && reason.message === 'Admin required') {

@@ -780,9 +780,11 @@ const server = http.createServer(async (req, res) => {
             return client.query('SELECT * FROM public.admin_archive_course($1, $2)', [body.p_course_id, body.p_reason]);
           case 'admin_update_quality_status':
             return client.query('SELECT * FROM public.admin_update_quality_status($1, $2, $3)', [body.p_course_id, body.p_quality_status, body.p_reason]);
-          case 'admin_list_members':
-            return client.query('SELECT * FROM public.admin_list_members()');
-          case 'admin_create_member':
+           case 'admin_list_members':
+             return client.query('SELECT * FROM public.admin_list_members()');
+           case 'admin_list_members_onboarding':
+             return client.query('SELECT * FROM public.admin_list_members_onboarding()');
+           case 'admin_create_member':
              return client.query('SELECT * FROM public.admin_create_member($1, $2)', [body.p_email, body.p_role]);
           case 'admin_update_member':
              return client.query('SELECT * FROM public.admin_update_member($1, $2, $3, $4)', [body.p_user_id, body.p_role, body.p_is_active, body.p_action]);
