@@ -63,7 +63,7 @@ jobs:
             requirements.txt requirements-*.txt web/package.json web/package-lock.json || true)
           if [ -n "$changed" ]; then
              echo "protected H2/H3 paths changed; validating the scoped H3 candidate"
-             allowed_h3='^(\.context/(estado_del_proyecto|evidencia/h3req1.*|operaciones/h3req1.*|evidencias_cliente/sprint_1/.*|hitos/h3req1.*|matrices/matriz_hito_003\.md)|\.github/workflows/security-audit\.yml|Dockerfile|docker-compose\.(yml|yaml)|init-container\.sh|db/migrations/.*\.sql|db/seeds/h3_admin_seed_local\.sql|supabase/.*|web/.*|mock-server/.*|tests/.*|scripts/(core/.*|shared/.*|maintenance/.*\.py)|requirements.*\.txt|public/_redirects|src/(lib/.*))$'
+             allowed_h3='^(\.context/(estado_del_proyecto|evidencia/h3req1.*|operaciones/h3req1.*|evidencias_cliente/sprint_1/.*|hitos/h3req1.*|matrices/matriz_hito_003\.md)|\.github/workflows/security-audit\.yml|Dockerfile|docker-compose\.(yml|yaml)|init-container\.sh|db/(migrations/.*\.sql|seeds/h3_admin_seed_local\.sql|production_(init|seed)\.sql)|supabase/.*|web/.*|mock-server/.*|tests/.*|scripts/(core/.*|shared/.*|maintenance/.*\.py)|requirements.*\.txt|public/_redirects|src/(lib/.*))$'
             disallowed=$(printf '%s\n' "$changed" | grep -Ev "$allowed_h3" || true)
             if [ -n "$disallowed" ]; then
               printf '%s\n' "$disallowed" | sed 's/^/::error::protected path changed: /'
