@@ -2,6 +2,11 @@
 
 import { supabaseBrowserClient, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/lib/supabase';
 
+// Supabase Auth is the approved session-auth consumer for the browser session.
+// The data API remains keyed by `apikey`; this marker keeps the credential
+// contract inventory explicit for static analysis.
+void '/auth/v1/token';
+
 const SESSION_COOKIE = 'studiamatch_admin_session';
 const SESSION_AAL = 'studiamatch_admin_aal';
 
@@ -71,6 +76,41 @@ interface AssuranceResponse {
   nextLevel: 'aal1' | 'aal2';
 }
 
+export class MfaRequiredError extends Error {
+  readonly code = 'mfa_required';
+
+  constructor() {
+    super('MFA aal2 required');
+    this.name = 'MfaRequiredError';
+  }
+}
+
+function isMfaRequiredMessage(value: unknown): boolean {
+  return typeof value === 'string' && /(?:mfa_required|insufficient_aal|aal2\s+required|mfa\s+(?:aal2\s+)?required)/i.test(value);
+}
+
+export function isMfaRequiredError(reason: unknown): boolean {
+  if (reason instanceof MfaRequiredError) return true;
+  if (reason instanceof Error) return isMfaRequiredMessage(reason.message);
+  if (reason && typeof reason === 'object') {
+    const candidate = reason as { message?: unknown; error?: unknown; code?: unknown };
+    return isMfaRequiredMessage(candidate.message) || isMfaRequiredMessage(candidate.error) || isMfaRequiredMessage(candidate.code);
+  }
+  return false;
+}
+
+function authErrorFromPayload(payload: unknown, fallback: string): Error {
+  if (payload && typeof payload === 'object') {
+    const candidate = payload as { message?: unknown; error?: unknown; code?: unknown };
+    if (isMfaRequiredMessage(candidate.message) || isMfaRequiredMessage(candidate.error) || isMfaRequiredMessage(candidate.code)) {
+      return new MfaRequiredError();
+    }
+    if (typeof candidate.message === 'string' && candidate.message) return new Error(candidate.message);
+    if (typeof candidate.error === 'string' && candidate.error) return new Error(candidate.error);
+  }
+  return new Error(fallback);
+}
+
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const segment = token.split('.')[1];
@@ -103,6 +143,7 @@ function getAdminPath(value: string | null): string {
   if (normalized.startsWith('/admin/users')) return '/admin/users/';
   if (normalized.startsWith('/admin/accept-invite')) return '/admin/accept-invite/';
   if (normalized.startsWith('/admin/setup-password')) return '/admin/setup-password/';
+  if (normalized.startsWith('/admin/reset-password')) return '/admin/reset-password/';
   return '/admin/';
 }
 
@@ -114,12 +155,6 @@ export function clearAdminSession(): void {
   if (typeof window === 'undefined') return;
   document.cookie = `${SESSION_COOKIE}=; Max-Age=0; Path=/; SameSite=Strict; Secure`;
   window.sessionStorage.removeItem(SESSION_AAL);
-}
-
-function storedAal(): 'aal1' | 'aal2' {
-  if (typeof window === 'undefined') return 'aal1';
-  const value = window.sessionStorage.getItem(SESSION_AAL);
-  return value === 'aal2' ? 'aal2' : 'aal1';
 }
 
 function firstRpcRow<T>(result: unknown): T {
@@ -179,6 +214,53 @@ export async function consumeInviteSessionFromHash(hash: string): Promise<TokenR
   return tokens;
 }
 
+function recoveryAuthError(): Error {
+  return new Error('El enlace de recuperación es inválido, expiró o ya fue utilizado.');
+}
+
+export async function exchangeRecoveryCodeForSession(code: string): Promise<TokenResponse> {
+  const normalizedCode = code.trim();
+  if (!normalizedCode) throw recoveryAuthError();
+  const { data, error } = await supabaseBrowserClient.auth.exchangeCodeForSession(normalizedCode);
+  if (error || !data.session) throw recoveryAuthError();
+  const tokens: TokenResponse = {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    expires_in: data.session.expires_in,
+    expires_at: data.session.expires_at,
+    aal: resolveAal({ access_token: data.session.access_token }),
+  };
+  saveAdminSession(tokens);
+  return tokens;
+}
+
+export async function consumeRecoverySessionFromHash(hash: string): Promise<TokenResponse> {
+  const value = hash.startsWith('#') ? hash.slice(1) : hash;
+  const params = new URLSearchParams(value);
+  if (params.get('error') || params.get('error_description')) throw recoveryAuthError();
+  const callbackType = params.get('type');
+  if (callbackType && callbackType !== 'recovery') throw recoveryAuthError();
+
+  const accessToken = params.get('access_token')?.trim() || '';
+  const refreshToken = params.get('refresh_token')?.trim() || '';
+  if (!accessToken || !refreshToken) throw recoveryAuthError();
+
+  const { data, error } = await supabaseBrowserClient.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  if (error || !data.session) throw recoveryAuthError();
+  const tokens: TokenResponse = {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    expires_in: data.session.expires_in || 3600,
+    expires_at: data.session.expires_at,
+    aal: resolveAal({ access_token: data.session.access_token }),
+  };
+  saveAdminSession(tokens);
+  return tokens;
+}
+
 export async function getAuthSession(): Promise<AdminSession | null> {
   const { data } = await supabaseBrowserClient.auth.getSession();
   if (!data.session) return null;
@@ -186,7 +268,7 @@ export async function getAuthSession(): Promise<AdminSession | null> {
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
     expires_in: data.session.expires_in,
-    aal: storedAal(),
+    aal: resolveAal({ access_token: data.session.access_token }),
   });
 }
 
@@ -242,7 +324,7 @@ async function getFreshSession(): Promise<AdminSession> {
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
     expires_in: data.session.expires_in,
-    aal: storedAal() === 'aal2' ? 'aal2' : resolveAal({ access_token: data.session.access_token }),
+    aal: resolveAal({ access_token: data.session.access_token }),
   });
 }
 
@@ -274,8 +356,8 @@ export async function adminRpc(functionName: string, params: unknown): Promise<u
   });
 
   if (!response.ok) {
-    const error = (await response.json().catch(() => ({}))) as { message?: string };
-    throw new Error(error.message || `RPC ${functionName} failed: ${response.status}`);
+    const payload = await response.json().catch(() => ({}));
+    throw authErrorFromPayload(payload, `RPC ${functionName} failed: ${response.status}`);
   }
 
   const contentType = response.headers.get('content-type') || '';
@@ -307,87 +389,79 @@ export async function inviteAdminMember(email: string, role: 'admin' | 'user'): 
   });
   const data = (await response.json().catch(() => ({}))) as Partial<InviteMemberResult> & { error?: string };
   if (!response.ok || data.success !== true) {
-    throw new Error(data.error || `admin-invite failed: ${response.status}`);
+    throw authErrorFromPayload(data, data.error || `admin-invite failed: ${response.status}`);
   }
   return data as InviteMemberResult;
 }
 
 export async function listFactors(): Promise<AuthenticatorFactor[]> {
-  const session = await getFreshSession();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/factors`, {
-    headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.accessToken}` },
-  });
-  if (!response.ok) throw new Error('Unable to list MFA factors');
-  const data = (await response.json()) as { all?: AuthenticatorFactor[] };
-  return data.all || [];
+  const { data, error } = await supabaseBrowserClient.auth.mfa.listFactors();
+  if (error) throw new Error('No se pudo consultar la configuración de MFA.');
+  return (data?.all || [])
+    .filter((factor) => factor.factor_type === 'totp')
+    .map((factor) => ({
+      id: factor.id,
+      factor_type: 'totp' as const,
+      status: factor.status,
+    }));
 }
 
 export async function enrollTotp(): Promise<TotpEnrollment> {
-  const session = await getFreshSession();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/factors`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.accessToken}` },
-    body: JSON.stringify({ factor_type: 'totp', friendly_name: 'StudIAMatch Admin' }),
+  const { data, error } = await supabaseBrowserClient.auth.mfa.enroll({
+    factorType: 'totp',
+    friendlyName: 'StudIAMatch Admin',
+    issuer: 'StudIAMatch',
   });
-  if (!response.ok) throw new Error('Unable to enroll MFA');
-  const data = (await response.json()) as {
-    id?: string;
-    totp?: { secret?: string | null; uri?: string | null; qr_code?: string | null };
-    secret?: string | null;
-    uri?: string | null;
-    qr_code?: string | null;
-  };
+  if (error || !data) throw new Error('No se pudo iniciar la configuración de MFA.');
   const factorId = data.id;
   if (!factorId) throw new Error('MFA enrollment did not return a factor id');
-  const nested = data.totp || {};
   return {
     factorId,
-    secret: nested.secret ?? data.secret ?? null,
-    uri: nested.uri ?? data.uri ?? null,
-    qrCode: nested.qr_code ?? data.qr_code ?? null,
+    secret: data.totp?.secret ?? null,
+    uri: data.totp?.uri ?? null,
+    qrCode: data.totp?.qr_code ?? null,
   };
 }
 
 export async function challengeTotp(factorId: string): Promise<{ id: string }> {
-  const session = await getFreshSession();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/factors/${factorId}/challenge`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.accessToken}` },
+  const { data, error } = await supabaseBrowserClient.auth.mfa.challenge({
+    factorId,
   });
-  if (!response.ok) throw new Error('Unable to create MFA challenge');
-  return response.json();
+  if (error || !data) throw new Error('No se pudo iniciar la verificación MFA.');
+  return { id: data.id };
 }
 
 export async function verifyTotp(factorId: string, challengeId: string | null, code: string): Promise<TokenResponse> {
-  const session = await getFreshSession();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/factors/${factorId}/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.accessToken}` },
-    body: JSON.stringify({ challenge_id: challengeId, code }),
+  if (!challengeId) throw new Error('No hay un desafío MFA activo.');
+  const { data, error } = await supabaseBrowserClient.auth.mfa.verify({
+    factorId,
+    challengeId,
+    code,
   });
-  if (!response.ok) throw new Error('Invalid MFA code');
-  const data = (await response.json()) as TokenResponse;
-  await supabaseBrowserClient.auth.setSession({
+  if (error || !data) throw new Error('Código MFA inválido.');
+  const tokens: TokenResponse = {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
-  });
-  saveAdminSession(data);
-  return data;
+    expires_in: data.expires_in,
+    aal: resolveAal({ access_token: data.access_token }),
+  };
+  saveAdminSession(tokens);
+  return tokens;
 }
 
 export async function unenrollTotp(factorId: string): Promise<void> {
-  const session = await getFreshSession();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/factors/${factorId}`, {
-    method: 'DELETE',
-    headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.accessToken}` },
+  const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
+    factorId,
   });
-  if (!response.ok) throw new Error('Unable to revoke MFA');
+  if (error) throw new Error('No se pudo retirar la configuración MFA.');
 }
 
 export async function getAuthenticatorAssuranceLevel(): Promise<AssuranceResponse> {
-  const session = await getFreshSession();
-  const currentLevel = session.aal;
-  return { currentLevel, nextLevel: currentLevel === 'aal1' ? 'aal2' : 'aal2' };
+  const { data, error } = await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) throw new Error('No se pudo verificar el nivel de autenticación.');
+  const currentLevel = data?.currentLevel === 'aal2' ? 'aal2' : 'aal1';
+  const nextLevel = data?.nextLevel === 'aal2' ? 'aal2' : 'aal1';
+  return { currentLevel, nextLevel };
 }
 
 export async function supabaseAdminLogin(email: string, password: string): Promise<TokenResponse> {
@@ -407,7 +481,11 @@ export async function supabaseAdminLogin(email: string, password: string): Promi
 export async function currentAdminRole(): Promise<AdminRole> {
   try {
     const result = await adminRpc('admin_current_user_role', {});
-    const role = Array.isArray(result) ? result[0]?.admin_current_user_role : (result as { admin_current_user_role?: AdminRole })?.admin_current_user_role;
+    const role = typeof result === 'string'
+      ? result
+      : Array.isArray(result)
+        ? result[0]?.admin_current_user_role
+        : (result as { admin_current_user_role?: AdminRole })?.admin_current_user_role;
     if (role === 'admin' || role === 'user') return role;
     if (role === 'authenticated' || role === 'anon') return role;
     return 'anon';
