@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-09-26-H3-DEVELOPMENT-RECOVERY-VERIFIED-NO-GO`.
+Snapshot: `SNAPSHOT-2026-09-27-H3-DEVELOPMENT-PREVIEW-UX-VALIDATED-NO-GO`.
 
 Historical gates preserved: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`, `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`, `H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`, `H3_READY_FOR_PROMPT_CONTINUA`, `H3_GO_LOCAL_CLOSED_READY_FOR_SUPABASE_FREE_JIT`, `H3_SUPABASE_FREE_AUTH_JIT_VALIDATION`, `H3_LOCAL_EXPANDED_NO_GO` (histórico del ciclo anterior, fechado 2026-08-30), `H3_PR_DEVELOPMENT_NO_GO` (readiness, resuelto por el ciclo de corrección local del 2026-09-02).
 
@@ -965,3 +965,37 @@ push, PR, merge, Certification, Production ni promoción. El estado contractual
 global sigue `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por los gates remotos y
 documentales restantes, `npm audit` con 16 HIGH/1 CRITICAL y promoción protegida
 pendiente.
+
+### Validación remota del candidato UX — 2026-09-27T16:18Z
+
+El candidato UX se publicó y validó únicamente en Free/Development. El PR `#500`
+continúa abierto hacia `desarrollo`, sin merge. El head del PR es
+`439a07be0e501690d881e5d909c1b27609f2a178`; `security-audit`, protected paths,
+credential scan, Python, ESLint, TypeScript, build, actionlint y PostgreSQL DB
+gate quedaron `PASS`. Los tres jobs Analyze de CodeQL quedaron `success`; el
+agregado CodeQL reportó `neutral`.
+
+El branch preview hash del PR no está autorizado por `ADMIN_ALLOWED_HOSTS`, por
+lo que la rama que conserva el alias Preview autorizado se sincronizó con el
+frontend candidato mediante commit
+`5a9aeace32b14df4ff73b47918f7212d1fb985e2`. Pages generó el deployment
+`c0664c51-ed47-4c46-8ef7-e1a9a0e633d1` (`success`) en:
+`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`.
+
+La validación remota read-only del alias confirmó `HTTP 200` para home, login,
+dashboard, callback, aceptación, setup, recovery, users y un detalle público.
+Chrome DevTools observó recursos `200/304`, cero errores de consola y solo dos
+warnings de preload de fuentes. Con la sesión admin existente se observaron el
+rol `Admin`, la cola con `131` filas visibles, facets `350/219/131`, el filtro
+catalogado `Certus` con `16` filas, la búsqueda `Marketing` con `2` filas y el
+filtro de calidad pendiente con `219` filas. El editor mostró copy español,
+previsualización compartida, actualización en vivo del título, resaltado y
+desplazamiento `Ver impacto`; responsive móvil a `390px` quedó utilizable.
+
+No se ejecutaron guardar, publicar, archivar, actualizar calidad, cambios de rol,
+Auth/MFA, cleanup, rollback, merge ni promoción. La continuidad de login,
+challenge TOTP y operación sensible `aal2` queda referenciada a la evidencia
+remota `ea787a8a`; no se reingresó ni registró un código MFA en esta pasada.
+El gate de candidato UX Preview queda `PASS`, pero el estado contractual global
+permanece `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por `npm audit` con 16 HIGH
+y 1 CRITICAL, invitación/cleanup/rollback y promoción protegida pendientes.

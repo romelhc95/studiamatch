@@ -931,3 +931,87 @@ El estado contractual global permanece
 restantes, `npm audit` con 16 HIGH y 1 CRITICAL, y la promoción protegida
 pendiente. No se ejecutaron push, PR, merge, Certification, Production ni
 promoción.
+
+## Validación remota del candidato UX — 2026-09-27T16:18Z
+
+Se consumió la autorización humana para publicar y validar únicamente el Preview
+Free/Development. No se ejecutó merge, promoción, Certification ni Production.
+
+### Trazabilidad de publicación
+
+| Artefacto | Resultado |
+|---|---|
+| PR | `#500`, abierto hacia `desarrollo`, sin merge |
+| Rama del PR | `feat/h3req1-development-remote-tests-v3` |
+| Head del PR | `439a07be0e501690d881e5d909c1b27609f2a178` |
+| `security-audit` | `PASS` |
+| Credential scan / protected paths / Python / ESLint / TypeScript / build / actionlint / DB gate | `PASS` |
+| CodeQL aggregate | `neutral`; los tres jobs Analyze (`python`, `actions`, `javascript-typescript`) `success` |
+| Preview asociado al PR | `5a49e0a7`, `success`; branch URL hash no autorizado por `ADMIN_ALLOWED_HOSTS` |
+| Rama que conserva el alias autorizado | `feat/h3req1-development-remote-tests` |
+| Commit de sincronización frontend del alias | `5a9aeace32b14df4ff73b47918f7212d1fb985e2` |
+| Deployment Pages del alias | `c0664c51-ed47-4c46-8ef7-e1a9a0e633d1`, `success` |
+| Alias validado | `https://feat-h3req1-development-remo.studiamatch-aty.pages.dev` |
+
+El branch URL hash del PR (`...-5f5c`) responde `404` en las rutas admin por la
+allowlist de hosts Preview. Para no modificar configuración Auth/Cloudflare ni
+Production, se sincronizó únicamente el frontend candidato con la rama que ya
+corresponde al alias autorizado; Pages generó el deployment `c0664c51` y el
+alias volvió a servir el candidato UX. No se expusieron credenciales.
+
+### Smoke de rutas, red y consola
+
+La matriz read-only contra el alias autorizado respondió `HTTP 200` en:
+
+```text
+/
+/admin/
+/admin/login/
+/admin/auth/callback/
+/admin/accept-invite/
+/admin/setup-password/
+/admin/reset-password/
+/admin/users/
+/courses/soyhenry/ai-automation-en-henry-carrera-de-inteligencia-artificial-aplicada-75d39c08/
+```
+
+El HTML de recovery no contiene `access_token`, `refresh_token` ni `token=`. En
+Chrome DevTools, el login cargó todos los recursos con `200`/`304` y cero mensajes
+de consola. La navegación no autenticada a `/admin/` produjo únicamente dos
+warnings de preload de fuentes, sin errores JavaScript; no se observaron fallos
+HTTP de assets, scripts o stylesheet.
+
+### UAT editorial remota read-only
+
+Con la sesión admin existente, activa y ya elevada, se observaron en el alias:
+
+| Caso | Resultado |
+|---|---|
+| Panel y RBAC visible | `PASS`: rol `Admin`, enlaces `Cola editorial` y `Usuarios` |
+| Facets iniciales | `PASS`: `131` visibles, editorial `pending_review=350`, calidad `pending=219`, `complete=131` |
+| Filtro catalogado `Certus` | `PASS`: `16` filas; no existe input libre de institución |
+| Búsqueda `Marketing` dentro de `Certus` | `PASS`: `2` filas |
+| Filtro calidad `Pendiente` | `PASS`: `219` filas |
+| Editor | `PASS`: copy en español, acciones `Guardar cambios`, `Publicar`, `Archivar` y `Actualizar calidad` |
+| Previsualización compartida | `PASS`: renderer público visible debajo del editor |
+| Actualización en vivo | `PASS`: el título sin guardar apareció simultáneamente en editor y preview |
+| Resaltado y desplazamiento | `PASS`: `Ver impacto` resaltó el bloque y cambió el scroll de `891` a `831` |
+| Responsive | `PASS` visual a `390px`: cola y controles permanecen utilizables; screenshot móvil capturado |
+| Usuarios/RBAC | `PASS` read-only: tres membresías visibles, sin mutar rol ni estado |
+| Escrituras | `NO EJECUTADAS`: no se pulsaron guardar/publicar/archivar/calidad, ni se modificó Auth/MFA |
+
+La sesión ya existente permitió cargar las RPCs protegidas y el editor sin
+mostrar una barrera MFA prematura. La continuidad de login + challenge TOTP +
+operación `aal2` permanece acreditada por la evidencia remota del mismo ciclo
+(`ea787a8a`); en esta pasada no se volvió a introducir un código ni se registró
+ningún secreto MFA.
+
+### Decisión del ciclo
+
+El gate de candidato UX en Preview Development queda `PASS` para rutas, consola,
+red, cola, filtros, editor, preview, responsive y RBAC read-only. El estado
+contractual global permanece
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por `npm audit` (16 HIGH y 1
+CRITICAL), gates de invitación/cleanup/rollback y promoción protegida pendientes.
+La transición queda documentada como `expand -> compatibilidad -> deploy ->
+contract`; la contracción legacy y el rollback no se ejecutaron.
