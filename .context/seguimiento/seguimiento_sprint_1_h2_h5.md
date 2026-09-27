@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F11_H3_PR_DEVELOPMENT_READY_LOCAL`
+`F11_H3_CLOSURE_REVIEW_NO_GO_REMOTE_EVIDENCE_INCOMPLETE`
 
 Estado histórico preservado: `F11_H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA` y `H3_READY_FOR_PROMPT_CONTINUA` fueron gates previos al ciclo H3 vigente.
 
@@ -56,7 +56,7 @@ Estado histórico preservado: `F11_H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA` y `H3
 |---|---|---:|
 | `H2-CA2` | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | 100 |
 | `H2-CA3` | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | 100 |
-| `H3-CA4` | `H3_PR_DEVELOPMENT_READY_LOCAL` | Bloqueadores HIGH/CRITICAL para PR resueltos en el ciclo de corrección local del 2026-09-02; UAT canónica 47/47 y 141/141 PASS con 0 retries |
+| `H3-CA4` | `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE` | GO técnico local preservado; UAT remota, 03A/03B remoto, hostnames por ambiente, Certification y contract pendientes |
 | `H4-CA5` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA6` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA7` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
@@ -69,7 +69,11 @@ Estado histórico preservado: `F11_H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA` y `H3
 
 `Progreso H2-H5 ponderado por criterios = 265 / 1200 x 100 = 22.08%`.
 
-`H3-CA4 = H3_PR_DEVELOPMENT_READY_LOCAL. UAT canónica 47/47 y 141/141 PASS con 0 retries regenerada el 2026-09-02; gates locales revalidados el 2026-09-03, incluyendo regresión PG17 A6/A13 para el delta 20260903. JIT-A remoto hasta 20260902 conserva A6/A13 FAIL históricos; JIT-B conserva E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Build normal/mock PASS y waiver static export superseded. Commit + push + PR a desarrollo autorizados por instrucción humana separada.`
+`H3-CA4 = NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`. El GO técnico local
+queda preservado: UAT canónica 47/47 y 141/141 PASS con 0 retries, builds,
+contratos y PG17 PASS. La auditoría 2026-09-23 confirma UAT remota, 03A/03B
+remoto, hostnames por ambiente, Certification y contract pendientes. MFA queda
+fuera del gate y como mejora evolutiva.
 
 ### Homologacion
 
@@ -85,7 +89,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
 - Hito 2: DDL Free remediada, backfill editorial, seed diccionario, fix de vista publica y compatibilidad legacy aplicados/verificados; PR #458, PR #459, PR #460, PR #466 y PR #467 aprobados/mergeados con CI verde; post-apply Free detecto `227` cursos legacy elegibles, `227` efectivos, `0` faltantes y `0` inesperados; certificacion `4cc2e34c` muestra catalogo, detalle y comparador sin React #418, 401 ni 404 de rutas exportadas criticas; criterios contrastados contra `SRC-REQ-002` via adenda sanitizada.
-- Hito 3: `H3_PR_DEVELOPMENT_READY_LOCAL`. Gates locales revalidados el 2026-09-03, delta `20260903_h3_rbac_contract_fix.sql` probado con regresión PG17 A6/A13, UAT canónica histórica 47/47 y 141/141 PASS con 0 retries, build normal/mock PASS; JIT-A/JIT-B remotos mantienen los pendientes documentados en sus evidencias.
+- Hito 3: GO técnico local preservado, pero cierre `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`. Delta `20260903_h3_rbac_contract_fix.sql` probado con regresión PG17 A6/A13, UAT canónica histórica 47/47 y 141/141 PASS con 0 retries, build normal/mock PASS; JIT-A/JIT-B remotos mantienen los pendientes documentados en sus evidencias.
 - Hitos 4-5: planificados según dependencias del nuevo plan vinculante.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
@@ -248,9 +252,9 @@ FASE 1 — CONTRATOS Y POSTGRESQL 17
 2. Completa cola y contador: filtros editorial/calidad, archivados excluidos, más de una página, cursor estable, `endCursor`, siguiente/anterior y parámetros inválidos.
 3. Completa optimistic locking por `version` en update, publish, unpublish, archive y quality; los conflictos deben ser visibles y no generar mutación parcial.
 4. Alinea publicación con el diccionario real de campos requeridos/calidad y valida el lector de valores efectivos preservando `manual_overrides`.
-5. Completa membresías: alta/invitación contractual local, cambio de rol, activación, desactivación y revocación; conserva al menos un admin activo y evita auto-bloqueo accidental.
+5. Completa membresías: alta/invitación contractual local, cambio de rol, activación, desactivación y revocación; conserva al menos un admin activo y evita auto-bloqueo accidental. El Edge 03A y DB onboarding 03B ya están validados localmente; el frontend/Auth real queda en el siguiente subgate.
 6. Verifica una única auditoría atómica por mutación editorial o de membresía. Ambas auditorías son append-only: `UPDATE`, `DELETE` y `TRUNCATE` deben rechazarse.
-7. Ejecuta las migraciones H3 sobre un baseline local PG17 limpio con forma Pro y después una segunda corrida NOOP. No uses ni sincronices datos operativos remotos.
+7. Ejecuta las migraciones H3 sobre un baseline local PG17 limpio con forma Pro y después una segunda corrida NOOP. El subgate DB 03B ya fue validado en PG17 limpio con los tres harnesses; el NOOP remoto sigue pendiente. No uses ni sincronices datos operativos remotos.
 8. Gate: harness completo PASS, segunda corrida NOOP, firmas/constraints/índices/grants/RLS/vistas/RPC locales inventariados y sin hallazgos HIGH/CRITICAL.
 
 FASE 2 — TRANSPORTE Y OWNERSHIP
@@ -263,7 +267,7 @@ FASE 2 — TRANSPORTE Y OWNERSHIP
 FASE 3 — FRONTEND, MFA, MEMBRESÍAS Y HOSTNAME
 1. Cubre admin y user: login, enrollment TOTP, challenge, verify válido, código inválido, sesión `aal2`, refresh, logout, unenroll/revocación y expiración/error.
 2. Añade negativos `aal1` para cada operación sensible y confirma aceptación en `aal2`.
-3. Implementa o simula únicamente local el contrato backend protegido de invitación; valida email inválido, duplicado y rol inválido sin afirmar Auth/Edge Function remotos y sin `service_role` en navegador.
+3. Implementa o simula únicamente local el contrato backend protegido de invitación; valida email inválido, duplicado y rol inválido sin afirmar Auth/Edge Function remotos y sin `service_role` en navegador. Para onboarding, consume el contrato DB 03B y valida callback, setup y reconciliación en el siguiente subgate.
 4. Ejecuta en UI cambio de rol, activación, desactivación y revocación de admin/user con estado, confirmación, loading, error y feedback persistente.
 5. Completa cola, filtros, contador, paginación siguiente/anterior, valores efectivos y conflictos de edición visibles.
 6. Genera build mock limpio con endpoint local. Comprueba solo: `mock_endpoint_present=true`, `remote_endpoint_present=false`, `service_role_reference_present=false`.
@@ -278,7 +282,7 @@ FASE 4 — RUNNER UAT DETERMINISTA
    - H3-CA4.4 Cola/paginación: 5.
    - H3-CA4.5 Mutaciones/locking/publicación: 6.
    - H3-CA4.6 Auditoría: 4.
-   - H3-CA4.7 MFA/assurance: 6.
+    - H3-CA4.7 MFA/assurance: fuera del gate; 6 casos históricos conservados como evidencia evolutiva.
    - H3-CA4.8 Membresías/invitación/último admin: 6.
    - H3-CA4.9 Hostname/perímetro: 3.
    - H3-CA4.10 Convergencia/NOOP: 2.
@@ -305,7 +309,7 @@ FASE 5 — REGRESIÓN Y ESTABILIDAD EN DOCKER
 FASE 6 — EVIDENCIA, DOCUMENTACIÓN Y DECLARACIÓN
 1. Regenera solo `.context/evidencia/h3-expanded/`; preserva artifacts históricos.
 2. Produce manifest, matriz de 47 casos, detalle de 141 ejecuciones, 141 screenshots frescos, status, logs sanitizados y hashes SHA-256. Verifica consistencia cruzada y ausencia de secretos, tokens, headers Auth, passwords y PII sensible.
-3. Actualiza con resultados reales: estado del proyecto, hito, implementation report, tarea, matriz, evidencia cliente, plan maestro, plan vinculante y seguimiento.
+3. Actualiza con resultados reales: estado del proyecto, hito, implementation report, tarea, matriz, evidencia cliente, plan maestro, plan vinculante y seguimiento. El ciclo 03B DB ya dejó esas notas sincronizadas.
 4. Documenta `expand`, compatibilidad, rollback, no degradación, deploy/contract pendientes, limitaciones mock y waiver `sessionStorage`; no afirmes Supabase Auth, Free, Cloudflare ni producción sin evidencia remota autorizada.
 5. Si cualquier gate falla, conserva `H3_LOCAL_EXPANDED_NO_GO`, registra bloqueador reproducible y continúa corrigiendo localmente salvo condición de detención.
 6. Solo con todos los gates PASS declara exactamente `H3_LOCAL_EXPANDED_GO`.

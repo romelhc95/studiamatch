@@ -17,6 +17,7 @@
 - [HITO-001](hitos/hito_001.md)
 - [HITO-002](hitos/hito_002.md)
 - [HITO-003](hitos/hito_003.md)
+- [H3REQ1 Closure Review Final 2026-09-23](hitos/h3req1_closure_review_final_2026-09-23.md)
 - [HITO-004](hitos/hito_004.md)
 - [HITO-005](hitos/hito_005.md)
 
@@ -44,3 +45,8 @@
 - [Seguimiento Sprint 1 H2-H5](seguimiento/seguimiento_sprint_1_h2_h5.md)
 - [Plantilla Tracker Reutilizable](seguimiento/plantilla_tracker_reutilizable.md)
 - [Retrospectiva Hito 1](seguimiento/retrospectiva_hito_001.md)
+
+## Evidencia H3 Invitation Flow
+
+- [03A Edge local validado](evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_local_2026-09-19.md)
+- [03B DB local validado](evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_db_implementation_local_2026-09-21.md)

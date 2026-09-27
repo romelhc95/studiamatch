@@ -283,7 +283,11 @@ function deliverInvitation(record, resent) {
 }
 
 function isAdminInviteActor(fixture) {
-  return Boolean(fixture && fixture.role === 'admin' && (fixture.aal === 'aal2' || (factors.get(fixture.sub) || []).some((factor) => factor.status === 'verified')));
+  return Boolean(fixture && fixture.role === 'admin' && fixture.aal === 'aal2');
+}
+
+function publicFactors(fixture) {
+  return (factors.get(fixture.sub) || []).map(({ id, factor_type, status }) => ({ id, factor_type, status }));
 }
 
 function parseBody(req) {
@@ -359,7 +363,7 @@ function getFixture(req) {
 async function withIdentity(fixture, callback) {
   const client = await pool.connect();
   try {
-    const effectiveAal = fixture.aal === 'aal2' || (factors.get(fixture.sub) || []).some((factor) => factor.status === 'verified') ? 'aal2' : 'aal1';
+    const effectiveAal = fixture.aal === 'aal2' ? 'aal2' : 'aal1';
     await client.query('BEGIN');
     await client.query('SELECT set_config($1, $2, true)', ['request.jwt.claim.sub', fixture.sub]);
     await client.query('SELECT set_config($1, $2, true)', ['request.jwt.claim.aal', effectiveAal]);
@@ -651,7 +655,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/auth/v1/factors' && req.method === 'GET') {
       const fixture = getFixture(req);
       if (!fixture) return unauthorized(res);
-      return sendJson(res, 200, { all: factors.get(fixture.sub) || [], totp: factors.get(fixture.sub) || [] });
+      const userFactors = publicFactors(fixture);
+      return sendJson(res, 200, { all: userFactors, totp: userFactors.filter((factor) => factor.factor_type === 'totp') });
     }
 
     if (pathname.match(/^\/auth\/v1\/factors\/[^/]+\/unenroll$/) && req.method === 'POST') {
@@ -710,7 +715,7 @@ const server = http.createServer(async (req, res) => {
       const fixture = getFixture(req);
       if (!fixture) return unauthorized(res);
       const verifiedFactor = (factors.get(fixture.sub) || []).some((factor) => factor.status === 'verified');
-      return sendJson(res, 200, { id: fixture.sub, email: fixture.email, aal: verifiedFactor || fixture.aal === 'aal2' ? 'aal2' : fixture.aal, role: 'authenticated' });
+      return sendJson(res, 200, { id: fixture.sub, email: fixture.email, factors: publicFactors(fixture), aal: verifiedFactor || fixture.aal === 'aal2' ? 'aal2' : fixture.aal, role: 'authenticated' });
     }
 
     if (pathname === '/rest/v1/institutions') {
@@ -768,6 +773,12 @@ const server = http.createServer(async (req, res) => {
             return client.query('SELECT * FROM public.admin_get_course_queue($1, $2, $3, $4)', [body.p_first, body.p_after_cursor, body.p_editorial_status, body.p_quality_status]);
           case 'admin_count_course_queue':
             return client.query('SELECT * FROM public.admin_count_course_queue($1, $2)', [body.p_editorial_status, body.p_quality_status]);
+          case 'admin_get_course_queue_filtered':
+            return client.query('SELECT * FROM public.admin_get_course_queue_filtered($1, $2, $3, $4, $5)', [body.p_first, body.p_after_cursor, body.p_editorial_status, body.p_quality_status, body.p_institution_slug]);
+          case 'admin_count_course_queue_filtered':
+            return client.query('SELECT * FROM public.admin_count_course_queue_filtered($1, $2, $3)', [body.p_editorial_status, body.p_quality_status, body.p_institution_slug]);
+          case 'admin_get_course_queue_facets':
+            return client.query('SELECT * FROM public.admin_get_course_queue_facets()');
           case 'admin_get_course_editorial':
             return client.query('SELECT * FROM public.admin_get_course_editorial($1)', [body.p_course_id]);
           case 'admin_update_course':
@@ -805,6 +816,9 @@ const server = http.createServer(async (req, res) => {
     return notFound(res);
   } catch (error) {
     console.error('Mock request failed', pathname, error.message);
+    if (typeof error.message === 'string' && /MFA\s+aal2\s+required/i.test(error.message)) {
+      return sendJson(res, 403, { message: 'MFA aal2 required', code: 'mfa_required' });
+    }
     return sendJson(res, 500, { message: 'Mock request failed' });
   }
 });

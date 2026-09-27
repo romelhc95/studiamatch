@@ -149,6 +149,10 @@ INSERT INTO public.admin_invitations (
 \ir ../../db/migrations/20260920_h3_invitation_edge_runtime.sql
 \ir ../../db/migrations/20260921_h3_invitation_onboarding_rpc.sql
 \ir ../../db/migrations/20260924_h3_onboarding_rbac_hardening.sql
+\ir ../../db/migrations/20260924_h3_onboarding_rbac_hardening_fix.sql
+\ir ../../db/migrations/20260925_h3_legacy_member_creation_guard.sql
+\ir ../../db/migrations/20260925_h3_admin_members_onboarding_reader.sql
+\ir ../../db/migrations/20260927_h3_admin_queue_facets_filter.sql
 
 DO $$
 BEGIN
@@ -198,6 +202,28 @@ BEGIN
 END;
 $$;
 
+-- ACL/RLS smoke: the harness must prove that the PostgREST roles cannot write
+-- administrative tables directly. Function behavior is tested separately
+-- through SECURITY DEFINER RPCs.
+DO $$
+BEGIN
+    IF has_table_privilege('authenticated', 'public.admin_members', 'INSERT')
+       OR has_table_privilege('authenticated', 'public.admin_members', 'UPDATE')
+       OR has_table_privilege('authenticated', 'public.admin_members', 'DELETE') THEN
+        RAISE EXCEPTION 'authenticated role has direct admin_members mutation privilege';
+    END IF;
+    IF has_table_privilege('authenticated', 'public.admin_membership_audit', 'INSERT')
+       OR has_table_privilege('authenticated', 'public.admin_membership_audit', 'UPDATE')
+       OR has_table_privilege('authenticated', 'public.admin_membership_audit', 'DELETE') THEN
+        RAISE EXCEPTION 'authenticated role has direct audit mutation privilege';
+    END IF;
+    IF has_table_privilege('anon', 'public.admin_members', 'SELECT')
+       OR has_table_privilege('anon', 'public.admin_invitations', 'SELECT') THEN
+        RAISE EXCEPTION 'anon role has direct administrative read privilege';
+    END IF;
+END;
+$$;
+
 -- Re-run the seed: idempotency must keep every fixture count unchanged.
 \ir ../../db/seeds/h3_admin_seed_local.sql
 
@@ -231,6 +257,8 @@ DECLARE
     conflict_result RECORD;
     detail_result RECORD;
     eff_detail RECORD;
+    filtered_result RECORD;
+    facets_result RECORD;
     publish_ok RECORD;
     publish_draft RECORD;
     draft_course UUID := '20000000-0000-0000-0000-000000000001';
@@ -249,6 +277,23 @@ BEGIN
     SELECT q.total INTO total_count
     FROM public.admin_count_course_queue('pending_review', 'complete') q;
     IF total_count <> 10 THEN RAISE EXCEPTION 'expected filtered count 10, got %', total_count; END IF;
+
+    SELECT q.total INTO total_count
+    FROM public.admin_count_course_queue_filtered('pending_review', 'complete', 'ulima') q;
+    IF total_count <> 2 THEN RAISE EXCEPTION 'expected institutional filtered count 2, got %', total_count; END IF;
+
+    SELECT * INTO filtered_result
+    FROM public.admin_get_course_queue_filtered(1, NULL, 'pending_review', 'complete', 'ulima');
+    IF filtered_result.error IS NOT NULL
+       OR jsonb_array_length(filtered_result.courses) <> 1
+       OR (filtered_result.page_info ->> 'hasNextPage')::boolean IS NOT TRUE THEN
+        RAISE EXCEPTION 'filtered queue pagination failed: %', filtered_result.error;
+    END IF;
+
+    SELECT * INTO facets_result FROM public.admin_get_course_queue_facets();
+    IF facets_result.error IS NOT NULL OR jsonb_array_length(facets_result.institutions) <> 5 THEN
+        RAISE EXCEPTION 'queue facets failed: %', facets_result.error;
+    END IF;
 
     SELECT * INTO detail_result
     FROM public.admin_get_course_editorial(first_course);
@@ -795,4 +840,5 @@ END;
 $$;
 
 \ir ../../tests/sql/h3_invitation_onboarding_harness.sql
+\ir ../../tests/sql/h3_onboarding_rbac_hardening_harness.sql
 SELECT 'h3_pg17_harness_ok' AS result;

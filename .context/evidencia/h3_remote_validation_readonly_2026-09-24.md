@@ -1,6 +1,6 @@
-﻿# H3REQ1 Remote Validation â€” Read-only Evidence
+# H3REQ1 Remote Validation — Read-only Evidence
 
-**Captured:** 2026-09-24 UTC 04:08â€“04:09
+**Captured:** 2026-09-24 UTC 04:08–04:09
 **Mode:** read-only; no SQL writes, migrations, Auth writes, Edge deploys,
 Cloudflare actions, push, PR, merge or promotion were executed.
 **Projects:** Free `aqrldlmlszjtgpqiegaa`; Pro `xwhtiqmboljkshrtviyw`.
@@ -73,26 +73,26 @@ These hashes are evidence identifiers only; they do not authorize deployment.
 
 ## Findings mapped to H3REQ1
 
-### H3-001 â€” Complete remote H3 evidence
+### H3-001 — Complete remote H3 evidence
 
 **Result:** `FAIL` / evidence now complete as a reproducible negative audit, but
 the acceptance criterion remains open. The remote snapshot proves that the
 required invitation/onboarding contract is not present in either required
 environment.
 
-### H3-002 â€” Complete real invitation/onboarding flow
+### H3-002 — Complete real invitation/onboarding flow
 
 **Result:** `BLOCKED`. A real flow cannot be executed safely because the remote
 DB contract required by the Edge Function and onboarding pages is absent. Local
 mock evidence remains separate and is not promoted to remote evidence.
 
-### H3-003 â€” Verify H3 migrations in required environments
+### H3-003 — Verify H3 migrations in required environments
 
 **Result:** `FAIL`. Free has only the earlier RBAC/editorial H3 migrations;
 Pro has no recorded H3 migrations. The four invitation/onboarding migrations
 are not present remotely.
 
-### H3-004 â€” Expand â†’ compatibility â†’ deploy â†’ contract, including rollback
+### H3-004 — Expand → compatibility → deploy → contract, including rollback
 
 **Result:** `BLOCKED`. Local expand/compatibility evidence exists, but remote
 deploy, contract/cleanup and rollback execution remain unperformed. No rollback
