@@ -72,21 +72,22 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           return;
         }
 
+        const safeInstitutionId = encodeURIComponent(institution.id);
         const categories: unknown = categoriesResponse.ok ? await categoriesResponse.json() : [];
         const categoryArray = Array.isArray(categories) ? categories as Array<{ id: string; name: string }> : [];
-        const publicUrl = `${SUPABASE_URL}/rest/v1/courses_public_effective?slug=eq.${safeCourseSlug}&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}`;
+        const publicUrl = `${SUPABASE_URL}/rest/v1/courses_public_effective?slug=eq.${safeCourseSlug}&institution_id=eq.${safeInstitutionId}&select=${COURSE_PUBLIC_FIELDS}`;
         const response = await fetch(publicUrl, { headers });
         if (!response.ok) throw new Error(`Error en la respuesta del servidor: ${response.status}`);
 
         let data: unknown = await response.json();
         if (!Array.isArray(data) || data.length === 0) {
-          const urlMatch = `${SUPABASE_URL}/rest/v1/courses_public_effective?url=ilike.*${safeCourseSlug}*&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}&limit=1`;
+          const urlMatch = `${SUPABASE_URL}/rest/v1/courses_public_effective?url=ilike.*${safeCourseSlug}*&institution_id=eq.${safeInstitutionId}&select=${COURSE_PUBLIC_FIELDS}&limit=1`;
           const urlResponse = await fetch(urlMatch, { headers });
           if (urlResponse.ok) data = await urlResponse.json();
 
           if (!Array.isArray(data) || data.length === 0) {
             const safeKeywords = encodeURIComponent(courseSlug.replace(/-/g, "*"));
-            const likeResponse = await fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?slug=ilike.*${safeKeywords}*&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}&limit=1`, { headers });
+            const likeResponse = await fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?slug=ilike.*${safeKeywords}*&institution_id=eq.${safeInstitutionId}&select=${COURSE_PUBLIC_FIELDS}&limit=1`, { headers });
             if (likeResponse.ok) data = await likeResponse.json();
           }
         }
@@ -126,7 +127,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
       try {
         const headers = { apikey: SUPABASE_PUBLISHABLE_KEY };
-        const query = `${SUPABASE_URL}/rest/v1/courses_public_effective?category_id=eq.${encodeURIComponent(course.category_id)}&institution_id=eq.${encodeURIComponent(course.institution_id)}&id=neq.${encodeURIComponent(course.id)}&limit=3&select=${COURSE_PUBLIC_FIELDS}`;
+        const safeCatId = encodeURIComponent(course.category_id);
+        const safeInstitutionId = encodeURIComponent(course.institution_id);
+        const query = `${SUPABASE_URL}/rest/v1/courses_public_effective?category_id=eq.${safeCatId}&institution_id=eq.${safeInstitutionId}&id=neq.${encodeURIComponent(course.id)}&limit=3&select=${COURSE_PUBLIC_FIELDS}`;
         const response = await fetch(query, { headers });
         const relatedData: unknown = response.ok ? await response.json() : [];
         if (!Array.isArray(relatedData)) return;
