@@ -943,11 +943,11 @@ Free/Development. No se ejecutó merge, promoción, Certification ni Production.
 |---|---|
 | PR | `#500`, abierto hacia `desarrollo`, sin merge |
 | Rama del PR | `feat/h3req1-development-remote-tests-v3` |
-| Head del PR | `439a07be0e501690d881e5d909c1b27609f2a178` |
+| Head del PR | `9d367f2f8ff487ec77080592946c4dfbdb2f34e1` |
 | `security-audit` | `PASS` |
 | Credential scan / protected paths / Python / ESLint / TypeScript / build / actionlint / DB gate | `PASS` |
-| CodeQL aggregate | `neutral`; los tres jobs Analyze (`python`, `actions`, `javascript-typescript`) `success` |
-| Preview asociado al PR | `5a49e0a7`, `success`; branch URL hash no autorizado por `ADMIN_ALLOWED_HOSTS` |
+| CodeQL aggregate y Analyze (`python`, `actions`, `javascript-typescript`) | `success` |
+| Preview asociado al PR | `a8cf7db8`, `success`; branch URL hash no autorizado por `ADMIN_ALLOWED_HOSTS` |
 | Rama que conserva el alias autorizado | `feat/h3req1-development-remote-tests` |
 | Commit de sincronización frontend del alias | `5a9aeace32b14df4ff73b47918f7212d1fb985e2` |
 | Deployment Pages del alias | `c0664c51-ed47-4c46-8ef7-e1a9a0e633d1`, `success` |

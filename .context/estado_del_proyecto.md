@@ -970,10 +970,10 @@ pendiente.
 
 El candidato UX se publicó y validó únicamente en Free/Development. El PR `#500`
 continúa abierto hacia `desarrollo`, sin merge. El head del PR es
-`439a07be0e501690d881e5d909c1b27609f2a178`; `security-audit`, protected paths,
+`9d367f2f8ff487ec77080592946c4dfbdb2f34e1`; `security-audit`, protected paths,
 credential scan, Python, ESLint, TypeScript, build, actionlint y PostgreSQL DB
-gate quedaron `PASS`. Los tres jobs Analyze de CodeQL quedaron `success`; el
-agregado CodeQL reportó `neutral`.
+gate quedaron `PASS`. CodeQL y sus tres jobs Analyze (`python`, `actions`,
+`javascript-typescript`) quedaron `success`.
 
 El branch preview hash del PR no está autorizado por `ADMIN_ALLOWED_HOSTS`, por
 lo que la rama que conserva el alias Preview autorizado se sincronizó con el
