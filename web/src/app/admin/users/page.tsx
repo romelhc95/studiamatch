@@ -8,7 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { adminRpc, inviteAdminMember, requireAdmin, signOutAdmin } from '@/lib/admin-auth';
+import { MfaRequiredCard } from '@/components/admin/MfaRequiredCard';
+import { adminRpc, getAuthenticatorAssuranceLevel, inviteAdminMember, isMfaRequiredError, requireAdmin, signOutAdmin } from '@/lib/admin-auth';
 
 interface Member {
   user_id: string;
@@ -38,15 +39,26 @@ function AdminUsersManager() {
   const [role, setRole] = useState('user');
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [mfaRequired, setMfaRequired] = useState(false);
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    try {
-      await requireAdmin();
+      setError(null);
+      setMfaRequired(false);
+      try {
+       await requireAdmin();
+       const assurance = await getAuthenticatorAssuranceLevel();
+       if (assurance.currentLevel !== 'aal2') {
+         setMfaRequired(true);
+         return;
+       }
        const rows = (await adminRpc('admin_list_members_onboarding', {})) as Member[];
       setMembers(Array.isArray(rows) ? rows : []);
     } catch (reason) {
+      if (isMfaRequiredError(reason)) {
+        setMfaRequired(true);
+        return;
+      }
       if (reason instanceof Error && reason.message === 'Admin required') {
         router.replace('/admin/');
         return;
@@ -73,6 +85,10 @@ function AdminUsersManager() {
       setEmail('');
       void loadMembers();
     } catch (reason) {
+      if (isMfaRequiredError(reason)) {
+        setMfaRequired(true);
+        return;
+      }
       setError(reason instanceof Error ? reason.message : 'Error al invitar al usuario.');
     } finally {
       setCreating(false);
@@ -94,6 +110,10 @@ function AdminUsersManager() {
       setMessage('Membresía actualizada.');
       await loadMembers();
     } catch (reason) {
+      if (isMfaRequiredError(reason)) {
+        setMfaRequired(true);
+        return;
+      }
       setError(reason instanceof Error ? reason.message : 'Error al actualizar la membresía.');
     }
   };
@@ -119,6 +139,8 @@ function AdminUsersManager() {
           </div>
         </div>
 
+        {mfaRequired && <MfaRequiredCard onVerified={() => void loadMembers()} />}
+
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-slate-900">Agregar usuario</h2>
           <p className="mt-1 text-xs text-slate-500">Invita por correo al usuario editorial y registra su membresía (admin/user).</p>
@@ -138,7 +160,7 @@ function AdminUsersManager() {
               </Select>
             </div>
             <div className="flex items-end">
-              <Button onClick={() => void handleCreate()} disabled={creating || !email} className="w-full">
+              <Button onClick={() => void handleCreate()} disabled={creating || mfaRequired || !email} className="w-full">
                 {creating ? 'Agregando...' : 'Agregar usuario'}
               </Button>
             </div>
@@ -177,10 +199,10 @@ function AdminUsersManager() {
                       <td className="py-2">{member.account_status || (member.is_active ? 'ready (legacy)' : 'No expuesto')}</td>
                       <td className="py-2">{formatDate(member.expires_at)}</td>
                      <td className="space-x-2 py-2">
-                       <Button type="button" variant="outline" size="sm" onClick={() => { if (window.confirm('¿Confirmar cambio de estado?')) void handleMemberUpdate(member, { is_active: !member.is_active }, member.is_active ? 'deactivation' : 'activation'); }}>
+                        <Button type="button" variant="outline" size="sm" disabled={mfaRequired} onClick={() => { if (window.confirm('¿Confirmar cambio de estado?')) void handleMemberUpdate(member, { is_active: !member.is_active }, member.is_active ? 'deactivation' : 'activation'); }}>
                          {member.is_active ? 'Desactivar' : 'Activar'}
                        </Button>
-                       <Button type="button" variant="outline" size="sm" onClick={() => { if (window.confirm('¿Cambiar rol de esta membresía?')) void handleMemberUpdate(member, { role: member.role === 'admin' ? 'user' : 'admin' }, 'role_change'); }}>
+                        <Button type="button" variant="outline" size="sm" disabled={mfaRequired} onClick={() => { if (window.confirm('¿Cambiar rol de esta membresía?')) void handleMemberUpdate(member, { role: member.role === 'admin' ? 'user' : 'admin' }, 'role_change'); }}>
                          Hacer {member.role === 'admin' ? 'user' : 'admin'}
                        </Button>
                      </td>

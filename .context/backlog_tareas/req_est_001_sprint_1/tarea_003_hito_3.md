@@ -6,10 +6,11 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `H3_PR_DEVELOPMENT_READY_LOCAL` |
+| Estado técnico local | `H3_PR_DEVELOPMENT_READY_LOCAL` |
+| Estado de cierre | `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE` |
 | Work package | `SUPERSEDED` |
 | Criterio | `H3-CA4` |
-| Bloqueo | Resuelto en el ciclo de corrección local del 2026-09-02: CI H3 completo (allowlist + `db-gate` con harness PG17), invariantes DB garantizadas, MFA con secreto/QR y `aal` real, UAT canónica E2E 47/47 y 141/141 PASS, rollback reversible y evidencia vinculada al candidato. Build normal/mock PASS; waiver static export superseded. Commit + push + PR autorizados por instrucción humana separada. |
+| Bloqueo | GO técnico local acreditado: CI H3, invariantes DB, UAT core 47/47 y 141/141, rollback y evidencia local PASS. Cierre contractual NO-GO por UAT remota, 03A/03B remoto, hostnames por ambiente, Certification y contract pendientes. MFA queda fuera del gate como mejora evolutiva. |
 
 Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` correspondió al pre-arranque documental anterior; la tarea vigente está en `H3_PR_DEVELOPMENT_READY_LOCAL`.
 
@@ -61,22 +62,26 @@ histórica.
 
 ### Resultado de auditoría de readiness
 
-`H3_PR_DEVELOPMENT_READY_LOCAL` (GO local para PR): el ciclo de corrección local y
+`H3_PR_DEVELOPMENT_READY_LOCAL` (GO técnico local para PR; cierre contractual NO-GO): el ciclo de corrección local y
 la revalidación documental del 2026-09-03 resolvieron los bloqueadores locales que
 QA/seguridad/DB habían encontrado (estado previo `H3_PR_DEVELOPMENT_NO_GO`, histórico).
 UAT canónica histórica 47/47 y 141/141 PASS con 0 retries; el candidato actual
 además valida en PG17 la regresión A6/A13 del delta `20260903`. JIT-A/JIT-B tienen
 evidencia remota parcial documentada; sus pendientes no se presentan como PASS.
 
-### Siguiente gate\r\n\r\nResuelto en el ciclo local: workflow/allowlist/db-gate H3 (`GATE_OK`), invariantes\r\nDB, regresión PG17 A6/A13 del delta `20260903`, MFA local, cobertura E2E, rollback\r\nreversible y artifacts vinculados al candidato. El PR #495 fue mergeado a `desarrollo`\r\nen `e3d21c1`. El siguiente gate es UAT Development sobre Free + preview de `desarrollo`\r\n`88f02c53.studiamatch-aty.pages.dev`, no sobre `admin.studiamatch.com`.
+### Siguiente gate\r\n\r\nEl GO técnico local permanece acreditado, pero el cierre contractual está en `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`. El siguiente gate requiere UAT Development sobre el deployment correcto, validación remota 03A/03B, luego Certification y contract/cleanup. `admin.studiamatch.com` no debe usarse para validar Development.
 
 ### Pendiente vigente (gates posteriores y separados)
 
 1. Revalidación remota A6/A13 en Free después de aplicar el delta `20260903` con JIT DDL.
-2. Configuración Auth pendiente y UAT real de login/MFA/redirects.
-3. Dependencia build: Edge Function de invitación y mecanismo estable de 404 público.
-4. Matriz JIT-B restante E2/E5/E6/E7, UAT en Certification, merge y deploy.
-5. `security-audit`, CodeQL, Pages preview y revisión humana remotos al abrir el PR.
+2. Configuración Auth pendiente y UAT real de login/redirects; MFA queda fuera del gate y como mejora evolutiva.
+3. Edge Function de invitación 03A y contrato DB onboarding 03B implementados y
+   validados localmente; falta validación remota de `verify_jwt=true`, Auth/correo
+   y el frontend del flujo completo.
+4. Frontend/Auth local y Mock UAT-02 quedaron validados; falta callback PKCE,
+   aceptación, setup de password, reconciliación Auth/DB y UAT remotos por ambiente.
+5. Matriz JIT-B restante E2/E5/E6/E7, UAT en Certification, merge y deploy.
+6. `security-audit`, CodeQL, Pages preview y revisión humana remotos al abrir el PR.
 
 ### Bloqueos y reglas de detención
 

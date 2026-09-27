@@ -86,12 +86,36 @@ async function login(page, role) {
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.getByLabel('Código MFA').waitFor({ state: 'visible' });
-  assert(TOTP_CODE, 'missing local TOTP code');
-  await page.getByLabel('Código MFA').fill(TOTP_CODE);
-  await page.getByRole('button', { name: 'Verificar MFA' }).click();
   await page.waitForURL(`${BASE_URL}/admin/`);
+  assert(TOTP_CODE, 'missing local TOTP code');
+  const mfaCode = page.getByLabel('Código de 6 dígitos');
+  try {
+    // A verified factor starts the challenge directly. A first-time or pending
+    // factor still exposes the explicit setup/restart action.
+    await mfaCode.waitFor({ state: 'visible', timeout: 1500 });
+  } catch {
+    await page.getByRole('button', { name: /Configurar MFA|Reiniciar configuración MFA/ }).first().click();
+    await mfaCode.waitFor({ state: 'visible' });
+  }
+  await mfaCode.fill(TOTP_CODE);
+  await page.getByRole('button', { name: 'Verificar MFA' }).click();
   await page.getByRole('heading', { name: role === 'admin' ? 'Cola editorial' : 'Panel de actualización de información' }).waitFor({ state: 'visible' });
+  await page.waitForFunction(() => {
+    const key = Object.keys(sessionStorage).find((item) => item.endsWith('-auth-token') && !item.endsWith('-code-verifier'));
+    const raw = key ? sessionStorage.getItem(key) : null;
+    if (!raw) return false;
+    try {
+      const session = JSON.parse(raw);
+      if (session.aal === 'aal2') return true;
+      const segment = typeof session.access_token === 'string' ? session.access_token.split('.')[1] : '';
+      if (!segment) return false;
+      const normalized = segment.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), '=');
+      return JSON.parse(atob(padded)).aal === 'aal2';
+    } catch {
+      return false;
+    }
+  }, undefined, { timeout: 5000 });
 }
 
 async function sessionInfo(page) {
@@ -100,8 +124,21 @@ async function sessionInfo(page) {
     const raw = key ? sessionStorage.getItem(key) : null;
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    let tokenAal;
+    if (typeof parsed.access_token === 'string') {
+      try {
+        const payload = parsed.access_token.split('.')[1];
+        if (payload) {
+          const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+          const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), '=');
+          tokenAal = JSON.parse(atob(padded)).aal;
+        }
+      } catch {
+        tokenAal = undefined;
+      }
+    }
     return {
-      aal: parsed.aal,
+      aal: tokenAal || parsed.aal,
       expiresAt: parsed.expires_at,
       hasAccessToken: Boolean(parsed.access_token),
       hasRefreshToken: Boolean(parsed.refresh_token),
@@ -171,7 +208,7 @@ const CASES = Object.freeze([
     await openFirstEditor(page, 'admin'); check('editable inputs', await page.locator('main input:not([disabled])').count() > 0); return `${await page.locator('main input:not([disabled])').count()} editable inputs`;
   }),
   defineCase('H3-CA4.2', 'user editor limits ownership to missing fields', 'user', '/admin/edit/', 'user receives only missing fields as editable', async ({ page, check }) => {
-    await openFirstEditor(page, 'user'); const editable = await page.locator('main input:not([disabled])').count(); const readonly = await page.locator('main input[disabled]').count(); check('editable missing fields', editable > 0); check('readonly existing fields', readonly > 0); return `${editable} editable, ${readonly} readonly`;
+    await openFirstEditor(page, 'user'); const editable = await page.locator('main input:not([disabled]), main textarea:not([disabled]), main [role="combobox"]:not([aria-disabled="true"])').count(); const readonly = await page.locator('main input[disabled], main textarea[disabled], main [role="combobox"][aria-disabled="true"]').count(); check('editable missing fields', editable > 0); check('readonly existing fields', readonly > 0); return `${editable} editable, ${readonly} readonly`;
   }),
   defineCase('H3-CA4.2', 'user read-only fields are disabled', 'user', '/admin/edit/', 'non-owned fields are disabled and read-only', async ({ page, check }) => {
     await openFirstEditor(page, 'user'); const invalid = await page.locator('main input[disabled]:not([readonly])').count(); check('disabled fields are readonly', invalid === 0); return 'all disabled fields are readonly';
@@ -191,13 +228,13 @@ const CASES = Object.freeze([
   }),
 
   defineCase('H3-CA4.4', 'queue count and rows agree', 'admin', '/admin/', 'queue exposes a numeric total and at least one result', async ({ page, check }) => {
-    await login(page, 'admin'); const total = await page.getByText(/Total:/).innerText(); const links = await page.getByRole('link', { name: 'Editar' }).count(); check('numeric total', /Total:\s*\d+/.test(total)); check('rows present', links > 0); return `${total}; ${links} rows`;
+    await login(page, 'admin'); const total = await page.getByText('programas en este filtro').locator('..').innerText(); const links = await page.getByRole('link', { name: 'Editar' }).count(); check('numeric total', /\d+/.test(total)); check('rows present', links > 0); return `${total}; ${links} rows`;
   }),
   defineCase('H3-CA4.4', 'queue exposes both status filters', 'admin', '/admin/', 'editorial and quality filters are labeled controls', async ({ page, check }) => {
-    await login(page, 'admin'); await page.getByText('Estado editorial', { exact: true }).waitFor(); await page.getByText('Estado calidad', { exact: true }).waitFor(); check('editorial filter', true); check('quality filter', true); return 'both filters visible';
+    await login(page, 'admin'); await page.getByText('Estado editorial', { exact: true }).waitFor(); await page.getByText('Estado de calidad', { exact: true }).waitFor(); check('editorial filter', true); check('quality filter', true); return 'both filters visible';
   }),
   defineCase('H3-CA4.4', 'page-local queue search filters visible rows', 'admin', '/admin/', 'search narrows the current page without navigation', async ({ page, check }) => {
-    await login(page, 'admin'); const first = await page.locator('main h3').first().innerText(); await page.getByLabel('Buscar en esta página').fill(first); check('matching result', await page.getByText(first, { exact: true }).count() >= 1); await page.getByLabel('Buscar en esta página').fill('__no_match__'); check('empty state', await page.getByText('No se encontraron cursos con los filtros actuales.').isVisible()); return 'search match and empty states verified';
+    await login(page, 'admin'); const first = await page.locator('main h3').first().innerText(); await page.getByLabel('Buscar curso').fill(first); check('matching result', await page.getByText(first, { exact: true }).count() >= 1); await page.getByLabel('Buscar curso').fill('__no_match__'); check('empty state', await page.getByText('No encontramos programas con estos filtros.').isVisible()); return 'search match and empty states verified';
   }),
   defineCase('H3-CA4.4', 'queue edit/public links follow editorial state', 'admin', '/admin/', 'every row is editable and pending rows do not expose public links', async ({ page, check }) => {
     await login(page, 'admin'); await page.getByRole('link', { name: 'Editar' }).first().waitFor(); const edits = await page.getByRole('link', { name: 'Editar' }).count(); const views = await page.getByRole('link', { name: 'Ver' }).count(); check('edit links', edits > 0); check('no pending public links', views === 0); return `${edits} edit links, ${views} public links`;
@@ -222,7 +259,7 @@ const CASES = Object.freeze([
     await openFirstEditor(page, 'user'); for (const name of ['Publicar', 'Despublicar', 'Archivar', 'Actualizar calidad']) check(`${name} absent`, await page.getByRole('button', { name }).count() === 0); return 'all privileged mutation controls absent';
   }),
   defineCase('H3-CA4.5', 'editor conflict recovery contract exists', 'admin', '/admin/edit/', 'version conflict presents reload recovery and disables stale save', async ({ page, check }) => {
-    await openFirstEditor(page, 'admin'); const observed = await readContract('web/src/app/admin/edit/page.tsx', ["startsWith('Version conflict')", 'setConflict(true)', 'Recargar', 'disabled={saving || conflict}']); check('locking contract', true); return observed;
+    await openFirstEditor(page, 'admin'); const observed = await readContract('web/src/app/admin/edit/page.tsx', ["startsWith('Version conflict')", 'setConflict(true)', 'Recargar', 'disabled={saving || conflict || mfaRequired}']); check('locking contract', true); return observed;
   }),
 
   defineCase('H3-CA4.6', 'editorial updates carry an audit reason', 'admin', '/admin/edit/', 'save payload includes an explicit human-readable audit reason', async ({ page, check }) => {
@@ -245,7 +282,7 @@ const CASES = Object.freeze([
     await page.goto(`${BASE_URL}/admin/login/`, { waitUntil: 'networkidle' }); await page.waitForTimeout(1500); await page.getByLabel('Email').fill('admin@local.test'); await page.getByLabel('Password').fill('invalid-local-value'); await page.getByRole('button', { name: 'Iniciar sesión' }).click(); await page.getByText('Invalid login credentials').waitFor(); check('still login', page.url().endsWith('/admin/login/')); return 'invalid credentials rejected';
   }),
   defineCase('H3-CA4.7', 'invalid TOTP is rejected', 'admin', '/admin/login/', 'wrong six-digit MFA code does not create aal2 session', async ({ page, check }) => {
-    const user = USERS.admin; assert(user.password, 'missing local admin password'); await page.goto(`${BASE_URL}/admin/login/`, { waitUntil: 'networkidle' }); await page.waitForTimeout(1500); await page.getByLabel('Email').fill(user.email); await page.getByLabel('Password').fill(user.password); await page.getByRole('button', { name: 'Iniciar sesión' }).click(); await page.getByLabel('Código MFA').fill('000000'); await page.getByRole('button', { name: 'Verificar MFA' }).click(); await page.getByText('Invalid MFA code').waitFor(); const session = await sessionInfo(page); check('not aal2', session?.aal !== 'aal2'); return 'invalid MFA rejected at aal1';
+    const user = USERS.admin; assert(user.password, 'missing local admin password'); await page.goto(`${BASE_URL}/admin/login/`, { waitUntil: 'networkidle' }); await page.waitForTimeout(1500); await page.getByLabel('Email').fill(user.email); await page.getByLabel('Password').fill(user.password); await page.getByRole('button', { name: 'Iniciar sesión' }).click(); await page.waitForURL(`${BASE_URL}/admin/`); const mfaCode = page.getByLabel('Código de 6 dígitos'); try { await mfaCode.waitFor({ state: 'visible', timeout: 1500 }); } catch { await page.getByRole('button', { name: /Configurar MFA|Reiniciar configuración MFA/ }).first().click(); await mfaCode.waitFor({ state: 'visible' }); } await mfaCode.fill('000000'); await page.getByRole('button', { name: 'Verificar MFA' }).click(); await page.getByText('Código MFA inválido.').waitFor(); const session = await sessionInfo(page); check('not aal2', session?.aal !== 'aal2'); return 'invalid MFA rejected at aal1';
   }),
   defineCase('H3-CA4.7', 'admin session reaches aal2', 'admin', '/admin/', 'valid admin TOTP produces aal2', async ({ page, check }) => {
     await login(page, 'admin'); const session = await sessionInfo(page); check('aal2', session?.aal === 'aal2'); check('tokens present', session?.hasAccessToken && session?.hasRefreshToken); return `aal=${session?.aal}`;
@@ -254,7 +291,7 @@ const CASES = Object.freeze([
     await login(page, 'user'); const session = await sessionInfo(page); check('aal2', session?.aal === 'aal2'); return `aal=${session?.aal}`;
   }),
   defineCase('H3-CA4.7', 'refresh contract preserves assurance', 'admin', '/admin/', 'refresh response preserves an established aal2 session', async ({ page, check }) => {
-    await login(page, 'admin'); const result = await page.evaluate(async (mockURL) => { const key = Object.keys(sessionStorage).find((item) => item.endsWith('-auth-token') && !item.endsWith('-code-verifier')); const session = key ? JSON.parse(sessionStorage.getItem(key) || '{}') : {}; const response = await fetch(`${mockURL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: session.refresh_token }) }); const body = await response.json(); return { status: response.status, aal: body.aal || session.aal, hasToken: Boolean(body.access_token) }; }, MOCK_URL); check('refresh 200', result.status === 200); check('aal2 preserved', result.aal === 'aal2'); check('new token', result.hasToken); return 'refresh preserved aal2';
+    await login(page, 'admin'); const result = await page.evaluate(async (mockURL) => { const key = Object.keys(sessionStorage).find((item) => item.endsWith('-auth-token') && !item.endsWith('-code-verifier')); const session = key ? JSON.parse(sessionStorage.getItem(key) || '{}') : {}; const response = await fetch(`${mockURL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: session.refresh_token }) }); const body = await response.json(); let tokenAal; try { const payload = body.access_token?.split('.')[1]; if (payload) { const normalized = payload.replace(/-/g, '+').replace(/_/g, '/'); const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), '='); tokenAal = JSON.parse(atob(padded)).aal; } } catch { tokenAal = undefined; } return { status: response.status, aal: tokenAal || body.aal, hasToken: Boolean(body.access_token) }; }, MOCK_URL); check('refresh 200', result.status === 200); check('aal2 preserved', result.aal === 'aal2'); check('new token', result.hasToken); return 'refresh preserved aal2';
   }),
 
   defineCase('H3-CA4.8', 'admin users surface lists memberships', 'admin', '/admin/users/', 'admin sees existing admin/user memberships', async ({ page, check }) => {

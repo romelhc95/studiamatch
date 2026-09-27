@@ -6,6 +6,29 @@
 
 BEGIN;
 
+-- Keep the local identity fixture aligned with Supabase auth.uid(): malformed
+-- request claims are treated as an anonymous identity instead of aborting the
+-- whole authorization harness while casting text to UUID.
+CREATE OR REPLACE FUNCTION auth.uid()
+RETURNS UUID
+LANGUAGE plpgsql
+STABLE
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  raw_sub TEXT := current_setting('request.jwt.claim.sub', true);
+BEGIN
+  IF raw_sub IS NULL OR raw_sub = '' THEN
+    RETURN NULL;
+  END IF;
+  BEGIN
+    RETURN raw_sub::UUID;
+  EXCEPTION WHEN invalid_text_representation THEN
+    RETURN NULL;
+  END;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION auth.jwt()
 RETURNS JSONB
 LANGUAGE sql
@@ -28,6 +51,9 @@ BEGIN
     ('admin_user_can_edit_field'),
     ('admin_get_course_queue'),
     ('admin_count_course_queue'),
+    ('admin_get_course_queue_filtered'),
+    ('admin_count_course_queue_filtered'),
+    ('admin_get_course_queue_facets'),
     ('admin_get_course_editorial'),
     ('admin_update_course'),
     ('admin_publish_course'),
@@ -138,6 +164,9 @@ DECLARE
   role_value TEXT;
   queue_count INTEGER;
   total_count INTEGER;
+  filtered_total INTEGER;
+  filtered_result RECORD;
+  facets_result RECORD;
   detail_result RECORD;
   upd_result RECORD;
   conflict_result RECORD;
@@ -165,6 +194,23 @@ BEGIN
   SELECT q.total INTO total_count
   FROM public.admin_count_course_queue('pending_review', 'complete') q;
   IF total_count <> 10 THEN RAISE EXCEPTION 'expected filtered count 10, got %', total_count; END IF;
+
+  SELECT q.total INTO filtered_total
+  FROM public.admin_count_course_queue_filtered('pending_review', 'complete', 'ulima') q;
+  IF filtered_total <> 2 THEN RAISE EXCEPTION 'expected institutional filtered count 2, got %', filtered_total; END IF;
+
+  SELECT * INTO filtered_result
+  FROM public.admin_get_course_queue_filtered(1, NULL, 'pending_review', 'complete', 'ulima');
+  IF filtered_result.error IS NOT NULL
+     OR jsonb_array_length(filtered_result.courses) <> 1
+     OR (filtered_result.page_info ->> 'hasNextPage')::boolean IS NOT TRUE THEN
+    RAISE EXCEPTION 'filtered queue pagination failed: %', filtered_result.error;
+  END IF;
+
+  SELECT * INTO facets_result FROM public.admin_get_course_queue_facets();
+  IF facets_result.error IS NOT NULL OR jsonb_array_length(facets_result.institutions) <> 5 THEN
+    RAISE EXCEPTION 'queue facets failed: %', facets_result.error;
+  END IF;
 
   IF EXISTS (SELECT 1 FROM public.admin_get_course_queue(20, NULL, 'invalid', NULL) q WHERE q.error <> 'Invalid editorial status') THEN
     RAISE EXCEPTION 'invalid editorial filter was not rejected';

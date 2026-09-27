@@ -1,11 +1,31 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-09-24-H3-DEVELOPMENT-FREE-CONTRACT-APPLIED-NO-GO-UAT-INCOMPLETE`.
+Snapshot: `SNAPSHOT-2026-09-27-H3-DEVELOPMENT-PREVIEW-UX-VALIDATED-NO-GO`.
 
 Historical gates preserved: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`, `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`, `H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`, `H3_READY_FOR_PROMPT_CONTINUA`, `H3_GO_LOCAL_CLOSED_READY_FOR_SUPABASE_FREE_JIT`, `H3_SUPABASE_FREE_AUTH_JIT_VALIDATION`, `H3_LOCAL_EXPANDED_NO_GO` (histórico del ciclo anterior, fechado 2026-08-30), `H3_PR_DEVELOPMENT_NO_GO` (readiness, resuelto por el ciclo de corrección local del 2026-09-02).
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
+
+## Ciclo Development/Free 2026-09-26
+
+La evidencia canónica de este ciclo es
+[h3req1_development_remote_cycle_2026-09-26.md](evidencia/h3req1_development_remote_cycle_2026-09-26.md).
+El PR #499 está mergeado en `desarrollo` en
+`c56f1cb5a0dac722a92e7ef3a6000a9bb2d6b4a9`. Las acciones remotas autorizadas de
+este ciclo se limitaron a Free/Development.
+
+El estado continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`. La autorización
+JIT Free/Development para los dos deltas exactos `20260925` fue consumida: ambos
+quedaron registrados y validados en Free, por lo que el drift específico de
+H3-001 queda corregido. H3-002/H3-003/H3-004 siguen `BLOCKED` hasta ejecutar
+sus autorizaciones y pruebas remotas separadas. En este ciclo se aplicó la
+plantilla Auth de recovery, se publicó el Preview actualizado y se ejecutó el
+recovery real del admin existente; no se ejecutaron usuarios adicionales,
+cleanup, rollback, push, merge ni promoción. La autorización JIT Edge permitió
+desplegar el artefacto aprobado como `admin-invite` versión 4, `ACTIVE` y
+`verify_jwt=true`. El smoke autenticado de invitaciones, RBAC y onboarding sigue
+pendiente de su autorización y UAT separadas.
 
 ## Resumen H3 En Lenguaje Simple
 
@@ -20,15 +40,13 @@ en la dirección pública normal.
 ### Qué significa el estado actual
 
 `H3_PR_DEVELOPMENT_READY_LOCAL` acredita **GO técnico local**, no cierre
-contractual. La auditoría read-only inicial del 2026-09-24 detectó la ausencia
-del contrato Free; posteriormente, con autorización humana explícita para
-Development/Free, se aplicaron las migraciones 03A/03B y se actualizó
-`admin-invite`. La evidencia posterior está en
-`.context/evidencia/h3req1_development_validation_2026-09-24.md`.
-El estado vivo sigue siendo `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`:
-faltan UAT Auth/PKCE/correo real, UI/hostname Development, reconciliación,
-Certification, contract/cleanup y rollback. La UAT canónica local conserva
-47/47 casos y 141/141 ejecuciones PASS con cero reintentos.
+contractual. El ciclo read-only 2 del 2026-09-24 mantiene
+`NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`: Free ahora registra las
+migraciones 03A/03B y los hardenings 20260924, pero Pro sigue sin migraciones H3,
+tablas ni RPCs consultables. También faltan UAT
+remota completa, hostnames por ambiente, Certification y la transición
+`deploy -> contract`. La UAT canónica local conserva 47/47 casos y 141/141
+ejecuciones PASS con cero reintentos.
 
 ### Qué se corrigió desde la prueba fallida anterior
 
@@ -74,12 +92,13 @@ delta A6/A13 y separó explícitamente la evidencia remota parcial:
 
 ### Qué sigue ahora
 
-El PR hacia `desarrollo` está autorizado para prepararse con la plantilla
-`.github/pull_request_template.md`. La aplicación Free y el Edge Development
-quedaron ejecutados bajo autorización JIT del ciclo actual. Permanecen como
-gates separados: `security-audit`, revisión humana del PR, UAT Auth/correo/UI
-Development, Certification, Pro, contract/cleanup, rollback y promoción
-protegida. No se ejecutan esas etapas automáticamente.
+Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
+instrucción humana separada** y se ejecutan con la plantilla
+`.github/pull_request_template.md` llena con resultados reales del ciclo.
+Permanecen como gates remotos posteriores y separados: `security-audit` en
+GitHub y revisión del PR, aplicación/revalidación de `20260903` en Free,
+configuración Auth, Cloudflare restante, promoción a `certificacion`, merge y
+deploy. No se ejecuta ninguna de esas acciones sin su aprobación.
 
 ### Auditoría Final De Cierre H3REQ1 (2026-09-23)
 
@@ -93,12 +112,12 @@ La decisión es `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`.
   existente se conserva como compatibilidad y mejora evolutiva.
 - La evidencia local permanece PASS: core H3 47/47 y 141/141, builds,
   contratos, PG17, Edge 03A, DB 03B y Mock UAT-02.
-- La evidencia remota Free posterior acredita las cuatro migraciones, tablas,
-  RPCs y `admin-invite` ACTIVE con `verify_jwt=true`; el Edge quedó en versión 2.
-  La UI/preview Development, Auth/PKCE/correo real, contract y rollback siguen
-  pendientes.
-- No se autoriza promoción `desarrollo -> certificacion -> main`, merge,
-  cleanup, rollback remoto ni acciones sobre Pro con la evidencia actual.
+- La evidencia remota permanece parcial: `admin-invite` está ACTIVE con
+  `verify_jwt=true`, pero las migraciones 03A/03B no aparecen en los inventarios
+  remotos revisados; el preview de Development devuelve 404 para callback,
+  aceptación y setup de password.
+- No se autoriza promoción `desarrollo -> certificacion -> main`, deploy, merge,
+  push ni writes adicionales con la evidencia actual.
 
 ### Diccionario mínimo
 
@@ -475,3 +494,508 @@ UAT por ambiente, hostnames Development/Certification, Certification, Pro H3,
 deploy y `contract/cleanup`. No se declara cierre definitivo. MFA/`aal2` permanece
 fuera del gate H3REQ1 y como mejora evolutiva; su compatibilidad existente no fue
 retirada.
+
+### Ciclo 3 — afinación documental del plan y baseline local
+
+El 2026-09-24 se afinó únicamente `.context/operaciones/h3req1_remediation_plan_2026-09-24.md`
+y la ficha read-only del ciclo 2. No se modificó código, SQL, Edge, frontend ni
+pruebas; tampoco se ejecutaron DDL, writes, Auth, correo, deploy, push, PR,
+merge, cleanup, rollback o promoción. R1 queda clasificado como `PASS` por la
+captura read-only, mientras H3-001 sigue `FAIL` por drift Pro y H3-002/H3-003/
+H3-004 siguen `BLOCKED`. El siguiente paso autorizado es preparar el delta
+exacto y solicitar los paquetes JIT separados; no aplicar migraciones ni iniciar
+UAT con la evidencia actual.
+
+La validación Docker/PG17 del ciclo 3 cerró `LOCAL-VAL-001` y `LOCAL-VAL-002`
+como `PASS`: harness canónico limpio en `h3_cycle3_clean`, con resultados
+`h3_pg17_harness_ok` y `h3_invitation_onboarding_harness_ok`. Los contratos H3
+focalizados quedaron 8/8 `PASS`, la UAT mock de invitación 9/9 `PASS`, build
+mock, TypeScript, credential scan, sintaxis y perímetro local `PASS`. `pytest`
+continúa `BLOCKED` porque no está instalado en la imagen Docker y no se infiere
+PASS por otra herramienta.
+
+La revalidación remota read-only del ciclo 3 confirma: Free con 15 migraciones
+H3 relacionadas y `admin-invite` v3 `ACTIVE`/`verify_jwt=true`; Pro con 0
+migraciones H3, sin `admin_members`, `admin_membership_audit` ni
+`admin_invitations`, y sin `admin-invite`. En aquel snapshot el hardening
+registrado en Free no tenía archivo correspondiente en el checkout. El ciclo 4
+lo recuperó y lo validó localmente; queda pendiente únicamente su
+reconciliación after-apply remota. Estado contractual: H3-001 `FAIL`;
+H3-002/H3-003/H3-004 `BLOCKED`; no se solicita Certification.
+
+### Ciclo 4 — hardening local H3REQ1
+
+Se corrigió el bloqueador local de SQL no reproducible: las migraciones de
+hardening 20260924 fueron reincorporadas al checkout principal desde el
+worktree de remediación y validadas en PG17 limpio. El nuevo harness acredita
+protección de onboarding incompleto, RBAC de admin/user/inactivo, último admin,
+auditoría append-only compatible y preservación legacy. Resultado local:
+`h3_onboarding_rbac_hardening_harness_ok` y `h3_pg17_harness_ok`.
+
+También quedaron `PASS` los 60 tests focalizados con pytest, TypeScript,
+build normal, build mock, credential scan, sintaxis y UAT mock 9/9. Las
+dependencias de pytest quedaron versionadas con hashes en
+`requirements-pipeline.txt`. Los 9
+warnings ESLint históricos permanecen sin errores.
+
+Esto no cierra el gate remoto. H3-001 sigue `FAIL` porque Pro no tiene el
+baseline H3; H3-002/H3-003/H3-004 siguen `BLOCKED` por falta de DDL, Auth/correo,
+Edge/Pages, contract, cleanup y rollback autorizados. Estado: `NO-GO`.
+
+El ciclo 5 corrigió los dos hallazgos locales HIGH/MEDIUM del auditor: la ruta
+legacy `admin_create_member` ahora rechaza creación directa y el harness PG17
+comprueba ACL/RLS de roles PostgREST. Los tests focalizados siguen 60/60
+`PASS`; esto mantiene GO técnico local, pero no convierte evidencia local en
+GO contractual remoto.
+
+El ciclo 6 cerró la brecha de visibilidad operativa: se añadió el lector
+aditivo `admin_list_members_onboarding` y la pantalla de miembros lo consume,
+sin retirar el RPC legacy. TypeScript, build mock, lint sin errores, credential
+scan, harness PG17 y tests focalizados permanecen `PASS`.
+
+El ciclo 6 también alineó el mock server con ese RPC aditivo y limpió el lock
+de Pygments para que `requirements-pipeline.txt` mantenga un único bloque con
+hash reproducible. El gate remoto continúa `NO-GO` hasta las autorizaciones JIT
+y la convergencia Free/Pro.
+
+La reauditoría del ciclo 7 cerró los hallazgos locales restantes: mock reader
+protegido por RPC, fixture PG17 coherente, legacy guard probado contra un user
+`ready` real, lock pytest/Pygments reproducible y sin HIGH/MEDIUM local abierto.
+H3REQ1 queda en `GO técnico local`, pero sigue `NO-GO contractual remoto` por
+Pro sin baseline H3 y por falta de DDL/Auth/Edge/Pages/contract/rollback con
+autorización JIT.
+
+## Continuación del ciclo Development/Free — 2026-09-26
+
+El preflight y la revalidación posterior a `continua` conservaron el estado
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`. No se crearon usuarios,
+invitaciones ni datos temporales y no se ejecutaron writes remotos.
+
+- Free mantiene las dos migraciones `20260925`, las tablas H3 con RLS, las RPCs
+  hardenizadas y `admin-invite` versión 4 `ACTIVE` con `verify_jwt=true`.
+- El baseline final read-only permanece en 3 miembros activos, 0 invitaciones,
+  0 huérfanas, 1 auditoría y 4 usuarios Auth.
+- H3-001 Free queda `PASS`; H3-002, H3-003 y H3-004 permanecen `BLOCKED` por
+  falta de sesión admin AAL2, buzón accesible, hostname/artefacto Pages de
+  Development y rollback autorizado.
+- La validación Docker local quedó `PASS` para 60 contratos focalizados,
+  `h3_pg17_harness_ok`, TypeScript, lint sin errores, credential scan, sintaxis
+  y `git diff --check`. El build pasó con `NEXT_PUBLIC_H3_MOCK_URL` vacío; el
+  intento con `.env.local` cargado fue bloqueado correctamente por el guard de
+  producción contra variables de mock.
+- Los smokes Edge sin autorización devolvieron HTTP 401 y el conteo final
+  confirmó ausencia de mutaciones.
+
+El siguiente gate exacto es materializar fuera del chat la sesión admin
+ready/AAL2 y el buzón temporal, y obtener el hostname/artefacto Development
+correcto. Si se necesita frontend remoto, debe recibirse la autorización JIT
+Pages/preview separada. Hasta entonces no se ejecuta UAT Auth, cleanup,
+rollback, Certification, Pro, Production, push, PR o promoción.
+
+La revalidación de intake de las 13:12 UTC recibió la opción humana
+`A+B+C + continua`, pero la sesión admin, el buzón y el artefacto/hostname no
+quedaron materializados en las herramientas disponibles. La autorización no se
+consumió y el estado continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`, sin
+usuarios temporales, invitaciones ni writes remotos.
+
+### Revalidación coordinada y cierre del ciclo — 2026-09-26T14:40:25Z
+
+Ambiente único: Free/Development, project ref `aqrldlmlszjtgpqiegaa`, URL
+`https://aqrldlmlszjtgpqiegaa.supabase.co`. Checkout local evaluado:
+`97168646b2a6bbd8e59f6d704446759303e11e64`; Edge Development `admin-invite`
+remoto: versión `4`, `ACTIVE`, `verify_jwt=true`, bundle SHA
+`fc6e0c3dfdb337f4fcd38cdc75a74c0a73392673d78e169bc0125f8ca655a313`.
+
+Se consumió la autorización JIT consolidada para corregir únicamente el drift
+ACL de `public.admin_members`. El artefacto fuera del repositorio fue
+`h3req1_admin_members_acl_delta_20260926.sql`, SHA-256
+`39d5a2e852cebad117f7292591d0658255281804915ad7fdfec968f3366636ef`; la
+migración remota quedó registrada como
+`h3req1_admin_members_acl_delta_20260926` en la versión
+`20260926143836`. No se aplicó otro DDL.
+
+La revalidación after-apply quedó `PASS`: `anon` y `authenticated` ya no tienen
+ningún privilegio directo sobre `public.admin_members`; RLS continúa habilitado
+en las tres tablas H3; el guard legacy y
+`admin_list_members_onboarding()` permanecen presentes; los conteos no cambiaron
+(3 membresías, 2 admins activos/ready, 4 usuarios Auth, 0 invitaciones, 0
+huérfanas, 1 auditoría, 0 temporales, 0 filas de auditoría con marcadores de
+secretos). H3-001 Free queda `PASS`.
+
+La validación Docker quedó `PASS`: 60 contratos focalizados, 142 regresiones
+offline, TypeScript, credential scan, sintaxis Python/Node, `git diff --check`,
+build normal con `NEXT_PUBLIC_H3_MOCK_URL` vacío, build mock, UAT mock de
+invitación 9/9, `h3_pg17_harness_ok`,
+`h3_invitation_onboarding_harness_ok`,
+`h3_onboarding_rbac_hardening_harness_ok`,
+`h3_invitation_edge_runtime_harness_ok`, `h3_pg17_harness_local_ok`,
+`h2_pg17_harness_ok` y regresiones A6/A13. Los DB/containers temporales creados
+para esta ejecución fueron eliminados; no se modificaron otros datos locales.
+
+La auditoría de dependencias se ejecutó en Docker y queda `FAIL` residual:
+`npm audit --omit=dev --audit-level=high` reportó 36 vulnerabilidades, incluidas
+16 HIGH y 1 CRITICAL. No se ejecutó `npm audit fix` porque cambiar dependencias
+queda fuera de este ciclo; este hallazgo por sí solo impide cualquier GO.
+
+La selección humana de sesión admin, buzón y Pages no pudo materializarse en el
+entorno: el navegador disponible continúa fuera del hostname administrativo, no
+hay buzón/API conectado y el preview conocido mantiene 404 en callback,
+aceptación y setup de password. No se generó `run_id` ni se ejecutaron Auth,
+correo, PKCE, callback real, RBAC remoto por actor, cleanup remoto, rollback o
+Pages. H3-002, H3-003 y H3-004 permanecen `BLOCKED`.
+
+Rollback previsto del delta ACL: restaurar, solo con autorización separada, los
+privilegios previos de `anon` y `authenticated`; no se ejecutó rollback. Riesgo
+residual: falta evidencia remota de correo/Auth/PKCE, UAT por rol, hostname y
+artefacto Pages Development, y drill de rollback. El estado vigente permanece
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`; siguiente acción exacta: conectar
+la sesión admin `active/ready/aal2`, el buzón temporal y el hostname/artefacto
+Development desde el entorno seguro, sin compartir secretos.
+
+### Verificación posterior a `continua` — 2026-09-26T14:49:35Z
+
+La materialización se volvió a comprobar en modo read-only: no hay páginas
+Chrome DevTools abiertas y el navegador accesible continúa en una API de GitHub,
+no en el hostname administrativo Free/Development. Tampoco se expuso un buzón o
+API temporal al entorno de ejecución. No se generó `run_id`, no hubo Auth,
+correo, UAT remota, cleanup ni nuevos writes. El estado permanece
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`; siguiente acción: conectar esos
+inputs reales sin compartir secretos.
+
+### Pages/preview H3 recovery — 2026-09-26T17:38:49Z
+
+Se consumió la autorización JIT Pages/preview exclusivamente para
+Free/Development. El artefacto local incluye la nueva ruta separada
+`/admin/reset-password/`, además de `/admin/auth/callback/`,
+`/admin/accept-invite/` y `/admin/setup-password/`; la recuperación actualiza
+password únicamente mediante Supabase Auth y no invoca RPC de onboarding.
+
+Validación Docker: 165 pruebas contractuales/regresiones `PASS`, TypeScript
+`PASS`, credential scan `PASS`, Python compile `PASS`, build normal `PASS` (243
+páginas), build mock `PASS` (17 páginas), smoke Playwright de recovery `PASS` y
+`git diff --check` `PASS`. Las siete rutas administrativas se generaron y
+respondieron `200` en el servidor estático local; el callback de recovery limpia
+la URL y rechaza tipos de enlace no `recovery`.
+
+Preview Pages publicado en el proyecto `studiamatch`, ambiente `preview`, rama
+`feat/h3req1-development-remote-tests`: deployment `946d11cc`, URL canónica
+`https://946d11cc.studiamatch-aty.pages.dev` y alias operativo
+`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`. El deployment
+quedó `success` y asociado al commit base
+`97168646b2a6bbd8e59f6d704446759303e11e64` con cambios locales marcados como
+dirty. El smoke remoto del alias respondió `200` para `/admin/`, login,
+callback, aceptación, setup, recovery y users; recovery no expuso marcadores de
+token en el HTML.
+
+Para hacer operativo el preview se añadió únicamente el alias real a
+`ADMIN_ALLOWED_HOSTS` del entorno Preview de Pages, preservando el host anterior;
+no se alteró la configuración Production. No se ejecutaron Auth, correo, DDL,
+Edge, usuarios, MFA, cleanup, rollback, push, PR, merge ni promoción.
+
+El estado contractual sigue
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`: en el snapshot previo faltaba
+configurar el redirect de recuperación; ese punto quedó resuelto por el JIT de
+Auth registrado abajo. Continúan pendientes recuperar la sesión admin, ejecutar
+correo/PKCE/UAT real, RBAC, cleanup y rollback; además permanece el hallazgo
+`npm audit` de 16 HIGH y 1 CRITICAL.
+
+### Auth recovery redirect Free/Development — 2026-09-26T18:02:31Z
+
+Se consumió la autorización JIT exclusiva de configuración Auth en Free/
+Development, project ref `aqrldlmlszjtgpqiegaa`. Mediante Supabase Dashboard se
+establecieron y verificaron después de recargar:
+
+```text
+Site URL:
+https://feat-h3req1-development-remo.studiamatch-aty.pages.dev/admin/reset-password/
+
+Redirect URL permitido:
+https://feat-h3req1-development-remo.studiamatch-aty.pages.dev/admin/reset-password/
+```
+
+La configuración quedó persistida. No se modificaron usuarios, MFA, DDL, Edge,
+Certification, Pro, Production, cleanup, rollback ni promoción. Aún no se envió
+un correo de recovery ni se ejecutó Auth UAT; el siguiente paso humano es
+solicitar un correo nuevo desde el usuario Auth existente sin compartir su URL o
+token.
+
+### Password policy, live validation and recovery TTL — 2026-09-26T18:54:19Z
+
+Se consumió el ciclo autorizado `continua + Free Auth`, exclusivamente en
+Free/Development (`aqrldlmlszjtgpqiegaa`). La configuración Auth se verificó en
+el Dashboard antes y después de guardar:
+
+```text
+PASSWORD_MIN_LENGTH: 12
+Password requirements: lowercase, uppercase, digits and symbols
+MAILER_OTP_EXP: 86400 seconds (24 hours)
+```
+
+Se implementó una política compartida en recovery y setup inicial con validación
+en tiempo real de longitud, mayúscula, minúscula, número, símbolo y coincidencia.
+La contraseña continúa viajando únicamente a Supabase Auth; no se envía a RPC de
+onboarding. La plantilla HTML versionada quedó en
+`supabase/templates/password-recovery.html`; todavía no se aplicó al Dashboard
+remoto.
+
+Validación local: 23 contratos `PASS`, TypeScript `PASS`, lint `PASS` con 9
+warnings históricos, build normal `PASS` (243 páginas), build mock `PASS` (17
+páginas), `git diff --check` `PASS` y credential scan `PASS`. El Dashboard
+reporta la recomendación de seguridad esperable por configurar la expiración Auth
+por encima de una hora; el valor de 24 horas fue solicitado para alinear el
+correo de recuperación y queda pendiente observar el comportamiento real con un
+buzón autorizado.
+
+Transición: `expand` (política compartida y plantilla) y compatibilidad recovery /
+setup validadas localmente; `deploy` no ejecutado por alcance autorizado; el
+contrato remoto de correo/UAT aún está pendiente. Certification, Production,
+usuarios, MFA, cleanup, rollback, push, PR, merge y promoción no fueron tocados.
+El estado general continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` hasta
+completar plantilla remota autorizada, correo real, PKCE/UAT, RBAC, cleanup,
+rollback y resolver o aprobar el waiver de `npm audit` (16 HIGH, 1 CRITICAL).
+
+### Smoke UI live password validation — 2026-09-26T18:57Z
+
+Se verificó en navegador local contra `/admin/reset-password/` con una sesión
+local sintética aislada: valor incompleto mantiene el botón deshabilitado y marca
+los requisitos pendientes; coincidencia incorrecta muestra el estado de mismatch
+y mantiene el botón deshabilitado; valor completo marca las cinco reglas, muestra
+`Lista para guardar` y habilita el botón. No se realizó submit ni se enviaron
+credenciales a ningún backend; la sesión sintética y el contexto aislado fueron
+eliminados al terminar.
+
+### Security remediation and traceability — 2026-09-26T20:18:46Z
+
+La reauditoría corrigió la exposición incompleta de estados para accesibilidad:
+cada regla anuncia `cumplido/pendiente`, los inputs exponen `aria-invalid`, los
+mensajes de error solo se referencian cuando existen y setup anuncia errores
+generales con `role=alert`. Smoke final local: entrada incompleta deshabilitada,
+mismatch deshabilitado y cinco reglas coincidentes habilitan el submit sin enviar
+datos.
+
+Se registraron hashes del checkout actual en la evidencia canónica. El deployment
+histórico `946d11cc` mantiene sus hashes separados; no se atribuye el candidato
+actual a Pages porque no se ejecutó deploy. La expiración de 24 horas queda como
+riesgo autorizado y el Dashboard conserva su recomendación de usar un TTL menor a
+una hora. No hay hallazgos CRITICAL/HIGH en el código auditado; permanecen
+pendientes correo/UAT real, aplicación de plantilla remota, deploy, `npm audit`
+(16 HIGH, 1 CRITICAL) y promoción.
+
+Auditoría final de seguridad de la remediación: `GO técnico local`, 0 HIGH y 0
+MEDIUM nuevos. El `NO-GO` contractual global se mantiene por el TTL autorizado de
+24 horas, plantilla remota/UAT/correo/deploy pendientes y `npm audit` existente.
+
+### Recovery real y Preview actualizado — 2026-09-26T21:42:07Z
+
+Se consumió la autorización JIT exclusiva de Free/Development para aplicar la
+plantilla de recovery, publicar el artefacto actual y probar el recovery del
+usuario admin existente. La plantilla quedó persistida en Auth con asunto en
+español, `{{ .ConfirmationURL }}`, uso único, vigencia de 24 horas y requisitos
+de contraseña alineados con `PASSWORD_MIN_LENGTH=12` y las cuatro categorías
+fuertes. El endpoint Auth `/recover` devolvió `200`; los logs sanitizados del
+intervalo registraron `/verify` `303`, `/user` `200` y `/logout` `204`. La persona
+operadora confirmó que el correo real llegó, que el Preview mostró el formulario
+y el checklist en vivo, y que la edición de contraseña terminó correctamente.
+No se registraron enlaces, tokens ni passwords.
+
+Pages Preview `studiamatch` quedó en deployment `5fb35afa` (`success`), branch
+`feat/h3req1-development-remote-tests`, commit base
+`97168646b2a6bbd8e59f6d704446759303e11e64` con `commit-dirty=true`, y alias
+`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`. El HTML remoto
+de `/admin/reset-password/index.html` respondió `200` y coincidió con el export
+local: 21,321 bytes y SHA-256
+`c38d65166996cee5aed95b32764ff44eb8d7bd21fcb6eae53c2a6f6806488abe`.
+
+La indicación relacionada con MFA se conserva intencionalmente: no se ocultó ni
+se afirmó que el usuario tenga un factor habilitado. El Preview remoto vigente
+continúa siendo el deployment anterior, donde el login guiaba el enrolamiento
+cuando no existía un TOTP verificado y exigía AAL2 después de la verificación.
+No se habilitaron, revocaron ni modificaron factores MFA remotos en este ciclo.
+
+La transición `expand -> compatibilidad -> deploy -> contract` queda trazada en
+la evidencia canónica. `expand` incorporó la política compartida y la plantilla;
+`compatibilidad` conservó las rutas legacy y el callback existente;
+`deploy` corresponde al Preview `5fb35afa`; `contract` permanece limitado a
+Development hasta cerrar la UAT de invitaciones, RBAC, onboarding y MFA/AAL2.
+Rollback documentado: restaurar la plantilla Auth previa y reasignar el alias al
+deployment anterior, solo con autorización JIT separada; no se ejecutó rollback.
+
+El estado global continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por los
+gates H3-002/H3-003/H3-004 todavía pendientes, `npm audit` con 16 HIGH y 1
+CRITICAL, y la falta de promoción protegida. Certification y Production no se
+modificaron.
+
+### Continuación local — MFA de compatibilidad — 2026-09-27
+
+El árbol local Docker incorpora la política MFA de compatibilidad: `aal1` permite
+autenticar y llegar al panel; las operaciones sensibles mantienen
+`admin_require_aal2()` y muestran una configuración/verificación TOTP explícita
+cuando la RPC devuelve `MFA aal2 required`. El login ya no consulta factores ni
+enrola silenciosamente. La integración usa el cliente MFA oficial de Supabase y
+el mock local expone los factores a través de `auth/v1/user`, contrato que evita
+el `GET /auth/v1/factors` remoto que devolvía `405`.
+
+La validación local ejecutada dentro de Docker pasó TypeScript, build normal,
+build mock, contratos MFA, sintaxis UAT, credential scan y `git diff --check`;
+lint pasó sin errores y conserva nueve warnings históricos. El static smoke
+confirmó password-only, configuración explícita, verify TOTP y sesión `aal2`.
+El UAT canónico fue relanzado contra el static export/mock server después de
+iniciar el PostgreSQL local detenido; el resultado final queda pendiente de su
+terminación y no se afirma como PASS antes de contar con la matriz completa.
+
+Este cambio permanece local: no se ejecutaron writes Supabase, DDL, cambios de
+factores remotos, deploy, push, PR, merge ni promoción. La transición queda
+`expand -> compatibilidad -> deploy pendiente -> contract pendiente`; rollback:
+restaurar el login/MFA previo y reasignar el alias al deployment estable, con JIT
+separado. Certification y Production no se modificaron.
+
+### Diagnóstico Auth recovery rate-limit — 2026-09-27T03:17:11Z
+
+La comprobación read-only de `auth_logs` en Free/Development confirmó que el
+error del Dashboard corresponde a `POST /recover` con HTTP `429` y
+`error_code=over_email_send_rate_limit`. Es la protección antiabuso de Supabase
+Auth: debe transcurrir una espera mínima de 9 segundos desde la solicitud
+anterior y el envío debe ejecutarse una sola vez. El evento no indica un fallo
+de MFA, redirect, RPC, Preview ni DDL; no se realizaron cambios remotos durante
+el diagnóstico.
+
+El login observado antes del diagnóstico terminó en `Invalid login credentials`
+antes de crear sesión, sin llegar a `aal1` autenticado, MFA o `aal2`. El Preview
+Development vigente es el deployment `10205113`, publicado en el alias
+`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`; el resto de
+ambientes permanece intacto.
+
+La credencial compartida en el intercambio y la expuesta durante la inspección
+previa deben considerarse comprometidas. No se conserva su valor ni se usará
+para una nueva validación. La rotación debe ocurrir antes de continuar la UAT
+autenticada; después se podrá comprobar login, enrolamiento/verificación MFA y
+una operación sensible. El estado global continúa
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
+
+### MFA `aal2` y operación sensible confirmadas — 2026-09-27T03:55:45Z
+
+OpenChamber confirmó que el código TOTP fue aceptado: el endpoint de verify
+respondió HTTP `200`, desapareció la tarjeta MFA y la cola editorial cargó 131
+cursos. Los RPCs `admin_get_course_queue` y `admin_count_course_queue` también
+respondieron HTTP `200`, demostrando que la sesión elevada fue aceptada por el
+enforcement server-side.
+
+No se registraron códigos ni secretos MFA. El gate remoto de login, MFA explícita
+y operación sensible queda `PASS`. Logout, refresh, regresión posterior al
+refresh y reconciliación final de transición continúan pendientes; el estado
+global sigue `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
+
+### MFA existente presenta challenge directo — 2026-09-27T03:48:54Z
+
+Los logs Auth sanitizados confirmaron creación de factor, challenge y verify con
+HTTP `200`, sin exponer secreto ni código. El login password-only continúa
+entrando en `aal1`; las operaciones sensibles elevan a `aal2` según el contrato.
+
+Se corrigió la tarjeta MFA para consultar los factores al montarse: si encuentra
+uno `verified`, inicia el challenge existente y muestra directamente el campo de
+6 dígitos. OpenChamber en el Preview `ea787a8a` ahora muestra `Verifica MFA para
+continuar`, `Tu autenticador ya está configurado`, `Código de 6 dígitos` y
+`Verificar MFA`, sin mostrar QR ni solicitar nuevo enrolamiento.
+
+El gate de detección del factor verificado y presentación del challenge queda
+`PASS`. Falta verificar el código actual y ejecutar la operación sensible con
+`aal2`; el estado global continúa
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
+
+### Remediación de redirección posterior al login — 2026-09-27T03:37:18Z
+
+La evidencia remota separó el rechazo de credenciales del problema posterior de
+autorización: Supabase Auth registró `POST /token` `200`, el RPC
+`admin_current_user_role` respondió `200`, y la membresía del usuario existente
+es `admin`, activa y `ready`. La función remota declara `RETURNS text`; el cliente
+solo extraía roles desde objeto/array, por lo que el valor escalar `admin` se
+convertía en `anon` y `AdminDashboardPage` redirigía a `/admin/login/`.
+
+Se corrigió `web/src/lib/admin-auth.ts` para aceptar respuesta escalar, objeto o
+array sin romper el contrato mock. Validación Docker: TypeScript `PASS`, 12
+contratos focalizados `PASS`, build normal de 243 páginas `PASS`, credential scan
+`PASS`, `git diff --check` `PASS`; lint sin errores y nueve warnings históricos.
+
+El candidato corregido se publicó exclusivamente en Pages Preview Free/
+Development como deployment `e6948d54`, con el alias operativo
+`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`. Las rutas
+`/admin/login/` y `/admin/` responden `200`. No se ejecutaron DDL, writes de datos,
+cambios de factores MFA, push, PR, merge ni promoción. Falta confirmar el login
+posterior al deployment y continuar la UAT MFA; el estado global permanece
+`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
+
+### Login confirmado después de la remediación — 2026-09-27T03:41:43Z
+
+OpenChamber confirmó sobre el alias Preview corregido que la sesión permanece en
+`/admin/`, muestra `StudIAMatch Admin`, el rol visible `Admin`, `Cola editorial` y
+el enlace `Usuarios`. Auth registró `POST /auth/v1/token` con HTTP `200`.
+
+La tarjeta `Configura MFA para continuar` aparece como acción explícita y muestra
+que la contraseña es válida. No se enroló ni modificó ningún factor MFA durante
+esta comprobación. El gate de login/compatibilidad queda `PASS`; la verificación
+TOTP, la sesión `aal2` y la operación sensible continúan pendientes. El estado
+global permanece `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
+
+### UX editorial y renderer compartido — 2026-09-27
+
+La mejora evolutiva de cola/editor/previsualización quedó implementada en el
+candidato local Docker. Free/Development conserva el delta DDL aditivo registrado
+como `20260927044751` (`20260927_h3_admin_queue_facets_filter`), con funciones
+server-side para filtro institucional, conteo filtrado y facets de estados. Las
+RPCs exigen `aal2`, editor activo y grants explícitos a `authenticated`/
+`service_role`; los contratos legacy permanecen.
+
+La cola ahora muestra estados con color y explicación, contadores de editorial y
+calidad, selector de institución catalogado y paginación server-side. El editor
+expone copy en español, ayuda contextual, impacto del campo y acciones con color
+semántico. `CoursePublicRenderer` es compartido por el detalle público y la
+previsualización inferior; los valores sin guardar actualizan el renderer, el
+cambio de campo desplaza/resalta automáticamente el bloque afectado y `Ver
+impacto` repite el salto manual.
+
+Validación local Docker del ciclo: TypeScript `PASS`, lint `PASS` con 9 warnings
+históricos y 0 errors, build normal `PASS` con 243 páginas, contratos focalizados
+`16 passed`, UAT `47/47` casos y `141/141` ejecuciones `PASS`, PG17 harness `PASS`,
+credential scan `PASS` y `git diff --check` `PASS`.
+
+El candidato UX no fue desplegado en Pages durante esta continuación. Se conserva
+la transición `expand -> compatibilidad -> deploy -> contract`, con rollback al
+artefacto Preview anterior pendiente de autorización separada. No se ejecutaron
+push, PR, merge, Certification, Production ni promoción. El estado contractual
+global sigue `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por los gates remotos y
+documentales restantes, `npm audit` con 16 HIGH/1 CRITICAL y promoción protegida
+pendiente.
+
+### Validación remota del candidato UX — 2026-09-27T16:18Z
+
+El candidato UX se publicó y validó únicamente en Free/Development. El PR `#500`
+continúa abierto hacia `desarrollo`, sin merge. El head del PR es
+`9d367f2f8ff487ec77080592946c4dfbdb2f34e1`; `security-audit`, protected paths,
+credential scan, Python, ESLint, TypeScript, build, actionlint y PostgreSQL DB
+gate quedaron `PASS`. CodeQL y sus tres jobs Analyze (`python`, `actions`,
+`javascript-typescript`) quedaron `success`.
+
+El branch preview hash del PR no está autorizado por `ADMIN_ALLOWED_HOSTS`, por
+lo que la rama que conserva el alias Preview autorizado se sincronizó con el
+frontend candidato mediante commit
+`5a9aeace32b14df4ff73b47918f7212d1fb985e2`. Pages generó el deployment
+`c0664c51-ed47-4c46-8ef7-e1a9a0e633d1` (`success`) en:
+`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`.
+
+La validación remota read-only del alias confirmó `HTTP 200` para home, login,
+dashboard, callback, aceptación, setup, recovery, users y un detalle público.
+Chrome DevTools observó recursos `200/304`, cero errores de consola y solo dos
+warnings de preload de fuentes. Con la sesión admin existente se observaron el
+rol `Admin`, la cola con `131` filas visibles, facets `350/219/131`, el filtro
+catalogado `Certus` con `16` filas, la búsqueda `Marketing` con `2` filas y el
+filtro de calidad pendiente con `219` filas. El editor mostró copy español,
+previsualización compartida, actualización en vivo del título, resaltado y
+desplazamiento `Ver impacto`; responsive móvil a `390px` quedó utilizable.
+
+No se ejecutaron guardar, publicar, archivar, actualizar calidad, cambios de rol,
+Auth/MFA, cleanup, rollback, merge ni promoción. La continuidad de login,
+challenge TOTP y operación sensible `aal2` queda referenciada a la evidencia
+remota `ea787a8a`; no se reingresó ni registró un código MFA en esta pasada.
+El gate de candidato UX Preview queda `PASS`, pero el estado contractual global
+permanece `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por `npm audit` con 16 HIGH
+y 1 CRITICAL, invitación/cleanup/rollback y promoción protegida pendientes.

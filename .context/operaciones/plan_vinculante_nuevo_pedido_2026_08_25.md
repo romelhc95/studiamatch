@@ -138,9 +138,11 @@ cohorte son fases `contract` posteriores, no parte del `expand` inicial.
 ## H3 Admin
 
 `admin.studiamatch.com` como hostname canónico exclusivo del panel, protegido por
-Cloudflare Access y compatible con `output: 'export'`. Debe usar Supabase Auth con
-email/password y MFA TOTP obligatorio para `admin` y `user`; las operaciones
-sensibles requieren sesión `aal2`. Signup público deshabilitado, membresía
+Cloudflare Access y compatible con `output: 'export'`. Debe usar la autenticación
+administrativa existente con email/password para `admin` y `user`. MFA TOTP/`aal2`
+queda fuera del gate H3REQ1 por decisión de alcance, debido a la complejidad de
+prueba y porque no bloquea la funcionalidad principal; la implementación existente
+se conserva como compatibilidad y mejora evolutiva. Signup público deshabilitado, membresía
 `admin_members`, datos y mutaciones protegidos por RLS/RPC, cola por cursor,
 filtros por estado editorial/calidad, edición allowlisted, optimistic locking por
 `version`, publicar/despublicar/archivar con auditoría atómica y conflicto visible
@@ -159,9 +161,10 @@ conserva al menos un admin activo.
 `studiamatch.com/admin/` debe responder 404 y no servir el panel. El despliegue,
 DNS, Access, redirect URLs Auth y variables de origen requieren JIT separado.
 
-### Estado de cierre local H3 actualizado
+### Estado de cierre H3 actualizado (2026-09-23)
 
-El estado vigente es `H3_PR_DEVELOPMENT_READY_LOCAL`. El PR #495 ya fue mergeado a
+El GO técnico local `H3_PR_DEVELOPMENT_READY_LOCAL` permanece acreditado. El estado
+de cierre vigente es `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`. El PR #495 ya fue mergeado a
 `desarrollo` en `e3d21c1`. Desde este punto, toda UAT de Development debe apuntar al
 preview/deployment de `desarrollo` y al proyecto Free; `admin.studiamatch.com` queda
 reservado para producción y no sirve como evidencia de Development. La auditoría de readiness
@@ -254,9 +257,10 @@ incapaz de publicar; preservación de overrides; auditoría append-only; segunda
 corrida `NOOP`; más de 1000 filas; conflictos de edición; casos Auth positivos y
 negativos; ownership y transporte de los 13 campos editoriales.
 
-H3 ampliado: MFA TOTP obligatorio para admin/user, `aal1` rechazado y `aal2`
-permitido en mutaciones sensibles; enrollment, challenge, verify, renovación,
-revocación y último admin protegido; invitación por correo sin `service_role` en
+H3 ampliado: autenticación administrativa existente para admin/user; MFA TOTP/`aal2`
+queda fuera del gate por decisión de alcance, complejidad de prueba y porque no
+bloquea la funcionalidad principal. La implementación MFA existente se conserva
+como compatibilidad/mejora evolutiva. Invitación por correo sin `service_role` en
 cliente; cambio de rol y activación/desactivación de cualquier miembro `admin` o
 `user` mediante botón o checkbox, auditados; `admin.studiamatch.com` permitido por
 Access y `studiamatch.com/admin/` con HTTP 404; Pro como baseline autoritativo y
@@ -283,10 +287,10 @@ leads o rutas `/courses`, porque son incompatibles con el nuevo contrato.
 4. Promocion H2 por `desarrollo -> certificacion -> main`.
 5. JIT Pro de H2.
 6. Plan H3 listado y prompt `continua` recibido.
-7. Cierre local ampliado de H3 con campos, MFA, hostname, invitaciones y UAT completa: 47 casos lógicos únicos, 141 ejecuciones en tres viewports y dos corridas estables.
+7. Cierre local ampliado de H3 con campos, hostname, invitaciones y UAT completa: 47 casos lógicos únicos, 141 ejecuciones en tres viewports y dos corridas estables. MFA se conserva como mejora evolutiva fuera del gate.
 8. Preparación local del paquete H3 para PR usando la plantilla versionada, sin commit, push ni creación remota hasta aprobación humana separada.
 9. Con `H3_LOCAL_EXPANDED_GO`, autorización humana separada para commit + push + PR H3 protegido a `desarrollo`; el PR se abre antes de las pruebas Free para incorporar su evidencia al mismo candidato sin mergearlo.
-10. JIT independiente Supabase Free/Auth: inventario read-only, migraciones H3, MFA TOTP, Edge Function protegida de invitación y validación real. Cloudflare DNS/Access permanece en otra aprobación JIT y no se agrupa por defecto.
+10. JIT independiente Supabase Free/Auth: inventario read-only, migraciones H3, Edge Function protegida de invitación y validación real del flujo administrativo. MFA no es criterio de cierre vigente. Cloudflare DNS/Access permanece en otra aprobación JIT y no se agrupa por defecto.
 11. Incorporar resultados Free/Auth al PR H3, repetir validaciones y `security-audit`; merge a `desarrollo` solo mediante aprobación humana posterior.
 12. UAT en Certification y promoción protegida.
 11. PR H1: readiness operacional.

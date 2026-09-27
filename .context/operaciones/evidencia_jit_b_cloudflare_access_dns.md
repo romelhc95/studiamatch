@@ -33,7 +33,13 @@
 ## Hallazgos y pendientes (bloqueos)
 1. **Apex `studiamatch.com` sin registros web** (solo MX/TXT): el público servido hoy es `www.studiamatch.com`. Drift vs AGENTS (main → `studiamatch.com`). No modificado (fuera de alcance JIT-B); requiere decisión de despliegue (apex a Pages/redirect).
 2. **E3 404 es coyuntural**: la URL `88f02c53.studiamatch-aty.pages.dev` se usa únicamente como preview reproducible de `desarrollo`; no se mezcla con `admin.studiamatch.com`. Al promover H3 (panel `/admin`) a `main`, al promover H3 (panel `/admin`) a `main`, el export estático volvería a servir `/admin` públicamente. Requiere el **build 404** (Pages Function/Worker) autorizado por la frase de build pendiente antes de esa promoción.
-3. **E2/E5/E6/E7 pendientes**: requieren (a) sesión Access interactiva; (b) build de la Edge Function de invitación (H3-CA4.8) + 404; (c) config Auth Supabase por ambiente; (d) una URL administrativa que apunte al deployment de la rama bajo prueba. La prueba Google con `romelhc95@gmail.com` ya superó `membership_restricted`, pero no certificó el artefacto correcto de `desarrollo`. JIT-B queda **parcial** vs E2/E5; el perímetro E1/E3/E4/E8 queda validado en el alcance indicado.
+3. **E2/E5/E6/E7 pendientes**: requieren (a) sesión Access interactiva; (b)
+   validación remota de la Edge Function 03A y del contrato DB onboarding 03B,
+   más el callback/frontend y 404; (c) config Auth Supabase por ambiente; (d)
+   una URL administrativa que apunte al deployment de la rama bajo prueba. La
+   prueba Google con `romelhc95@gmail.com` ya superó `membership_restricted`, pero
+   no certificó el artefacto correcto de `desarrollo`. JIT-B queda **parcial**;
+   el perímetro E1/E3/E4/E8 queda validado en el alcance indicado.
 4. Entorno Pages/GitHub `Development`/`Certification`: variables apuntando a `admin.studiamatch.com` son writes de entorno → requieren aprobación aparte.
 
 ## Estado sincronizado para el PR

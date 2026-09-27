@@ -46,10 +46,11 @@ async function loginAdmin(page) {
   await page.getByLabel('Email').fill(ADMIN_EMAIL);
   await page.getByLabel('Password').fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.getByLabel('Código MFA').waitFor({ state: 'visible' });
-  await page.getByLabel('Código MFA').fill(TOTP_CODE);
-  await page.getByRole('button', { name: 'Verificar MFA' }).click();
   await page.waitForURL(`${BASE_URL}/admin/`);
+  await page.getByRole('button', { name: /Configurar MFA|Reiniciar configuración MFA/ }).first().click();
+  await page.getByLabel('Código de 6 dígitos').waitFor({ state: 'visible' });
+  await page.getByLabel('Código de 6 dígitos').fill(TOTP_CODE);
+  await page.getByRole('button', { name: 'Verificar MFA' }).click();
   await page.getByRole('heading', { name: 'Cola editorial' }).waitFor({ state: 'visible' });
 }
 
