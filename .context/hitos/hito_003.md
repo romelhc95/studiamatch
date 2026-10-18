@@ -1,5 +1,103 @@
 # HITO-003 - Admin Editorial
 
+> **Nota de vigencia, 2026-10-12:** los cortes NO-GO locales de 2026-10-08 que siguen abajo son historia preservada. El estado actual del alcance local es G01–G09 GO por R178 y G10 local R181/R182; G10 remoto y el cierre contractual siguen pendientes. Consultar [estado operativo](../estado_del_proyecto.md), [navegación de hitos](README.md) y [evidencia R178](../evidencia/h3req1_g09_local_close_r178_2026-10-11.md). No alterar la historia ni inferir despliegue.
+
+## Estado actual tras r4/r5/r6/r7 — 2026-10-08
+
+r4 quedó consumido: 20 pytest PASS, proyector/scope guard PASS y regresión scanner FAIL
+por un fallo del fixture de `grep`. r5/r6 localizaron que el falso `grep` no se invocó por
+el límite `/tmp noexec`. La autorización exacta r7 se consumió en una ejecución; manifiesto
+3/3 y regresión scanner PASS, exit 0, sin retry. G03 permanece abierto hasta completar
+linters/revisión; el estado de GO del hito no cambia. Ver
+[evidencia vigente](../evidencia/h3req1_helper_docker_fixture_2026-10-08.md).
+
+## Ejecución Docker r4 — 2026-10-08
+
+Una ejecución autorizada: manifiesto 13/13; pytest 20/20; proyector y scope guard PASS;
+falló la regresión scanner porque aceptó un error simulado de `grep`. Resultado general
+NO-GO, exit 1 y sin retry. r5 confirmó que el `grep` simulado no se invocó; r6 mostró
+que `noexec` impedía arrancarlo. El scanner no tiene defecto confirmado. El paquete r7
+requiere autorización propia. G03 no se cierra; los
+demás gates y el hito siguen NO-GO para GO_LOCAL_PR y GO_DEVELOPMENT_REAL. Ver
+[evidencia r4/r5](../evidencia/h3req1_helper_docker_fixture_2026-10-08.md).
+
+## Actualización de ejecución BFF — 2026-10-08
+
+La ejecución BFF r1 fue denegada por permisos del socket antes de iniciar la UAT; su
+permiso quedó consumido y no se repitió. El reemplazo r2 pasó una sola vez con Node
+`v20.20.2`, TypeScript `5.9.3`, `node --check` y UAT `PASS` (60 verificaciones, 10 casos de
+cuota), exit 0. Esta prueba acotada no acredita bindings remotos ni cierra G08. r4 se
+ejecutó después y terminó NO-GO por scanner. G01–G02 se mantienen en 20%; G03–G10 siguen abiertos.
+Ver
+[evidencia r1/r2](../evidencia/h3req1_bff_validation_access_2026-10-08.md).
+
+## Estado operativo del candidato — 2026-10-08
+
+Actualización: se implementó una validación fail-closed del BFF que responde 503 antes
+de cuota si las dos claves HMAC coinciden; su UAT sintética pasó en r2 con 60 verificaciones
+y 10 casos de cuota. El scan
+formal del snapshot actual `13b4219e-4661-4e92-b4e0-1aafffc88ee3` revisó 51/51 rutas,
+con cero hallazgos reportables confirmados, cuatro candidatos diferidos y cobertura
+parcial. No acredita runtime ni bindings remotos. r4 se ejecutó después y terminó NO-GO
+por scanner; el hito permanece **NO-GO** para `GO_LOCAL_PR` y `GO_DEVELOPMENT_REAL`.
+Ver [evidencia](../evidencia/h3req1_helper_docker_fixture_2026-10-08.md).
+
+La ejecución aislada r3 terminó **NO-GO**: manifiesto 13/13 válido, pytest 19/20,
+fallo del comparador por un registro duplicado mal ensamblado y fallo del scanner al no
+imprimir su redacción; el scope guard pasó. Las causas se corrigieron. El paquete r4 tiene
+13/13 hashes verificados contra las fuentes actuales y espera autorización nueva para una
+única ejecución Docker. La revisión formal del snapshot registró cero hallazgos reportables
+confirmados, cuatro candidatos diferidos y cobertura parcial; no acredita el árbol actual ni
+resuelve enforcement remoto. No acredita F2d ni cambia el **NO-GO**. Ver
+[evidencia de fixtures](../evidencia/h3req1_helper_docker_fixture_2026-10-08.md).
+
+Traspaso actualizado: [hallazgos de sesión y dependencias para cierre local](../evidencia/h3req1_analisis_sesion_01a11a7e_2026-10-08.md)
+y [prompt cíclico Luna 6 Max](../operaciones/h3req1_prompt_luna_6_max_cierre_local_2026-10-08.md).
+La primera dependencia es validar/reconciliar el contexto del auxiliar F2d antes
+del diagnóstico autorizado. Este traspaso no añade PASS runtime ni cambia los gates.
+
+El candidato `feat/h3req1-sync-20261002` (baseline HEAD
+`4eb4d877a50b012bb630a129bd0c74482c33be9c`) permanece **NO-GO** para `GO_LOCAL_PR` y
+`GO_DEVELOPMENT_REAL`. Revalidación actual: C02 v4 no-C03 70/72 por cambios del workflow
+de CI y del guard HMAC BFF; C03 SQL v3 41/41 coincide. No se repitieron suites SQL;
+ver [evidencia de hashes](../evidencia/h3req1_revalidacion_hashes_2026-10-08.md). F2b no pasó
+canonicalidad; F2c confirmó socket local canónico pero
+no probó el peer ni llegó a Docker API/inspect F1. F1 sigue sin causa atribuida. El método
+alternativo F2d usa `SO_PEERCRED`, estático/hash-bound, y requiere aprobación JIT separada
+con residuales nuevos. Scanner, scope guard y C03 runtime necesitan validación dentro del
+Docker aislado. No se ejecutó SQL ni se autorizan PR/remotos con este estado.
+
+## Corte anterior de H3REQ1 — 2026-10-05
+
+Actualización posterior: C03 SQL safe-suspend/resume persistente **PASS v3**; v2 abajo
+es histórico. Falta integración cross-runtime, no la prueba SQL inicial. Consultar
+[avance PR/remoto y siguiente sesión](../seguimiento/h3req1_estado_pr_y_remoto_2026-10-05.md).
+
+NO-GO Development real. Payload-bound, NULL, cardinalidad de cuotas y el replay harness
+corregidos localmente; 287 PASS/4 skips, Miniflare, SDK/BFF/Edge y los harnesses PG17/
+PostgREST locales PASS. El JIT v4 validó SQL, replay 409, safe-suspend, baseline futuro,
+wire/assert y concurrencia; no acredita enforcement remoto. El egress MEDIUM fue aceptado
+solo durante npm ci y expiró al terminar. Faltan rollback integrado, UAT final, CI protegido
+efectivo e integración/D01–D14 reales. Certification y Production no ejecutadas. Auth+MFA
+real histórico no se reabre; no se habilitó GET innecesario `/auth/v1/factors`.
+La revisión encontró y corrigió localmente la omisión del dispatcher `admin_signed_rpc`.
+En PG17 pasaron baseline, cuotas, gateway y safe-suspend bajo JIT v2; la salida del
+harness final se suprimió y terminó con exit code 0. Falta la integración workerd+Edge+SQL
+y recuperación real; JIT v4 no cubre estos bytes. NO-GO se mantiene.
+Amarre operativo: [tarea](../backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md),
+[plan](../operaciones/plan_cierre_integral_h3req1_2026-10-04.md),
+[evidencia](../evidencia/h3req1_development_candidate_cycle_2026-10-04.md),
+[traspaso](../seguimiento/h3req1_traspaso_avance_y_proximo_ciclo_2026-10-04.md),
+[resultado JIT v4](../operaciones/manifiesto_jit_pg17_postgrest_h3req1_2026-10-05_v4.md) y
+[seguimiento](../seguimiento/seguimiento_sprint_1_h2_h5.md).
+
+> Continuación 2026-10-04: consultar el [plan único de cierre H3REQ1](../operaciones/plan_cierre_integral_h3req1_2026-10-04.md)
+> y el [estado vivo](../estado_del_proyecto.md). Las matrices/porcentajes y bloqueos
+> inferiores son cortes históricos, no inventario actual. Auth+MFA remoto ya tiene
+> evidencia PASS; conservarlo y probar su transición BFF, sin convertirlo en un
+> criterio comercial nuevo. El cierre permanece NO-GO hasta aceptación por ambiente,
+> promoción protegida, estabilidad y contract; esta nota no habilita operaciones.
+
 `PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION`
 `SRC-REQ-002`
 `ADENDA-REQ-EST-001-001`

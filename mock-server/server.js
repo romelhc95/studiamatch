@@ -9,6 +9,14 @@ const FIXTURES = {
   'auth@local.test': { role: 'authenticated', sub: '31000000-0000-0000-0000-000000000003', passwordEnv: 'MOCK_AUTH_PASSWORD' },
   'inactive@local.test': { role: 'inactive', sub: '31000000-0000-0000-0000-000000000004', passwordEnv: 'MOCK_INACTIVE_PASSWORD' },
 };
+const SIGNED_RPC_HEADERS = [
+  'x-studiamatch-admin-rpc-key-id',
+  'x-studiamatch-admin-rpc-actor',
+  'x-studiamatch-admin-rpc-issued-at',
+  'x-studiamatch-admin-rpc-nonce',
+  'x-studiamatch-admin-rpc-signature',
+  'x-studiamatch-admin-rpc-payload-signature',
+];
 
 const requiredEnvironment = [
   'MOCK_DB_PASSWORD',
@@ -65,6 +73,13 @@ function nowIso() {
 }
 
 async function resetMockState() {
+  if (process.env.MOCK_QUOTA_TEST_ISOLATION === 'true') {
+    if (process.env.NODE_ENV !== 'test' || !/^h3_final_uat_/.test(process.env.MOCK_DB_NAME || '')) {
+      throw new Error('Quota reset requires an isolated local UAT database');
+    }
+    // Test fixture state only; never a runtime route to production quota storage.
+    await pool.query('DELETE FROM private.h3_admin_quota_events');
+  }
   if (temporaryInvitationIds.size > 0) {
     await pool.query(
       "UPDATE public.admin_invitations SET status = 'revoked', revoked_at = COALESCE(revoked_at, now()), revoked_by_user_id = $1 WHERE id = ANY($2::uuid[]) AND status = 'pending'",
@@ -317,7 +332,7 @@ function unauthorized(res) {
   sendJson(res, 401, { message: 'Invalid or expired session' });
 }
 
-function issueSession(email, aal = 'aal1') {
+function issueSession(email, aal = 'aal1', sessionId = crypto.randomUUID()) {
   const fixture = getIdentity(email);
   if (!fixture) return null;
   const issuedAt = Math.floor(now().getTime() / 1000);
@@ -328,11 +343,12 @@ function issueSession(email, aal = 'aal1') {
     iat: issuedAt,
     role: 'authenticated',
     sub: fixture.sub,
+    session_id: sessionId,
     aal,
   };
   const encodeSegment = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
   const token = `${encodeSegment({ alg: 'HS256', typ: 'JWT' })}.${encodeSegment(payload)}.${crypto.randomBytes(24).toString('base64url')}`;
-  sessions.set(token, { ...fixture, email: fixture.email, aal, expiresAt });
+  sessions.set(token, { ...fixture, email: fixture.email, aal, expiresAt, sessionId });
   return { token, fixture: sessions.get(token) };
 }
 
@@ -369,6 +385,11 @@ async function withIdentity(fixture, callback) {
     await client.query('SELECT set_config($1, $2, true)', ['request.jwt.claim.aal', effectiveAal]);
     await client.query('SELECT set_config($1, $2, true)', ['request.jwt.claims', JSON.stringify({ sub: fixture.sub, aal: effectiveAal, role: 'authenticated' })]);
     const result = await callback(client);
+    if (result) {
+      const status=await client.query("SELECT current_setting('response.status',true) AS status");
+      const code=Number(status.rows[0]?.status);
+      if ([400,403,503].includes(code)) result.httpStatus=code;
+    }
     await client.query('COMMIT');
     return result;
   } catch (error) {
@@ -380,7 +401,7 @@ async function withIdentity(fixture, callback) {
 }
 
 function writeRows(res, result) {
-  sendJson(res, 200, result.rows);
+  sendJson(res, result.httpStatus || 200, result.rows);
 }
 
 function redirectForInvitation(res, record, error) {
@@ -414,6 +435,10 @@ async function handleAdminInvite(req, res) {
   const actor = getFixture(req);
   if (!actor) return unauthorized(res);
   if (!isAdminInviteActor(actor)) return sendJson(res, 403, { error: 'MFA aal2 required', code: 'mfa_required' });
+  if (process.env.MOCK_QUOTA_TEST_ISOLATION === 'true') {
+    const admitted=await pool.query('SELECT public.admin_invitation_request_admit($1) AS admitted',[actor.sub]);
+    if (admitted.rows[0]?.admitted !== true) return sendJson(res,503,{code:'quota_unavailable'});
+  }
   const redirectTo = invitationRedirect();
   if (!redirectTo) return sendJson(res, 500, { error: 'Invitation redirect is not configured', code: 'redirect_not_configured' });
 
@@ -428,20 +453,20 @@ async function handleAdminInvite(req, res) {
   if (!['admin', 'user'].includes(role)) return sendJson(res, 400, { error: 'Invalid role: must be admin or user', code: 'invalid_role', request_id: requestId });
 
   await syncVirtualExpiry();
-  const existingIdentity = await queryAuthUser(email);
-  const identity = existingIdentity || await ensureAuthUser(email);
-  const existingMember = await pool.query(
-    'SELECT user_id, role, account_status, is_active FROM public.admin_members WHERE user_id = $1',
-    [identity.id],
-  );
+  let identity = await queryAuthUser(email);
+  const existingMember = identity
+    ? await pool.query(
+      'SELECT user_id, role, account_status, is_active FROM public.admin_members WHERE user_id = $1',
+      [identity.id],
+    )
+    : { rows: [] };
   const member = existingMember.rows[0] || null;
   if (member?.role && member.role !== role) return sendJson(res, 409, { error: 'Existing membership role must be managed separately', code: 'role_mismatch', request_id: requestId });
   if (member?.account_status === 'ready') return sendJson(res, 409, { error: 'User already has a ready membership', code: 'duplicate_ready', request_id: requestId });
   if (member && ['inactive', 'revoked'].includes(member.account_status)) return sendJson(res, 409, { error: 'User membership is inactive or revoked', code: 'membership_blocked', request_id: requestId });
   if (member && !['invited'].includes(member.account_status)) return sendJson(res, 409, { error: 'User onboarding is already in progress', code: 'onboarding_in_progress', request_id: requestId });
-  if (identity.emailConfirmed && !member) {
-    identity.emailConfirmed = false;
-    identity.password = null;
+  if (identity?.emailConfirmed && !member) {
+    return sendJson(res, 409, { error: 'Confirmed Auth identity requires reconciliation', code: 'reconciliation_required', request_id: requestId });
   }
 
   const pendingResult = await pool.query(
@@ -456,13 +481,24 @@ async function handleAdminInvite(req, res) {
 
   const result = await withIdentity(actor, async (client) => client.query(
     'SELECT * FROM public.admin_invitation_reserve($1, $2, $3, $4, $5, $6, $7::jsonb, $8)',
-    [email, role, actor.sub, identity.id, resend, requestId, JSON.stringify({ source: 'admin-invite', environment: 'test', redirect_origin: new URL(redirectTo).origin }), new Date(now().getTime() - (RESEND_COOLDOWN_SECONDS * 1000)).toISOString()],
+    [email, role, actor.sub, identity?.id || null, resend, requestId, JSON.stringify({ source: 'admin-invite', environment: 'test', redirect_origin: new URL(redirectTo).origin,
+      ...(process.env.MOCK_QUOTA_HMAC_KEY ? { quota_recipient: crypto.createHmac('sha256',process.env.MOCK_QUOTA_HMAC_KEY).update(`invite-recipient:${email}`).digest('hex') } : {}),
+    }), new Date(now().getTime() - (RESEND_COOLDOWN_SECONDS * 1000)).toISOString()],
   ));
   const reserved = result.rows[0];
   if (!reserved?.success) {
     const status = ['duplicate_pending', 'resend_cooldown', 'duplicate_ready', 'membership_blocked', 'onboarding_in_progress', 'role_mismatch'].includes(reserved?.error_code) ? 409 : 400;
     return sendJson(res, status, { error: reserved?.error_code || 'Invitation could not be reserved', code: reserved?.error_code || 'persistence_failed', request_id: requestId });
   }
+
+  if (!identity) identity = await ensureAuthUser(email);
+  if (pending && reserved.resent) {
+    const previous = invitationRecords.get(pending.id);
+    if (previous) previous.status = 'superseded';
+  }
+  const token = issueInvitationToken();
+  const record = await persistInvitationRecord(reserved.invitation_id, token, identity);
+  deliverInvitation(record, reserved.resent);
 
   const completed = await withIdentity(actor, async (client) => client.query(
     'SELECT * FROM public.admin_invitation_complete($1, $2)',
@@ -471,14 +507,6 @@ async function handleAdminInvite(req, res) {
   if (!completed.rows[0]?.success) {
     return sendJson(res, 500, { error: 'Invitation persistence requires reconciliation', code: 'reconciliation_required', request_id: requestId });
   }
-
-  const token = issueInvitationToken();
-  const record = await persistInvitationRecord(reserved.invitation_id, token, identity);
-  if (pending && reserved.resent) {
-    const previous = invitationRecords.get(pending.id);
-    if (previous) previous.status = 'superseded';
-  }
-  deliverInvitation(record, reserved.resent);
   return sendJson(res, 200, {
     success: true,
     email,
@@ -565,13 +593,45 @@ const server = http.createServer(async (req, res) => {
       const token = decodeURIComponent(pathname.slice('/__auth/invite/'.length));
       const record = invitationByToken(token);
       if (!record) return notFound(res);
+      const persisted = await readInvitation(record.id);
+      if (persisted) {
+        record.status = persisted.status;
+        record.expiresAt = persisted.expires_at;
+      }
       if (record.status !== 'pending') return redirectForInvitation(res, record, `invitation_${record.status}`);
-      const target = new URL(`${MOCK_ORIGIN}/auth/v1/verify`);
-      target.searchParams.set('token', token);
+      if (invitationIsExpired(record)) return redirectForInvitation(res, record, 'invitation_expired');
+      const target = new URL(record.redirectTo);
+      target.searchParams.set('token_hash', token);
       target.searchParams.set('type', 'invite');
-      target.searchParams.set('redirect_to', record.redirectTo);
       res.writeHead(302, { Location: target.toString() });
       return res.end();
+    }
+
+    if (pathname === '/auth/v1/verify' && req.method === 'POST') {
+      if (process.env.NODE_ENV !== 'test') return notFound(res);
+      const body = await parseBody(req);
+      const tokenHash = typeof body.token_hash === 'string' ? body.token_hash : '';
+      const record = invitationByToken(tokenHash);
+      if (!record || body.type !== 'invite') return authErrorResponse(res, 'invalid_token', 'Invalid or expired invitation');
+      const persisted = await readInvitation(record.id);
+      if (persisted) {
+        record.status = persisted.status;
+        record.expiresAt = persisted.expires_at;
+      }
+      if (record.status !== 'pending' || invitationIsExpired(record) || record.linkOpened) {
+        return authErrorResponse(res, 'invalid_token', 'Invitation is not available');
+      }
+      const identity = authUsers.get(record.email);
+      if (!identity || identity.id !== record.userId) return authErrorResponse(res, 'invalid_token', 'Invitation identity is unavailable');
+      record.linkOpened = true;
+      identity.emailConfirmed = true;
+      await pool.query(
+        'UPDATE auth.users SET email_confirmed_at = COALESCE(email_confirmed_at, now()), updated_at = now() WHERE id = $1',
+        [identity.id],
+      );
+      const session = issueSession(record.email);
+      if (!session) return authErrorResponse(res, 'invalid_token', 'Invitation identity is unavailable');
+      return sendJson(res, 200, sessionPayload(session));
     }
 
     if (pathname === '/auth/v1/verify' && req.method === 'GET') {
@@ -633,7 +693,7 @@ const server = http.createServer(async (req, res) => {
       if (grantType === 'refresh_token') {
         const fixture = sessions.get(body.refresh_token);
         if (!fixture) return badRequest(res, 'Invalid refresh token');
-        const session = issueSession(fixture.email, fixture.aal);
+        const session = issueSession(fixture.email, fixture.aal, fixture.sessionId);
         return sendJson(res, 200, sessionPayload(session));
       }
       return badRequest(res, 'Unsupported grant_type');
@@ -698,7 +758,7 @@ const server = http.createServer(async (req, res) => {
       if (!factor || !challenge || body.code !== process.env.MOCK_TOTP_CODE || challenge.sub !== fixture.sub || challenge.factorId !== factorId) return badRequest(res, 'Invalid MFA code');
       challenges.delete(body.challenge_id);
       factor.status = 'verified';
-      const session = issueSession(fixture.email, 'aal2');
+      const session = issueSession(fixture.email, 'aal2', fixture.sessionId);
       return sendJson(res, 200, { access_token: session.token, refresh_token: session.token, expires_in: 3600, token_type: 'bearer', aal: 'aal2', user: { id: session.fixture.sub, email: session.fixture.email, aal: 'aal2' } });
     }
 
@@ -743,16 +803,35 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/rest/v1/courses_public_effective') {
       const params = parsed.query;
       const values = [];
-      const conditions = ["es.editorial_status = 'published'", 'c.is_active = true', 'c.is_verified = true'];
+      const conditions = [];
       if (typeof params.institution_id === 'string' && params.institution_id.startsWith('eq.')) {
         values.push(params.institution_id.slice(3));
-        conditions.push(`c.institution_id = $${values.length}`);
+        conditions.push(`institution_id = $${values.length}`);
       }
       if (typeof params.slug === 'string' && params.slug.startsWith('eq.')) {
         values.push(params.slug.slice(3));
-        conditions.push(`c.slug = $${values.length}`);
+        conditions.push(`slug = $${values.length}`);
       }
-      const result = await pool.query(`SELECT c.id, c.institution_id, c.name, c.slug, c.url, c.price_pen, c.price_status, c.mode, c.duration, c.description_long, c.syllabus, c.target_audience, c.requirements, c.certification, c.benefits, c.objectives, c.start_date, c.start_date_text, c.course_type, c.brochure_url, c.expected_monthly_salary, c.seniority_level, c.roi_months, c.view_count, c.comparison_count, c.created_at, c.updated_at FROM public.courses c JOIN public.course_editorial_state es ON es.course_id = c.id WHERE ${conditions.join(' AND ')} ORDER BY c.updated_at DESC${params.limit ? ` LIMIT ${Number(params.limit)}` : ''}`, values);
+      if (typeof params.id === 'string' && params.id.startsWith('in.(') && params.id.endsWith(')')) {
+        const ids = params.id.slice(4, -1).split(',');
+        if (ids.length < 1 || ids.length > 3 || ids.some((id) => !/^[0-9a-f-]{36}$/i.test(id))) {
+          return badRequest(res, 'Invalid public course id filter');
+        }
+        values.push(ids);
+        conditions.push(`id = ANY($${values.length}::uuid[])`);
+      }
+      let limitSql = '';
+      if (params.limit !== undefined) {
+        const limit = Number(params.limit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 1000) return badRequest(res, 'Invalid public course limit');
+        values.push(limit);
+        limitSql = ` LIMIT $${values.length}`;
+      }
+      const whereSql = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+      const result = await pool.query(
+        `SELECT id, institution_id, category_id, name, slug, url, price_pen, price_status, mode, duration, description_long, syllabus, target_audience, requirements, certification, benefits, objectives, start_date, start_date_text, course_type, brochure_url, expected_monthly_salary, seniority_level, roi_months, view_count, comparison_count, created_at, updated_at FROM public.courses_public_effective${whereSql} ORDER BY updated_at DESC${limitSql}`,
+        values,
+      );
       return writeRows(res, result);
     }
 
@@ -762,6 +841,19 @@ const server = http.createServer(async (req, res) => {
       const rpc = pathname.replace('/rest/v1/rpc/', '');
       const body = await parseBody(req);
       const result = await withIdentity(fixture, async (client) => {
+        if (rpc === 'admin_signed_rpc') {
+          const signedHeaders = Object.fromEntries(SIGNED_RPC_HEADERS
+            .filter((name) => typeof req.headers[name] === 'string')
+            .map((name) => [name, req.headers[name]]));
+          await client.query(
+            "SELECT set_config('request.path', $1, true), set_config('request.method', $2, true), set_config('request.headers', $3, true)",
+            [req.url.split('?')[0], req.method, JSON.stringify(signedHeaders)],
+          );
+          return client.query(
+            'SELECT public.admin_signed_rpc($1::TEXT, $2::JSONB, $3::TEXT) AS payload',
+            [body.p_rpc_name, body.p_args, body.p_signed_payload],
+          );
+        }
         switch (rpc) {
           case 'admin_current_user_role':
             return client.query('SELECT public.admin_current_user_role() AS admin_current_user_role');
@@ -781,6 +873,10 @@ const server = http.createServer(async (req, res) => {
             return client.query('SELECT * FROM public.admin_get_course_queue_facets()');
           case 'admin_get_course_editorial':
             return client.query('SELECT * FROM public.admin_get_course_editorial($1)', [body.p_course_id]);
+          case 'admin_get_course_audit':
+            return client.query('SELECT * FROM public.admin_get_course_audit($1, $2, $3, $4)', [body.p_course_id, body.p_first, body.p_after_created_at, body.p_after_id]);
+          case 'admin_set_course_availability':
+            return client.query('SELECT * FROM public.admin_set_course_availability($1, $2, $3, $4, $5, $6, $7)', [body.p_course_id, body.p_availability_status, body.p_evidence_url, body.p_observed_at, body.p_valid_until, body.p_version, body.p_reason]);
           case 'admin_update_course':
             return client.query('SELECT * FROM public.admin_update_course($1, $2, $3, $4)', [body.p_course_id, body.p_manual_overrides, body.p_version, body.p_reason]);
           case 'admin_publish_course':
@@ -810,11 +906,24 @@ const server = http.createServer(async (req, res) => {
         }
       });
       if (!result) return notFound(res);
+      if (rpc === 'admin_signed_rpc') {
+        return sendJson(res, result.httpStatus || 200, result.rows?.[0]?.payload ?? null);
+      }
       return writeRows(res, result);
     }
 
     return notFound(res);
   } catch (error) {
+    if (error.code === 'PGRST') {
+      try {
+        const payload=JSON.parse(error.message);const details=JSON.parse(error.detail);
+        if (payload.code === 'quota_rate_limited' && details.status === 429) {
+          const retry=Number(details.headers?.['Retry-After']);
+          res.setHeader('Retry-After',String(Number.isInteger(retry) && retry>=1 && retry<=86400 ? retry : 30));
+          return sendJson(res,429,{...payload,error:payload.message});
+        }
+      } catch { /* malformed local fixture error remains generic */ }
+    }
     console.error('Mock request failed', pathname, error.message);
     if (typeof error.message === 'string' && /MFA\s+aal2\s+required/i.test(error.message)) {
       return sendJson(res, 403, { message: 'MFA aal2 required', code: 'mfa_required' });

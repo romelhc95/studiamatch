@@ -8,8 +8,6 @@ import { Card } from '@/components/ui/card';
 import { PasswordInput } from '@/components/admin/PasswordInput';
 import { PasswordRequirements } from '@/components/admin/PasswordRequirements';
 import {
-  consumeRecoverySessionFromHash,
-  exchangeRecoveryCodeForSession,
   getAuthSession,
   signOutAdmin,
   updateAdminPassword,
@@ -31,30 +29,10 @@ export default function ResetPasswordPage() {
     let active = true;
 
     const prepareRecoverySession = async () => {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get('code');
-      const queryError = url.searchParams.get('error') || url.searchParams.get('error_description');
-      const hash = window.location.hash;
-      const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-      const callbackType = url.searchParams.get('type') || hashParams.get('type');
-
-      // Remove code, hash and provider errors before doing any async work so
-      // recovery credentials do not remain in browser history or screenshots.
       window.history.replaceState({}, document.title, '/admin/reset-password/');
 
       try {
-        if (queryError || hashParams.get('error') || hashParams.get('error_description')) {
-          throw new Error('El enlace de recuperación es inválido, expiró o ya fue utilizado.');
-        }
-        if (callbackType && callbackType !== 'recovery') {
-          throw new Error('Este enlace no corresponde a una recuperación de contraseña.');
-        }
-
-        if (code) {
-          await exchangeRecoveryCodeForSession(code);
-        } else if (hash) {
-          await consumeRecoverySessionFromHash(hash);
-        } else if (!(await getAuthSession())) {
+        if (!(await getAuthSession())) {
           throw new Error('Abre esta pantalla desde el enlace de recuperación recibido por correo.');
         }
 

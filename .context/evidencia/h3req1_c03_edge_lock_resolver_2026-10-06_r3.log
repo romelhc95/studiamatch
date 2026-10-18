@@ -1,0 +1,8 @@
+tests/h3req1_c03_edge_lock_resolver_r3.sh: OK
+tests/h3req1-c03-edge-lock-resolver/deno.json: OK
+tests/h3req1-c03-edge-lock-output-r3/.gitkeep: OK
+supabase/functions/admin-invite/index.ts: OK
+resolver-diagnostic-class=no-recognized-safe-category
+Resolved lock SHA-256: ccb3d17f01947e679fb530ba7cbc9d252263ab1051d1d9ab21429eecde7ba428
+Resolved lock output: tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock
+R3 lock resolver completed locally; integrated drill remains unauthorized.

@@ -1,0 +1,32 @@
+H3REQ1 R16 — resultado de revisión independiente
+Fecha: 2026-10-14 UTC
+Repositorio: https://github.com/romelhc95/studiamatch
+
+Alcance revisado
+- Revisión independiente y de solo lectura del cierre R16: reporte de lecturas remotas, paquete Development/transición/rollback, cuerpo PR basado en la plantilla versionada, checks, estado operativo e índice.
+- Se contrastaron el alcance declarado con los manifests R14/R15, la inclusión selectiva del log R181, los conteos de referencias, las discrepancias remotas y los estados PASS/pendientes/fail.
+- No se hicieron consultas remotas, pruebas, ediciones, operaciones con efectos, ni se inspeccionaron filas operativas, usuarios, buzones, tokens o secretos.
+
+Resultado final de revisión independiente
+- **GO documental local acotado** para el snapshot R16 revisado; no significa GO Development, aprobación para filing ni permiso operativo.
+- No se encontraron hallazgos HIGH/CRITICAL. La inconsistencia de cardinalidad fue corregida y verificada: diez entradas del scope R16; el scan cubre nueve entradas más el archivo manifest (diez archivos explícitos), omite el log de checks y sí incluye el manifest aunque su self-hash se excluya del digest.
+- El resultado remoto permanece **NO-GO Development**: la regresión del scope guard falla por el pin inmutable R14 de `.context/componentes/admin_runtime.md` frente al overlay R15; la comparación separada acepta 7/11 rutas R16 y rechaza el log R181, checks, revisión y manifest.
+- D01–D14 permanecen 0/14. No abrir PR ni declarar readiness con este resultado.
+
+Hallazgo de la última lectura de delta y resolución
+- Se observó una inconsistencia de cardinalidad: el texto decía que se escanearon “10 paths del manifest” y excluía el log checks, aunque el scope contiene 10 entries, una de las cuales es ese log. El scan incluye nueve entries del scope más el archivo manifest (10 archivos explícitos); el hash propio del manifest se excluye del digest, no del scan.
+- Body, checks, estado, revisión y manifest se corrigieron para declarar ambas cardinalidades (`10` entries de scope; `9` entries del scope más el manifest escaneados). La relectura confirmó la corrección.
+
+Hallazgos previos y correcciones verificadas
+1. Primera lectura: faltaba registrar resultados reales en la celda documental del cuerpo, describir método/salida del cotejo del workflow y resumir en el estado la falla del scope guard. El cuerpo, checks y estado se actualizaron.
+2. Segunda lectura: el cuerpo adelantaba como finales el scanner/revisión/pins cuando seguían provisionales; el paquete decía 7/10 en vez de 7/11; la fila de alcance omitía el log R181 citado por el estado. Se corrigieron los estados provisionales, el conteo 7/11 y la ruta R181; solo esta evidencia citada se agregó al paquete.
+3. Relectura final previa al delta de cardinalidad: las tres correcciones son visibles y concordantes entre reporte, paquete, checks, body y scope. La lectura posterior detectó la inconsistencia registrada arriba y la última relectura confirmó su corrección.
+
+Reconciliación de evidencia observada
+- R14: SHA-256 `7c9a6ba29c260231a02f11167d9093cd7241e9779ddabb28fee8f508f0391851`, preservado.
+- R15: SHA-256 `1bf4dd992ff7feaa04e5051de9478b7db8974776fe8d9cac8e4aa5f91aee09b8`, preservado.
+- Manifest overlay R16 del snapshot revisado: 10/10 entradas presentes y pins de bytes/hash concordantes; digest canónico de entradas `9ada5164b19720352fa3d351ef46ce17871d5a2e099fa7c2d2da4d94c946491d`. Este digest antecede la incorporación de este dictamen final; recalcular el manifest con este registro y repetir el scan contra el resultado.
+- Cierre final de referencias: cinco documentos, 166 links locales, 130 referencias Markdown, cero destinos ausentes; integridad 9,500 links y 4,583 anchors.
+
+Conclusión y límite
+La revisión dio GO documental local acotado para el snapshot revisado. La recomendación inmediata fue repinar después de registrar este dictamen y ejecutar el scan final sobre el manifest. El cierre posterior del preparador, registrado en checks R16, verificó 10/10 pins, volvió a correr el scan final y confirmó los hashes padre sin cambios. El bloqueo de scope guard y las superficies remotas no verificadas siguen abiertos; no hay GO Development. No se usó un waiver.

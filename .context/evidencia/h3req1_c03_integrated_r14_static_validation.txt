@@ -1,0 +1,24 @@
+H3REQ1 C03 integrated R14 — validación estática previa
+Fecha: 2026-10-10
+Candidato: feat/h3req1-sync-20261002 @ 4eb4d877a50b012bb630a129bd0c74482c33be9c
+Manifiesto integrado: SHA-256 2d7a88458de45f70941c256263c51118eb5e02fc71163324c987603e6e05e8a0
+Runner R14: SHA-256 60ac11ca7cb17a871941241096741c2eab22ccd5081c76a1b9f2009fbb5bd78a
+Runtime adapter: SHA-256 8768586492318ebe33e3d461e5ec86ca06b336c72eb5d2248b84aba99a75b41f
+Login classifier: SHA-256 ee7cb8b7d2e5df826bef00d071a626b87bd17ccab7715a5673ef52b970464f77
+R14 contract tests: SHA-256 8d5403810c3c8d6102ff01ff095924364eee498037a7706325124464164cd52c
+R13 SQL fixture reused unchanged: SHA-256 e373f007f06fcdff23a47ff6c8185d9736465480a1acefb0c310f347355870e5
+
+Resultados ejecutados antes del runtime:
+- Manifiesto: 65/65 inputs coinciden; R13 histórico se conserva en sidecar separado.
+- Bash -n sobre runner R14: exit 0.
+- Contrato Node aislado: 15/15 PASS, exit 0; imagen Node fijada, network none, rootfs read-only, usuario 1001 y capacidades descartadas.
+- ShellCheck 0.11.0 warning-level sobre runner R14: exit 0.
+- git diff --check y whitespace de los nuevos archivos: exit 0.
+- Comparación del runner R14 contra R13 después de normalizar únicamente etiquetas R14/R13: equivalencia PASS.
+- Revisión estática independiente: PASS sin hallazgos bloqueantes. La revisión no ejecutó runtime, SQL ni Docker integrado.
+
+Incidencia de preparación preservada: el primer contenedor de pruebas apuntó a un directorio temporal bajo /tmp que no contenía el archivo montado; Node devolvió “Could not find …”, exit 1, antes de ejecutar pruebas. Se corrigió solo el origen del mount: se montó tests/ read-only después de comprobar que no contiene nombres .env*. La ejecución corregida pasó 15/15. El intento inicial no es fallo del producto ni de las pruebas.
+
+R13 runtime: login terminó con LOGIN_HTTP_STATUS_403 tras PASS de snapshot, Pages/workerd healthz, PG17, SQL fixtures, PostgREST y Edge. Causa exacta del 403 no acreditada. Hipótesis R14: el adaptador anterior construía el fetch con pathname y un Origin fijo, sin garantizar URL Request y Origin del mismo origen; R14 deriva ambos del hostname local y clasifica únicamente el código exacto csrf_rejected, sin exponer cuerpo ni valores arbitrarios. El runtime R14 debe confirmar o refutar esta hipótesis.
+
+Esta evidencia acredita solo preparación/contratos estáticos; no acredita C03 integrado ni G07.

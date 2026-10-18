@@ -109,6 +109,6 @@ Los aliases `H1-CA2P` y `H1-CA7P` preservan historia local solamente. Su alcance
 - [Plan Vinculante Nuevo Pedido](../../operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md)
 - [Plan Maestro Sprint 1 H2-H5](../../operaciones/plan_maestro_sprint1_h2_h5.md)
 - [ADR-0026](../../decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md)
-- [ADR-0027](../../decisiones/ADR-0027_work_packages_y_convergencia.md)
+- ADR-0027: referencia histórica retirada/no disponible; no autoriza work packages. Consultar [estado vigente](../../estado_del_proyecto.md), el [registro de decisiones](../../decisiones/README.md) y la [historia Git local](../../evidencia/h3req1_historia_paths_local_2026-10-12.md).
 - [Flujo de release](../../operaciones/flujo_release_minimo.md)
 - [Baseline, preservacion y homologacion](../../operaciones/baseline_preservacion_homologacion_sprint1.md)

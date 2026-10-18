@@ -1,0 +1,10 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+source_sha256=tests/h3req1_c03_edge_transport_gateway_r20.mjs:435c7f35584a23e2eab6d943fa08772a8cf569856a875110a03533243874d647 tests/h3req1_c03_edge_transport_main_r20.ts:e904364aea10a08d8c98ce53ce3edff92e294f3f54d4287b375ed9f0ebb620e6 tests/h3req1_c03_edge_transport_worker_r20.ts:7f52a73fc2eb7118f98d915e10ba22a6f7c166d74bd40a5b6123708aab6547a2 .context/evidencia/h3req1_c03_edge_auth_transport_probe_v2_2026-10-10.ts:b1ac07206517cb0765ba51dec3b399e036ba8d4ecc44bbb78419c44a4f615365 
+phase=tls-gateway|error_code=READY
+phase=synthetic-ca|error_code=ARCHIVED|sha256=e7d9a51936501b9e16b52723f76048ce4fb0ebe6da627519ffbd6cc2184b9ddc
+phase=edge-ca-mount|error_code=CONTENT_MATCH
+phase=edge-user-worker-readiness|error_code=READY
+phase=edge-user-worker-auth|error_code=TLS_UNKNOWN_ISSUER
+phase=gateway-observation|auth_user_get=0|other_requests=0
+phase=runner-final|exit=1
+phase=r23-fixture-cleanup|error_code=EXACT_RESOURCES_REMOVED

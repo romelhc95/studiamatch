@@ -1,0 +1,14 @@
+tests/h3req1_c03_integrated_runtime_diag_d2.sh: OK
+tests/h3req1-c03-integrated.sha256: OK
+tests/h3req1_c03_integrated_drill.sh: OK
+.context/evidencia/h3req1_c03_integrated_run_2026-10-06_r4.log: OK
+.context/evidencia/h3req1_c03_integrated_runtime_diag_2026-10-06_d1.log: OK
+runtime-container=h3req1-c03-integrated-runtime-20261006-r4
+runtime-image-metadata=not-queried; R4 runner/manifest hashes are pinned
+runtime-state=exited
+runtime-exit-code=1
+runtime-oom-killed=false
+runtime-log-driver=none
+runtime-log-availability=disabled-by-docker-log-driver
+D1 image field was intentionally excluded; no image identity is inferred by D2.
+No docker logs/exec, network or volume inspection, cleanup, stop, restart, or resume was performed.

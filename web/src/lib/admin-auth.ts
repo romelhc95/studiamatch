@@ -1,30 +1,16 @@
 'use client';
 
-import { supabaseBrowserClient, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/lib/supabase';
-
-// Supabase Auth is the approved session-auth consumer for the browser session.
-// The data API remains keyed by `apikey`; this marker keeps the credential
-// contract inventory explicit for static analysis.
-void '/auth/v1/token';
-
-const SESSION_COOKIE = 'studiamatch_admin_session';
-const SESSION_AAL = 'studiamatch_admin_aal';
+export const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+export const ADMIN_ACTIVITY_EVENT_KEY = 'studiamatch_admin_activity_event';
+export const ADMIN_LOGOUT_EVENT_KEY = 'studiamatch_admin_logout';
+const ADMIN_LAST_ACTIVITY_KEY = 'studiamatch_admin_last_activity';
 
 export type AdminRole = 'admin' | 'user' | 'authenticated' | 'anon';
 
 export interface AdminSession {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
+  email: string | null;
+  expiresAt: number | null;
   aal: 'aal1' | 'aal2';
-}
-
-export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  expires_at?: number;
-  aal?: 'aal1' | 'aal2';
 }
 
 export type OnboardingStatus = 'invited' | 'accepted' | 'password_pending' | 'ready' | 'expired' | 'revoked' | 'superseded' | 'send_failed' | null;
@@ -76,6 +62,22 @@ interface AssuranceResponse {
   nextLevel: 'aal1' | 'aal2';
 }
 
+interface ApiErrorPayload {
+  code?: unknown;
+  message?: unknown;
+  error?: unknown;
+  request_id?: unknown;
+}
+
+interface ApiResponse<T> {
+  data?: T;
+  session?: AdminSession | null;
+  authenticated?: boolean;
+  success?: boolean;
+  error?: ApiErrorPayload | string;
+  [key: string]: unknown;
+}
+
 export class MfaRequiredError extends Error {
   readonly code = 'mfa_required';
 
@@ -85,54 +87,120 @@ export class MfaRequiredError extends Error {
   }
 }
 
+export class AdminApiError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+    readonly requestId: string | null,
+    readonly status: number | null,
+  ) {
+    super(message);
+    this.name = 'AdminApiError';
+  }
+}
+
 function isMfaRequiredMessage(value: unknown): boolean {
   return typeof value === 'string' && /(?:mfa_required|insufficient_aal|aal2\s+required|mfa\s+(?:aal2\s+)?required)/i.test(value);
 }
 
 export function isMfaRequiredError(reason: unknown): boolean {
   if (reason instanceof MfaRequiredError) return true;
-  if (reason instanceof Error) return isMfaRequiredMessage(reason.message);
-  if (reason && typeof reason === 'object') {
-    const candidate = reason as { message?: unknown; error?: unknown; code?: unknown };
-    return isMfaRequiredMessage(candidate.message) || isMfaRequiredMessage(candidate.error) || isMfaRequiredMessage(candidate.code);
+  if (reason instanceof Error && isMfaRequiredMessage(reason.message)) return true;
+  if (!reason || typeof reason !== 'object') return false;
+  const candidate = reason as ApiErrorPayload;
+  if (isMfaRequiredMessage(candidate.message) || isMfaRequiredMessage(candidate.code)) return true;
+  if (candidate.error && typeof candidate.error === 'object') {
+    const nested = candidate.error as ApiErrorPayload;
+    return isMfaRequiredMessage(nested.message) || isMfaRequiredMessage(nested.code);
   }
-  return false;
+  return isMfaRequiredMessage(candidate.error);
 }
 
-function authErrorFromPayload(payload: unknown, fallback: string): Error {
+function errorFromPayload(payload: unknown, fallback: string, status: number | null = null): Error {
+  if (isMfaRequiredError(payload)) return new MfaRequiredError();
   if (payload && typeof payload === 'object') {
-    const candidate = payload as { message?: unknown; error?: unknown; code?: unknown };
-    if (isMfaRequiredMessage(candidate.message) || isMfaRequiredMessage(candidate.error) || isMfaRequiredMessage(candidate.code)) {
-      return new MfaRequiredError();
+    const candidate = payload as ApiErrorPayload;
+    const nested = typeof candidate.error === 'object' && candidate.error
+      ? candidate.error as ApiErrorPayload
+      : null;
+    const code = typeof nested?.code === 'string'
+      ? nested.code
+      : typeof candidate.code === 'string' ? candidate.code : null;
+    const rawRequestId = typeof candidate.request_id === 'string'
+      ? candidate.request_id
+      : typeof nested?.request_id === 'string' ? nested.request_id : null;
+    const requestId = rawRequestId && /^[A-Za-z0-9._:-]{1,100}$/.test(rawRequestId)
+      ? rawRequestId
+      : null;
+    if (typeof candidate.error === 'object' && candidate.error) {
+      if (typeof nested?.message === 'string' && nested.message) return new AdminApiError(nested.message, code, requestId, status);
+      if (typeof nested?.code === 'string' && nested.code) return new AdminApiError(nested.code, code, requestId, status);
     }
-    if (typeof candidate.message === 'string' && candidate.message) return new Error(candidate.message);
-    if (typeof candidate.error === 'string' && candidate.error) return new Error(candidate.error);
+    if (typeof candidate.message === 'string' && candidate.message) return new AdminApiError(candidate.message, code, requestId, status);
+    if (typeof candidate.error === 'string' && candidate.error) return new AdminApiError(candidate.error, code, requestId, status);
+    return new AdminApiError(fallback, code, requestId, status);
   }
-  return new Error(fallback);
+  return new AdminApiError(fallback, null, null, status);
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const segment = token.split('.')[1];
-    if (!segment) return null;
-    const base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
-    const json = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((character) => `%${`00${character.charCodeAt(0).toString(16)}`.slice(-2)}`)
-        .join('')
-    );
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return null;
+async function adminApi<T = ApiResponse<unknown>>(
+  path: string,
+  method: 'GET' | 'POST' = 'GET',
+  body?: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {},
+): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: method === 'POST' ? { 'Content-Type': 'application/json', ...extraHeaders } : undefined,
+    body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw errorFromPayload(payload, `Solicitud Admin falló: ${response.status}`, response.status);
+  return payload as T;
+}
+
+function browserStorages(): Storage[] {
+  if (typeof window === 'undefined') return [];
+  const storages: Storage[] = [];
+  try { storages.push(window.localStorage); } catch { /* Storage can be blocked. */ }
+  try { storages.push(window.sessionStorage); } catch { /* Storage can be blocked. */ }
+  return storages;
+}
+
+function clearLegacyBrowserTokens(broadcast = false): void {
+  let removedAny = false;
+  for (const storage of browserStorages()) {
+    try {
+      for (const key of Object.keys(storage)) {
+        if (key.endsWith('-auth-token') || key.endsWith('-code-verifier') || key.endsWith('-flows-code-verifier')) {
+          storage.removeItem(key);
+          removedAny = true;
+        }
+      }
+    } catch {
+      // Continue clearing other browser storage even if this one is unavailable.
+    }
+  }
+  if (broadcast && removedAny) {
+    try {
+      sharedNonSecretStorage()?.setItem(ADMIN_LOGOUT_EVENT_KEY, `${Date.now()}:legacy-session-cleared`);
+    } catch {
+      // The current tab still drops all legacy browser-held credentials.
+    }
   }
 }
 
-function resolveAal(tokens: Pick<TokenResponse, 'aal' | 'access_token'>): 'aal1' | 'aal2' {
-  if (tokens.aal === 'aal1' || tokens.aal === 'aal2') return tokens.aal;
-  const payload = tokens.access_token ? decodeJwtPayload(tokens.access_token) : null;
-  if (payload?.aal === 'aal1' || payload?.aal === 'aal2') return payload.aal;
-  return 'aal1';
+// Existing browser-held sessions are intentionally not migrated. The user signs
+// in again with the same account; no identity or onboarding state is recreated.
+if (typeof window !== 'undefined') clearLegacyBrowserTokens(true);
+
+function sharedNonSecretStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try { return window.localStorage; } catch {
+    try { return window.sessionStorage; } catch { return null; }
+  }
 }
 
 function getAdminPath(value: string | null): string {
@@ -152,9 +220,39 @@ export function sanitizeAdminRedirect(value: string | null): string {
 }
 
 export function clearAdminSession(): void {
-  if (typeof window === 'undefined') return;
-  document.cookie = `${SESSION_COOKIE}=; Max-Age=0; Path=/; SameSite=Strict; Secure`;
-  window.sessionStorage.removeItem(SESSION_AAL);
+  clearLegacyBrowserTokens(false);
+  const storage = sharedNonSecretStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
+    storage.removeItem(ADMIN_ACTIVITY_EVENT_KEY);
+  } catch {
+    // Server logout remains authoritative when browser storage is unavailable.
+  }
+}
+
+export function getAdminLastActivity(): number | null {
+  const storage = sharedNonSecretStorage();
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(ADMIN_LAST_ACTIVITY_KEY);
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function recordAdminActivity(timestamp = Date.now()): void {
+  const storage = sharedNonSecretStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(ADMIN_LAST_ACTIVITY_KEY, String(timestamp));
+    storage.setItem(ADMIN_ACTIVITY_EVENT_KEY, `${timestamp}:${Math.random().toString(36).slice(2)}`);
+  } catch {
+    // The in-memory timeout still protects this tab if persistence is blocked.
+  }
 }
 
 function firstRpcRow<T>(result: unknown): T {
@@ -163,118 +261,28 @@ function firstRpcRow<T>(result: unknown): T {
   return row as T;
 }
 
-function authErrorMessage(error: { message?: string; code?: string } | null): string {
-  if (!error) return 'Authentication failed';
-  if (error.code === 'otp_expired' || error.code === 'invalid_grant') return 'El enlace de invitación ya no es válido.';
-  return error.message || 'Authentication failed';
-}
-
-function invitationAuthError(): Error {
-  return new Error('El enlace de invitación es inválido, expiró o ya fue utilizado.');
-}
-
-export async function exchangeCodeForSession(code: string): Promise<TokenResponse> {
-  const normalizedCode = code.trim();
-  if (!normalizedCode) throw new Error('Missing invitation code');
-  const { data, error } = await supabaseBrowserClient.auth.exchangeCodeForSession(normalizedCode);
-  if (error || !data.session) throw invitationAuthError();
-  const tokens: TokenResponse = {
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in,
-    expires_at: data.session.expires_at,
-    aal: resolveAal({ access_token: data.session.access_token }),
-  };
-  saveAdminSession(tokens);
-  return tokens;
-}
-
-export async function consumeInviteSessionFromHash(hash: string): Promise<TokenResponse> {
-  const value = hash.startsWith('#') ? hash.slice(1) : hash;
-  const params = new URLSearchParams(value);
-  const accessToken = params.get('access_token')?.trim() || '';
-  const refreshToken = params.get('refresh_token')?.trim() || '';
-  const expiresIn = Number(params.get('expires_in') || 3600);
-  if (!accessToken || !refreshToken || !Number.isFinite(expiresIn) || expiresIn <= 0) {
-    throw invitationAuthError();
-  }
-  const { data, error } = await supabaseBrowserClient.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-  if (error || !data.session) throw invitationAuthError();
-  const tokens: TokenResponse = {
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in || expiresIn,
-    expires_at: data.session.expires_at,
-    aal: resolveAal({ access_token: data.session.access_token }),
-  };
-  saveAdminSession(tokens);
-  return tokens;
-}
-
-function recoveryAuthError(): Error {
-  return new Error('El enlace de recuperación es inválido, expiró o ya fue utilizado.');
-}
-
-export async function exchangeRecoveryCodeForSession(code: string): Promise<TokenResponse> {
-  const normalizedCode = code.trim();
-  if (!normalizedCode) throw recoveryAuthError();
-  const { data, error } = await supabaseBrowserClient.auth.exchangeCodeForSession(normalizedCode);
-  if (error || !data.session) throw recoveryAuthError();
-  const tokens: TokenResponse = {
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in,
-    expires_at: data.session.expires_at,
-    aal: resolveAal({ access_token: data.session.access_token }),
-  };
-  saveAdminSession(tokens);
-  return tokens;
-}
-
-export async function consumeRecoverySessionFromHash(hash: string): Promise<TokenResponse> {
-  const value = hash.startsWith('#') ? hash.slice(1) : hash;
-  const params = new URLSearchParams(value);
-  if (params.get('error') || params.get('error_description')) throw recoveryAuthError();
-  const callbackType = params.get('type');
-  if (callbackType && callbackType !== 'recovery') throw recoveryAuthError();
-
-  const accessToken = params.get('access_token')?.trim() || '';
-  const refreshToken = params.get('refresh_token')?.trim() || '';
-  if (!accessToken || !refreshToken) throw recoveryAuthError();
-
-  const { data, error } = await supabaseBrowserClient.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-  if (error || !data.session) throw recoveryAuthError();
-  const tokens: TokenResponse = {
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in || 3600,
-    expires_at: data.session.expires_at,
-    aal: resolveAal({ access_token: data.session.access_token }),
-  };
-  saveAdminSession(tokens);
-  return tokens;
-}
-
 export async function getAuthSession(): Promise<AdminSession | null> {
-  const { data } = await supabaseBrowserClient.auth.getSession();
-  if (!data.session) return null;
-  return saveAdminSession({
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in,
-    aal: resolveAal({ access_token: data.session.access_token }),
-  });
+  const result = await adminApi<ApiResponse<unknown>>('/api/admin/session');
+  if (result.authenticated !== true || !result.session) return null;
+  return result.session;
+}
+
+export async function touchAdminSession(): Promise<void> {
+  await adminApi('/api/admin/activity', 'POST', {});
+}
+
+export async function getAuthenticatedUserEmail(): Promise<string | null> {
+  try { return (await getAuthSession())?.email ?? null; } catch { return null; }
+}
+
+export async function supabaseAdminLogin(email: string, password: string): Promise<AdminSession> {
+  const result = await adminApi<ApiResponse<unknown>>('/api/admin/auth/login', 'POST', { email, password });
+  if (!result.session) throw new Error('No se pudo iniciar la sesión.');
+  return result.session;
 }
 
 export async function updateAdminPassword(password: string): Promise<void> {
-  const { error } = await supabaseBrowserClient.auth.updateUser({ password });
-  if (error) throw new Error(authErrorMessage(error));
+  await adminApi('/api/admin/auth/password', 'POST', { password });
 }
 
 export async function acceptCurrentInvitation(invitationId?: string | null): Promise<InvitationAcceptanceResult> {
@@ -283,88 +291,35 @@ export async function acceptCurrentInvitation(invitationId?: string | null): Pro
 }
 
 export async function getOnboardingStatus(): Promise<OnboardingStatusResult> {
-  const result = await adminRpc('admin_get_onboarding_status', {});
-  return firstRpcRow<OnboardingStatusResult>(result);
+  return firstRpcRow<OnboardingStatusResult>(await adminRpc('admin_get_onboarding_status', {}));
 }
 
 export async function completePasswordSetup(): Promise<PasswordSetupResult> {
-  const result = await adminRpc('admin_complete_password_setup', {});
-  return firstRpcRow<PasswordSetupResult>(result);
+  return firstRpcRow<PasswordSetupResult>(await adminRpc('admin_complete_password_setup', {}));
 }
 
-export async function signOutAdmin(): Promise<void> {
+export async function signOutAdmin(options: { broadcast?: boolean } = {}): Promise<void> {
+  if (typeof window !== 'undefined' && options.broadcast !== false) {
+    try {
+      sharedNonSecretStorage()?.setItem(ADMIN_LOGOUT_EVENT_KEY, `${Date.now()}:${Math.random().toString(36).slice(2)}`);
+    } catch {
+      // Local sign-out continues if cross-tab signaling is unavailable.
+    }
+  }
   try {
-    await supabaseBrowserClient.auth.signOut({ scope: 'local' });
+    await adminApi('/api/admin/auth/logout', 'POST', {});
   } finally {
     clearAdminSession();
   }
 }
 
-export function saveAdminSession(tokens: TokenResponse): AdminSession {
-  const session: AdminSession = {
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-    expiresAt: Date.now() + tokens.expires_in * 1000,
-    aal: resolveAal(tokens),
-  };
-  if (typeof window !== 'undefined') document.cookie = `${SESSION_COOKIE}=1; Path=/; SameSite=Strict; Secure`;
-  if (typeof window !== 'undefined') window.sessionStorage.setItem(SESSION_AAL, session.aal);
-  if (typeof window !== 'undefined') {
-    const authStorageKey = Object.keys(window.sessionStorage).find((key) => key.endsWith('-auth-token') && !key.endsWith('-code-verifier'));
-    const authSession = authStorageKey ? JSON.parse(window.sessionStorage.getItem(authStorageKey) || '{}') as Record<string, unknown> : null;
-    if (authStorageKey && authSession) window.sessionStorage.setItem(authStorageKey, JSON.stringify({ ...authSession, aal: session.aal }));
-  }
-  return session;
-}
-
-async function getFreshSession(): Promise<AdminSession> {
-  const { data, error } = await supabaseBrowserClient.auth.getSession();
-  if (error || !data.session) throw new Error('No session');
-  return saveAdminSession({
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in,
-    aal: resolveAal({ access_token: data.session.access_token }),
-  });
-}
-
-async function adminRequest(path: string, options: RequestInit = {}): Promise<Response> {
-  const session = await getFreshSession();
-  return fetch(`${SUPABASE_URL}/rest/v1${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      Authorization: `Bearer ${session.accessToken}`,
-      ...options.headers,
-    },
-  });
-}
-
-void adminRequest;
-
 export async function adminRpc(functionName: string, params: unknown): Promise<unknown> {
-  const session = await getFreshSession();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${functionName}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      Authorization: `Bearer ${session.accessToken}`,
-    },
-    body: JSON.stringify(params),
+  if (!params || typeof params !== 'object' || Array.isArray(params)) throw new Error('Invalid RPC parameters');
+  const result = await adminApi<ApiResponse<unknown>>('/api/admin/rpc', 'POST', {
+    function: functionName,
+    params: params as Record<string, unknown>,
   });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw authErrorFromPayload(payload, `RPC ${functionName} failed: ${response.status}`);
-  }
-
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    return response.json();
-  }
-  return null;
+  return result.data ?? null;
 }
 
 export interface InviteMemberResult {
@@ -374,108 +329,58 @@ export interface InviteMemberResult {
   invitation_id?: string | null;
   status?: string | null;
   resent?: boolean;
+  recovery_sent?: boolean;
 }
 
-export async function inviteAdminMember(email: string, role: 'admin' | 'user'): Promise<InviteMemberResult> {
-  const session = await getFreshSession();
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-invite`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      Authorization: `Bearer ${session.accessToken}`,
-    },
-    body: JSON.stringify({ email, role }),
-  });
-  const data = (await response.json().catch(() => ({}))) as Partial<InviteMemberResult> & { error?: string };
-  if (!response.ok || data.success !== true) {
-    throw authErrorFromPayload(data, data.error || `admin-invite failed: ${response.status}`);
-  }
-  return data as InviteMemberResult;
+export async function inviteAdminMember(
+  email: string,
+  role: 'admin' | 'user',
+  options: { resend?: boolean; requestId?: string } = {},
+): Promise<InviteMemberResult> {
+  const requestId = options.requestId || globalThis.crypto.randomUUID();
+  const result = await adminApi<ApiResponse<unknown>>('/api/admin/invitations', 'POST', {
+    email,
+    role,
+    resend: options.resend === true,
+  }, { 'x-request-id': requestId });
+  if (result.success !== true) throw errorFromPayload(result, 'No se pudo enviar la invitación.');
+  return result as unknown as InviteMemberResult;
+}
+
+async function mfaRequest<T>(body: Record<string, unknown>): Promise<T> {
+  return adminApi<T>('/api/admin/auth/mfa', 'POST', body);
 }
 
 export async function listFactors(): Promise<AuthenticatorFactor[]> {
-  const { data, error } = await supabaseBrowserClient.auth.mfa.listFactors();
-  if (error) throw new Error('No se pudo consultar la configuración de MFA.');
-  return (data?.all || [])
-    .filter((factor) => factor.factor_type === 'totp')
-    .map((factor) => ({
-      id: factor.id,
-      factor_type: 'totp' as const,
-      status: factor.status,
-    }));
+  const result = await mfaRequest<{ factors: AuthenticatorFactor[] }>({ action: 'list' });
+  return result.factors || [];
 }
 
 export async function enrollTotp(): Promise<TotpEnrollment> {
-  const { data, error } = await supabaseBrowserClient.auth.mfa.enroll({
-    factorType: 'totp',
-    friendlyName: 'StudIAMatch Admin',
-    issuer: 'StudIAMatch',
-  });
-  if (error || !data) throw new Error('No se pudo iniciar la configuración de MFA.');
-  const factorId = data.id;
-  if (!factorId) throw new Error('MFA enrollment did not return a factor id');
+  const result = await mfaRequest<{ factor: { id: string; secret: string | null; uri: string | null; qr_code: string | null } }>({ action: 'enroll' });
   return {
-    factorId,
-    secret: data.totp?.secret ?? null,
-    uri: data.totp?.uri ?? null,
-    qrCode: data.totp?.qr_code ?? null,
+    factorId: result.factor.id,
+    secret: result.factor.secret,
+    uri: result.factor.uri,
+    qrCode: result.factor.qr_code,
   };
 }
 
 export async function challengeTotp(factorId: string): Promise<{ id: string }> {
-  const { data, error } = await supabaseBrowserClient.auth.mfa.challenge({
-    factorId,
-  });
-  if (error || !data) throw new Error('No se pudo iniciar la verificación MFA.');
-  return { id: data.id };
+  return mfaRequest<{ id: string }>({ action: 'challenge', factorId });
 }
 
-export async function verifyTotp(factorId: string, challengeId: string | null, code: string): Promise<TokenResponse> {
+export async function verifyTotp(factorId: string, challengeId: string | null, code: string): Promise<void> {
   if (!challengeId) throw new Error('No hay un desafío MFA activo.');
-  const { data, error } = await supabaseBrowserClient.auth.mfa.verify({
-    factorId,
-    challengeId,
-    code,
-  });
-  if (error || !data) throw new Error('Código MFA inválido.');
-  const tokens: TokenResponse = {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    expires_in: data.expires_in,
-    aal: resolveAal({ access_token: data.access_token }),
-  };
-  saveAdminSession(tokens);
-  return tokens;
+  await mfaRequest({ action: 'verify', factorId, challengeId, code });
 }
 
 export async function unenrollTotp(factorId: string): Promise<void> {
-  const { error } = await supabaseBrowserClient.auth.mfa.unenroll({
-    factorId,
-  });
-  if (error) throw new Error('No se pudo retirar la configuración MFA.');
+  await mfaRequest({ action: 'unenroll', factorId });
 }
 
 export async function getAuthenticatorAssuranceLevel(): Promise<AssuranceResponse> {
-  const { data, error } = await supabaseBrowserClient.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (error) throw new Error('No se pudo verificar el nivel de autenticación.');
-  const currentLevel = data?.currentLevel === 'aal2' ? 'aal2' : 'aal1';
-  const nextLevel = data?.nextLevel === 'aal2' ? 'aal2' : 'aal1';
-  return { currentLevel, nextLevel };
-}
-
-export async function supabaseAdminLogin(email: string, password: string): Promise<TokenResponse> {
-  const { data, error } = await supabaseBrowserClient.auth.signInWithPassword({ email, password });
-  if (error || !data.session) throw new Error(error?.message || 'Login failed');
-  const tokens: TokenResponse = {
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in,
-    expires_at: data.session.expires_at,
-    aal: resolveAal({ access_token: data.session.access_token }),
-  };
-  saveAdminSession(tokens);
-  return tokens;
+  return mfaRequest<AssuranceResponse>({ action: 'assurance' });
 }
 
 export async function currentAdminRole(): Promise<AdminRole> {
@@ -485,9 +390,8 @@ export async function currentAdminRole(): Promise<AdminRole> {
       ? result
       : Array.isArray(result)
         ? result[0]?.admin_current_user_role
-        : (result as { admin_current_user_role?: AdminRole })?.admin_current_user_role;
-    if (role === 'admin' || role === 'user') return role;
-    if (role === 'authenticated' || role === 'anon') return role;
+        : (result as { admin_current_user_role?: AdminRole } | null)?.admin_current_user_role;
+    if (role === 'admin' || role === 'user' || role === 'authenticated' || role === 'anon') return role;
     return 'anon';
   } catch {
     return 'anon';
@@ -496,15 +400,10 @@ export async function currentAdminRole(): Promise<AdminRole> {
 
 export async function requireActiveAdmin(): Promise<'admin' | 'user'> {
   const role = await currentAdminRole();
-  if (role !== 'admin' && role !== 'user') {
-    throw new Error('Not authorized');
-  }
+  if (role !== 'admin' && role !== 'user') throw new Error('Not authorized');
   return role;
 }
 
 export async function requireAdmin(): Promise<void> {
-  const role = await currentAdminRole();
-  if (role !== 'admin') {
-    throw new Error('Admin required');
-  }
+  if (await currentAdminRole() !== 'admin') throw new Error('Admin required');
 }

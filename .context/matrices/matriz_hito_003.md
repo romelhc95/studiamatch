@@ -1,5 +1,13 @@
 # Matriz Hito 003
 
+> **Corte histórico de criterios/evidencia de septiembre**, conservado sin reinterpretar
+> alcance cliente. Porcentajes, pending y métricas inferiores no son estado del candidato
+> actual. La continuidad Auth+MFA y aceptación vigente se consultan en
+> [estado](../estado_del_proyecto.md), [plan D01–D14](../operaciones/plan_cierre_integral_h3req1_2026-10-04.md)
+> y atestación cliente enlazada allí. Implementado/probado/adoptado se separa en
+> [índice de transferencia](../indice.md), [fichas de módulo](../componentes/admin_runtime.md)
+> y [estado operativo](../estado_del_proyecto.md); no ejecutar etapas por esta historia.
+
 `PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION`
 `SRC-REQ-002`
 `ADENDA-REQ-EST-001-001`
@@ -68,7 +76,7 @@ sustituyen los gates obligatorios de cierre.
 - Harness H3 PG17 termina en `h3_pg17_harness_ok` e incluye la regresión A6/A13
   del delta `20260903`; el harness local conserva `h3_pg17_harness_local_ok`.
 - Hostname público `studiamatch.com/admin/ → 404` validado; `www` público responde 200 en `/` y 404 en `/admin/`.
-- Cloudflare confirma `romelhc95@gmail.com` como miembro `accepted`; E1/E3/E4/E8 PASS.
+- Cloudflare confirma `[administración principal protegida]` como miembro `accepted`; E1/E3/E4/E8 PASS.
 - Preview `88f02c53.studiamatch-aty.pages.dev` corresponde a `desarrollo`/`e3d21c1`; E2/E5/E6/E7 del panel requieren completar UAT sobre ese deployment, no sobre `admin.studiamatch.com`.
 
 ### Siguientes correcciones

@@ -1,0 +1,56 @@
+{
+  "caseCount": 10,
+  "cases": [
+    {
+      "id": "INV-013",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-008",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-001",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-002",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-009",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-007",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-003",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-004",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-005",
+      "result": "PASS"
+    },
+    {
+      "id": "INV-012",
+      "result": "PASS"
+    }
+  ],
+  "environment": "isolated-synthetic-local",
+  "minimumInviteSpacingMs": 20100,
+  "result": "PASS",
+  "retries": 0,
+  "videos": [
+    {
+      "bytes": 366847,
+      "name": "onboarding-user-flow.webm",
+      "sha256": "d3bcc728cdac293c85a591edaf34d2b819038a3ba131cdb94ffbc1a917d142d3"
+    }
+  ]
+}

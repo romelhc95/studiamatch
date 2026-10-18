@@ -2,6 +2,30 @@
 
 > Esta nota no crea alcance ni autoriza ejecucion.
 
+## Corte vigente H3REQ1 — 2026-10-05
+
+Seguir [estado vivo](../estado_del_proyecto.md), [HITO-003](../hitos/hito_003.md),
+[TASK-H3-001](../backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md),
+[plan único](../operaciones/plan_cierre_integral_h3req1_2026-10-04.md),
+[evidencia del candidato](../evidencia/h3req1_development_candidate_cycle_2026-10-04.md)
+y [traspaso ejecutable](h3req1_traspaso_avance_y_proximo_ciclo_2026-10-04.md).
+NO-GO H3 Development real: cardinalidad/replay corregidos localmente, 287 PASS/4 skips.
+El JIT v4 pasó PG17 SQL, replay, safe-suspend, baseline futuro, PostgREST wire/assert y
+concurrency en Docker aislado. El riesgo MEDIUM de egress npm se aceptó solo para el
+bootstrap y expiró al concluir. Esto no demuestra enforcement remoto ni GO.
+Siguiente: H3-CLOSE-03 rollback integrado workerd+Edge+PG17 y recuperación local ->
+H3-CLOSE-04–06/UAT/Ready -> CI protegido e integración/deploy con permisos separados ->
+D01–D14 reales. Después, y solo con instrucciones separadas, Certification y Pro/main/
+contract. Los porcentajes y permisos inferiores son históricos; no recalcular avance
+contractual por cantidad de tests ni usar un permiso antiguo para ejecutar el candidato.
+
+Addendum 2026-10-05: safe-suspend incluye `admin_signed_rpc`; bajo JIT PG17 pasaron
+baseline, cuotas, gateway y safe-suspend. La etapa final tuvo exit code 0 con stdout
+suprimido; las firmas sintéticas previas no se copiaron a evidencia. H3-CLOSE-03 sigue
+pendiente de integración y recuperación.
+
+## Historia Sprint — cortes anteriores, no checklist H3 vigente
+
 ## Verificacion
 
 `F11_H3_CLOSURE_REVIEW_NO_GO_REMOTE_EVIDENCE_INCOMPLETE`
@@ -218,6 +242,9 @@ FASE C — DOCUMENTACIÓN Y HANDOFF
 - Si cualquier gate falla, conservar `H3_LOCAL_EXPANDED_NO_GO`, registrar causa reproducible y continuar corrigiendo localmente salvo condición real de detención.
 - Al alcanzar GO, detenerse y solicitar por separado: A) autorización para commit + push + PR protegido a `desarrollo`; B) después, JIT Supabase Free/Auth. No ejecutar ninguna acción remota por inferencia.
 ```
+### Prompt histórico extendido — no ejecutar como continuación vigente
+
+```text
 CONTINUA H3REQ1 EXTENDIDO — EJECUCIÓN INTEGRAL LOCAL HASTA GO Y PREPARACIÓN DEL SIGUIENTE GATE
 
 Este `continua` autoriza un único ciclo integral de implementación, corrección, pruebas y documentación exclusivamente local en Docker hasta alcanzar `H3_LOCAL_EXPANDED_GO`. No vuelvas a pedir `continua` entre iteraciones locales: analiza, implementa, valida, revisa hallazgos, conviértelos en tareas, corrige y revalida hasta cerrar todos los gates o encontrar una condición real de detención.

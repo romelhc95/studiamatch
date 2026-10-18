@@ -1,0 +1,9 @@
+{
+  "name": "studiamatch-admin-quota",
+  "main": "index.ts",
+  "compatibility_date": "2026-07-30",
+  "workers_dev": false,
+  "preview_urls": false,
+  "durable_objects": { "bindings": [{ "name": "ADMIN_QUOTA_COUNTER", "class_name": "AdminQuotaCounter" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AdminQuotaCounter"] }]
+}

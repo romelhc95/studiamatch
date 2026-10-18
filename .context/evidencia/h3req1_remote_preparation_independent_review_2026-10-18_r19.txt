@@ -1,0 +1,18 @@
+H3REQ1 R19 independent review record
+
+Round 1 target digest: 5a03adaeff5d1ed4795a53ccea029bbd0d057e022d76c52dd7d9d673245bffb0
+Round 1 verdict: NO PASS. No HIGH or CRITICAL findings reported; one Blocking manifest finding, one Medium PR-body reconciliation finding, and one Low coverage-count finding.
+
+Findings and required corrections:
+- Blocking: included historical R18 manifest was incorrectly marked self-hash-excluded, leaving it without a content pin. The reviewer independently verified the R18 copy at 1,638,685 bytes and SHA-256 9e127bb38ec56b6bc8af2923fef7dda5b25292daf09bbf054ff04aa863e6a425. R19 must pin this historical input; only the R19 manifest's own self-hash remains excluded.
+- Medium: PR body claimed scanner/manifest/guard were pending while later sections recorded PASS, and lacked links to state, client attestation, and evidence. Correct the statuses and add candidate-branch links.
+- Low: manifest active-document count was 109 while current R19 validation reports 113. Update the current count.
+
+Round 1 scope audit confirmed exact 1,153-path closure, seven selected deletions, 1,144 currently pinned blobs before correction, no content mismatches among those pins, and safe uniform PNG derivatives. No Docker, actionlint, ShellCheck, runtime checks, or new remote reads were performed by the reviewer.
+
+Round 2 target digest: 27711db1e0757141a47f4f919ca0cce626855907a9a701a1298bb391f3ef19b8
+Round 2 verdict: PASS with one LOW wording finding; no HIGH, CRITICAL, or blocking finding. The reviewer reconfirmed exact 1,153-path closure, 1,145 content pins, the R18 manifest pin, active-document count 113, PR-body links/statuses, neutral PNGs, and B/transition/rollback limits.
+
+Round 2 LOW finding: the integration package said B had three discrepancies although it lists two (Worker deployment count vs approved maximum, and missing `ADMIN_RPC_GATEWAY_KEY_ID`). The wording is corrected in the current successor snapshot. A targeted round-3 check of that correction and the new exact digest is pending. The round-2 result is preserved here as historical review evidence; it does not claim a final round-3 result.
+
+This local review does not substitute for a separate GitHub review by a collaborator who is neither the author nor the pusher.

@@ -1,0 +1,100 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+manifest-sha256=4ad2a1814e8b829cec352b78aa91d29aaf1590b72054000d0f6a147e5c37b127 lines=65
+manifest=65/65 PASS
+TAP version 13
+# Subtest: integrated runner uses the manifest path consumed by the runtime
+ok 1 - integrated runner uses the manifest path consumed by the runtime
+  ---
+  duration_ms: 1.365998
+  type: 'test'
+  ...
+# Subtest: integrated fixture provides the configured PostgREST extra search path schema
+ok 2 - integrated fixture provides the configured PostgREST extra search path schema
+  ---
+  duration_ms: 0.375928
+  type: 'test'
+  ...
+# Subtest: login diagnostics classify each strict acceptance predicate without exposing values
+ok 3 - login diagnostics classify each strict acceptance predicate without exposing values
+  ---
+  duration_ms: 1.070277
+  type: 'test'
+  ...
+# Subtest: runtime emits only an allowlisted login check code on classified failure
+ok 4 - runtime emits only an allowlisted login check code on classified failure
+  ---
+  duration_ms: 0.289421
+  type: 'test'
+  ...
+# Subtest: every Docker image run forbids implicit pulls
+ok 5 - every Docker image run forbids implicit pulls
+  ---
+  duration_ms: 0.673948
+  type: 'test'
+  ...
+# Subtest: Docker operations stay on the attested endpoint after target verification
+ok 6 - Docker operations stay on the attested endpoint after target verification
+  ---
+  duration_ms: 0.236517
+  type: 'test'
+  ...
+# Subtest: foreground snapshot and cache verifier runs have individual deadlines
+ok 7 - foreground snapshot and cache verifier runs have individual deadlines
+  ---
+  duration_ms: 0.259419
+  type: 'test'
+  ...
+# Subtest: timeout-wrapped Docker helpers pin the attested endpoint outside the shell wrapper
+ok 8 - timeout-wrapped Docker helpers pin the attested endpoint outside the shell wrapper
+  ---
+  duration_ms: 0.26812
+  type: 'test'
+  ...
+# Subtest: Docker exec has host and in-container deadlines
+ok 9 - Docker exec has host and in-container deadlines
+  ---
+  duration_ms: 0.460033
+  type: 'test'
+  ...
+# Subtest: PostgREST probe separates sanitized HTTP and transport failures
+ok 10 - PostgREST probe separates sanitized HTTP and transport failures
+  ---
+  duration_ms: 1.072377
+  type: 'test'
+  ...
+# Subtest: HTTP error diagnosis reads only bounded JSON code values
+ok 11 - HTTP error diagnosis reads only bounded JSON code values
+  ---
+  duration_ms: 30.620715
+  type: 'test'
+  ...
+# Subtest: failure handling only stops this run after local daemon attestation
+ok 12 - failure handling only stops this run after local daemon attestation
+  ---
+  duration_ms: 0.370227
+  type: 'test'
+  ...
+# Subtest: failure handling also stops owned snapshot and cache verifier helpers
+ok 13 - failure handling also stops owned snapshot and cache verifier helpers
+  ---
+  duration_ms: 0.163412
+  type: 'test'
+  ...
+# Subtest: successful cleanup revalidates ownership once and removes immutable IDs only
+ok 14 - successful cleanup revalidates ownership once and removes immutable IDs only
+  ---
+  duration_ms: 0.251418
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 133.172634
+bash-n-and-contract-tests=PASS
+shellcheck-0.11.0-warning-level=PASS
+git-diff-check=PASS

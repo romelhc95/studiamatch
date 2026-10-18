@@ -1,0 +1,47 @@
+REVIEW 1 — 2026-10-13 UTC — read-only content review
+Scope: registry JSON and generated view, Admin queue/password policy, shared UI/renderer/cn, Supabase transport, public frontend ownership, admin_runtime ownership, and local semantic notes for pipeline, maintenance, shared utilities, canaries, and security/workflows.
+Verdict at that cut: NO-GO pending corrections.
+
+Findings:
+1. P1 generated registry view was stale relative to JSON; Admin queue, password policy, CoursePublicRenderer, and Supabase transport appeared under the wrong public ownership and new groups were absent from the view.
+2. P1 estado_del_proyecto.md and the R11 reanudacion still presented 12 components, 77 active documents, and 256 groups although the canonical JSON had 14, 80, and 262.
+3. P2 admin_runtime.md assigned supabase-transport.ts to frontend-public/utilidades_compartidas despite its dedicated component ficha.
+4. P2 web_publico.md reversed the dependency edge. CoursePublicRenderer imports only cleanSlug from web/src/lib/supabase.ts; module load evaluates configuration checks and client initialization, but that import alone does not issue a network request. The registry's “exclusive public” wording was also too strong.
+
+Corrections applied in the candidate:
+- Regenerated registro_fuentes_componentes.md from the JSON after correcting renderer and utility anchors.
+- Corrected the public-client/renderer dependency direction and documented module initialization/configuration consequences in the public and shared component fichas and R11 reclassification note.
+- Updated frontend-public and web-course-renderer relationship notes/evidence in the canonical JSON.
+- Repointed admin_runtime.md to the dedicated supabase_transport.md ficha.
+- R11 evidence references to its planned checks/manifest are being replaced by actual R12 artifacts; the missing R11 files are explicitly recorded as not generated.
+
+
+REVIEW 2 — 2026-10-13 UTC — read-only content/history/exclusions/navigation review
+Scope: unique Obsidian entry and operational authority; six transfer journeys; 14 component fichas and 801 paths / 262 groups; Admin/BFF, public frontend, transport, pipeline, canaries, maintenance, shared utilities, suites and DB; local history/status distinctions; retired paths and replacements; exclusions/artifact classes; remote claims; seven non-private R9 pins. The reviewer did not inspect the sanitized client attestation or backup contents, and did not rerun the structural gate.
+Verdict: GO for content, source relationships, history, exclusions and navigation; no blocking findings.
+
+Finding P2: the checks log described the scanner scope as 110 package paths, including seven deleted entries that were not files read by the scanner. Correction applied in the candidate: 103 present package paths (110 entries minus seven `deleted`) + 26 marker paths + the manifest, with three intersections, equals 127 unique paths. The final scanner rerun and reread of the refreshed body/check log/manifest remain required before the package is frozen.
+
+REVIEW 3 — 2026-10-13 UTC — final package reread, read-only
+Scope: R12 body/check log/manifest/state/index and recorded counts; exact scanner scope; scope digest and file mode/size/hash pins for package entries, marker paths, check log and body; retired paths; external backup declaration; R8/R9 and R178/R181/R182 preservation claims; remote-status separation.
+Verdict: GO for the pinneado R12 package; no blocking findings.
+
+Confirmed 110 entries = 103 present + 7 deleted; 26 marker paths and three intersections produce 127 scanner paths. The ordered scope digest, hashes/modes/sizes and log/body pins had no discrepancies; the manifest excludes its own hash. The backup directory is outside the checkout and declared excluded from the package. R8/R9 and R178/R181/R182 remain historical, with remote adoption unclaimed. The reviewer did not rerun source fichas or services; the preceding content/history review remains the evidence for those areas.
+
+Limit: the independent package hash pass did not inspect the sanitized client attestation under `evidencias_cliente`; its pin remains the recorded R9-validator result. No private attestation contents were exposed. The reviewer also did not inspect backup contents; the external `FILES.sha256` verification and source/copy comparison are recorded separately in R12.
+
+REVIEW 4 — 2026-10-13 UTC — read-only recheck after the R12 allowlist note
+Scope: security-tooling explanation, exact workflow allowlist and test assertions, anchors, package pins and scanner set, backup record, and local/remote boundary.
+Verdict at that cut: NO-GO, one P2.
+
+Finding: the retired-path comment in `tests/test_admin_invite_edge_contract.py` covered `.context/trazabilidad/protocolo_constructor.md`, which is an active maintained guide linked from `AGENTS.md` and the registry. This was a misleading classification in a test comment; the workflow’s allowlist and path existence were otherwise correct, with no active navigation consumer for retired paths.
+
+Correction in the candidate: retired literals are asserted in a dedicated `retired_local_paths` tuple; the active protocol path is asserted separately as an existing allowlisted document. `seguridad_tooling.md` now explains both classes. In Docker, `py_compile` and direct invocation of `test_protected_h3_path_allowlist_is_narrow_and_covers_this_candidate` passed. R5 must recheck this correction and refreshed package pins before the local close.
+
+REVIEW 5 — 2026-10-13 UTC — final read-only package/content review
+Scope: R12 operational state, changelog, closure/check log/body/manifest, canonical source registry and generated view, security tooling ficha, protected-path workflow/test, current pins/digest, backup declaration, and R8/R9/R178/R181/R182 preservation claims. No remote services or sanitized client attestation were read; backup contents were not reopened.
+Verdict: GO, no material blockers for the local documentation transfer.
+
+Confirmed: the R4 test now keeps retired path literals in a dedicated group and asserts separately that the active `protocolo_constructor.md` exists and is allowlisted. The scope is 110 entries = 103 present + 7 deleted; 26 markers yield 127 scan paths with the manifest and three intersections. The graph is 5,416 links / 3,390 anchors / 80 of 80 active documents reachable. Coverage remains 801/801 assigned sources, 4,715 applicable local relations verified, 91 justified N/A, zero local pending, and 0/5 remote checks. Scope digest and body/check-log pins matched; the manifest excludes its self-hash. State, changelog, body and log kept R5 pending at the reviewed cut and made no remote-adoption claim. Existing backup verification evidence supports the recorded preservation statement; this review relied on it without reopening previous copies.
+
+Post-review action: record this GO in the active state/body/log/manifest, refresh the exact package pins, and rerun the documentation gate, scope guard, and scanner. R5 itself did not execute those commands.

@@ -408,6 +408,9 @@ class UniversalHarvester:
                         self.db.patch('institution_site_profiles', filters=f"institution_id=eq.{self.institution.get('id')}", data={'circuit_open': True, 'circuit_opened_at': datetime.now(timezone.utc).isoformat()})
                     except Exception as e:
                         logger.warning(f"Could not update circuit_open in DB: {_safe_error_label(e)}")
+            elif resp is not None:
+                # A non-blocking HTTP response breaks a consecutive 403/429 run.
+                self.error_count = 0
             return resp
         except Exception as e:
             logger.debug(f"Request failed for {_safe_url_label(url)}: {type(e).__name__}")
@@ -423,14 +426,22 @@ class UniversalHarvester:
         self._discovery_fetch_successes += 1
         try:
             root = ET.fromstring(resp.content)
+
+            def sitemap_location(node):
+                element = node.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc')
+                value = element.text if element is not None else None
+                return value.strip() if isinstance(value, str) and value.strip() else None
+
             for sitemap in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}sitemap'):
                 if self.check_time_guard(): break
-                loc = sitemap.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc').text
-                links.extend(await self._fetch_sitemap(session, loc))
+                loc = sitemap_location(sitemap)
+                if loc:
+                    links.extend(await self._fetch_sitemap(session, loc))
             for url in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url'):
                 if self.check_time_guard(): break
-                loc = url.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc').text
-                links.append(loc)
+                loc = sitemap_location(url)
+                if loc:
+                    links.append(loc)
         except Exception as e:
             logger.warning(f"Failed to parse sitemap {_safe_url_label(sitemap_url)}: {type(e).__name__}")
         return list(set(links))
@@ -470,6 +481,8 @@ class UniversalHarvester:
     )
 
     def _is_valid_crawl_url(self, url):
+        if urlparse(url).scheme.lower() not in {'http', 'https'}:
+            return False
         base_domain = urlparse(self.institution.get('website_url')).netloc
         if urlparse(url).netloc != base_domain:
             return False

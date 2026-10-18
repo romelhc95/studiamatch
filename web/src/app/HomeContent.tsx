@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, normalizeCourseNumbers, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
 
 export default function HomeContent({ initialCourses = [] }: { initialCourses: Course[] }) {
   const searchParams = useSearchParams();
@@ -59,6 +59,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     if (selectedType !== "Todos") params.set('tipo', selectedType);
     if (activeFilters.selectedInstitution !== "Todas") params.set('inst', activeFilters.selectedInstitution);
     if (activeFilters.modes.length > 0) params.set('modalidad', activeFilters.modes.join(','));
+    if (activeFilters.priceMin) params.set('min', activeFilters.priceMin);
     if (activeFilters.priceMax) params.set('max', activeFilters.priceMax);
     if (sortOrder) params.set('sort', sortOrder);
     if (durationFilter) params.set('duration', durationFilter);
@@ -66,6 +67,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
     const queryString = params.toString();
     const url = queryString ? `${pathname}?${queryString}` : pathname;
+    if (url === `${window.location.pathname}${window.location.search}`) return;
     router.replace(url, { scroll: false });
   }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router, durationFilter, priceRange]);
 
@@ -271,12 +273,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
       if (Array.isArray(cData) && Array.isArray(iData) && Array.isArray(catData)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const enriched = cData.map((course: any) => ({
+        const enriched = cData.map((course: any) => normalizeCourseNumbers({
           ...course,
           institution_name: iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
           institution_slug: iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
           category: catData.find((c: { id: string; name: string }) => c.id === course.category_id)?.name || course.category
-        }));
+        } as Course));
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const uniqueMap = new Map<string, any>();
@@ -314,7 +316,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_TTL && Array.isArray(data) && data.length > 0) {
           // eslint-disable-next-line react-hooks/set-state-in-effect
-          setAllCourses(data);
+          setAllCourses(data.map((course: Course) => normalizeCourseNumbers(course)));
           setLoading(false);
           setLastUpdated(new Date(timestamp));
           return;
@@ -820,11 +822,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   · Actualizado {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               )}
-              {(searchTerm || selectedCategory !== "Todos" || selectedType !== "Todos" || activeFilters.selectedInstitution !== "Todas" || activeFilters.modes.length > 0 || activeFilters.priceMax || sortOrder) && (
+              {(searchTerm || selectedCategory !== "Todos" || selectedType !== "Todos" || activeFilters.selectedInstitution !== "Todas" || activeFilters.modes.length > 0 || activeFilters.priceMin || activeFilters.priceMax || sortOrder || careerGoal || durationFilter || priceRange) && (
                 <>
                   <span className="text-slate-300">·</span>
                   <button 
                     onClick={() => {
+                      setSearchInput("");
                       setSearchTerm("");
                       setSelectedCategory("Todos");
                       setSelectedType("Todos");

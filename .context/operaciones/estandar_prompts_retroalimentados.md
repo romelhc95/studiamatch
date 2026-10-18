@@ -11,6 +11,14 @@ en tareas, corregir y revalidar hasta GO.
 
 ## Ciclo Obligatorio
 
+Para todo el proyecto, operar desde el [índice principal](../indice.md), consultar el
+[registro fuente-componente](../trazabilidad/registro_fuentes_componentes.json) y seguir
+el [protocolo constructor](../trazabilidad/protocolo_constructor.md): antes del cambio
+identificar contratos/consumidores/impacto/pruebas y PASS preservados; al cierre actualizar
+aristas/evidencia/estado. Esto operacionaliza el ciclo existente, no añade permisos ni
+autoridad independiente. No volver a planificar por notas históricas ni declarar runtime
+PASS por revisión estática.
+
 Todo prompt de desarrollo debe iterar hasta cumplir sus criterios de GO:
 
 ```text

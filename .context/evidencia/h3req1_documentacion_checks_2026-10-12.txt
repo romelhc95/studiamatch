@@ -1,0 +1,220 @@
+StudIAMatch documentation transfer checks
+Cut: 2026-10-12, America/Lima
+Candidate: /home/romel/src/studiamatch-h3req1-sync-20261002
+Branch: feat/h3req1-sync-20261002
+HEAD baseline: 4eb4d877a50b012bb630a129bd0c74482c33be9c
+
+Preservation
+- External pre-edit backup: PASS; source/copy inventories each contain 13,856 paths and cmp matches them.
+- Original backup inventory artifact checks: PASS (inventory/backup_artifacts.sha256).
+- R8 body and manifest: PASS; byte-identical to the pre-edit snapshot.
+- web/vendor/README.md historical recovery: PASS; current, supplemental, and local-evidence recovery match SHA-256 4e7f2700dcc37fe9db4b4fb3834ff7d4a4764e0f9ed3b8ea330e202d1b2ae62d.
+- Valid checkpoint source/copy inventories: PASS; each compared byte by byte. The complete current pre-overlay checkpoint contains 13,889 paths (13,886 base paths plus 3 documentation additions); 11 changed paths were overlaid from the candidate and every source/copy SHA-256 matches.
+- Backups/checkpoints remain outside both checkouts and outside the package.
+
+Docker checks
+- node scripts/maintenance/h3req1_documentation_integrity.mjs
+  documentation_integrity=PASS|documents=55|links=1322|anchors=14|components=28|authority=single-state
+- Final Docker revalidation after the R8/R9 overlay correction:
+  - documentation integrity: PASS; 55 documents, 1,322 links, 14 anchors, 28 components, one state authority.
+  - protected path scope guard: PASS; ordinary=3, newline=1, controls=1, malformed=3.
+  - R9 allowlist: PASS; proposed=43, regex=6, exact=37, review_fixes=6/6, missing=0.
+  - YAML parse from `/app/web` with the installed `js-yaml`: PASS for both workflows. (`/app` has no copy of that package; no install was attempted.)
+  - R9 manifest verifier: PASS; scope 43/43, evidence 8/8, 51 content pins, 3 package artifacts, R8/R9 scope intersection 10 paths (9 changed, 1 identical).
+  - Credential scanner: PASS on 45 explicit paths (43 scope, R9 body and manifest); no values emitted.
+  - `git diff --check` on affected tracked paths: PASS.
+- tests/test_protected_path_scope_guard.sh
+  protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3
+- Direct read-only invocation of tests/test_obsidian_context_state.py:
+  7/7 PASS.
+- Direct read-only invocation of tests/test_requirement_client_source_validation.py:
+  9/9 PASS; optional private-source hash test not run, no private source accessed.
+- js-yaml parse of security-audit.yml and protected-workflow-integrity.yml: PASS.
+- h3req1_g10_scope_allowlist_check_r180.py against R9 documentary manifest:
+  scope_allowlist=PASS|proposed=43|regex=6|exact=37|review_fixes=6/6|missing=0
+- scripts/security/scan_credentials.sh against 43 scope paths, R9 body and manifest (45 exact paths): credential scan passed.
+- actionlint: NOT RUN; unavailable in studiamatch-dev and no cached actionlint image. Residual risk: workflow semantics beyond YAML parsing require actionlint before PR; owner: integration responsible. ShellCheck: not applicable because no shell source changed.
+
+Git whitespace check
+- Docker could not resolve the host worktree .git pointer for git diff --check (exit 128); no files were changed by that attempt.
+- Equivalent read-only `git diff --check -- .context README.md .github/pull_request_template.md .github/workflows/security-audit.yml` ran on the candidate host checkout and passed.
+
+Reuse and exclusions
+- Product source, SQL, package manifests/lock, UI, and runtime inputs were not changed by the documentation delta; functional suites/build/UAT were reused from R178 by impact, not rerun.
+- No database, private customer source, env file, credential value, remote service, workflow run, deployment, or browser runtime was read or invoked.
+- Proposed R9 contains 43 explicit documentation/tooling/allowlist paths, including this check log; the PR body and R9 manifest are explicitly listed as package artifacts. It excludes the braces tarball, dependencies, caches, generated outputs, operational secrets, the external backup, and unlisted WIP.
+- R8 body/manifest and result evidence remain historical; the checked body/manifest are byte-identical to the pre-edit snapshot. R9 overlaps 10 R8 scope pins: nine current file contents change (`.context/00_INDICE.md`, `.context/backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md`, `.context/estado_del_proyecto.md`, `.context/hitos/h3req1_implementation_report.md`, `.context/hitos/hito_003.md`, `.context/sistema_db_supabase.md`, `.github/pull_request_template.md`, `.github/workflows/security-audit.yml`, `README.md`); `web/vendor/README.md` is unchanged. Step 3 overlays those nine current versions and rebuilds combined pins while preserving R8 historical body/manifest/results.
+- The combined functional package remains for step 3 because R8 includes the excluded local braces tarball.
+
+Independent review
+- Earlier R9 content review (before source-registry expansion): PASS for that earlier cut only; superseded by the 808-source expansion and later independent review. Do not treat it as final package approval.
+
+Expanded source-to-document registry gate — candidate-only cut, 2026-10-12
+- Docker checkout: `studiamatch-dev` mounted the candidate at `/app`; no product runtime, database, or network service was used.
+- `docker exec studiamatch-dev node scripts/maintenance/h3req1_documentation_integrity.mjs --render`: refreshed the generated Markdown view from the JSON registry.
+- `node --check scripts/maintenance/h3req1_documentation_integrity.mjs` and `bash -n scripts/security/run_documentation_integrity.sh`: PASS.
+- `bash scripts/security/run_documentation_integrity.sh --self-test`: PASS; rejected a synthetic source without assignment, unregistered root, unknown extension, comment/registry mismatch, and nonexistent path/anchor.
+- Full checker: PASS; sources=808, assigned=808/808 (100.0%), source assignments verified=808/808 (100.0%), components=12/12 (100.0%), groups=44, active docs reachable=69/69, archived docs=429, links=4,959, anchors=2,812, artifact families=22, exclusions=26.
+- Relation denominators are six group-level dimensions weighted by source path, not independent observed edges: 2,093/4,848 verified (43.2%), 1,236 pending (25.5%), 1,517 unknown (31.3%), 2 not applicable. `0/808` sources have all six dimensions verified. Pending/unknown entries contain a resolution method and remain unverified; this is not a claim of complete dependency verification.
+- Package projection at this local cut: 441 source paths are in HEAD tracked + R8/R9 proposed scopes; 367 candidate-local paths remain outside that projected package as WIP. Step 3 must reconcile the registry and package before CI; no functionality absence is inferred.
+- `tests/test_obsidian_context_state.py`: 7/7 functions invoked directly in Docker. `tests/test_requirement_client_source_validation.py`: 10/10 functions invoked directly; `pytest` unavailable. `STUDIAMATCH_PRIVATE_SOURCE_DIR` was unset, so the optional source hash function returned without reading private source. No private client document was accessed.
+- Protected-workflow helper direct assertions: PASS (2 cases). `tests/test_protected_path_scope_guard.sh`: 8/8 scenarios (ordinary=3, newline=1, controls=1, malformed=3).
+- `js-yaml` parsed both `security-audit.yml` and `protected-workflow-integrity.yml`: PASS. R9 allowlist: `proposed=51|regex=6|exact=45|review_fixes=6/6|missing=0`.
+- Credential scan on the then-current 60 explicit paths (51 proposed + 8 selected evidence + R9 manifest): PASS; no credential values emitted. It is repeated after final evidence/manifest refresh.
+- `shellcheck` and `actionlint`: unavailable in the container. `bash -n` and YAML parsing are not substitutes for those semantic tools; owner for renewed actionlint/ShellCheck before PR is the integration responsible.
+- Independent review of the expanded registry confirmed 808 assigned paths, 12 components, 44 groups, relation-state/method coverage, active-document reachability and local/remote limits. It found stale pins in three scope entries, PENDING final metadata, and an unclear C03 subtotal. The C03 wording is corrected; three pins, body/manifest/check-log states and the final pin verification/review remain pending. The reviewer reported an earlier broad path search reached `.context/evidencia/**`; they excluded that material from the findings and did not quote or summarize it. No GitHub workflow, remote status, Supabase, or deploy was consulted or executed.
+
+
+Reconciliation after independent review — in progress
+- The two C03 diagnostic subtotals are now distinguished in `pruebas_evidencia.md`.
+- The checker self-test explicitly confirms both registered Docker override paths are discovered/assigned without opening their YAML.
+- Pin verifier after body/check-log reconciliation: PASS; scope=51/51, evidence=8/8, 59 content hashes, 3 artifacts, manifest self-hash excluded. Compact digest values live in the R9 manifest; they are not copied into this scope-hashed check log to avoid a circular digest. Final credential scan and independent re-read still pending.
+- Full 12,293-path checkpoint before body/manifest reconciliation: `/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_before_body_manifest_reconciliation_2026-10-12`; source/copy SHA-256 manifests match `444be0e4495bc6a9755038b0ebb932ee0dfa171d0eb6a81eccb854540eba2ac9`; tar SHA-256 `789e53f35781656a9509203d948eea5b01746d9f7f9d10434a4f0edf65fc77a2`.
+Post-review reconciliation — source gate revalidated, package pin refresh pending
+- Docker self-test/full graph after C03 wording and explicit Docker override assertion: PASS; sources=808, assigned=808/808, structural path/anchor assignments=808/808, components=12/12, groups=44, weighted relations 2,093/4,848 verified, 1,236 pending, 1,517 unknown, 2 N/A; active docs 69/69 reachable, archived 429, links=4,959, anchors=2,812, artifact families=22, exclusions=26.
+- Self-test PASS: synthetic unassigned source rejected; both registered Docker override paths are discovered and assigned without opening YAML; unregistered root, unknown extension, comment/registry mismatch, and nonexistent path/anchor rejected.
+- Reviewer findings and scope limitation are recorded in the preceding reconciliation section; pins, final scan and final independent reread remain pending.
+Final documentation graph revalidation after the review corrections
+- Docker `run_documentation_integrity.sh --self-test`: PASS; sources=808 and assignments=808/808; structural assignment links=808/808; components=12/12; groups=44; weighted relations: 2,093/4,848 verified, 1,236 pending, 1,517 unknown, 2 N/A; 0/808 with all relation dimensions verified.
+- Graph: 69/69 active docs reachable, 429 historical docs, 4,959 links, 2,812 anchors, 22 artifact families, 26 justified exclusions. Self-test rejects synthetic unassigned source, unregistered root, unknown extension, comment mismatch and nonexistent path/anchor; confirms both Docker override paths without reading their YAML.
+- Node checker syntax, local runner `bash -n`, protected path scope guard (8/8), and R9 scope allowlist (51 paths; 6 regex, 45 exact, 6/6 fixes, 0 missing): PASS.
+- Manifest pin verifier: PASS; 51/51 proposed paths, 8/8 selected evidence, 59 content hashes, 3 artifacts, manifest self-hash excluded. Compact digests are stored only in the manifest to avoid a circular check-log digest.
+- Final credential scan on the refreshed body/check-log/manifest set and independent reread are pending at this log entry.
+- Credential scanner after body/manifest/check-log refresh: PASS on the 60 exact files from the R9 scope, selected evidence and manifest; output `credential scan passed`; no values emitted. Repeated after the final independent-review metadata update.
+
+
+Checker comment-content scope hardening
+- Code review found the earlier generic marker extractor read source text even when a group declared `inline_comment: none`. It emitted no source contents, but could load operational YAML into process memory. The checker now skips comment-source reads for that policy; the external registry remains authoritative for those paths.
+- A self-test asserts the `none` policy bypasses content scanning while required/optional policies remain scanned. The two Docker override paths are asserted discovered and assigned by path only.
+- The latest full Docker gate passes with the skip in place. Prior source-gate results are superseded for this comment-read scope; final pins, scanner and peer reread are pending.
+- Pre-fix full checkpoint: `/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_before_no_comment_policy_scan_fix_2026-10-12`; 12,293 paths; source/copy manifest SHA-256 `ec151e4b8141c9b7259ed5f394f5d8211e8b4bab79e6e8309af72aec7d25f408`; tar SHA-256 `bd6075fe36bdfa3c9bc8b12a7368d0c43ade30b8c140dc92f9e61269822b7da2`.
+
+
+Revisión independiente del diccionario DB — 2026-10-12
+- El revisor contrastó con SQL local las nueve columnas omitidas previamente: `auto_generated`, `manual_start_date`, `sponsorship_label`, `request_payload_hash`, `status_reason`, `last_invitation_id`, `entity_type`, `invitation_id` y `metadata`; el diccionario incluye tipos, nullability/defaults y constraints/FKs disponibles.
+- El CHECK final de `admin_membership_audit_action_allowed` reemplazado por `20261001_h3_invitation_reservation_compensation.sql:465-471` admite 12 acciones. El dato de septiembre es histórico/intermedio; Pro no fue consultado.
+- La relectura de contenido confirma límites de schema remoto, cobertura relacional parcial declarada, métodos para pendientes/desconocidos y preservación R178/R8. No se encontró otra discrepancia de contenido.
+- El dictamen provisional aún fue NO-GO únicamente porque pins/check log/body/manifest no coincidían con el corte de lectura. Se refrescan a continuación antes de pedir la relectura final; no es un bloqueo de contenido pendiente.
+- La revisión informó que un glob recursivo alcanzó rutas bajo evidencia excluida; el contenido de esos resultados se excluyó por completo del dictamen y no se reproduce aquí. La lectura final se limitará a rutas explícitas.
+
+
+Revalidación local después de completar database.md — 2026-10-12
+- Docker `bash scripts/security/run_documentation_integrity.sh --self-test`: PASS; sources=808, assigned/verified=808/808, components=12/12, groups=44, relation slots=4,848 (2,093 verified, 1,236 pending, 1,517 unknown, 2 N/A), active docs=69/69 reachable, archived=429, links=4,959, anchors=2,812, artifact families=22, exclusions=26.
+- El self-test rechaza la ruta sintética `scripts/core/__h3req1_undocumented_source_self_test__.mjs`; también comprueba nuevas roots/extensiones, comentario discordante, path/anchor inexistente y el tratamiento registry-only sin leer los YAML de override.
+- Node `--check`, wrapper `bash -n`, parseo `js-yaml` de `security-audit.yml` y `production_canary.yml`, y whitespace check de `database.md`: PASS. No cambió código funcional, SQL ni workflow durante esta corrección.
+- Manifiesto R9: pins y digests PASS tras refresco; scope 51/51, evidencia 8/8, 59 content hashes, 3 package artifacts, self-hash excluido.
+- Credential scan Docker sobre 51 paths de scope + 8 evidencias seleccionadas + manifest: PASS, salida `credential scan passed`, sin valores emitidos. Se repite tras cerrar el último estado de revisión del manifest.
+- Revisión independiente de contenido DB: PASS para nueve columnas locales y 12 acciones del CHECK final. El NO-GO anterior era únicamente por pins/stados metadata viejos; la relectura final del paquete está pendiente.
+- El backup verificado inmediatamente antes de editar el diccionario está en `/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_before_database_dictionary_fix_2026-10-12`, 18,607 paths; los manifiestos fuente/copia y tar se verificaron y sus SHA-256 constan en el sidecar externo.
+
+
+Corte del paquete preparado para reread independiente final — 2026-10-12
+- Tras actualizar body y evidencia, el verifier local confirma 51/51 scope y 8/8 evidencia (59 archivos con contenido), 3 artefactos, digests correctos y exclusión del self-hash del manifest.
+- Credential scan Docker pasa sobre los 60 paths exactos (51 + 8 + manifest) con salida `credential scan passed`, sin valores emitidos.
+- Docker checker vuelve a PASS: 808/808 asignadas, 12/12 componentes, 44 grupos, 69/69 docs vigentes alcanzables, 4,959 links, 2,812 anchors, 26 exclusiones justificadas; relaciones siguen 2,093/4,848 verificadas, 1,236 pending, 1,517 unknown, 2 N/A.
+- Contenido DB y operación: nueve columnas verificadas contra migrations locales, CHECK de 12 acciones final; ninguna consulta remota.
+- La reread independiente de pins y manifest actualizado se solicita después de esta captura; hasta entonces, el resultado de revisión contenido está confirmado y la aprobación final del paquete queda pendiente.
+
+
+Hallazgo final de procedencia SQL y corrección documental — 2026-10-12
+- Revisión independiente encontró un P2 en `.context/database.md`: la fila de RPCs de invitación citaba `20260918–28` sin reflejar sus revisiones posteriores ni el RPC de admisión.
+- Inspección read-only de declaraciones en migrations locales confirmó `admin_invitation_reserve`/`record_failure`/`complete`/`fail` en `20260920_h3_invitation_edge_runtime.sql`, reassertions y onboarding en `20260921_h3_invitation_onboarding_rpc.sql`, corrección de aceptación en `20260928_h3_invitation_accept_email_regex_fix.sql`, revisiones/compensación/reconciliación en `20261001_h3_invitation_reservation_compensation.sql` y `admin_invitation_request_admit` en `20261002_h3_admin_quota_expand.sql`.
+- `.context/database.md` y el cuerpo propuesto se actualizaron con esa procedencia. Migrations históricas no fueron editadas; no se consultó Supabase.
+- Estado al registrar este hallazgo: checker, repin, scanner y reread independiente final pendientes para el nuevo corte; preservar los resultados previos como históricos, no atribuirlos al contenido recién actualizado.
+
+
+Revalidación Docker tras corrección de procedencia de invitaciones — 2026-10-12
+- `bash scripts/security/run_documentation_integrity.sh --self-test`: PASS. Autoprueba rechazó fuente nueva sin asignación, root/extensión nuevos, comentario discrepante y path/anchor inexistentes; confirmó assignments de overrides Docker sin leer sus YAML.
+- Full graph: PASS; sources=808, assigned/verified=808/808, components=12/12, groups=44, 4,848 slots: 2,093 verified, 1,236 pending, 1,517 unknown, 2 N/A; 0/808 con las seis dimensiones verificadas. 69/69 documentos activos alcanzables, 429 históricos, 4,959 links, 2,812 anchors, 22 familias de artefactos, 26 exclusiones.
+- `node --check scripts/maintenance/h3req1_documentation_integrity.mjs` y `bash -n scripts/security/run_documentation_integrity.sh`: PASS.
+- Credential scanner Docker sobre los 60 paths exactos (51 scope, 8 evidencias, manifest): PASS; `credential scan passed`, sin valores emitidos.
+- La migración de la fila DB fue comprobada en SQL local; no se editó código, SQL, workflow, ni se consultó Supabase.
+- Este log cambió después de la ejecución; pins, scanner y reread independiente se volverán a verificar sobre el corte final después de refrescar manifest/body/check log.
+
+
+Reread independiente final — 2026-10-12
+- Dictamen GO sin hallazgos materiales. El revisor confirmó la secuencia de RPC local en migrations 20260920/21/28 y 20261001/02; Pro/schema remoto permanece desconocido.
+- Confirmó 51/51 paths de scope, 8/8 evidencias, 59 hashes sin faltantes/desajustes, digests correctos, hashes del body/check log y self-hash del manifest excluido.
+- Las cifras concordaron: 808 fuentes, 12 componentes, 44 grupos, 69 docs activos alcanzables, 2,093/4,848 verificadas, 1,236 pending, 1,517 unknown y 2 N/A; 441 proyectadas y 367 WIP a reconciliar en paso 3.
+- Preservación R8/R178, backup externo, límites remotos y exclusiones comprobados. La revisión se limitó a paths explícitos; el revisor no leyó el contenido de evidencias seleccionadas ni consultó servicios remotos.
+- Una revisión de pins posterior a este registro detectó que esta línea seguía anunciando gates futuros pese a PASS en manifest/body. Se trató como NO-GO documental; el hallazgo queda resuelto por la revalidación posterior registrada abajo, sin usar el GO anterior como aprobación de este log.
+
+
+Revalidación post-corrección del check log — 2026-10-12
+- Docker `bash scripts/security/run_documentation_integrity.sh --self-test`: PASS. Rechaza fuente sintética sin asignación, root/extensión nuevas, comentario discordante y path/anchor inexistentes; confirma asignación de overrides Docker sin abrir YAML.
+- Full graph: `DOC_GATE_PASS`; 808/808 fuentes asignadas y structurally verified, 12/12 componentes, 44 grupos, 4,848 slots ponderados (2,093 verified, 1,236 pending, 1,517 unknown, 2 N/A), 69/69 docs activos alcanzables, 429 históricos, 4,959 links, 2,812 anchors, 22 familias y 26 exclusiones justificadas.
+- Verificador de manifest: `MANIFEST_PIN_PASS`; scope 51/51, evidencia 8/8, 59 hashes de contenido, tres artefactos; self-hash excluido.
+- Credential scanner Docker sobre 60 paths exactos (51 scope, 8 evidencias, manifest): PASS, salida `credential scan passed`, sin valores emitidos.
+- Whitespace check de `database.md`, body, evidencia integral y este check log: PASS (4 archivos).
+- Preparación del backup final: 18,607 paths en el inventario anterior; se excluyen 283 archivos `.next/cache`, por lo que el snapshot nuevo tendrá 18,324 paths. Todos los archivos actuales de `.context` fuera de esos caches y los 60 paths del paquete están incluidos; no hay archivos de entorno operativo.
+- El reread independiente de esta corrección del check log y de los pins regenerados está pendiente. El resultado del reread anterior queda como antecedente, no como aprobación de esta revisión final.
+- Tras escribir este bloque, se repitieron el checker Docker, el verificador de pins, el scanner de credenciales y el whitespace check sobre el corte actualizado; todos pasaron con los conteos indicados arriba. El reread independiente del corte actualizado sigue pendiente.
+
+
+Revisión independiente del corte corregido — 2026-10-12
+- La respuesta final del revisor al reread del check log corregido y los pins posteriores fue PASS / GO, sin hallazgos materiales.
+- Confirmó procedencia local de RPCs, cobertura de registro/grafo, 51/51 paths de scope, 8/8 evidencias, 59 hashes, límites remotos y preservación de R8/R178.
+- El revisor no consultó servicios remotos ni leyó el contenido de evidencias seleccionadas. No se reescriben las notas de estado pendientes anteriores: reflejan el momento de su captura; este apartado registra su resolución posterior.
+- Revalidación posterior a esta nota en Docker: autoprueba/full graph PASS (808/808 asignadas, 12/12 componentes, 69/69 docs activos, 4,959 links, 2,812 anchors; 2,093/4,848 relaciones verificadas y el resto clasificado); pin verifier PASS (51/51 scope, 8/8 evidencia, 59 hashes, 3 artefactos); scanner PASS sobre 60 paths únicos; `node --check`, `bash -n` y whitespace PASS (5 archivos).
+- La copia filtrada pre-final quedó cotejada en sidecars externos. El checkpoint sucesor en la ruta declarada en el cuerpo se crea tras congelar log/pins; sus hashes y exclusiones quedan en sidecars fuera del paquete.
+
+
+Hallazgo P2 y corrección de brevedad y unicidad de marcadores — 2026-10-12
+- La revisión independiente posterior encontró que el parser ignoraba texto después de la ruta y aceptaba dos marcadores iguales en un archivo, aunque la ficha exige una ruta breve.
+- RED antes del arreglo: el self-test falló con `suffix_rejected=false, duplicate_rejected=false`.
+- GREEN: `sourceCommentMarkers` ahora exige solo una ruta por línea (incluye cierre `-->` para HTML), `sourceCommentIssues` rechaza más de un marcador y el self-test verifica sufijos, duplicados, comentario exacto y forma HTML.
+- Se actualizó `.context/componentes/seguridad_tooling.md`, `changelog.md` y se regeneró `registro_fuentes_componentes.md` desde el JSON. No se editaron fuentes de producto ni workflows.
+- Docker tras el arreglo: `--render` y `--self-test` PASS; 808/808 asignadas, 12/12 componentes, 69/69 documentos activos alcanzables, 4,959 links, 2,812 anchors, 2,093/4,848 relaciones verificadas (las demás siguen clasificadas como pending/unknown/N/A). Pines, scanner y reread independiente se repetirán sobre los paths actualizados.
+
+
+Revalidación Docker posterior a la corrección del parser — 2026-10-12
+- `bash scripts/security/run_documentation_integrity.sh --self-test`: PASS; autoprueba confirma rechazo de fuente sin asignación, raíz/extensión desconocida, comentario discordante, sufijo y duplicado, y path/anchor inexistente. Registra asignación de overrides Docker sin abrir YAML.
+- Full graph: `DOC_GATE_PASS`; 808/808 fuentes, 12/12 componentes, 44 grupos, 4,848 relation slots (2,093 verified, 1,236 pending, 1,517 unknown, 2 N/A), 69/69 docs activos, 429 históricos, 4,959 links, 2,812 anchors, 22 familias y 26 exclusiones justificadas.
+- Manifest pin verifier en Docker: PASS; 51/51 scope, 8/8 evidencia, 59 hashes de contenido y 3 artefactos; self-hash excluido.
+- Credential scanner en Docker sobre 60 paths exactos (51 scope, 8 evidencia, manifest): PASS, sin valores emitidos.
+- `node --check`, `bash -n` y `tests/test_protected_path_scope_guard.sh`: PASS; path guard 8/8 (ordinary=3, newline=1, controls=1, malformed=3).
+- Whitespace en checker, ficha de seguridad, changelog, registro generado y evidencias del paquete: PASS (9 archivos).
+- El reread independiente posterior a esta corrección P2 dio GO, sin hallazgos materiales. Confirmó el parser, la navegación bidireccional, las cifras de cobertura, los pins, el estado de preservación y los límites remotos. No consultó servicios remotos ni leyó evidencias seleccionadas.
+
+
+Consumidores YAML en Docker — 2026-10-12
+- `js-yaml` ya instalado en `/app/web/node_modules` parseó `.github/workflows/security-audit.yml` (11 jobs) y `.github/workflows/production_canary.yml` (1 job).
+- Se confirmó que `security-audit.yml` contiene `documentation-integrity` y una ejecución directa de `scripts/maintenance/h3req1_documentation_integrity.mjs --self-test`.
+- No se instalaron dependencias ni se configuró/ejecutó GitHub; el parse no sustituye `actionlint`, que sigue pendiente para G10.
+
+
+Validación de relación bidireccional y consumidores — 2026-10-12
+- Docker `bash scripts/security/run_documentation_integrity.sh --self-test`: PASS; 808/808 fuentes asignadas y estructuralmente verificadas, 12/12 componentes, 69/69 documentos activos alcanzables. La autoprueba rechaza fuente sintética sin asignación, ruta/anchor inexistente, comentario discordante, sufijos y marcadores duplicados. El gate completo valida fuentes por componente/documento/anchor, backlinks de dominio, documentos activos alcanzables y exclusiones justificadas; 2,093/4,848 dimensiones de relación están verificadas y las restantes se clasifican pending/unknown/N/A.
+- Docker `js-yaml`: PASS para `security-audit.yml` (11 jobs) y `production_canary.yml` (1 job); `documentation-integrity` ejecuta directamente `h3req1_documentation_integrity.mjs --self-test`. Sin instalación de dependencias ni uso de GitHub.
+- Credential scanner Docker: PASS sobre 60 rutas exactas (51 scope, 8 evidencias, manifest), sin valores emitidos. Verificador de pins Docker: PASS, 51/51 scope, 8/8 evidencia, 59 hashes, 3 artefactos y self-hash excluido.
+- Guard de rutas protegidas Docker: PASS 8/8 (ordinary=3, newline=1, controls=1, malformed=3); `node --check`, `bash -n` y whitespace del log/manifest: PASS. `actionlint` y `ShellCheck` siguen pendientes para G10.
+- En esta ronda final de validación no se modificaron fuentes de producto, SQL, workflows ni configuración. `.github/workflows/security-audit.yml` sí integra el delta R9 y su job se parseó arriba; GitHub no se configuró ni ejecutó. La evidencia funcional R178 se reutiliza según el impacto documental; la adopción remota continúa desconocida.
+
+
+Revisión independiente del checkpoint ampliado y clasificación de artefactos — 2026-10-12
+- El revisor confirmó integridad del checkpoint de 18,324 rutas, pero dio NO-GO para considerarlo copia filtrada final: halló 10 copias `.tgz` del tarball `braces` y dos tarballs source-candidate G08 que también lo contienen. El checkpoint completo queda intacto y supersedido; no se limpió ni editó.
+- El inventario por paths confirmó además 283 `.next/cache` y 4,422 outputs `.next` no-cache. Estos últimos se clasifican en el registro como salidas de build generadas dentro de evidencia histórica fechada, no como runtime/build actual; se preservan. Los 283 caches se excluyen del sucesor filtrado.
+- Se identificaron exactamente 12 artefactos con dependencia a excluir del checkpoint filtrado (10 tarballs directos y dos snapshots contenedores); permanecen en el candidato y el checkpoint ampliado. Cuatro `.pem` con nombre `edge_transport_ca` pasaron `openssl x509 -noout`; no se imprimieron valores/campos.
+- Se amplió el registro canónico de 22 a 25 familias de artefactos y la ficha `pruebas_evidencia.md` para documentar productor, inputs, propósito, ubicación, retención y límite probatorio de estas subfamilias. El sucesor se prepara en `checkpoint_final_candidate_documentation_filtered_2026-10-12` con 18,312 paths (18,607 del inventario base menos 283 caches y 12 artefactos con dependencia); su verificación fuente/copia/tar queda en sidecars externos, no en el paquete.
+
+
+Checkpoint filtrado previo a la reconciliación final del registro/manifiesto — 2026-10-12
+- Preservación post-edición creada fuera de ambos checkouts en `/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_before_final_registry_manifest_reconciliation_filtered_2026-10-12`; no sustituye al backup pre-edición ni a los checkpoints previos.
+- Inventario fuente: 18,607 rutas. Tar: 18,312 rutas y 1,094,384,610 bytes. Fuente y miembros del tar coinciden por path, bytes, modo y SHA-256; digest de los manifiestos fuente/copia: `d712156b3dec847dbb4b7a959947119b8832bb1b528203605fbe4eac12569679`; tar SHA-256 `c0033d07ee7a17a88f1f0cd398099ced461dba866845e0a39927c5070f278d97`.
+- Se excluyeron 283 `.next/cache` y 12 artefactos con dependencia (10 tarballs braces y dos snapshots G08 que los contienen); 4,422 paths `.next` no-cache se retienen como outputs generados históricos. Una primera fórmula de subtotal cubría solo una subruta; se corrigió contra el inventario completo. Los hashes del tar y de sus manifests no cambiaron.
+- El backup y sidecars quedan fuera del paquete; no se limpian. El checkpoint final de transferencia se tomará tras congelar el log y pins restantes.
+
+
+Revalidación del grafo y artefactos tras la clasificación de backups — 2026-10-12
+- Docker `h3req1_documentation_integrity.mjs --self-test`: PASS; la fuente sintética sin registro, raíz/extensión no registradas, comentario discordante/sufijado/duplicado y path/anchor inexistentes fallan como corresponde. El grafo marca `DOC_ORPHAN` para documentos activos inaccesibles; el corte vigente tiene 69/69 alcanzables y 429 rutas históricas clasificadas.
+- Full graph: 808/808 fuentes asignadas/verificadas estructuralmente; 12/12 componentes; 44 grupos; 4,848 slots ponderados (2,093 verified, 1,236 pending, 1,517 unknown, 2 N/A); 0/808 con todas las dimensiones verificadas; 4,959 enlaces; 2,812 anchors; 25 familias de artefactos; 26 exclusiones justificadas.
+- Docker manifest pins: PASS; 51/51 scope, 8/8 evidencia, 59 hashes y 3 artefactos; self-hash excluido. Credential scanner PASS en 60 paths exactos, sin emitir valores. Las 25 familias contienen productor, inputs, propósito, ubicación, retención y límite probatorio.
+- Docker `tests/test_protected_path_scope_guard.sh`: PASS 8/8; `node --check`, `bash -n`, whitespace local y parseo `js-yaml` de `security-audit.yml` (11 jobs) y `production_canary.yml` (1 job): PASS. El workflow prepara el job `documentation-integrity`; no se configuró ni ejecutó GitHub.
+- Backup pre-final externo: 18,607 inventariados; 18,312 archivados; 295 excluidos (283 cache, 12 artefactos con dependencia); 1,094,384,610 bytes. Manifiestos fuente/copia idénticos; tar SHA-256 `c0033d07ee7a17a88f1f0cd398099ced461dba866845e0a39927c5070f278d97`; 4,422 outputs `.next` no-cache retenidos como evidencia generada histórica. La ruta y digest están en sidecars externos; backup no incluido en el paquete.
+- No se tocaron fuentes de producto, SQL, workflows, secretos ni configuración remota en esta subronda. `actionlint` y `ShellCheck` siguen pendientes para G10 por no estar disponibles en Docker; owner: responsable de integración. R178/R181/R182 se reutilizan por impacto documental. Revisión independiente dio GO al contenido/registro/gate y al checkpoint pre-final; queda crear y revisar el checkpoint final filtrado declarado por el body/manifiesto.
+
+
+Revisión independiente del registro y gate bidireccional — 2026-10-12
+- GO para las 25 familias con sus seis campos, las 12 rutas excluidas con dependencia, las 283 cachés, el checker y sus controles de fuentes/documentos/componentes/anchors/comentarios/exclusiones, navegación bidireccional y límites R178/R181/R182.
+- El revisor cotejó el checkpoint pre-final (18,312 rutas, 295 exclusiones y SHA del tar) contra sidecars externos; quedó fuera de ambos checkouts y del paquete.
+- NO-GO transitorio solo para la afirmación de que el checkpoint final ya existía: la ruta aún no estaba creada durante esa lectura. Se crea tras congelar body/log/manifest y se solicitará reread de sidecars; la lectura anterior no acredita ese sucesor.

@@ -6,7 +6,7 @@ set -eu
 while read -r _local_ref local_sha _remote_ref remote_sha; do
     [ "$local_sha" != "0000000000000000000000000000000000000000" ] || continue
     if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
-        remote_sha=$(git hash-object -t tree /dev/null)
+        remote_sha=$(git hash-object -t tree -w /dev/null)
     fi
     scripts/security/scan_credentials.sh --diff "$remote_sha" "$local_sha"
 done

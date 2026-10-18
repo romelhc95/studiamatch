@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "canonicalRunner": "tests/h3_local_uat.mjs",
+  "retries": 0,
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "catalog": [
+    {
+      "id": "H3-UAT-002",
+      "title": "active admin reaches the editorial dashboard",
+      "requirementId": "H3-CA4.1",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "active aal2 admin sees authenticated email, fallback and admin-only dashboard capability"
+    },
+    {
+      "id": "H3-UAT-003",
+      "title": "active user reaches the limited dashboard",
+      "requirementId": "H3-CA4.1",
+      "role": "user",
+      "route": "/admin/",
+      "expected": "active aal2 user sees authenticated email, fallback and the limited dashboard"
+    }
+  ],
+  "structuralValidation": {
+    "logicalCases": 2,
+    "viewportExecutions": 6,
+    "distribution": {
+      "H3-CA4.1": 2,
+      "H3-CA4.2": 0,
+      "H3-CA4.3": 0,
+      "H3-CA4.4": 0,
+      "H3-CA4.5": 0,
+      "H3-CA4.6": 0,
+      "H3-CA4.7": 0,
+      "H3-CA4.8": 0,
+      "H3-CA4.9": 0,
+      "H3-CA4.10": 0,
+      "H3-CA4.11": 0
+    }
+  }
+}

@@ -1,4 +1,5 @@
 from pathlib import Path
+import ast
 import os
 import re
 import subprocess
@@ -27,6 +28,7 @@ SOURCE_PATTERNS = (
     "scripts/**/*.py",
     "scripts/**/*.sh",
     "tests/**/*.py",
+    "web/functions/**/*.ts",
     "web/src/**/*.ts",
     "web/src/**/*.tsx",
     "supabase/functions/**/*.ts",
@@ -134,13 +136,6 @@ APPROVED_BEARERS = {
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
-    "web/src/lib/admin-auth.ts": {
-        "identities": {"accessToken", "session.refreshToken", "session.accessToken"},
-        "provider": "supabase-auth",
-        "provider_marker": "auth/v1",
-        "provider_env": "SUPABASE_PUBLISHABLE_KEY",
-        "derivation_marker": "Authorization: `Bearer ${session.accessToken}`",
-    },
     "supabase/functions/send-lead-emails/index.ts": {
         "identities": {"RESEND_API_KEY"},
         "provider": "resend-api",
@@ -152,6 +147,70 @@ APPROVED_BEARERS = {
 
 APPROVED_BEARER_TEST_LITERALS = {
     "tests/test_frontend_public_surfaces_playwright.py": {"blocked"},
+    # This generated JWT exists only for the isolated PG17/PostgREST harness;
+    # its single construction and local proxy path are pinned below.
+    "tests/h3req1_pipeline_postgrest_pg17_integration.py": {"token"},
+}
+
+APPROVED_TEST_BEARER_TRANSPORTS = {
+    "tests/h3req1_pipeline_postgrest_pg17_integration.py": {
+        "identity": "token",
+        "expected_occurrences": 1,
+        "required_markers": (
+            'token = service_token()',
+            'supabase_key="sb_publishable_fixture"',
+            '"Authorization": f"Bearer {token}"',
+            'proxy_url = f"http://127.0.0.1:{proxy.server_address[1]}"',
+            'f"http://postgrest:3000{route}"',
+            'ThreadingHTTPServer(("127.0.0.1", 0), PrefixProxyHandler)',
+        ),
+    },
+}
+
+APPROVED_BFF_USER_JWT_RPC_TRANSPORTS = {
+    "web/functions/_lib/admin-bff.ts": {
+        "provider": "supabase-data-api-user-jwt-bff",
+        "approval_marker": "BFF_USER_SESSION_JWT_RPC_ALLOWLIST_EXCEPTION",
+        "required_markers": (
+        "createServerClient",
+        "createApiKeyOnlyFetch",
+        "cookieOptions:",
+            "httpOnly: true",
+            "ADMIN_RPC_ALLOWLIST.has(functionName)",
+            "client.rpc(functionName, params",
+            "projectOrigin: supabaseUrl.origin",
+            "rpcAllowlist: ADMIN_RPC_ALLOWLIST",
+        ),
+    },
+}
+
+# Closed inventory of the human-approved 2026-10-02 session exception. Auth and
+# Edge are separate providers/destinations, not a wildcard extension of Data API.
+APPROVED_SESSION_BEARER_INVENTORY = {
+    "web/functions/_lib/admin-bff.ts": {
+        "identity_source": "HttpOnly __Host-studiamatch-admin-auth cookie via createServerClient",
+        "project_source": "SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL (validated origin)",
+        "api_key_source": "NEXT_SUPABASE_PUBLISHABLE_KEY in apikey only",
+        "transport": "web/src/lib/supabase-transport.ts",
+        "destinations": {
+            "supabase-data-api": {"/rest/v1/rpc/admin_signed_rpc (target in signed allowlist payload)": {"POST"}},
+            "supabase-auth": {
+                "/auth/v1/user": {"GET", "PUT"},
+                "/auth/v1/factors": {"POST"},
+                "/auth/v1/factors/<uuid>/challenge": {"POST"},
+                "/auth/v1/factors/<uuid>/verify": {"POST"},
+                "/auth/v1/factors/<uuid>": {"DELETE"},
+            },
+            "supabase-edge": {"/functions/v1/admin-invite": {"POST"}},
+        },
+    },
+    "supabase/functions/admin-invite/index.ts": {
+        "identity_source": "request Authorization session JWT validated by admin.auth.getUser(accessToken)",
+        "project_source": "SUPABASE_URL (validated origin)",
+        "api_key_source": "NEXT_SUPABASE_SECRET_KEY in apikey only, never user identity",
+        "transport": "supabase/functions/admin-invite/index.ts",
+        "destinations": {"supabase-auth": {"/auth/v1/user": {"GET"}}},
+    },
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
@@ -231,7 +290,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/deprecated/harvesters/usil_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/utp_harvester.py": "supabase-data-api",
     "web/src/lib/supabase.ts": "supabase-data-api",
-    "web/src/lib/admin-auth.ts": "supabase-data-api",
+    "web/functions/_lib/admin-bff.ts": "supabase-data-api-user-jwt-bff",
     "web/src/app/HomeContent.tsx": "supabase-data-api",
     "web/src/app/page.tsx": "supabase-data-api",
     "web/src/app/compare/CompareContent.tsx": "supabase-data-api",
@@ -239,13 +298,18 @@ DIRECT_SUPABASE_CONSUMERS = {
     "web/src/app/courses/[institution]/[slug]/page.tsx": "supabase-data-api",
     "supabase/functions/admin-invite/index.ts": "supabase-edge-function",
     "tests/test_h3_invitation_callback_contract.py": "supabase-pattern-test-only",
+    "tests/test_h3req1_local_pipeline_walk.py": "supabase-pattern-test-only",
+    "tests/h3req1_pipeline_postgrest_pg17_integration.py": "supabase-data-api-test",
+    "tests/test_h3req1_pipeline_discovery_boundaries.py": "supabase-pattern-test-only",
+    "tests/h3req1_docker_peer_substep_diag/v3_npm_audit/test_candidate_npm_audit_v3.py": "supabase-pattern-test-only",
+    "tests/h3req1_docker_peer_substep_diag/v3_npm_audit_classifier_v2/test_audit_candidate_v3_v2.py": "supabase-pattern-test-only",
+    "tests/h3req1_docker_peer_substep_diag/v3_npm_audit_classifier_v3/test_audit_candidate_v3_v3.py": "supabase-pattern-test-only",
     "supabase/functions/send-lead-emails/index.ts": "supabase-edge-function",
     ".github/workflows/production_canary.yml": "supabase-ci",
     ".github/workflows/production_pipeline.yml": "supabase-ci",
     ".github/workflows/fg1_inventory.yml": "supabase-ci",
     ".github/workflows/fg3_integrity.yml": "supabase-ci",
     ".github/workflows/db-sync-to-pro.yml": "supabase-ci",
-    ".github/workflows/security-audit.yml": "supabase-ci",
     "db/migrations/apply_cleansing_fix_pro.py": "supabase-management-api",
 }
 
@@ -265,6 +329,10 @@ SUPABASE_CONSUMER_MARKERS = (
     "'apikey'",
     "api.supabase.com",
 )
+
+# This file declares credential-name patterns for scanning; it does not call
+# Supabase and must not be classified as a runtime/API consumer.
+CREDENTIAL_PATTERN_CATALOG_FILES = {"scripts/security/scan_credentials.sh"}
 
 PRO_EXPLICIT_DATA_API_SCRIPTS = {
     "scripts/maintenance/check_pro_data.py",
@@ -857,6 +925,17 @@ def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
             if identities <= approved_test_literals and all(
                 "Authorization" in context for context in contexts
             ):
+                transport = APPROVED_TEST_BEARER_TRANSPORTS.get(relative)
+                if transport:
+                    if len(matches) != transport["expected_occurrences"]:
+                        findings.append(f"{relative}: test bearer use count changed")
+                    if identities != {transport["identity"]}:
+                        findings.append(f"{relative}: test bearer identity changed")
+                    findings.extend(
+                        f"{relative}: test bearer transport marker missing"
+                        for marker in transport["required_markers"]
+                        if marker not in source
+                    )
                 continue
             findings.append(f"{relative}: path is not approved for Bearer auth")
             continue
@@ -883,12 +962,90 @@ def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
     assert findings == []
 
 
+def test_pipeline_postgrest_bearer_is_internal_and_synthetic():
+    relative = "tests/h3req1_pipeline_postgrest_pg17_integration.py"
+    source = (ROOT / relative).read_text(encoding="utf-8-sig")
+
+    assert DIRECT_SUPABASE_CONSUMERS[relative] == "supabase-data-api-test"
+    assert "JWT_SECRET = b\"h3req1-pg17-postgrest-local-fixture-secret\"" in source
+    assert "token = service_token()" in source
+    assert '"Authorization": f"Bearer {token}"' in source
+    assert '"http://postgrest:3000/"' in source
+    assert 'f"http://postgrest:3000{route}"' in source
+    assert 'ThreadingHTTPServer(("127.0.0.1", 0), PrefixProxyHandler)' in source
+    assert 'os.environ.get("PYTHON_DOTENV_DISABLED") == "1"' in source
+    assert source.count('"Authorization": f"Bearer {token}"') == 1
+    assert source.count('supabase_key="sb_publishable_fixture"') == 1
+    assert source.count("requests.request(") == 1
+    assert "NEXT_SUPABASE_SECRET_KEY" not in source
+
+    tree = ast.parse(source)
+    client_constructions = [
+        call
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "DatabaseClient"
+    ]
+    assert len(client_constructions) == 1
+    constructor = client_constructions[0]
+    constructor_keywords = {keyword.arg: keyword.value for keyword in constructor.keywords}
+    assert isinstance(constructor_keywords.get("supabase_url"), ast.Name)
+    assert constructor_keywords["supabase_url"].id == "proxy_url"
+    assert isinstance(constructor_keywords.get("supabase_key"), ast.Constant)
+    assert constructor_keywords["supabase_key"].value == "sb_publishable_fixture"
+
+    header_calls = [
+        call
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Attribute)
+        and call.func.attr == "_get_headers"
+    ]
+    assert len(header_calls) == 1
+    header_call = header_calls[0]
+    assert isinstance(header_call.func.value, ast.Name)
+    assert header_call.func.value.id == "client"
+
+    local_transport_calls = [
+        call
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Attribute)
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "requests"
+        and call.func.attr == "get"
+        and any(keyword.arg == "headers" and keyword.value is header_call for keyword in call.keywords)
+    ]
+    assert len(local_transport_calls) == 1
+    request_url = local_transport_calls[0].args[0]
+    assert isinstance(request_url, ast.JoinedStr)
+    assert isinstance(request_url.values[0], ast.FormattedValue)
+    assert isinstance(request_url.values[0].value, ast.Name)
+    assert request_url.values[0].value.id == "proxy_url"
+
+
+def test_pipeline_disables_dotenv_before_worker_imports():
+    relative = "tests/h3req1_pipeline_postgrest_pg17_integration.py"
+    source = (ROOT / relative).read_text(encoding="utf-8-sig")
+
+    dotenv_guard = 'os.environ["PYTHON_DOTENV_DISABLED"] = "1"'
+    assert dotenv_guard in source
+    assert source.index(dotenv_guard) < source.index("from scripts.core import enrichment_worker")
+    assert source.index(dotenv_guard) < source.index("from scripts.shared import db_client")
+
+
 def test_direct_supabase_consumer_inventory_is_complete():
     discovered = set()
 
     for path in SOURCE_FILES:
         relative = _relative(path)
         source = path.read_text(encoding="utf-8-sig")
+        if relative in CREDENTIAL_PATTERN_CATALOG_FILES:
+            assert not any(
+                marker in source for marker in ("api.supabase.com", "/rest/v1", '"apikey"', "'apikey'")
+            )
+            continue
         if relative.startswith("supabase/functions/") or any(
             marker in source for marker in SUPABASE_CONSUMER_MARKERS
         ):
@@ -904,7 +1061,166 @@ def test_direct_supabase_consumer_inventory_is_complete():
         "supabase-data-api-test",
         "supabase-data-api-h2-jit-backfill",
         "supabase-pattern-test-only",
+        "supabase-data-api-user-jwt-bff",
     }
+
+
+def test_bff_user_session_transport_is_http_only_and_rpc_allowlisted():
+    relative, approval = next(iter(APPROVED_BFF_USER_JWT_RPC_TRANSPORTS.items()))
+    source = (ROOT / relative).read_text(encoding="utf-8")
+
+    assert approval["provider"] == DIRECT_SUPABASE_CONSUMERS[relative]
+    assert approval["approval_marker"] in source
+    assert all(marker in source for marker in approval["required_markers"])
+    assert "NEXT_SUPABASE_SECRET_KEY" not in source
+    assert "service_role" not in source
+
+
+def test_session_bearer_destinations_are_closed_and_inventoried():
+    transport = (ROOT / "web/src/lib/supabase-transport.ts").read_text(encoding="utf-8")
+    edge = (ROOT / "supabase/functions/admin-invite/index.ts").read_text(encoding="utf-8")
+    for marker in (
+        "url.origin !== policy.projectOrigin",
+        "policy.rpcAllowlist.has(rpc[1])",
+        "'/auth/v1/user'",
+        "'/auth/v1/factors'",
+        "'/functions/v1/admin-invite'",
+        "redirect: 'manual'",
+        "response.status >= 300 && response.status < 400",
+        "response.type === 'opaqueredirect'",
+        "x-studiamatch-admin-rpc-payload-signature",
+        "p_signed_payload",
+        "url.pathname = url.pathname.replace",
+    ):
+        assert marker in transport
+    assert "path === '/auth/v1/factors') return method === 'POST'" in transport
+    assert "path === '/auth/v1/factors') return method === 'GET'" not in transport
+    assert 'url.origin !== new URL(SUPABASE_URL).origin' in edge
+    assert 'method !== "GET" || url.pathname !== "/auth/v1/user"' in edge
+    assert 'redirect: "manual"' in edge
+    assert 'response.status >= 300 && response.status < 400' in edge
+    assert 'response.type === "opaqueredirect"' in edge
+    assert set(APPROVED_SESSION_BEARER_INVENTORY) == {
+        "web/functions/_lib/admin-bff.ts", "supabase/functions/admin-invite/index.ts"
+    }
+    for path, entry in APPROVED_SESSION_BEARER_INVENTORY.items():
+        assert (ROOT / path).is_file()
+        assert (ROOT / entry["transport"]).is_file()
+        assert entry["identity_source"] and entry["project_source"] and entry["api_key_source"]
+        assert all(methods <= {"GET", "PUT", "POST", "DELETE"}
+                   for destinations in entry["destinations"].values() for methods in destinations.values())
+    assert APPROVED_SESSION_BEARER_INVENTORY["supabase/functions/admin-invite/index.ts"]["destinations"] == {
+        "supabase-auth": {"/auth/v1/user": {"GET"}}
+    }
+    # The browser deliberately instantiates no server-session policy.
+    browser = (ROOT / "web/src/lib/supabase.ts").read_text(encoding="utf-8")
+    assert "createApiKeyOnlyFetch(SUPABASE_PUBLISHABLE_KEY, fetch)" in browser
+    assert "rpcAllowlist:" not in browser
+
+
+def test_admin_rpc_gateway_signs_only_server_side_allowlisted_rpc_calls():
+    transport = (ROOT / "web/src/lib/supabase-transport.ts").read_text(encoding="utf-8")
+    bff = (ROOT / "web/functions/_lib/admin-bff.ts").read_text(encoding="utf-8")
+    browser = (ROOT / "web/src/lib/supabase.ts").read_text(encoding="utf-8")
+    quota_worker = (ROOT / "workers/admin-quota/index.ts").read_text(encoding="utf-8")
+    migration = (ROOT / "db/migrations/20261004_h3_admin_rpc_signed_gateway_expand.sql").read_text(encoding="utf-8")
+    payload_migration = (ROOT / "db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql").read_text(encoding="utf-8")
+    gateway_harness = (ROOT / "tests/sql/h3_admin_rpc_signed_gateway_harness.sql").read_text(encoding="utf-8")
+    local_runtime = (ROOT / "tests/h3_local_runtime_server.mjs").read_text(encoding="utf-8")
+
+    for marker in (
+        "x-studiamatch-admin-rpc-key-id",
+        "x-studiamatch-admin-rpc-actor",
+        "x-studiamatch-admin-rpc-issued-at",
+        "x-studiamatch-admin-rpc-nonce",
+        "x-studiamatch-admin-rpc-signature",
+        "x-studiamatch-admin-rpc-payload-signature",
+        "studiamatch-admin-rpc-v1",
+        "studiamatch-admin-rpc-payload-v1",
+        "crypto.subtle.sign('HMAC'",
+        "policy.rpcAllowlist.has(rpc[1])",
+        "admin_signed_rpc",
+        "p_signed_payload: signedPayload",
+    ):
+        assert marker in transport
+    assert "ADMIN_RPC_GATEWAY_HMAC_KEY" in bff
+    assert "ADMIN_RPC_GATEWAY_KEY_ID" in bff
+    assert "ADMIN_RPC_GATEWAY_HMAC_KEY" in local_runtime
+    assert "ADMIN_RPC_GATEWAY_KEY_ID" in local_runtime
+    assert "ADMIN_QUOTA_HMAC_KEY" not in transport
+    assert "rpcGateway:" not in browser
+    assert "'rpc-read': { limit: 120, milliseconds: 60000 }" in quota_worker
+    assert "'rpc-write': { limit: 30, milliseconds: 60000 }" in quota_worker
+    assert "public.h3_admin_rpc_signed_gateway_pre_request()" in migration
+    assert "CREATE OR REPLACE FUNCTION public.admin_signed_rpc(" in payload_migration
+    assert "payload_args IS DISTINCT FROM p_args" in payload_migration
+    assert "private.h3_admin_rpc_gateway_signature_matches(payload_signature, expected_payload_signature)" in payload_migration
+    assert "FROM public.admin_update_course(" in payload_migration
+    assert "p_args -> 'p_manual_overrides'" in payload_migration
+    assert "rpc_signed_wrapper_required" in payload_migration
+    assert "REVOKE ALL ON FUNCTION public.admin_signed_rpc(TEXT, JSONB, TEXT) FROM PUBLIC, anon, service_role" in payload_migration
+    assert "GRANT EXECUTE ON FUNCTION public.admin_signed_rpc(TEXT, JSONB, TEXT) TO authenticated" in payload_migration
+    assert "CREATE OR REPLACE FUNCTION public.h3_admin_rpc_signed_gateway_pre_request()" in payload_migration
+    assert "pg_catalog.regexp_match(request_path" in migration
+    assert "pg_catalog.substring(request_path FROM" not in migration
+    assert "pg_catalog.date_part('epoch', clock_timestamp())" in gateway_harness
+    assert "pg_catalog.extract(epoch FROM" not in gateway_harness
+    assert "pg_catalog.to_jsonb(:'gateway_issued_at'::TEXT)" not in gateway_harness
+    assert "IF gateway_key_id IS NULL AND actor_text IS NULL AND issued_text IS NULL" in migration
+    assert "AND nonce_text IS NULL AND signature IS NULL THEN" in migration
+    assert "payload::JSONB->>'code' <> 'rpc_signature_required'" in gateway_harness
+    assert "payload::JSONB->>'code' <> 'rpc_signature_invalid'" in gateway_harness
+    assert "payload::JSONB->>'code' <> 'rpc_replay_rejected'" in gateway_harness
+    assert "payload/argument mismatch was admitted" in gateway_harness
+    pgrst_raises = re.findall(r"RAISE SQLSTATE 'PGRST'(.*?);", migration, flags=re.DOTALL)
+    assert pgrst_raises, "the signed RPC gateway must preserve its PostgREST error contract"
+    for raise_body in pgrst_raises:
+        assert re.search(
+            r"DETAIL\s*=\s*pg_catalog\.jsonb_build_object\(\s*'status'\s*,\s*\d+\s*,\s*'headers'\s*,",
+            raise_body,
+        ), f"PGRST errors must include status and headers in DETAIL: {raise_body}"
+    assert migration.count(
+        "'status',503,'headers',pg_catalog.jsonb_build_object('Retry-After','30')"
+    ) == 2, "both gateway-unavailable errors must retain Retry-After"
+    assert "admin_get_course_queue" in migration
+    assert "admin_invitation_request_admit" in migration
+    assert "REVOKE ALL ON TABLE private.h3_admin_rpc_gateway_keys" in migration
+    assert "REVOKE ALL ON TABLE private.h3_admin_rpc_gateway_nonces" in migration
+    assert "This file intentionally does NOT configure pgrst.db_pre_request" in migration
+    assert "ALTER ROLE authenticator" not in migration
+    assert "x-studiamatch-admin-rpc-signature" not in bff.replace(
+        "../../src/lib/supabase-transport", ""
+    )
+
+    migration_dir = ROOT / "db/migrations"
+    database_admin_rpcs = set()
+    for sql_path in migration_dir.glob("*.sql"):
+        database_admin_rpcs.update(
+            name.lower()
+            for name in re.findall(
+                r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.(admin_[a-z0-9_]+)",
+                sql_path.read_text(encoding="utf-8", errors="ignore"),
+                flags=re.IGNORECASE,
+            )
+        )
+    active_gateway_migration = payload_migration
+    gateway_inventory = set(re.findall(
+        r"'(admin_[a-z0-9_]+)'",
+        active_gateway_migration.split("admin_rpc_names CONSTANT TEXT[] := ARRAY[", 1)[1].split("];", 1)[0],
+    ))
+    assert database_admin_rpcs <= gateway_inventory, (
+        "every versioned public Admin RPC, including legacy names, must be protected; "
+        f"missing={sorted(database_admin_rpcs - gateway_inventory)}"
+    )
+
+    signed_targets = set(re.findall(
+        r"'(admin_[a-z0-9_]+)'",
+        payload_migration.split("target_names CONSTANT TEXT[] := ARRAY[", 1)[1].split("];", 1)[0],
+    ))
+    assert signed_targets == set(re.findall(
+        r"'((?:admin_current_user_role|admin_accept_current_invitation|admin_get_onboarding_status|admin_complete_password_setup|admin_get_course_audit|admin_get_course_editorial|admin_update_course|admin_set_course_availability|admin_publish_course|admin_unpublish_course|admin_archive_course|admin_update_quality_status|admin_get_course_queue_facets|admin_get_course_queue_filtered|admin_count_course_queue_filtered|admin_list_members_onboarding|admin_update_member))'",
+        bff.split("const ADMIN_RPC_ALLOWLIST = new Set([", 1)[1].split("]);", 1)[0],
+    )), "the signed dispatcher must cover exactly the BFF-exposed RPC targets"
 
 
 def test_credential_scanners_block_real_supabase_publishable_keys():

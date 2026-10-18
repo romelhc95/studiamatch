@@ -1,0 +1,5230 @@
+[
+  {
+    "executionId": "H3-UAT-002:desktop",
+    "id": "H3-UAT-002",
+    "title": "active admin reaches the editorial dashboard",
+    "requirementId": "H3-CA4.1",
+    "role": "admin",
+    "assurance": "aal2-required",
+    "hostname": "localhost",
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    "route": "/admin/",
+    "expected": "active aal2 admin sees authenticated email, fallback and admin-only dashboard capability",
+    "observed": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "assertions": [
+      {
+        "name": "admin heading",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "users link",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "authenticated email",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/activity",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/admin/users/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/users/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/users/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "quotaIsolationEpoch": 2,
+    "startedAt": "2026-10-12T01:14:43.305Z",
+    "finishedAt": "2026-10-12T01:15:05.106Z",
+    "durationMs": 21801,
+    "retry": 0,
+    "result": "FAIL",
+    "artifact": "../evidence/uat-auth-email-fallback-r170/H3-UAT-002-desktop.png",
+    "artifactBytes": 56060,
+    "artifactSha256": "37b2d259e799bb0312af870784ba76c87e5a7a49cc01f70dc2d088b2a4644a51",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/admin/login/",
+      "/admin/login/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/login/",
+      "/admin/login/"
+    ],
+    "httpErrorDiagnostics": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 5678,
+        "responseOffsetMs": 5715
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 5759,
+        "responseOffsetMs": 5780
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/login/",
+        "requestOffsetMs": 6050,
+        "responseOffsetMs": 6060
+      }
+    ]
+  },
+  {
+    "executionId": "H3-UAT-003:desktop",
+    "id": "H3-UAT-003",
+    "title": "active user reaches the limited dashboard",
+    "requirementId": "H3-CA4.1",
+    "role": "user",
+    "assurance": "aal2-required",
+    "hostname": "localhost",
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    "route": "/admin/",
+    "expected": "active aal2 user sees authenticated email, fallback and the limited dashboard",
+    "observed": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "assertions": [
+      {
+        "name": "user heading",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "authenticated email",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "users link absent",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/activity",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "quotaIsolationEpoch": 3,
+    "startedAt": "2026-10-12T01:15:05.155Z",
+    "finishedAt": "2026-10-12T01:15:26.172Z",
+    "durationMs": 21017,
+    "retry": 0,
+    "result": "FAIL",
+    "artifact": "../evidence/uat-auth-email-fallback-r170/H3-UAT-003-desktop.png",
+    "artifactBytes": 56060,
+    "artifactSha256": "37b2d259e799bb0312af870784ba76c87e5a7a49cc01f70dc2d088b2a4644a51",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/admin/login/",
+      "/admin/login/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/login/",
+      "/admin/login/"
+    ],
+    "httpErrorDiagnostics": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 4737,
+        "responseOffsetMs": 4769
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 4834,
+        "responseOffsetMs": 4908
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/login/",
+        "requestOffsetMs": 5248,
+        "responseOffsetMs": 5298
+      }
+    ]
+  },
+  {
+    "executionId": "H3-UAT-002:tablet",
+    "id": "H3-UAT-002",
+    "title": "active admin reaches the editorial dashboard",
+    "requirementId": "H3-CA4.1",
+    "role": "admin",
+    "assurance": "aal2-required",
+    "hostname": "localhost",
+    "viewport": {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    "route": "/admin/",
+    "expected": "active aal2 admin sees authenticated email, fallback and admin-only dashboard capability",
+    "observed": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "assertions": [
+      {
+        "name": "admin heading",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "users link",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "authenticated email",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/activity",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/admin/users/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/users/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/users/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "quotaIsolationEpoch": 5,
+    "startedAt": "2026-10-12T01:15:26.224Z",
+    "finishedAt": "2026-10-12T01:15:47.361Z",
+    "durationMs": 21137,
+    "retry": 0,
+    "result": "FAIL",
+    "artifact": "../evidence/uat-auth-email-fallback-r170/H3-UAT-002-tablet.png",
+    "artifactBytes": 51751,
+    "artifactSha256": "c0499571e22eacdba7ac1cb55230609d6664770629e58b8a91d20b226c6d0e87",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/admin/login/",
+      "/admin/login/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/login/",
+      "/admin/login/"
+    ],
+    "httpErrorDiagnostics": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 4889,
+        "responseOffsetMs": 4948
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/login/",
+        "requestOffsetMs": 5470,
+        "responseOffsetMs": 5481
+      }
+    ]
+  },
+  {
+    "executionId": "H3-UAT-003:tablet",
+    "id": "H3-UAT-003",
+    "title": "active user reaches the limited dashboard",
+    "requirementId": "H3-CA4.1",
+    "role": "user",
+    "assurance": "aal2-required",
+    "hostname": "localhost",
+    "viewport": {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    "route": "/admin/",
+    "expected": "active aal2 user sees authenticated email, fallback and the limited dashboard",
+    "observed": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "assertions": [
+      {
+        "name": "user heading",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "authenticated email",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "users link absent",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/activity",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login",
+        "status": 302
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/compare/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/privacidad/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/terminos/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/compare/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/privacidad/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/terminos/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "quotaIsolationEpoch": 6,
+    "startedAt": "2026-10-12T01:15:47.410Z",
+    "finishedAt": "2026-10-12T01:16:08.561Z",
+    "durationMs": 21151,
+    "retry": 0,
+    "result": "FAIL",
+    "artifact": "../evidence/uat-auth-email-fallback-r170/H3-UAT-003-tablet.png",
+    "artifactBytes": 51751,
+    "artifactSha256": "c0499571e22eacdba7ac1cb55230609d6664770629e58b8a91d20b226c6d0e87",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/admin/login/",
+      "/admin/login/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/login/",
+      "/admin/login/"
+    ],
+    "httpErrorDiagnostics": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 4878,
+        "responseOffsetMs": 4911
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/login/",
+        "requestOffsetMs": 5261,
+        "responseOffsetMs": 5300
+      }
+    ]
+  },
+  {
+    "executionId": "H3-UAT-002:mobile",
+    "id": "H3-UAT-002",
+    "title": "active admin reaches the editorial dashboard",
+    "requirementId": "H3-CA4.1",
+    "role": "admin",
+    "assurance": "aal2-required",
+    "hostname": "localhost",
+    "viewport": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    },
+    "route": "/admin/",
+    "expected": "active aal2 admin sees authenticated email, fallback and admin-only dashboard capability",
+    "observed": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "assertions": [
+      {
+        "name": "admin heading",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "users link",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "authenticated email",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/activity",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/admin/users/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/users/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/users/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login",
+        "status": 302
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "quotaIsolationEpoch": 8,
+    "startedAt": "2026-10-12T01:16:08.613Z",
+    "finishedAt": "2026-10-12T01:16:29.197Z",
+    "durationMs": 20584,
+    "retry": 0,
+    "result": "FAIL",
+    "artifact": "../evidence/uat-auth-email-fallback-r170/H3-UAT-002-mobile.png",
+    "artifactBytes": 41451,
+    "artifactSha256": "9e67e793bf97652a53acedbc09972add370d44cc4d0855c4a4f01253e9656f5f",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/admin/login/",
+      "/admin/login/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/login/",
+      "/admin/login/"
+    ],
+    "httpErrorDiagnostics": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 4666,
+        "responseOffsetMs": 4698
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/login/",
+        "requestOffsetMs": 4983,
+        "responseOffsetMs": 4991
+      }
+    ]
+  },
+  {
+    "executionId": "H3-UAT-003:mobile",
+    "id": "H3-UAT-003",
+    "title": "active user reaches the limited dashboard",
+    "requirementId": "H3-CA4.1",
+    "role": "user",
+    "assurance": "aal2-required",
+    "hostname": "localhost",
+    "viewport": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    },
+    "route": "/admin/",
+    "expected": "active aal2 user sees authenticated email, fallback and the limited dashboard",
+    "observed": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "assertions": [
+      {
+        "name": "user heading",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "authenticated email",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "users link absent",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/activity",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/auth/mfa",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/index.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "origin": "local-0",
+        "url": "/api/admin/rpc",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login",
+        "status": 302
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/admin/login/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/media/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/favicon.ico",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/api/admin/session",
+        "status": 403
+      },
+      {
+        "method": "HEAD",
+        "origin": "local-0",
+        "url": "/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next._tree.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/__next.__PAGE__.txt",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "url": "/_next/static/chunks/[REDACTED]",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByText('Usuario autenticado', { exact: true }) to be visible\n",
+    "quotaIsolationEpoch": 9,
+    "startedAt": "2026-10-12T01:16:29.254Z",
+    "finishedAt": "2026-10-12T01:16:50.014Z",
+    "durationMs": 20760,
+    "retry": 0,
+    "result": "FAIL",
+    "artifact": "../evidence/uat-auth-email-fallback-r170/H3-UAT-003-mobile.png",
+    "artifactBytes": 41451,
+    "artifactSha256": "9e67e793bf97652a53acedbc09972add370d44cc4d0855c4a4f01253e9656f5f",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/admin/login/",
+      "/admin/login/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/",
+      "/admin/login/",
+      "/admin/login/"
+    ],
+    "httpErrorDiagnostics": [
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/",
+        "requestOffsetMs": 4818,
+        "responseOffsetMs": 4850
+      },
+      {
+        "method": "GET",
+        "origin": "local-0",
+        "path": "/api/admin/session",
+        "status": 403,
+        "resourceType": "fetch",
+        "refererPath": "/admin/login/",
+        "requestOffsetMs": 5149,
+        "responseOffsetMs": 5156
+      }
+    ]
+  }
+]

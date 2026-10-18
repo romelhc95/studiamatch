@@ -100,5 +100,5 @@ flowchart LR
 ## Mecanismo De Actualizacion
 
 - Actualizar esta matriz en el mismo PR que cambie `db/migrations/**`, workflows DB, production controls o adoption evidence.
-- Mantenerla sincronizada con [Sistema DB Supabase](../sistema_db_supabase.md) y [Arquitectura Pipeline](../arquitectura_pipeline.md).
+- Mantenerla sincronizada con [Sistema DB Supabase](../sistema_db_supabase.md), el [dominio de base de datos](../database.md) y [Arquitectura Pipeline en AGENTS](../../AGENTS.md#arquitectura-del-pipeline-4-estaciones--auditoría). La nota antigua ausente `arquitectura_pipeline.md` no se recrea.
 - `security-audit` valida candidate/digest y co-change; la review humana no dispara CI, no requiere rerun manual y queda gobernada por branch protection. `certificacion` y `main` siguen requiriendo R3 JIT separado.

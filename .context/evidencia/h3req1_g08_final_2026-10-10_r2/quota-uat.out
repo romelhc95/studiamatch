@@ -1,0 +1,1 @@
+{"result":"PASS","concurrentRequests":25,"admitted":10,"rpcReadLimit":120,"rpcWriteLimit":30,"accountIdentitiesPerIp":20,"accountShardObjects":1,"expiredLedgerDeleted":true,"persistence":"emulated","runtime":"unit-intercepted"}

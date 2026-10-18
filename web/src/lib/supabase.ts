@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createApiKeyOnlyFetch } from './supabase-transport';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -33,12 +34,12 @@ export const SUPABASE_URL = h3MockUrl || supabaseUrl;
 export const SUPABASE_PUBLISHABLE_KEY = supabasePublishableKey || "local-publishable-key";
 
 export const supabaseBrowserClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  global: { fetch: createApiKeyOnlyFetch(SUPABASE_PUBLISHABLE_KEY, fetch) },
   auth: {
     flowType: 'pkce',
-    autoRefreshToken: true,
-    persistSession: true,
+    autoRefreshToken: false,
+    persistSession: false,
     detectSessionInUrl: false,
-    storage: typeof window === 'undefined' ? undefined : window.sessionStorage,
   },
 });
 
@@ -88,6 +89,24 @@ export interface Institution {
   address: string;
 }
 
+/** Normalize PostgreSQL numeric values that PostgREST serializes as strings. */
+export function toFiniteNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function normalizeCourseNumbers(course: Course): Course {
+  return {
+    ...course,
+    price_pen: toFiniteNumberOrNull(course.price_pen),
+    expected_monthly_salary: toFiniteNumberOrNull(course.expected_monthly_salary) ?? undefined,
+    roi_months: toFiniteNumberOrNull(course.roi_months),
+    view_count: toFiniteNumberOrNull(course.view_count) ?? undefined,
+    comparison_count: toFiniteNumberOrNull(course.comparison_count) ?? undefined,
+  };
+}
+
 export function cleanSlug(slugOrUrl: string, url?: string): string {
   if (url) {
     try {
@@ -128,8 +147,8 @@ export function parseDurationToMonths(duration: string): number {
   if (!match) return 0;
   const value = parseInt(match[1]);
   const unit = duration.toLowerCase();
-  if (unit.startsWith('mes') || unit.startsWith('month')) return value;
-  if (unit.startsWith('semana') || unit.startsWith('week')) return value / 4.33;
-  if (unit.startsWith('año') || unit.startsWith('year')) return value * 12;
+  if (unit.includes('mes') || unit.includes('month')) return value;
+  if (unit.includes('semana') || unit.includes('week')) return value / 4.33;
+  if (unit.includes('año') || unit.includes('year')) return value * 12;
   return 0;
 }

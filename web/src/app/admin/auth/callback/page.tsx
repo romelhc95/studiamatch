@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { acceptCurrentInvitation, consumeInviteSessionFromHash, exchangeCodeForSession, signOutAdmin } from '@/lib/admin-auth';
+import { acceptCurrentInvitation, getAuthSession, signOutAdmin } from '@/lib/admin-auth';
 
 function CallbackContent() {
   const router = useRouter();
@@ -15,21 +15,18 @@ function CallbackContent() {
       if (hasStarted.current) return;
       hasStarted.current = true;
 
-      const code = searchParams.get('code');
       const error = searchParams.get('error');
-      const hash = document.location.hash;
       window.history.replaceState({}, document.title, '/admin/auth/callback/');
 
-      if (error || (!code && !hash)) {
+      if (error) {
         setMessage('El enlace de invitación es inválido, expiró o ya fue utilizado.');
         return;
       }
 
       try {
-        if (code) {
-          await exchangeCodeForSession(code);
-        } else {
-          await consumeInviteSessionFromHash(hash);
+        if (searchParams.get('flow') !== 'invite' || !(await getAuthSession())) {
+          setMessage('El enlace de invitación es inválido, expiró o ya fue utilizado.');
+          return;
         }
         const acceptance = await acceptCurrentInvitation();
         if (!acceptance.success) {

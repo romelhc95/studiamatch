@@ -1,3 +1,4 @@
+// StudIAMatch-Docs: .context/componentes/admin_portal.md#politica-de-contrasenas
 export const PASSWORD_MIN_LENGTH = 12;
 
 // Keep this allow-list aligned with Supabase Auth's strongest password

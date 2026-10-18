@@ -1,0 +1,24 @@
+H3REQ1 R19 validation log
+Candidate: local successor from baseline 4eb4d877a50b012bb630a129bd0c74482c33be9c
+Remote cutoff: 2026-10-18 20:33 UTC; public object reread 21:04 UTC (details in R19 report)
+Status: local static gates pass with host fallbacks; Docker-required focused gates are blocked; B and publication remain NO-GO.
+
+Remote facts:
+- GitHub branch desarrollo is protected; detailed protection endpoint returned 403; the owner screenshot confirms core PR/approval/security-audit settings but not every effective bypass/workflow control.
+- Cloudflare Preview binding/Worker/DO and Supabase Edge admin-invite v14 facts are in the R19 remote report. Two Worker deployment events exceed the one-deployment B limit; Preview lacks ADMIN_RPC_GATEWAY_KEY_ID.
+- The responsible person manually confirmed Edge secret presence and ADMIN_QUOTA_HMAC_KEY parity. This is not connector evidence; no values were shared or changed.
+- A requested NEXT_SUPABASE_SECRET_KEY rotation is separate from B, not approved or executed. It belongs in Edge/authorized backend consumers, not Cloudflare Pages Preview.
+- Accepted public object metadata was reread; four text blobs match by SHA, the tree has 782 entries, the tarball bytes could not be reread, and the rejected PNG remains NOT_FOUND. No new uploads occurred.
+
+R19 local results:
+- Documentation integrity and adversarial self-test: PASS on host Node fallback; sources 698/698, active documents 113/113, historical docs 433/433 across 13 catalogs.
+- Protected path scope guard and negative regressions: PASS on host; 1,153 exact candidate paths, 13 catalogs/1,173 targets, 37 exact ignored paths; ordinary=3, newline=1, controls=1, malformed=3, unmanifested H3=2.
+- Credential scan: PASS on the staged candidate; no finding output. `bash -n` for the scanner and scope guard: PASS.
+- PR template: PASS, 10/10 ordered headings. Manifest closure equals staged baseline diff: 1,153 paths (1,146 current blobs and 7 deletions); 1,145 content blobs match worktree bytes, SHA pins, and normalized Git modes; the R19 manifest is the sole self-hash-excluded blob; unexpected=0, missing=0.
+- Functional input compatibility: 59/60 selected product/test paths are byte-identical to R18. The sole changed test input is the scope guard, which was rerun above. Selected PNGs are evidence assets; code search found no functional suite reading them. R18 test results remain historical and are reused only for unchanged inputs; no R19 runtime/UAT PASS is claimed.
+- `git diff --cached --check`: WARN, 107 trailing-whitespace and 18 blank-EOF diagnostics; all 125 normalized findings match R18 exactly, zero new versus R18. No broad reformat was made.
+- Docker: `/usr/bin/docker ps` fails with `Input/output error`; host `actionlint` and `shellcheck` are unavailable. The changed workflow and focal ShellCheck validation are BLOCKED, not PASS. The changed state contract requiring Docker has not been rerun.
+- Independent local review round 1: NO PASS. The reviewer found the included R18 parent manifest had an invalid self-hash exclusion, the PR body contradicted recorded host PASS results and lacked links required by the template, and the active-document count was stale. Those items were corrected.
+- Independent local review round 2: PASS with one LOW wording inconsistency; no HIGH/CRITICAL/blocking findings. The reviewer found a sentence saying B had three discrepancies although two are listed. It is corrected in the current successor snapshot; targeted round-3 review is pending. GitHub review remains separate and requires a collaborator other than author/pusher after a PR exists.
+
+No commit, push, PR, merge, deployment, new secret, or remote configuration change has occurred. R18 results are not inherited for changed inputs.

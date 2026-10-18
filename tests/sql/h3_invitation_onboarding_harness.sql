@@ -11,6 +11,7 @@ DECLARE
     revoked_user UUID := '3a000000-0000-0000-0000-000000000004';
     setup_user UUID := '3a000000-0000-0000-0000-000000000005';
     mismatch_user UUID := '3a000000-0000-0000-0000-000000000006';
+    orphan_user UUID := '3a000000-0000-0000-0000-000000000007';
     legacy_user UUID := '30000000-0000-0000-0000-000000000002';
     current_invitation_id UUID;
     old_invitation_id UUID;
@@ -24,9 +25,9 @@ DECLARE
     old_is_active BOOLEAN;
 BEGIN
     DELETE FROM public.admin_members
-    WHERE user_id IN (accepted_user, expired_user, resend_user, revoked_user, setup_user, mismatch_user);
+    WHERE user_id IN (accepted_user, expired_user, resend_user, revoked_user, setup_user, mismatch_user, orphan_user);
     DELETE FROM auth.users
-    WHERE id IN (accepted_user, expired_user, resend_user, revoked_user, setup_user, mismatch_user);
+    WHERE id IN (accepted_user, expired_user, resend_user, revoked_user, setup_user, mismatch_user, orphan_user);
 
     INSERT INTO auth.users (id, email, encrypted_password, role, aud, email_confirmed_at, created_at, updated_at)
     VALUES
@@ -35,7 +36,8 @@ BEGIN
       (resend_user, 'onboarding-resend@local.test', 'x', 'authenticated', 'authenticated', now(), now(), now()),
       (revoked_user, 'onboarding-revoked@local.test', 'x', 'authenticated', 'authenticated', now(), now(), now()),
       (setup_user, 'onboarding-setup@local.test', 'x', 'authenticated', 'authenticated', now(), now(), now()),
-      (mismatch_user, 'onboarding-mismatch-auth@local.test', 'x', 'authenticated', 'authenticated', now(), now(), now());
+      (mismatch_user, 'onboarding-mismatch-auth@local.test', 'x', 'authenticated', 'authenticated', now(), now(), now()),
+      (orphan_user, 'onboarding-orphan-auth@local.test', 'x', 'authenticated', 'authenticated', now(), now(), now());
 
     PERFORM set_config('request.jwt.claim.sub', actor_id::text, false);
     PERFORM set_config('request.jwt.claim.aal', 'aal2', false);
@@ -67,8 +69,31 @@ BEGIN
     IF (SELECT status FROM public.admin_invitations WHERE id = current_invitation_id) <> 'accepted' THEN
         RAISE EXCEPTION 'accepted invitation did not close';
     END IF;
+    old_invitation_id := current_invitation_id;
+
+    -- A link delivered just before an Auth API timeout may authenticate an
+    -- identity whose membership was never persisted by the edge handler.
+    INSERT INTO public.admin_invitations (
+      email, role, token_hash, status, created_by_user_id, expires_at, last_sent_at,
+      metadata
+    ) VALUES (
+      'onboarding-orphan-auth@local.test', 'user', NULL, 'pending', actor_id,
+      now() + interval '24 hours', now(), '{"delivery_outcome":"unknown","reconciliation_required":true}'::jsonb
+    ) RETURNING id INTO current_invitation_id;
+    PERFORM set_config('request.jwt.claim.sub', orphan_user::TEXT, false);
+    SELECT * INTO result_row FROM public.admin_accept_current_invitation(current_invitation_id);
+    IF NOT result_row.success OR result_row.account_status <> 'password_pending'
+       OR NOT EXISTS (
+         SELECT 1 FROM public.admin_members
+         WHERE user_id = orphan_user AND last_invitation_id = current_invitation_id
+           AND account_status = 'password_pending' AND is_active = false
+       ) THEN
+        RAISE EXCEPTION 'matching authenticated identity without a member could not accept a pending invitation: %', result_row.error_code;
+    END IF;
 
     -- Double acceptance is a successful no-op and does not duplicate accept audit.
+    current_invitation_id := old_invitation_id;
+    PERFORM set_config('request.jwt.claim.sub', accepted_user::TEXT, false);
     SELECT * INTO result_row FROM public.admin_accept_current_invitation(current_invitation_id);
     IF NOT result_row.success OR result_row.account_status <> 'password_pending' THEN
         RAISE EXCEPTION 'double acceptance was not idempotent: %', result_row.error_code;

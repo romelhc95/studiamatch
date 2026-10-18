@@ -1,3 +1,5 @@
+# StudIAMatch-Docs: .context/componentes/canarios.md#preflight-de-origen-f10
+
 import argparse
 import asyncio
 import contextlib

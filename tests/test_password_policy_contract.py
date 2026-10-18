@@ -9,6 +9,7 @@ INPUT = WEB / "components/admin/PasswordInput.tsx"
 RECOVERY = WEB / "app/admin/reset-password/page.tsx"
 SETUP = WEB / "app/admin/setup-password/page.tsx"
 EMAIL = ROOT / "supabase/templates/password-recovery.html"
+INVITE_EMAIL = ROOT / "supabase/templates/invite.html"
 
 
 def test_password_policy_has_server_aligned_rules_and_matching_gate():
@@ -48,12 +49,29 @@ def test_recovery_and_onboarding_use_the_same_live_password_components():
         assert "passwordDescription" in source
 
 
-def test_recovery_email_template_contains_safe_instructions_and_auth_link_variable():
+def test_recovery_email_template_sends_the_one_time_hash_to_the_bff():
     source = EMAIL.read_text(encoding="utf-8")
 
-    assert '{{ .ConfirmationURL }}' in source
+    assert '{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery' in source
+    assert '{{ .ConfirmationURL }}' not in source
+    assert 'token_hash' in source
     assert '24 horas' in source
     assert '12 caracteres' in source
     assert 'un s&iacute;mbolo' in source
     assert 'No compartas este enlace' in source
+    assert 'type="password"' not in source
+
+
+def test_invitation_email_template_matches_recovery_visual_contract_with_bff_token_handling():
+    source = INVITE_EMAIL.read_text(encoding="utf-8")
+
+    assert '<html lang="es">' in source
+    assert 'background:#0f172a' in source
+    assert 'background:#eff6ff' in source
+    assert '{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=invite' in source
+    assert '{{ .ConfirmationURL }}' not in source
+    assert '24 horas' in source
+    assert '12 caracteres' in source
+    assert 'No compartas este enlace' in source
+    assert 'token_hash' in source
     assert 'type="password"' not in source

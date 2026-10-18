@@ -36,8 +36,9 @@ RUN apt-get update \
     && /opt/venv/bin/python -m playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /opt/node-staging/web
+RUN mkdir -p /opt/node-staging/web/vendor
 COPY web/package.json web/package-lock.json /opt/node-staging/web/
+COPY web/vendor/braces-3.0.4-h3.1.tgz /opt/node-staging/web/vendor/
 
 RUN cd /opt/node-staging/web \
     && npm ci \
