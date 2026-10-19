@@ -1,25 +1,27 @@
 {
-  "manifest": "H3REQ1 R19 exact reconciled local successor manifest",
-  "as_of_utc": "2026-10-18 UTC; exact validation cutoff and results in R19 checks log",
-  "package_kind": "local Development publication successor; not published; B incomplete",
+  "manifest": "H3REQ1 R19 reconciled successor with current local security and tooling results",
+  "as_of_utc": "2026-10-19 09:00 UTC; independent review recorded; publication parent reconciled",
+  "package_kind": "R19 successor; exact local scope independently reviewed; trusted PWI route blocked; remote checks pending",
   "candidate": {
     "workspace": "/tmp/h3req1_r19_publication_prep_20261018",
     "branch": "feat/h3req1-sync-20261018-r19",
     "base_head": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
     "head_alone_does_not_identify_wip": true,
-    "head_observed": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
+    "head_observed": "ef306edd91d339af3a9e0623217b49d86f1cdb1c",
     "snapshot_tree_is_separate_from_syncthing_and_R18": true,
     "remote_branch_created": false,
-    "commit_created": false
+    "commit_created": false,
+    "corrections_uncommitted": true,
+    "pr_head_before_corrections": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02"
   },
   "authorization": {
     "local_reconciliation": true,
     "commit": "authorized only for exact validated R19 package; not executed.",
     "push": "authorized only after B completion, exact local checks/review, and effective protected Development route; not executed.",
-    "pull_request": "authorized only for exact validated package after checks and effective protected route; not created.",
+    "pull_request": "PR 501 already exists at the previous remote SHA. This authorization covers updating that PR only after B configuration and protected-route/local gates are satisfied; update not executed.",
     "merge": "authorized only after required checks and valid human review on exact current SHA; not executed.",
-    "remote_reads": "R19 read-only GitHub/Cloudflare/Supabase metadata observations and previously accepted-object metadata are recorded in the R19 report; Edge secret presence and HMAC parity are separately confirmed by the responsible person, not by the connector.",
-    "remote_writes_or_configuration": "No R19 connector writes. Pages Preview/Worker/DO/Edge state is partial B state observed on reread; the two Worker deployment events are a discrepancy against the approved limit.",
+    "remote_reads": "R19 filtered GitHub, Cloudflare and Supabase reads were extended on 2026-10-19 07:05 UTC. GitHub PR/run/review metadata and Cloudflare Preview deployment metadata only; no secret values or operational rows. No remote writes, workflow dispatch, PR update, commit, push or merge. Supabase/Cloudflare values were not reread. Public GitHub Actions documentation was checked on 2026-10-19: pull_request_target takes workflow code from the repository default branch. This invalidates the proposed desarrollo-only bootstrap; no repo settings or remote state were changed.",
+    "remote_writes_or_configuration": "No R19 connector writes. The responsible later confirmed manual Preview configuration of the gateway key ID Text and HMAC parity; values were not shared. Worker version #2 was accepted as a temporary baseline through 2026-10-25T23:59:00Z. No candidate Pages deployment, extra Worker deployment, rollback, or other remote operation was performed by Codex. The filtered 2026-10-19 re-read confirmed Pages Preview still serves the old PR SHA d5220185cbb8d1975ebb901a5d6e8e77636b8b02; the local successor is not deployed.",
     "deploy": "No Pages R19 deployment; no additional Worker/Edge deployment or rollback by this cycle.",
     "account_reset": "Physical Auth DELETE rejected. C retentive approved but unconsumed: A migration 3 is now applied; C still requires B, D01/D02 on the existing identity, exact private identity/Gmail preflight, and verified-disabled Auth security notifications.",
     "workflow_dispatch": "JIT required; not executed",
@@ -73,13 +75,28 @@
       "consumed": false,
       "partial_effects_observed": true,
       "human_confirmations": [
-        "Edge ADMIN_QUOTA_HMAC_KEY and NEXT_SUPABASE_SECRET_KEY presence confirmed; ADMIN_QUOTA_HMAC_KEY matches Pages Preview by responsible-person confirmation, not connector read"
+        "Edge ADMIN_QUOTA_HMAC_KEY and NEXT_SUPABASE_SECRET_KEY presence; ADMIN_QUOTA_HMAC_KEY matches Pages Preview, confirmed by the responsible person, not connector read.",
+        "After the connector snapshot, the responsible confirmed ADMIN_RPC_GATEWAY_KEY_ID Text is present in Pages Preview and ADMIN_RPC_GATEWAY_HMAC_KEY matches the existing value in Supabase Vault; no values recorded."
       ],
       "observed_discrepancies": [
-        "two Worker deployment events vs one approved",
-        "ADMIN_RPC_GATEWAY_KEY_ID absent in Pages Preview"
+        "Two Worker deployment events were observed against the original one-deployment limit; the responsible accepted version #2 as a temporary baseline through 2026-10-25T23:59:00Z. Runtime compatibility remains untested; no further deploy or rollback is authorized.",
+        "No Pages R19 candidate deployment or runtime smoke has occurred."
       ],
-      "separate_unapproved_request": "NEXT_SUPABASE_SECRET_KEY rotation requested; not included in B, no key created/replaced/deleted; do not configure the key in Pages Preview."
+      "separate_unapproved_request": "NEXT_SUPABASE_SECRET_KEY rotation requested; not included in B, no key created/replaced/deleted; do not configure the key in Pages Preview.",
+      "accepted_temporary_exception": {
+        "status": "accepted",
+        "accepted_by": "responsable humano en esta conversación",
+        "target": "Cloudflare Worker studiamatch-admin-quota version #2 as temporary baseline",
+        "owner": "responsable Cloudflare",
+        "expires_at_utc": "2026-10-25T23:59:00Z",
+        "evidence": "Two connector-observed deployment API events on 2026-10-18 at 18:29:54Z and 18:30:22Z; version #2 is latest.",
+        "risk": "Two deployment events exceed the original B limit of one; runtime compatibility has not been tested.",
+        "limits": [
+          "No third deployment",
+          "No additional rollback",
+          "No binding/configuration change outside approved B"
+        ]
+      }
     },
     "package_d_jit": {
       "status": "approved_unconsumed",
@@ -119,10 +136,10 @@
     "status_sha256": "2761c9db07112f5aaa0d8b2df00fce0de0e626dbfa56a0259686fb59052a0bee",
     "selected_paths_are_manifest_reconciled": true,
     "snapshot_phase": "R19 successor reconstructed from baseline plus exact R18 scope and R19 deltas; source Syncthing and R18 preserved.",
-    "scope_digest": "8ff20b8acf36a1c15c452fea9e8ca2e2f2d10b6c86f55e4d92627acfd3dceb49",
+    "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
     "final_recheck_required": false,
-    "candidate_paths": 1138,
-    "present_blobs": 1131,
+    "candidate_paths": 1176,
+    "present_blobs": 1169,
     "deletions": 7,
     "successor_workspace": "/tmp/h3req1_r19_publication_prep_20261018",
     "source_wip_not_copied": true
@@ -191,11 +208,11 @@
       "unique_union": 1127
     },
     "R17_new_scope_artifacts": 5,
-    "final_scope_entries": 1147,
+    "final_scope_entries": 1176,
     "final_scope_status_counts": {
       "deleted": 7,
-      "untracked": 1054,
-      "modified": 86
+      "untracked": 1080,
+      "modified": 89
     },
     "final_scope_ignored_untracked": 37,
     "final_scope_deleted_paths": [
@@ -444,7 +461,7 @@
       "new_identity": "must be a new Auth identity; UUID comparison remains private and in-memory",
       "approvals": "A/B/C/D remain valid only in exact package scopes; A consumed; B/C/D not consumed."
     },
-    "scope_entries_sha256": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+    "scope_entries_sha256": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
     "R19_reconciled_successor": {
       "base": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
       "source_wip_head": "a57bc415257ab8154d40d7c71d34c69d0bdaeb0d",
@@ -454,8 +471,8 @@
         "R18_paths": 1138,
         "R19_paths_without_manifest_replacement": 1147,
         "removed_video_paths": 2,
-        "added_R19_paths": 11,
-        "R19_scope_entries": 1147
+        "added_R19_paths": 40,
+        "R19_scope_entries": 1176
       },
       "visuals": {
         "png_neutral_derivatives": 46,
@@ -465,14 +482,59 @@
         "all_originals_preserved_locally_or_in_R18": true
       },
       "R18_preserved_unchanged": true,
-      "B_status": "partial, not complete",
-      "B_human_confirmation": "Edge secret names are present and ADMIN_QUOTA_HMAC_KEY matches Preview by responsible-person confirmation; not connector-verified.",
+      "B_status": "partial, not complete; gateway key ID/HMAC confirmed manually and Worker #2 temporary exception accepted; candidate Pages/runtime not executed",
+      "B_human_confirmation": "Responsible manually confirmed Edge secret names, gateway key ID Text in Pages Preview, and parity of both HMAC values with their configured stores; values are not recorded and the connector did not reread the later key ID.",
       "B_discrepancies": [
-        "two Worker deployment events vs approved maximum one",
-        "ADMIN_RPC_GATEWAY_KEY_ID absent from Preview"
+        "Two Worker deployment events exceed the original limit; version #2 accepted as temporary baseline through 2026-10-25T23:59:00Z; runtime compatibility untested.",
+        "No Pages R19 candidate deployment or runtime smoke."
       ],
       "separate_pending_request": "NEXT_SUPABASE_SECRET_KEY rotation requested, outside B and not executed.",
-      "no_commit_push_PR_merge_or_pages_deployment": true
+      "no_local_commit_push_update_merge_or_candidate_pages_deployment": true,
+      "remote_pr": {
+        "number": 501,
+        "remote_sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "state_source": "Conversation history; no new connector read in this correction turn.",
+        "approval": "Responsible reports approver approved the old remote SHA; a push dismisses stale review and requires fresh approval on the successor SHA."
+      },
+      "static_build_missing_dependency": {
+        "path": "tests/h3_admin_invite_edge_uat.mjs",
+        "sha256": "13d608cf1ac51bf66122460a258b7249f7cc6cb7074ec3456e971e45e755fbdf",
+        "source": "/home/romel/src/studiamatch-h3req1-sync-20261002 exact WIP input; source untouched",
+        "reason": "the current versioned security-audit workflow invokes this UAT, the Admin runtime/component evidence already names it, and the candidate lacked the file; its historical source pin matches exactly",
+        "workflow_allowlist": "already covered by the existing exact allowed_h3 pattern; no new path or directory allowance was added"
+      },
+      "static_build_exact_missing_inputs": {
+        "tests/h3_admin_invite_edge_typecheck.mjs": {
+          "sha256": "db642ffc5699509f96e622b144f839d5858aa45b7b2fa9d39760dc5460361d4e",
+          "source": "read-only Syncthing checkout",
+          "included_reason": "directly invoked by the versioned Static Build workflow"
+        },
+        "tests/h3_admin_quota_uat.mjs": {
+          "sha256": "79e8162be08bdaf5b1c62aad87ef1cb4349394193ca6a6e4cb83b26404b2422f",
+          "source": "read-only Syncthing checkout",
+          "included_reason": "directly invoked by the versioned Static Build workflow"
+        },
+        "tests/h3_admin_safe_suspend_uat.mjs": {
+          "sha256": "a54344bfd73051e523c3717ac9e3f9348982fb49feb749af5d30e3ac9a3a880d",
+          "source": "read-only Syncthing checkout",
+          "included_reason": "directly invoked by the versioned Static Build workflow"
+        },
+        "tests/h3_supabase_sdk_headers_uat.mjs": {
+          "sha256": "a63c0febf70290a692527cb4dc56d342f2f61e3490c104030b424e5a5873a2f9",
+          "source": "read-only Syncthing checkout",
+          "included_reason": "directly invoked by the versioned Static Build workflow"
+        },
+        "tests/h3_admin_quota_runtime.mjs": {
+          "sha256": "99672bbb0ec968b6b12656821e0e45144670298db7478c89a6749df4272b13f1",
+          "source": "read-only Syncthing checkout",
+          "included_reason": "directly invoked by the versioned Static Build workflow"
+        },
+        "tests/h3_admin_safe_suspend_runtime_uat.mjs": {
+          "sha256": "44a0b8419828611811c6cba57c8398dfe23e319a7a3ac310690efff502d8ea74",
+          "source": "read-only Syncthing checkout",
+          "included_reason": "directly invoked by the versioned Static Build workflow"
+        }
+      }
     }
   },
   "source_coverage": {
@@ -489,14 +551,14 @@
     "remote_checks_pending": 5
   },
   "scope": {
-    "entry_count": 1147,
-    "tracked_entries": 86,
-    "untracked_entries": 1054,
+    "entry_count": 1176,
+    "tracked_entries": 89,
+    "untracked_entries": 1080,
     "deleted_entries": 7,
     "ignored_untracked_entries": 37,
-    "entries_sha256": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+    "entries_sha256": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
     "digest_method": "SHA-256 of compact UTF-8 JSON for sorted scope.entries, ordered by path; manifest self path is excluded.",
-    "selection_rule": "R14 exact selection plus R15-R18 preserved artifacts, R19 current state and privacy-safe derivatives; excluded selected videos/original pixels and all other WIP. R8/R9/R12/R13 evidence preserved.",
+    "selection_rule": "R14 exact selection plus R15-R18 preserved artifacts, R19 current state and privacy-safe derivatives; excluded selected videos/original pixels and all other WIP. R8/R9/R12/R13 evidence preserved. The R19 successor adds only exact CI/C03 dependencies, four CodeQL remediation files, their focused regressions, and the two C03 runtime digest pins; all unrelated WIP remains excluded. Six individually selected C03 runtime-manifest inputs are included because the exact R19 integrated runner and its two pinned snapshots require them: bootstrap package, Edge lock output/resolver and test Edge entry, startup source manifest, and PostgREST probe. No other diagnostic WIP is included. PR501 Static Build adds only the exact pre-existing invitation Edge UAT invoked by the versioned workflow and already documented in the Admin runtime/evidence map; no other source WIP is included. Six more exact test inputs are selected solely because the current security-audit Static Build executes them directly; their exact source bytes match the read-only Syncthing checkout, and the component/evidence registry already identifies these UATs. No other WIP is selected.",
     "entries": [
       {
         "path": ".context/00_INDICE.md",
@@ -1095,11 +1157,11 @@
         "status": "modified",
         "worktree_status": "R19 current checkpoint and navigation pointer updated; R18 history retained.",
         "ignored_by_porcelain": false,
-        "bytes": 50383,
+        "bytes": 52747,
         "mode": "0664",
-        "sha256": "b58d137c7406406d25d375aa2c37ad3f7907d872d3e58d6e35113395325c14e2",
-        "observed_workspace_sha256": "b58d137c7406406d25d375aa2c37ad3f7907d872d3e58d6e35113395325c14e2",
-        "observed_workspace_bytes": 50383
+        "sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
+        "observed_workspace_sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
+        "observed_workspace_bytes": 52747
       },
       {
         "path": ".context/evidencia/h3_admin_email_header_local_cycle_2026-10-01.md",
@@ -4915,11 +4977,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 14386,
+        "bytes": 36164,
         "mode": "0664",
-        "sha256": "023647eb6c3a53fe3cd792e4c08cc4245634b423d9c95a01c7854c21dbcc66c0",
-        "observed_workspace_sha256": "023647eb6c3a53fe3cd792e4c08cc4245634b423d9c95a01c7854c21dbcc66c0",
-        "observed_workspace_bytes": 14386
+        "sha256": "4a31e84e2b35a79368f2f8371877f0aa328c1d7c9d9f8392857003231652bd59",
+        "observed_workspace_sha256": "4a31e84e2b35a79368f2f8371877f0aa328c1d7c9d9f8392857003231652bd59",
+        "observed_workspace_bytes": 36164
       },
       {
         "path": ".context/evidencia/h3req1_diagnostic_ci_prep_2026-10-08.md",
@@ -8799,11 +8861,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 9648,
+        "bytes": 13148,
         "mode": "0664",
-        "sha256": "2195f1013dc43b618dd88dbbf724084ba50ff3f969e7b455f1b53ba4b1cf8e05",
-        "observed_workspace_sha256": "2195f1013dc43b618dd88dbbf724084ba50ff3f969e7b455f1b53ba4b1cf8e05",
-        "observed_workspace_bytes": 9648
+        "sha256": "afe2f743b2359a0af15c6cb502beb7d843fed455393d55a5f10d67e33bd5705e",
+        "observed_workspace_sha256": "afe2f743b2359a0af15c6cb502beb7d843fed455393d55a5f10d67e33bd5705e",
+        "observed_workspace_bytes": 13148
       },
       {
         "path": ".context/evidencia/h3req1_g10_scope_allowlist_check_r180.py",
@@ -9308,11 +9370,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 12710,
+        "bytes": 19544,
         "mode": "0664",
-        "sha256": "392accc37cc27f21ff9c8ca46f69d946494e455ecf5e2f6e03b37c6acbd9607d",
-        "observed_workspace_sha256": "392accc37cc27f21ff9c8ca46f69d946494e455ecf5e2f6e03b37c6acbd9607d",
-        "observed_workspace_bytes": 12710
+        "sha256": "7cbc184711e283029dced729c9721b4c27813a73ea7d9456387cbe5ef2662d80",
+        "observed_workspace_sha256": "7cbc184711e283029dced729c9721b4c27813a73ea7d9456387cbe5ef2662d80",
+        "observed_workspace_bytes": 19544
       },
       {
         "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-11.json",
@@ -9665,11 +9727,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 3769,
+        "bytes": 25160,
         "mode": "0664",
-        "sha256": "6142c4bc3b4ccb102f72270893dc0a1088f3b1c5c188ccc405479c53ef475830",
-        "observed_workspace_sha256": "6142c4bc3b4ccb102f72270893dc0a1088f3b1c5c188ccc405479c53ef475830",
-        "observed_workspace_bytes": 3769
+        "sha256": "69acd0c06c589d6ac4460853a6bfd61c417ae075a0df6f04cdc0daba42c945d5",
+        "observed_workspace_sha256": "69acd0c06c589d6ac4460853a6bfd61c417ae075a0df6f04cdc0daba42c945d5",
+        "observed_workspace_bytes": 25160
       },
       {
         "path": ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt",
@@ -9735,11 +9797,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 2269,
+        "bytes": 3384,
         "mode": "0664",
-        "sha256": "c60dcc26722462383d38ba15c450811aa3d7fd777a7ad8674315a4ee6deeff4d",
-        "observed_workspace_sha256": "c60dcc26722462383d38ba15c450811aa3d7fd777a7ad8674315a4ee6deeff4d",
-        "observed_workspace_bytes": 2269
+        "sha256": "ad3678c8b272c10df4400c2a77d7423378a2eb3651e0c5a4fa8f5567b0f5f223",
+        "observed_workspace_sha256": "ad3678c8b272c10df4400c2a77d7423378a2eb3651e0c5a4fa8f5567b0f5f223",
+        "observed_workspace_bytes": 3384
       },
       {
         "path": ".context/evidencia/h3req1_revalidacion_hashes_2026-10-08.md",
@@ -11776,11 +11838,11 @@
         "status": "untracked",
         "worktree_status": "??",
         "ignored_by_porcelain": false,
-        "bytes": 3023349,
+        "bytes": 3023768,
         "mode": "0664",
-        "sha256": "11090efe096cb9dd282871ba3b493518bd42e5058b4388ccd6cb4a96fd12d926",
-        "observed_workspace_sha256": "11090efe096cb9dd282871ba3b493518bd42e5058b4388ccd6cb4a96fd12d926",
-        "observed_workspace_bytes": 3023349
+        "sha256": "4b146e70e3e2d03f28b91ba31e1e25203739a3525b0724e255ff033cf076a014",
+        "observed_workspace_sha256": "4b146e70e3e2d03f28b91ba31e1e25203739a3525b0724e255ff033cf076a014",
+        "observed_workspace_bytes": 3023768
       },
       {
         "path": ".context/trazabilidad/registro_fuentes_componentes.md",
@@ -11794,11 +11856,11 @@
         "status": "untracked",
         "worktree_status": "??",
         "ignored_by_porcelain": false,
-        "bytes": 1413515,
+        "bytes": 1415182,
         "mode": "0664",
-        "sha256": "0100d2e5bbf3757b9c61b5ba04bbf98464ec0d99eb1c07fe706982c43991e37a",
-        "observed_workspace_sha256": "0100d2e5bbf3757b9c61b5ba04bbf98464ec0d99eb1c07fe706982c43991e37a",
-        "observed_workspace_bytes": 1413515
+        "sha256": "2e4412174ebad91ebe7201235d3ed34f5cfef72cfa9e7b64762afe5a4735542a",
+        "observed_workspace_sha256": "2e4412174ebad91ebe7201235d3ed34f5cfef72cfa9e7b64762afe5a4735542a",
+        "observed_workspace_bytes": 1415182
       },
       {
         "path": ".env.example",
@@ -11954,20 +12016,21 @@
       {
         "path": ".github/workflows/security-audit.yml",
         "selections": [
+          "PR501_CI_correction",
           "R13_latest_documentary_scope",
           "R13_source_marker_overlay",
-          "R8_functional_scope",
           "R14_overlay",
-          "R17_current_fact_or_scope_consumer_update"
+          "R17_current_fact_or_scope_consumer_update",
+          "R8_functional_scope"
         ],
         "status": "modified",
         "worktree_status": "R19 exact-path allowlist and manifest consumer updated.",
         "ignored_by_porcelain": false,
-        "bytes": 120378,
+        "bytes": 121691,
         "mode": "0664",
-        "sha256": "a63723d38b3c7d1e19975b1245232d40990717b4761b1d9744bdeedbec636512",
-        "observed_workspace_sha256": "a63723d38b3c7d1e19975b1245232d40990717b4761b1d9744bdeedbec636512",
-        "observed_workspace_bytes": 120378
+        "sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
+        "observed_workspace_sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
+        "observed_workspace_bytes": 121691
       },
       {
         "path": "AGENTS.md",
@@ -12389,11 +12452,11 @@
         "status": "modified",
         "worktree_status": " M",
         "ignored_by_porcelain": false,
-        "bytes": 68604,
+        "bytes": 71453,
         "mode": "0664",
-        "sha256": "8080093cdc8e04c824e173c0e917622dd43ec10d61f5c0204ac0dbedb8835f67",
-        "observed_workspace_sha256": "8080093cdc8e04c824e173c0e917622dd43ec10d61f5c0204ac0dbedb8835f67",
-        "observed_workspace_bytes": 68604
+        "sha256": "cbd2302bcbb40044a6fa3daba0b6a7f35d63b20f5d22bce61be862418c2d5c27",
+        "observed_workspace_sha256": "cbd2302bcbb40044a6fa3daba0b6a7f35d63b20f5d22bce61be862418c2d5c27",
+        "observed_workspace_bytes": 71453
       },
       {
         "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
@@ -12405,11 +12468,26 @@
         "status": "untracked",
         "worktree_status": "??",
         "ignored_by_porcelain": false,
-        "bytes": 90747,
+        "bytes": 93201,
         "mode": "0664",
-        "sha256": "ea1515c133d96a71fcfb8e3d3a58d234ec3d5ca2fcf139c72e434341cf0a7022",
-        "observed_workspace_sha256": "ea1515c133d96a71fcfb8e3d3a58d234ec3d5ca2fcf139c72e434341cf0a7022",
-        "observed_workspace_bytes": 90747
+        "sha256": "c9215571af1f729ae06339505f47bc6646b6469320483f43f8b56af407b11fae",
+        "observed_workspace_sha256": "c9215571af1f729ae06339505f47bc6646b6469320483f43f8b56af407b11fae",
+        "observed_workspace_bytes": 93201
+      },
+      {
+        "path": "scripts/maintenance/taxonomy_roi_audit.py",
+        "selections": [
+          "R19_CodeQL_15",
+          "R14_overlay"
+        ],
+        "status": "modified",
+        "worktree_status": " M",
+        "ignored_by_porcelain": false,
+        "bytes": 3747,
+        "mode": "0664",
+        "sha256": "aa60243d95c1e78c4b165c4ef3ee13c17c6154459aed5751fe5d3e7807a7390b",
+        "observed_workspace_sha256": "aa60243d95c1e78c4b165c4ef3ee13c17c6154459aed5751fe5d3e7807a7390b",
+        "observed_workspace_bytes": 3747
       },
       {
         "path": "scripts/security/h2_web_mock_smoke.sh",
@@ -12519,6 +12597,21 @@
         "observed_workspace_bytes": 3788
       },
       {
+        "path": "scripts/shared/site_diagnostics.py",
+        "selections": [
+          "R19_CodeQL_17",
+          "R14_overlay"
+        ],
+        "status": "modified",
+        "worktree_status": " M",
+        "ignored_by_porcelain": false,
+        "bytes": 15493,
+        "mode": "0664",
+        "sha256": "075af0812ea92666f95d241beb4e6be8980dd43733e52a36f69eb9b3890c9362",
+        "observed_workspace_sha256": "075af0812ea92666f95d241beb4e6be8980dd43733e52a36f69eb9b3890c9362",
+        "observed_workspace_bytes": 15493
+      },
+      {
         "path": "supabase/functions/admin-invite/index.ts",
         "selections": [
           "R8_functional_scope",
@@ -12532,6 +12625,21 @@
         "sha256": "1569b90394b313a4b42e4e50158da077cec42d26356c0d713b16535f47053a60",
         "observed_workspace_sha256": "1569b90394b313a4b42e4e50158da077cec42d26356c0d713b16535f47053a60",
         "observed_workspace_bytes": 32941
+      },
+      {
+        "path": "supabase/functions/send-lead-emails/index.ts",
+        "selections": [
+          "R19_CodeQL_18",
+          "R14_overlay"
+        ],
+        "status": "modified",
+        "worktree_status": " M",
+        "ignored_by_porcelain": false,
+        "bytes": 9035,
+        "mode": "0664",
+        "sha256": "20789a9b4a1392ce1d051d62ca9adab3e6ba48ff7bead892caf99cf6fdbf129e",
+        "observed_workspace_sha256": "20789a9b4a1392ce1d051d62ca9adab3e6ba48ff7bead892caf99cf6fdbf129e",
+        "observed_workspace_bytes": 9035
       },
       {
         "path": "supabase/templates/invite.html",
@@ -12564,6 +12672,20 @@
         "observed_workspace_bytes": 6598
       },
       {
+        "path": "tests/h3_admin_auth_error_uat.mjs",
+        "selections": [
+          "PR501_CI_dependency_added_after_failed_check"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 2635,
+        "mode": "0644",
+        "sha256": "bd0ee3ff133737853ec1ddcff069e9e477dcec451b64b3bfd57a2a8ed449d9d2",
+        "observed_workspace_sha256": "bd0ee3ff133737853ec1ddcff069e9e477dcec451b64b3bfd57a2a8ed449d9d2",
+        "observed_workspace_bytes": 2635
+      },
+      {
         "path": "tests/h3_admin_bff_mock_uat.mjs",
         "selections": [
           "R8_functional_scope",
@@ -12579,6 +12701,90 @@
         "observed_workspace_bytes": 39438
       },
       {
+        "path": "tests/h3_admin_invite_edge_typecheck.mjs",
+        "selections": [
+          "PR501_Static_Build_exact_workflow_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 2081,
+        "mode": "0644",
+        "sha256": "db642ffc5699509f96e622b144f839d5858aa45b7b2fa9d39760dc5460361d4e",
+        "observed_workspace_sha256": "db642ffc5699509f96e622b144f839d5858aa45b7b2fa9d39760dc5460361d4e",
+        "observed_workspace_bytes": 2081
+      },
+      {
+        "path": "tests/h3_admin_invite_edge_uat.mjs",
+        "selections": [
+          "PR501_Static_Build_exact_workflow_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 27356,
+        "mode": "0644",
+        "sha256": "13d608cf1ac51bf66122460a258b7249f7cc6cb7074ec3456e971e45e755fbdf",
+        "observed_workspace_sha256": "13d608cf1ac51bf66122460a258b7249f7cc6cb7074ec3456e971e45e755fbdf",
+        "observed_workspace_bytes": 27356
+      },
+      {
+        "path": "tests/h3_admin_quota_runtime.mjs",
+        "selections": [
+          "PR501_Static_Build_exact_workflow_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 3431,
+        "mode": "0644",
+        "sha256": "99672bbb0ec968b6b12656821e0e45144670298db7478c89a6749df4272b13f1",
+        "observed_workspace_sha256": "99672bbb0ec968b6b12656821e0e45144670298db7478c89a6749df4272b13f1",
+        "observed_workspace_bytes": 3431
+      },
+      {
+        "path": "tests/h3_admin_quota_uat.mjs",
+        "selections": [
+          "PR501_Static_Build_exact_workflow_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 10514,
+        "mode": "0644",
+        "sha256": "79e8162be08bdaf5b1c62aad87ef1cb4349394193ca6a6e4cb83b26404b2422f",
+        "observed_workspace_sha256": "79e8162be08bdaf5b1c62aad87ef1cb4349394193ca6a6e4cb83b26404b2422f",
+        "observed_workspace_bytes": 10514
+      },
+      {
+        "path": "tests/h3_admin_safe_suspend_runtime_uat.mjs",
+        "selections": [
+          "PR501_Static_Build_exact_workflow_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 4816,
+        "mode": "0644",
+        "sha256": "44a0b8419828611811c6cba57c8398dfe23e319a7a3ac310690efff502d8ea74",
+        "observed_workspace_sha256": "44a0b8419828611811c6cba57c8398dfe23e319a7a3ac310690efff502d8ea74",
+        "observed_workspace_bytes": 4816
+      },
+      {
+        "path": "tests/h3_admin_safe_suspend_uat.mjs",
+        "selections": [
+          "PR501_Static_Build_exact_workflow_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 3242,
+        "mode": "0644",
+        "sha256": "a54344bfd73051e523c3717ac9e3f9348982fb49feb749af5d30e3ac9a3a880d",
+        "observed_workspace_sha256": "a54344bfd73051e523c3717ac9e3f9348982fb49feb749af5d30e3ac9a3a880d",
+        "observed_workspace_bytes": 3242
+      },
+      {
         "path": "tests/h3_invitation_uat.mjs",
         "selections": [
           "R8_functional_scope",
@@ -12592,6 +12798,34 @@
         "sha256": "73bb527b82e777f4968bf25fdbf14d6928795c45273252f68150bb1e24599648",
         "observed_workspace_sha256": "73bb527b82e777f4968bf25fdbf14d6928795c45273252f68150bb1e24599648",
         "observed_workspace_bytes": 18614
+      },
+      {
+        "path": "tests/h3_local_runtime_quota_fixture.mjs",
+        "selections": [
+          "PR501_CI_dependency_added_after_failed_check"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 355,
+        "mode": "0644",
+        "sha256": "cab8b55c8bdd3e4da1871b965ae72d3fa7c8d3e1f011fea263c2071c23c1a60a",
+        "observed_workspace_sha256": "cab8b55c8bdd3e4da1871b965ae72d3fa7c8d3e1f011fea263c2071c23c1a60a",
+        "observed_workspace_bytes": 355
+      },
+      {
+        "path": "tests/h3_local_runtime_server.mjs",
+        "selections": [
+          "PR501_CI_dependency_added_after_failed_check"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 8402,
+        "mode": "0644",
+        "sha256": "b0c70db51cf0404ea701b4a45665464a561f0da1bf6b4a7604f4284badca8e4a",
+        "observed_workspace_sha256": "b0c70db51cf0404ea701b4a45665464a561f0da1bf6b4a7604f4284badca8e4a",
+        "observed_workspace_bytes": 8402
       },
       {
         "path": "tests/h3_local_uat.mjs",
@@ -12639,6 +12873,35 @@
         "observed_workspace_bytes": 9110
       },
       {
+        "path": "tests/h3_send_lead_error_uat.mjs",
+        "selections": [
+          "R19_CodeQL_18_regression",
+          "R14_overlay"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 2900,
+        "mode": "0664",
+        "sha256": "884c1db7436d2adc8509ffcf8e2f35113dfae664ce11ebacd3f8468742f717a4",
+        "observed_workspace_sha256": "884c1db7436d2adc8509ffcf8e2f35113dfae664ce11ebacd3f8468742f717a4",
+        "observed_workspace_bytes": 2900
+      },
+      {
+        "path": "tests/h3_supabase_sdk_headers_uat.mjs",
+        "selections": [
+          "PR501_Static_Build_exact_workflow_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 13627,
+        "mode": "0644",
+        "sha256": "a63c0febf70290a692527cb4dc56d342f2f61e3490c104030b424e5a5873a2f9",
+        "observed_workspace_sha256": "a63c0febf70290a692527cb4dc56d342f2f61e3490c104030b424e5a5873a2f9",
+        "observed_workspace_bytes": 13627
+      },
+      {
         "path": "tests/h3req1-c03-bootstrap/deno.lock",
         "selections": [
           "R14_catalog_reference_closure",
@@ -12669,6 +12932,34 @@
         "observed_workspace_bytes": 46085
       },
       {
+        "path": "tests/h3req1-c03-bootstrap/package.json",
+        "selections": [
+          "PR501_C03_exact_runtime_manifest_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 189,
+        "mode": "0644",
+        "sha256": "539384b46b23ef1056acdb5dcf11cb8583269c82c16e37e6af3d69fc030ef287",
+        "observed_workspace_sha256": "539384b46b23ef1056acdb5dcf11cb8583269c82c16e37e6af3d69fc030ef287",
+        "observed_workspace_bytes": 189
+      },
+      {
+        "path": "tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock",
+        "selections": [
+          "PR501_C03_exact_runtime_manifest_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 10174,
+        "mode": "0644",
+        "sha256": "ccb3d17f01947e679fb530ba7cbc9d252263ab1051d1d9ab21429eecde7ba428",
+        "observed_workspace_sha256": "ccb3d17f01947e679fb530ba7cbc9d252263ab1051d1d9ab21429eecde7ba428",
+        "observed_workspace_bytes": 10174
+      },
+      {
         "path": "tests/h3req1-c03-edge-lock-resolver-r3.sha256",
         "selections": [
           "R14_catalog_reference_closure",
@@ -12682,6 +12973,34 @@
         "sha256": "60805a1aca0dd3fbd96aeabe2f18a3a6c3efa6df8cafccaf184a66cfb92334f0",
         "observed_workspace_sha256": "60805a1aca0dd3fbd96aeabe2f18a3a6c3efa6df8cafccaf184a66cfb92334f0",
         "observed_workspace_bytes": 439
+      },
+      {
+        "path": "tests/h3req1-c03-edge-lock-resolver/deno.json",
+        "selections": [
+          "PR501_C03_exact_runtime_manifest_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 31,
+        "mode": "0644",
+        "sha256": "5335690600914ad53e9b4873a8287e0baba01902ef94eec02d01b35ca6d7b3be",
+        "observed_workspace_sha256": "5335690600914ad53e9b4873a8287e0baba01902ef94eec02d01b35ca6d7b3be",
+        "observed_workspace_bytes": 31
+      },
+      {
+        "path": "tests/h3req1-c03-edge-main/index.ts",
+        "selections": [
+          "PR501_C03_exact_runtime_manifest_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 893,
+        "mode": "0644",
+        "sha256": "2f05103604af6a7febb6fbbab232f0210bbd37a94ba6e3280f2cabf0bfdd6fa6",
+        "observed_workspace_sha256": "2f05103604af6a7febb6fbbab232f0210bbd37a94ba6e3280f2cabf0bfdd6fa6",
+        "observed_workspace_bytes": 893
       },
       {
         "path": "tests/h3req1-c03-f1-diagnostic-f2d-inputs.sha256",
@@ -12754,8 +13073,8 @@
         "ignored_by_porcelain": false,
         "bytes": 14677,
         "mode": "0664",
-        "sha256": "912ce9ccc2d42bbe8ee0ca7b4dcb69991a924e5f788e0914b33c4a2ba4650277",
-        "observed_workspace_sha256": "912ce9ccc2d42bbe8ee0ca7b4dcb69991a924e5f788e0914b33c4a2ba4650277",
+        "sha256": "2e24be1ba88e3be9214fd4c8e6ca081159f50270189b909e2967dc265837ce8a",
+        "observed_workspace_sha256": "2e24be1ba88e3be9214fd4c8e6ca081159f50270189b909e2967dc265837ce8a",
         "observed_workspace_bytes": 14677
       },
       {
@@ -12784,8 +13103,8 @@
         "ignored_by_porcelain": false,
         "bytes": 14457,
         "mode": "0664",
-        "sha256": "1b4047f29e75fca65935b4984b0c9c3023e1944c3f2f8b1f2abe363aeeb23445",
-        "observed_workspace_sha256": "1b4047f29e75fca65935b4984b0c9c3023e1944c3f2f8b1f2abe363aeeb23445",
+        "sha256": "528d996b73a21d83cd5c259bfd25358ce19c56bc20b49b12d1c8b854d4042dd0",
+        "observed_workspace_sha256": "528d996b73a21d83cd5c259bfd25358ce19c56bc20b49b12d1c8b854d4042dd0",
         "observed_workspace_bytes": 14457
       },
       {
@@ -12969,6 +13288,20 @@
         "observed_workspace_bytes": 1285
       },
       {
+        "path": "tests/h3req1-c03-startup-source-s1-v6.sha256",
+        "selections": [
+          "PR501_C03_exact_runtime_manifest_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 1285,
+        "mode": "0644",
+        "sha256": "2f98ca0d448e4789e05836520a8167298283857fffa92bc054119f3dd69ad168",
+        "observed_workspace_sha256": "2f98ca0d448e4789e05836520a8167298283857fffa92bc054119f3dd69ad168",
+        "observed_workspace_bytes": 1285
+      },
+      {
         "path": "tests/h3req1-c03-startup-source-s1-v8.sha256",
         "selections": [
           "R14_catalog_reference_closure",
@@ -13102,6 +13435,34 @@
         "sha256": "68e3b323a426023a03b079fddfaf6fa26044a813f9bb843df4eca99d45058e34",
         "observed_workspace_sha256": "68e3b323a426023a03b079fddfaf6fa26044a813f9bb843df4eca99d45058e34",
         "observed_workspace_bytes": 12183
+      },
+      {
+        "path": "tests/h3req1_c03_cache_digest.mjs",
+        "selections": [
+          "PR501_CodeQL_local_runtime_test_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 2897,
+        "mode": "0644",
+        "sha256": "6a4d22e4abb01977005f57b3d3ec56d6618d525ce29a1652921f6c2474dd1d4a",
+        "observed_workspace_sha256": "6a4d22e4abb01977005f57b3d3ec56d6618d525ce29a1652921f6c2474dd1d4a",
+        "observed_workspace_bytes": 2897
+      },
+      {
+        "path": "tests/h3req1_c03_docker_daemon_identity_f2d.py",
+        "selections": [
+          "PR501_CI_dependency_added_after_failed_check"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 5461,
+        "mode": "0644",
+        "sha256": "c0b3820d920015325b2d91ed8e50215f3a1ba967d79a1d3abda62c702b460ac0",
+        "observed_workspace_sha256": "c0b3820d920015325b2d91ed8e50215f3a1ba967d79a1d3abda62c702b460ac0",
+        "observed_workspace_bytes": 5461
       },
       {
         "path": "tests/h3req1_c03_docker_inspect_projection.sh",
@@ -14732,11 +15093,11 @@
         "status": "untracked",
         "worktree_status": "??",
         "ignored_by_porcelain": false,
-        "bytes": 52955,
+        "bytes": 60526,
         "mode": "0664",
-        "sha256": "157d6fc3b103aa2ae3a7e5d5be8742989038207a0f0f1b652c971188bf249b89",
-        "observed_workspace_sha256": "157d6fc3b103aa2ae3a7e5d5be8742989038207a0f0f1b652c971188bf249b89",
-        "observed_workspace_bytes": 52955
+        "sha256": "7e0a05b74d3097c447a128c26f66dbad6ea3310fc82e311d6db39be03118ec99",
+        "observed_workspace_sha256": "7e0a05b74d3097c447a128c26f66dbad6ea3310fc82e311d6db39be03118ec99",
+        "observed_workspace_bytes": 60526
       },
       {
         "path": "tests/h3req1_c03_integrated_runtime_diag_d1.sh",
@@ -14782,6 +15143,20 @@
         "sha256": "f4bffc3d2c60c279ed5b67b3fe1f0f46be3a724252d1bafe7d109d0901f19182",
         "observed_workspace_sha256": "f4bffc3d2c60c279ed5b67b3fe1f0f46be3a724252d1bafe7d109d0901f19182",
         "observed_workspace_bytes": 3857
+      },
+      {
+        "path": "tests/h3req1_c03_postgrest_probe.mjs",
+        "selections": [
+          "PR501_C03_exact_runtime_manifest_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 3601,
+        "mode": "0644",
+        "sha256": "92d419157a8669b889edf5cf78a5d54e31040076788d8a39ddf4123b501f69d7",
+        "observed_workspace_sha256": "92d419157a8669b889edf5cf78a5d54e31040076788d8a39ddf4123b501f69d7",
+        "observed_workspace_bytes": 3601
       },
       {
         "path": "tests/h3req1_c03_r10_diag/inputs.sha256",
@@ -14902,6 +15277,34 @@
         "sha256": "18bb09e98ae2a586fab0335506961bc18a768a1cc18e3dd9e2e54022798ae799",
         "observed_workspace_sha256": "18bb09e98ae2a586fab0335506961bc18a768a1cc18e3dd9e2e54022798ae799",
         "observed_workspace_bytes": 8389
+      },
+      {
+        "path": "tests/h3req1_c03_replay_state_diagnostic.mjs",
+        "selections": [
+          "PR501_CodeQL_local_runtime_test_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 1278,
+        "mode": "0644",
+        "sha256": "2bf5d1be10c92356978b9f07ff4b8e6057c2157f7916de92b7cc69f656aabead",
+        "observed_workspace_sha256": "2bf5d1be10c92356978b9f07ff4b8e6057c2157f7916de92b7cc69f656aabead",
+        "observed_workspace_bytes": 1278
+      },
+      {
+        "path": "tests/h3req1_c03_safe_postgrest_error_code.mjs",
+        "selections": [
+          "PR501_CodeQL_local_runtime_test_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 2345,
+        "mode": "0644",
+        "sha256": "6f419753c33c09e9c7e0af52e21ba2e51b3f167143b598d230a472cba9d34e5a",
+        "observed_workspace_sha256": "6f419753c33c09e9c7e0af52e21ba2e51b3f167143b598d230a472cba9d34e5a",
+        "observed_workspace_bytes": 2345
       },
       {
         "path": "tests/h3req1_c03_snapshot_diagnostic_d3.sh",
@@ -15157,6 +15560,20 @@
         "sha256": "bf28878cbecfa11554978100ea1bd8f34dcee46581bca4feef72bde317c4407b",
         "observed_workspace_sha256": "bf28878cbecfa11554978100ea1bd8f34dcee46581bca4feef72bde317c4407b",
         "observed_workspace_bytes": 17677
+      },
+      {
+        "path": "tests/h3req1_c03_startup_healthz_probe.mjs",
+        "selections": [
+          "PR501_CodeQL_local_runtime_test_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 563,
+        "mode": "0644",
+        "sha256": "7288a23e9351053091dabd251e2aa381c7afdf6c49c3c2de279137dc54f3ca09",
+        "observed_workspace_sha256": "7288a23e9351053091dabd251e2aa381c7afdf6c49c3c2de279137dc54f3ca09",
+        "observed_workspace_bytes": 563
       },
       {
         "path": "tests/h3req1_c03_startup_output_filter_s6.sh",
@@ -16494,6 +16911,20 @@
         "observed_workspace_bytes": 2811
       },
       {
+        "path": "tests/h3req1_pipeline_postgrest_pg17_integration.py",
+        "selections": [
+          "PR501_CI_dependency_added_after_failed_check"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 17582,
+        "mode": "0644",
+        "sha256": "87072de3c03ba3aa9a1dc9cd31a69f433dbd845a08c3c9c53aa9403e5b1673ee",
+        "observed_workspace_sha256": "87072de3c03ba3aa9a1dc9cd31a69f433dbd845a08c3c9c53aa9403e5b1673ee",
+        "observed_workspace_bytes": 17582
+      },
+      {
         "path": "tests/sql/h2_pro_pg17_harness.sql",
         "selections": [
           "R8_functional_scope",
@@ -16931,18 +17362,19 @@
       {
         "path": "tests/test_admin_invite_edge_contract.py",
         "selections": [
+          "PR501_CI_correction",
           "R13_latest_documentary_scope",
-          "R8_functional_scope",
-          "R14_overlay"
+          "R14_overlay",
+          "R8_functional_scope"
         ],
         "status": "modified",
         "worktree_status": " M",
         "ignored_by_porcelain": false,
-        "bytes": 18628,
+        "bytes": 18815,
         "mode": "0664",
-        "sha256": "11bc78cd338d500259b0acc0eb81c099dd3caba3d7cb88e7d10740e82e6ad9a4",
-        "observed_workspace_sha256": "11bc78cd338d500259b0acc0eb81c099dd3caba3d7cb88e7d10740e82e6ad9a4",
-        "observed_workspace_bytes": 18628
+        "sha256": "77cfcec58edb9917a4257f0d914acd14652d0fdb60b43ef9e674e41f1864b1f0",
+        "observed_workspace_sha256": "77cfcec58edb9917a4257f0d914acd14652d0fdb60b43ef9e674e41f1864b1f0",
+        "observed_workspace_bytes": 18815
       },
       {
         "path": "tests/test_fase09_9_certification_canary.py",
@@ -17020,6 +17452,20 @@
         "observed_workspace_bytes": 1939
       },
       {
+        "path": "tests/test_h3req1_c03_docker_daemon_identity_f2d.py",
+        "selections": [
+          "PR501_CI_dependency_added_after_failed_check"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 5901,
+        "mode": "0644",
+        "sha256": "85773d847b024f1147c6b555fd37a7ac5dce0249c7d1217b151252ba52278039",
+        "observed_workspace_sha256": "85773d847b024f1147c6b555fd37a7ac5dce0249c7d1217b151252ba52278039",
+        "observed_workspace_bytes": 5901
+      },
+      {
         "path": "tests/test_h3req1_c03_docker_inspect_projection.sh",
         "selections": [
           "R14_catalog_reference_closure",
@@ -17058,11 +17504,11 @@
         "status": "untracked",
         "worktree_status": "??",
         "ignored_by_porcelain": false,
-        "bytes": 41028,
+        "bytes": 43261,
         "mode": "0664",
-        "sha256": "3e72ee4c846c3dbed16c23a19bd892ecc1998a5de017a10ad5a762f87895e4bb",
-        "observed_workspace_sha256": "3e72ee4c846c3dbed16c23a19bd892ecc1998a5de017a10ad5a762f87895e4bb",
-        "observed_workspace_bytes": 41028
+        "sha256": "8ff0f109f4d3aa3678b7aebde6e6eb9ea6eedb174b4d23a8edf321dcff6674ca",
+        "observed_workspace_sha256": "8ff0f109f4d3aa3678b7aebde6e6eb9ea6eedb174b4d23a8edf321dcff6674ca",
+        "observed_workspace_bytes": 43261
       },
       {
         "path": "tests/test_mfa_compatibility_contract.py",
@@ -17158,32 +17604,64 @@
       {
         "path": "tests/test_security_flow.py",
         "selections": [
-          "R8_functional_scope",
-          "R14_overlay"
+          "PR501_CI_correction",
+          "R14_overlay",
+          "R8_functional_scope"
         ],
         "status": "modified",
         "worktree_status": " M",
         "ignored_by_porcelain": false,
-        "bytes": 8651,
+        "bytes": 9000,
         "mode": "0664",
-        "sha256": "bf69c3b617b731d2f4abe21f4accf238100df0c370534a8b81fca683623da537",
-        "observed_workspace_sha256": "bf69c3b617b731d2f4abe21f4accf238100df0c370534a8b81fca683623da537",
-        "observed_workspace_bytes": 8651
+        "sha256": "b8ec2aa34a4e23f59e29a9b5f9115655e891677a0457c06b4d39e18995ab9c36",
+        "observed_workspace_sha256": "b8ec2aa34a4e23f59e29a9b5f9115655e891677a0457c06b4d39e18995ab9c36",
+        "observed_workspace_bytes": 9000
+      },
+      {
+        "path": "tests/test_site_diagnostics_security.py",
+        "selections": [
+          "R19_CodeQL_17_regression",
+          "R14_overlay"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 2085,
+        "mode": "0664",
+        "sha256": "e9baec549326cdabf7067259ef57356fc5a775ddb00b32c2af56c57452ce2d6f",
+        "observed_workspace_sha256": "e9baec549326cdabf7067259ef57356fc5a775ddb00b32c2af56c57452ce2d6f",
+        "observed_workspace_bytes": 2085
       },
       {
         "path": "tests/test_supabase_credentials_contract.py",
         "selections": [
-          "R8_functional_scope",
-          "R14_overlay"
+          "PR501_CI_correction",
+          "R14_overlay",
+          "R8_functional_scope"
         ],
         "status": "modified",
         "worktree_status": " M",
         "ignored_by_porcelain": false,
-        "bytes": 52160,
+        "bytes": 51689,
         "mode": "0664",
-        "sha256": "b7d567743d4aa5a8f22475929ce009400c16f560678b25267cbe87310d014992",
-        "observed_workspace_sha256": "b7d567743d4aa5a8f22475929ce009400c16f560678b25267cbe87310d014992",
-        "observed_workspace_bytes": 52160
+        "sha256": "887501f533adcdde4cc7572ea21cda6fdc501046322fd6de56583ec5f3097d8c",
+        "observed_workspace_sha256": "887501f533adcdde4cc7572ea21cda6fdc501046322fd6de56583ec5f3097d8c",
+        "observed_workspace_bytes": 51689
+      },
+      {
+        "path": "tests/test_taxonomy_roi_audit_privacy.py",
+        "selections": [
+          "R19_CodeQL_15_regression",
+          "R14_overlay"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 3205,
+        "mode": "0664",
+        "sha256": "406da7f2097b179ec37bb6d5450474d08f5cf6641b5d1856751ecc97b1981e48",
+        "observed_workspace_sha256": "406da7f2097b179ec37bb6d5450474d08f5cf6641b5d1856751ecc97b1981e48",
+        "observed_workspace_bytes": 3205
       },
       {
         "path": "web/README.md",
@@ -17744,7 +18222,7 @@
         "observed_workspace_bytes": 338
       }
     ],
-    "modified_entries": 86
+    "modified_entries": 89
   },
   "catalog_reference_closure": {
     "catalog_count": 13,
@@ -18165,11 +18643,11 @@
         "baseline_tracked": true,
         "local_delta_excluded": false,
         "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "b58d137c7406406d25d375aa2c37ad3f7907d872d3e58d6e35113395325c14e2",
-        "bytes": 50383,
+        "observed_workspace_sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
+        "bytes": 52747,
         "mode": "0664",
-        "sha256": "b58d137c7406406d25d375aa2c37ad3f7907d872d3e58d6e35113395325c14e2",
-        "observed_workspace_bytes": 50383
+        "sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
+        "observed_workspace_bytes": 52747
       },
       {
         "path": ".context/evidencia/H3REQ1_REMOTE_VALIDATION_PROGRESS.md",
@@ -27328,11 +27806,11 @@
         "baseline_tracked": true,
         "local_delta_excluded": false,
         "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "a63723d38b3c7d1e19975b1245232d40990717b4761b1d9744bdeedbec636512",
-        "bytes": 120378,
+        "observed_workspace_sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
+        "bytes": 121691,
         "mode": "0664",
-        "sha256": "a63723d38b3c7d1e19975b1245232d40990717b4761b1d9744bdeedbec636512",
-        "observed_workspace_bytes": 120378
+        "sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
+        "observed_workspace_bytes": 121691
       },
       {
         "path": "config/institution_sources.json",
@@ -29231,11 +29709,11 @@
         "baseline_tracked": true,
         "local_delta_excluded": false,
         "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "8080093cdc8e04c824e173c0e917622dd43ec10d61f5c0204ac0dbedb8835f67",
-        "bytes": 68604,
+        "observed_workspace_sha256": "cbd2302bcbb40044a6fa3daba0b6a7f35d63b20f5d22bce61be862418c2d5c27",
+        "bytes": 71453,
         "mode": "0664",
-        "sha256": "8080093cdc8e04c824e173c0e917622dd43ec10d61f5c0204ac0dbedb8835f67",
-        "observed_workspace_bytes": 68604
+        "sha256": "cbd2302bcbb40044a6fa3daba0b6a7f35d63b20f5d22bce61be862418c2d5c27",
+        "observed_workspace_bytes": 71453
       },
       {
         "path": "scripts/deprecated/add_exclusion.py",
@@ -29830,12 +30308,12 @@
         "availability": "candidate_change",
         "baseline_tracked": false,
         "local_delta_excluded": false,
-        "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "ea1515c133d96a71fcfb8e3d3a58d234ec3d5ca2fcf139c72e434341cf0a7022",
-        "bytes": 90747,
+        "worktree_status": "R19 successor reconciled exact bytes",
+        "observed_workspace_sha256": "c9215571af1f729ae06339505f47bc6646b6469320483f43f8b56af407b11fae",
+        "bytes": 93201,
         "mode": "0664",
-        "sha256": "ea1515c133d96a71fcfb8e3d3a58d234ec3d5ca2fcf139c72e434341cf0a7022",
-        "observed_workspace_bytes": 90747
+        "sha256": "c9215571af1f729ae06339505f47bc6646b6469320483f43f8b56af407b11fae",
+        "observed_workspace_bytes": 93201
       },
       {
         "path": "scripts/maintenance/lightweight_ping.py",
@@ -30069,15 +30547,15 @@
           ".context/catalogos_historicos/documentacion_trazabilidad.md",
           ".context/catalogos_historicos/infra_seguridad_ci.md"
         ],
-        "availability": "baseline",
+        "availability": "candidate_change",
         "baseline_tracked": true,
         "local_delta_excluded": false,
-        "worktree_status": "unchanged from baseline",
-        "observed_workspace_sha256": "257118167ae9802ad440de684d5e2eef3bb8164b4114acdb98b9d9eb97430b4c",
-        "bytes": 3763,
+        "worktree_status": "R19 successor exact bytes",
+        "observed_workspace_sha256": "aa60243d95c1e78c4b165c4ef3ee13c17c6154459aed5751fe5d3e7807a7390b",
+        "bytes": 3747,
         "mode": "0664",
-        "sha256": "257118167ae9802ad440de684d5e2eef3bb8164b4114acdb98b9d9eb97430b4c",
-        "observed_workspace_bytes": 3763
+        "sha256": "aa60243d95c1e78c4b165c4ef3ee13c17c6154459aed5751fe5d3e7807a7390b",
+        "observed_workspace_bytes": 3747
       },
       {
         "path": "scripts/maintenance/test_inst_insert.py",
@@ -30314,15 +30792,15 @@
           ".context/catalogos_historicos/documentacion_trazabilidad.md",
           ".context/catalogos_historicos/infra_seguridad_ci.md"
         ],
-        "availability": "baseline",
+        "availability": "candidate_change",
         "baseline_tracked": true,
         "local_delta_excluded": false,
-        "worktree_status": "unchanged from baseline",
-        "observed_workspace_sha256": "c334581f2bfecf51f420dc87bdea211fc6d0e02800980b46f61bdae2f0e62633",
-        "bytes": 14951,
+        "worktree_status": "R19 successor exact bytes",
+        "observed_workspace_sha256": "075af0812ea92666f95d241beb4e6be8980dd43733e52a36f69eb9b3890c9362",
+        "bytes": 15493,
         "mode": "0664",
-        "sha256": "c334581f2bfecf51f420dc87bdea211fc6d0e02800980b46f61bdae2f0e62633",
-        "observed_workspace_bytes": 14951
+        "sha256": "075af0812ea92666f95d241beb4e6be8980dd43733e52a36f69eb9b3890c9362",
+        "observed_workspace_bytes": 15493
       },
       {
         "path": "scripts/shared/supabase_credentials.py",
@@ -30416,15 +30894,15 @@
           ".context/catalogos_historicos/documentacion_trazabilidad.md",
           ".context/catalogos_historicos/operacion_jit.md"
         ],
-        "availability": "baseline",
+        "availability": "candidate_change",
         "baseline_tracked": true,
         "local_delta_excluded": false,
-        "worktree_status": "unchanged from baseline",
-        "observed_workspace_sha256": "534ded5427b72cce1f5c5ef06742cde666d0f22485380fca219e5154f973f1aa",
-        "bytes": 8905,
+        "worktree_status": "R19 successor exact bytes",
+        "observed_workspace_sha256": "20789a9b4a1392ce1d051d62ca9adab3e6ba48ff7bead892caf99cf6fdbf129e",
+        "bytes": 9035,
         "mode": "0664",
-        "sha256": "534ded5427b72cce1f5c5ef06742cde666d0f22485380fca219e5154f973f1aa",
-        "observed_workspace_bytes": 8905
+        "sha256": "20789a9b4a1392ce1d051d62ca9adab3e6ba48ff7bead892caf99cf6fdbf129e",
+        "observed_workspace_bytes": 9035
       },
       {
         "path": "supabase/templates/invite.html",
@@ -30609,10 +31087,10 @@
         "baseline_tracked": false,
         "local_delta_excluded": false,
         "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "912ce9ccc2d42bbe8ee0ca7b4dcb69991a924e5f788e0914b33c4a2ba4650277",
+        "observed_workspace_sha256": "2e24be1ba88e3be9214fd4c8e6ca081159f50270189b909e2967dc265837ce8a",
         "bytes": 14677,
         "mode": "0664",
-        "sha256": "912ce9ccc2d42bbe8ee0ca7b4dcb69991a924e5f788e0914b33c4a2ba4650277",
+        "sha256": "2e24be1ba88e3be9214fd4c8e6ca081159f50270189b909e2967dc265837ce8a",
         "observed_workspace_bytes": 14677
       },
       {
@@ -30643,10 +31121,10 @@
         "baseline_tracked": false,
         "local_delta_excluded": false,
         "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "1b4047f29e75fca65935b4984b0c9c3023e1944c3f2f8b1f2abe363aeeb23445",
+        "observed_workspace_sha256": "528d996b73a21d83cd5c259bfd25358ce19c56bc20b49b12d1c8b854d4042dd0",
         "bytes": 14457,
         "mode": "0664",
-        "sha256": "1b4047f29e75fca65935b4984b0c9c3023e1944c3f2f8b1f2abe363aeeb23445",
+        "sha256": "528d996b73a21d83cd5c259bfd25358ce19c56bc20b49b12d1c8b854d4042dd0",
         "observed_workspace_bytes": 14457
       },
       {
@@ -32680,11 +33158,11 @@
         "baseline_tracked": false,
         "local_delta_excluded": false,
         "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "157d6fc3b103aa2ae3a7e5d5be8742989038207a0f0f1b652c971188bf249b89",
-        "bytes": 52955,
+        "observed_workspace_sha256": "7e0a05b74d3097c447a128c26f66dbad6ea3310fc82e311d6db39be03118ec99",
+        "bytes": 60526,
         "mode": "0664",
-        "sha256": "157d6fc3b103aa2ae3a7e5d5be8742989038207a0f0f1b652c971188bf249b89",
-        "observed_workspace_bytes": 52955
+        "sha256": "7e0a05b74d3097c447a128c26f66dbad6ea3310fc82e311d6db39be03118ec99",
+        "observed_workspace_bytes": 60526
       },
       {
         "path": "tests/h3req1_c03_integrated_runtime_diag_d1.sh",
@@ -38446,9 +38924,9 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 9648,
-      "mode": "0644",
-      "sha256": "2195f1013dc43b618dd88dbbf724084ba50ff3f969e7b455f1b53ba4b1cf8e05",
+      "bytes": 13148,
+      "mode": "0664",
+      "sha256": "afe2f743b2359a0af15c6cb502beb7d843fed455393d55a5f10d67e33bd5705e",
       "status": "B partial; NO-GO",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
@@ -38458,9 +38936,9 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 14386,
-      "mode": "0644",
-      "sha256": "023647eb6c3a53fe3cd792e4c08cc4245634b423d9c95a01c7854c21dbcc66c0",
+      "bytes": 36164,
+      "mode": "0664",
+      "sha256": "4a31e84e2b35a79368f2f8371877f0aa328c1d7c9d9f8392857003231652bd59",
       "status": "B partial; no publication",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
@@ -38470,10 +38948,10 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 12710,
-      "mode": "0644",
-      "sha256": "392accc37cc27f21ff9c8ca46f69d946494e455ecf5e2f6e03b37c6acbd9607d",
-      "status": "complete template draft; not filed",
+      "bytes": 19544,
+      "mode": "0664",
+      "sha256": "7cbc184711e283029dced729c9721b4c27813a73ea7d9456387cbe5ef2662d80",
+      "status": "Open PR 501 body synchronized to current local validation results; local only, not published.",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
     "R19_check_log": {
@@ -38482,9 +38960,9 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 3769,
-      "mode": "0644",
-      "sha256": "6142c4bc3b4ccb102f72270893dc0a1088f3b1c5c188ccc405479c53ef475830",
+      "bytes": 25160,
+      "mode": "0664",
+      "sha256": "69acd0c06c589d6ac4460853a6bfd61c417ae075a0df6f04cdc0daba42c945d5",
       "status": "R19 validation log",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
@@ -38494,9 +38972,9 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 2269,
-      "mode": "0644",
-      "sha256": "c60dcc26722462383d38ba15c450811aa3d7fd777a7ad8674315a4ee6deeff4d",
+      "bytes": 3384,
+      "mode": "0664",
+      "sha256": "ad3678c8b272c10df4400c2a77d7423378a2eb3651e0c5a4fa8f5567b0f5f223",
       "status": "review status recorded in artifact",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
@@ -39521,93 +39999,217 @@
     },
     {
       "name": "R19-remote-B-reconciliation",
-      "status": "PASS",
-      "reason": "Filtered connector reads and the separate human confirmation of Edge secret presence/HMAC parity are distinguished; B remains incomplete due to the gateway key ID and deployment-count discrepancy.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "NO_GO_INCOMPLETE",
+      "reason": "Las confirmaciones manuales de presencia/paridad y la excepción temporal Worker #2 están registradas; no hay Preview/runtime del sucesor ni compatibilidad remota verificada. B no se declara completo.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS",
+      "historical_first_pass_reason": "Filtered connector reads and the separate human confirmation of Edge secret presence/HMAC parity are distinguished; B remains incomplete due to the gateway key ID and deployment-count discrepancy.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-selected-public-visual-redaction",
       "status": "PASS",
-      "reason": "46 paths contain the exact neutral placeholder; 2 videos excluded; original pins retained in local/R18 evidence.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "reason": "46 derivados públicos neutros sin metadatos, 2 WEBM excluidos; originales preservados y hash histórico retenido. No hubo nuevo upload.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS",
+      "historical_first_pass_reason": "46 paths contain the exact neutral placeholder; 2 videos excluded; original pins retained in local/R18 evidence.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-github-accepted-object-review",
       "status": "PASS",
-      "reason": "Tree/blob metadata reconciled without exposing content; rejected PNG NOT_FOUND; no new object uploads.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "reason": "Lectura de objetos aceptados por metadata; el PNG rechazado continúa NOT_FOUND en el último corte, sin contenido privado expuesto ni nuevos uploads.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS",
+      "historical_first_pass_reason": "Tree/blob metadata reconciled without exposing content; rejected PNG NOT_FOUND; no new object uploads.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-documentation-integrity",
-      "status": "PASS_HOST_FALLBACK",
-      "reason": "Node checker PASS: 698/698 sources; 113/113 active documents; 433/433 historical docs; 13 catalogs; Docker normal gate remains unavailable.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "Docker: 722/722 fuentes asignadas, 113/113 documentos activos, 433/433 históricos, 13 catálogos.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS_HOST_FALLBACK",
+      "historical_first_pass_reason": "Node checker PASS: 698/698 sources; 113/113 active documents; 433/433 historical docs; 13 catalogs; Docker normal gate remains unavailable.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-documentation-self-test",
-      "status": "PASS_HOST_FALLBACK",
-      "reason": "Node adversarial self-test PASS on exact candidate manifest; Docker runtime unavailable.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "Docker adversarial self-test pasa con manifiesto candidato y modo exacto.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS_HOST_FALLBACK",
+      "historical_first_pass_reason": "Node adversarial self-test PASS on exact candidate manifest; Docker runtime unavailable.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-protected-path-scope-guard",
-      "status": "PASS_HOST_FALLBACK",
-      "reason": "Host scope guard and negative regressions PASS: 1,153 candidate paths; Docker focal requirement remains unavailable.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "Docker: 1.182 rutas seleccionadas, 13 catálogos, 1.173 destinos; negativos ordinary=3, newline=1, control=1, malformed=3, unmanifested H3=2.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS_HOST_FALLBACK",
+      "historical_first_pass_reason": "Host scope guard and negative regressions PASS: 1,153 candidate paths; Docker focal requirement remains unavailable.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-pr-template",
-      "status": "PASS_HOST_FALLBACK",
-      "reason": "Versioned template/body ordered headings match 10/10; actual R19 checks/risks are stated.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "Diez encabezados versionados en orden, ocho enlaces locales de candidato resuelven, cero placeholders; contrato Docker 18 pruebas.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS_HOST_FALLBACK",
+      "historical_first_pass_reason": "Versioned template/body ordered headings match 10/10; actual R19 checks/risks are stated.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-credential-scan",
-      "status": "PASS_HOST_FALLBACK",
-      "reason": "Staged candidate scanner PASS; bash -n focal shell scripts PASS; Docker runtime unavailable.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "Escáner Docker sobre rutas de scope y artefactos incluidos; no imprimió coincidencias.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS_HOST_FALLBACK",
+      "historical_first_pass_reason": "Staged candidate scanner PASS; bash -n focal shell scripts PASS; Docker runtime unavailable.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-exact-manifest-stage",
       "status": "PASS",
-      "reason": "Exact scope plus included package artifacts equals baseline-to-index diff: 1,153 paths (1,146 current blobs and 7 deletions); 1,145 content blobs match worktree bytes, SHA pins, and normalized Git modes. The R19 manifest self-file is the sole intentionally unpinned blob; zero extras/missing.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "reason": "Worktree agregado exacto: 1.176 rutas con 22 modificadas, 26 nuevas y cero eliminadas; 1.173 referencias; 37 artefactos de contenido con hash/bytes/modo Git correctos; manifiesto autoexcluido.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS",
+      "historical_first_pass_reason": "Exact scope plus included package artifacts equals baseline-to-index diff: 1,153 paths (1,146 current blobs and 7 deletions); 1,145 content blobs match worktree bytes, SHA pins, and normalized Git modes. The R19 manifest self-file is the sole intentionally unpinned blob; zero extras/missing.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-functional-input-reuse",
       "status": "PASS_WITH_LIMIT",
-      "reason": "59/60 selected product/test paths byte-identical to R18; changed scope-guard test rerun PASS on host; Docker state-contract pytest not rerun.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "reason": "130 pruebas focales y 10 subtests pasan en Docker; las suites históricas se reutilizan solo cuando inputs funcionales son idénticos. No es aceptación remota.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PASS_WITH_LIMIT",
+      "historical_first_pass_reason": "59/60 selected product/test paths byte-identical to R18; changed scope-guard test rerun PASS on host; Docker state-contract pytest not rerun.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-git-diff-check",
-      "status": "WARN_NO_NEW",
-      "reason": "125 whitespace diagnostics (107 trailing, 18 blank EOF), all normalized findings match R18; zero new diagnostics.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "git diff --check HEAD pasa y 26 archivos nuevos pasan --no-index --check; una línea vacía EOF fue removida y validada con py_compile.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "WARN_NO_NEW",
+      "historical_first_pass_reason": "125 whitespace diagnostics (107 trailing, 18 blank EOF), all normalized findings match R18; zero new diagnostics.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-actionlint",
-      "status": "BLOCKED",
-      "reason": "security-audit.yml changed; Docker returns Input/output error and actionlint is absent from host.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "actionlint 1.7.7 en Docker sobre .github/workflows/security-audit.yml; ejecución separada de ShellCheck.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "BLOCKED",
+      "historical_first_pass_reason": "security-audit.yml changed; Docker returns Input/output error and actionlint is absent from host.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-shellcheck-focal",
-      "status": "BLOCKED",
-      "reason": "scope guard focal input changed; Docker returns Input/output error and shellcheck is absent from host.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "ShellCheck 0.11.0 en Docker sobre .githooks/pre-push, scope guard, credential scanner y h2_web_mock_smoke.sh.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "BLOCKED",
+      "historical_first_pass_reason": "scope guard focal input changed; Docker returns Input/output error and shellcheck is absent from host.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-docker-state-contract",
-      "status": "BLOCKED",
-      "reason": "Current project state contract changed; Docker returns Input/output error, so focused pytest could not run.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "Docker pytest: tests/test_obsidian_context_state.py y tests/test_requirement_client_source_validation.py, 18 passed.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "BLOCKED",
+      "historical_first_pass_reason": "Current project state contract changed; Docker returns Input/output error, so focused pytest could not run.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
     },
     {
       "name": "R19-independent-review",
-      "status": "PENDING",
-      "reason": "Round 1 findings were corrected; round 2 passed without HIGH/CRITICAL/blockers and found one LOW discrepancy-count wording issue, corrected in the current successor snapshot; targeted round-3 review is pending.",
-      "scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992"
+      "status": "PASS",
+      "reason": "Independent read-only review completed at 2026-10-19 09:00 UTC; exact digest e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6; zero findings at every severity and no blockers.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "historical_first_pass_status": "PENDING",
+      "historical_first_pass_reason": "Round 1 findings were corrected; round 2 passed without HIGH/CRITICAL/blockers and found one LOW discrepancy-count wording issue, corrected in the current successor snapshot; targeted round-3 review is pending.",
+      "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
+      "current_snapshot": true,
+      "historical_first_pass_preserved": true
+    },
+    {
+      "name": "R19-remote-Python-Compile-And-Tests",
+      "status": "pending_new_sha",
+      "reason": "Old PR SHA d5220185cbb8d1975ebb901a5d6e8e77636b8b02 failed; no successor SHA or run.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "current_snapshot": true
+    },
+    {
+      "name": "R19-remote-Static-Build",
+      "status": "pending_new_sha",
+      "reason": "Old PR SHA failed; local candidate sequence passed only in Docker; no successor run.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "current_snapshot": true
+    },
+    {
+      "name": "R19-remote-PostgreSQL-DB-Change-Gate",
+      "status": "pending_new_sha",
+      "reason": "Old PR SHA failed; local PostgREST probe is limited and no full PG17 gate is claimed.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "current_snapshot": true
+    },
+    {
+      "name": "R19-remote-CodeQL",
+      "status": "pending_new_sha",
+      "reason": "Four PR findings remain associated with the old SHA until CodeQL analyzes the successor; local fixes do not close them remotely.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "current_snapshot": true
+    },
+    {
+      "name": "R19-remote-Protected-Workflow-Integrity",
+      "status": "blocked_out_of_scope_default_branch",
+      "reason": "BLOCKED: pull_request_target loads trusted workflow from default main; a bootstrap only to desarrollo cannot activate PWI. Main is explicitly out of scope; no trusted external check provider was verified.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "current_snapshot": true
+    },
+    {
+      "name": "R19-remote-security-audit",
+      "status": "pending_new_sha",
+      "reason": "Old PR SHA aggregate failed; no successor run.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "current_snapshot": true
+    },
+    {
+      "name": "R19-remote-actionlint-And-shellcheck",
+      "status": "pending_new_sha",
+      "reason": "Old PR run cancelled actionlint and skipped ShellCheck; current local checks pass, but no successor remote result.",
+      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+      "current_snapshot": true
     }
   ],
   "remote_read_cutoff_utc": "2026-10-18T20:33:00Z (R19 read-only connector observations; no secret values)",
@@ -39682,7 +40284,378 @@
       }
     },
     "publication_status": "blocked_pending_B_and_local_gates",
-    "publication_policy": "Do not push or create PR until B gate, exact checks, independent review, and effective protected Development route are established.",
+    "publication_policy": "PR 501 is already open. Publish a successor only after local affected gates and independent review pass and CodeQL/PWI findings are resolved or formally dispositioned. Merge only with required checks green, fresh human review on the latest SHA, and the authorized protected Development route.",
     "source_history_excluded": true
+  },
+  "successor_delta": {
+    "parent_manifest": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json at parent revision",
+    "parent_local_commit": "ef306edd91d339af3a9e0623217b49d86f1cdb1c",
+    "parent_remote_commit": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+    "pull_request": 501,
+    "purpose": "repair direct CI/test dependency omissions and the PostgREST invocation; remediate four PR CodeQL diagnostics and four historical main alerts with focused regressions; restore exact C03 runtime pins; preserve the trusted-base PWI boundary; reconcile current Docker, manifest and remote status evidence.",
+    "added_paths": [
+      "tests/h3_admin_auth_error_uat.mjs",
+      "tests/h3_admin_invite_edge_typecheck.mjs",
+      "tests/h3_admin_invite_edge_uat.mjs",
+      "tests/h3_admin_quota_runtime.mjs",
+      "tests/h3_admin_quota_uat.mjs",
+      "tests/h3_admin_safe_suspend_runtime_uat.mjs",
+      "tests/h3_admin_safe_suspend_uat.mjs",
+      "tests/h3_local_runtime_quota_fixture.mjs",
+      "tests/h3_local_runtime_server.mjs",
+      "tests/h3_send_lead_error_uat.mjs",
+      "tests/h3_supabase_sdk_headers_uat.mjs",
+      "tests/h3req1-c03-bootstrap/package.json",
+      "tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock",
+      "tests/h3req1-c03-edge-lock-resolver/deno.json",
+      "tests/h3req1-c03-edge-main/index.ts",
+      "tests/h3req1-c03-startup-source-s1-v6.sha256",
+      "tests/h3req1_c03_cache_digest.mjs",
+      "tests/h3req1_c03_docker_daemon_identity_f2d.py",
+      "tests/h3req1_c03_postgrest_probe.mjs",
+      "tests/h3req1_c03_replay_state_diagnostic.mjs",
+      "tests/h3req1_c03_safe_postgrest_error_code.mjs",
+      "tests/h3req1_c03_startup_healthz_probe.mjs",
+      "tests/h3req1_pipeline_postgrest_pg17_integration.py",
+      "tests/test_h3req1_c03_docker_daemon_identity_f2d.py",
+      "tests/test_site_diagnostics_security.py",
+      "tests/test_taxonomy_roi_audit_privacy.py"
+    ],
+    "modified_paths": [
+      ".context/estado_del_proyecto.md",
+      ".context/evidencia/h3req1_development_integration_package_2026-10-18_r19.md",
+      ".context/evidencia/h3req1_g10_remote_preparation_2026-10-18_r19.md",
+      ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-18_r19.md",
+      ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
+      ".context/evidencia/h3req1_remote_preparation_checks_2026-10-18_r19.txt",
+      ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-18_r19.txt",
+      ".context/trazabilidad/registro_fuentes_componentes.json",
+      ".context/trazabilidad/registro_fuentes_componentes.md",
+      ".github/workflows/security-audit.yml",
+      "scripts/core/universal_harvester.py",
+      "scripts/maintenance/h3req1_documentation_integrity.mjs",
+      "scripts/maintenance/taxonomy_roi_audit.py",
+      "scripts/shared/site_diagnostics.py",
+      "supabase/functions/send-lead-emails/index.ts",
+      "tests/h3req1-c03-integrated-r51.sha256",
+      "tests/h3req1-c03-integrated.sha256",
+      "tests/h3req1_c03_integrated_runtime.mjs",
+      "tests/test_admin_invite_edge_contract.py",
+      "tests/test_h3req1_local_pipeline_walk.py",
+      "tests/test_security_flow.py",
+      "tests/test_supabase_credentials_contract.py"
+    ],
+    "preservation": "R19 parent commit, R18 and earlier evidence remain in history; unrelated WIP is excluded",
+    "remaining_remote_findings": [
+      "The four PR CodeQL diagnostics have focused local remediations; the remote CodeQL result must be rerun on a newly published SHA before disposition.",
+      "The four main Code Scanning alerts #15–#18 have candidate-local remediations but remain open remotely on main until CodeQL reruns and the normal protected promotion flow reaches main.",
+      "Protected Workflow Integrity has no helper in trusted desarrollo, so the current PR cannot prove that gate; a separate protected bootstrap package and human review route is required."
+    ],
+    "local_validation": {
+      "as_of_utc": "2026-10-19 08:59 UTC",
+      "candidate_parent": "Exact R19 files were reviewed from local HEAD ef306edd91d339af3a9e0623217b49d86f1cdb1c. The local publication branch feat/h3req1-sync-20261018-r19 is now based on the existing PR head d5220185cbb8d1975ebb901a5d6e8e77636b8b02; the two original base commits have identical Git trees (20f7e3edd87f49319af30256d6eaba3cdda78f5e). The original validation HEAD is preserved at codex/r19-validation-head-ef306. The reviewed worktree delta is preserved and the remote PR update will be a fast-forward; no force-push is used.",
+      "docker_image": "studiamatch-dev:r19-20261018; sha256:460484fdb765674851a450473d88778336ac5402cb171580e3b0c0beca188255; candidate mounted read-only for isolated checks. Separate habitual studiamatch-dev remains healthy, 0 restarts, and mounts the source checkout.",
+      "results": {
+        "h2_writer_scan": "PASS",
+        "credential_scanner_regressions": "PASS in Docker: clean/text/named credential/binary/lockfile/newline path/tree/history/I-O failure/concurrency/redaction cases; complete candidate tree scan reports credential scan passed.",
+        "protected_path_scope_guard": "PASS in Docker; candidate_paths=1182 (1176 scope paths plus 6 package artifacts), catalogs=13, catalog_targets=1173, force_add_ignored=37, ignored_catalog_targets=28; negative cases ordinary=3, newline=1, controls=1, malformed=3, unmanifested_h3=2.",
+        "offline_python_security_suite": "The previously recorded 229-test suite remains historical and was not repeated; the changed harvester path received the focused 13-test suite above.",
+        "invitation_contract_followup": "PASS; 41 tests",
+        "admin_auth_error_uat": "PASS; 7 checks",
+        "new_dependency_syntax": "PASS; Node syntax for three added .mjs files and Python byte-compilation for three added .py files",
+        "candidate_credential_scan": "PASS in Docker after final source/body/manifest reconciliation; complete candidate tree, network disabled.",
+        "actionlint": "PASS in Docker; actionlint 1.7.7 on updated .github/workflows/security-audit.yml.",
+        "shellcheck": "PASS previously; ShellCheck 0.11.0 on the same unchanged shell files, reused without rerun.",
+        "git_diff_check": "PASS in Docker on the tracked local delta; this does not claim a remote check.",
+        "pipeline_regex_regression": "PASS in Docker; tests/test_h3req1_local_pipeline_walk.py: 14 passed; includes nested-quantifier rejection, safe-pattern acceptance, and fail-closed behavior when the bounded regex dependency is absent.",
+        "proxy_destination_selftest": "PASS in Docker: C03 self-test confirms static PostgREST allowlist and exercises handleFunction; rejected query does not reach fetch and Edge caller query is dropped.",
+        "documentation_integrity": "PASS in Docker: 722/722 sources, 113/113 active docs, 433/433 historical docs; 13 catalogs.",
+        "python_compile": "PASS in Docker; py_compile for scripts/core/universal_harvester.py and tests/test_h3req1_local_pipeline_walk.py; exit 0.",
+        "node_syntax": "PASS in Docker; integrated runtime and all four direct support modules pass node --check.",
+        "static_build": "PASS in Docker: h2_web_mock_smoke.sh; h2_web_mock_smoke_ok; Node 20.20.2; fixture-local, not Preview.",
+        "security_regressions": "PASS in Docker: 21 focused pytest tests and 10 subtests across site diagnostics, taxonomy privacy and local pipeline; ReDoS includes synthetic timeout and missing-dependency fail-closed cases.",
+        "pwi_helper_tests": "PASS in Docker: tests/test_protected_workflow_review.py, 13 passed; does not create a trusted-base PWI result.",
+        "send_lead_handler_uat": "PASS in Docker: tests/h3_send_lead_error_uat.mjs, 7 checks; invokes real handler with mocked provider failure and generic 500 assertion.",
+        "workflow_lint": "PASS in Docker: actionlint 1.7.7; ShellCheck 0.11.0 on exact affected focal shell scripts.",
+        "scope_and_reference_manifest": "PASS in Docker: 1176/1176 scope pins, 1173/1173 catalog-reference pins, and 37/37 package-artifact content/byte/Git-normalized-mode checks; no missing or mismatched content; scope digest e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6; guard union 1182 exact paths. 32 raw POSIX 0644/0664 differences normalize to Git mode 100644; no chmod or content changes.",
+        "habitual_docker": "PASS read-only recheck: studiamatch-dev running/healthy, 0 restarts, image sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1; /admin/login/ HTTP 200; mounts source checkout, not R19.",
+        "postgresql_gate": "NOT PASS: remote old-SHA PG gate failed. Local PostgREST startup probe only proves the executable/config correction; loopback DB intentionally unavailable and expected timeout; no full PG17 gate or cloud DB write claimed.",
+        "pr_template_contract": "PASS in Docker: tests/test_obsidian_context_state.py and tests/test_requirement_client_source_validation.py, 18 passed; all 10 versioned template headings present in order and the PR body has no PENDING or PLACEHOLDER text.",
+        "focused_pytest_current": "PASS in Docker: 130 passed, 10 subtests, 1 inherited PyPDF2 deprecation warning; 9 affected security/state/contract suites.",
+        "state_and_client_contract": "PASS in Docker: 18 passed across tests/test_obsidian_context_state.py and tests/test_requirement_client_source_validation.py after current manifest refresh.",
+        "frontend_eslint": "PASS in Docker on unchanged web inputs: 0 errors, 9 existing warnings.",
+        "typescript_typecheck": "PASS in Docker on unchanged TypeScript inputs: npx tsc --noEmit --incremental false.",
+        "static_build_runtime": "PASS locally in Docker: Node 20.20.2 h2_web_mock_smoke_ok; Node 22.22.0 quota runtime PASS (25 concurrent, 10 admitted, persistence and legacy payload); safe-suspend runtime PASS (3 Admin 503, 3 public 200, 8 encoded aliases rejected, 4 cookies cleared).",
+        "current_manifest_audit": "PASS in Docker: scope=1176; digest=e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6; catalog refs=1173; 37 content artifacts pass SHA/bytes/Git-mode; self-hash-excluded manifest=1; current missing Static Build inputs=0, seven historical missing inputs preserved, 11 direct invocations present.",
+        "current_untracked_whitespace": "PASS in Docker: tracked git diff --check plus --no-index --check for 26 untracked files; focused py_compile passes for the corrected F2d test.",
+        "local_vs_remote_boundary": "No local result is a GitHub Actions, CodeQL, Development Preview, or remote acceptance result."
+      },
+      "postgrest_invocation_probe": "LIMITED: pinned PostgREST 13.0.7 started using /bin/postgrest /etc/postgrest.conf, read a 0644 mounted config and listened on 127.0.0.1:3233; network was disabled and DB URI pointed to an unused loopback port, so expected connection-refused retries ended at the 8-second timeout (exit 124). This proves the former exit-126 executable/config-permission defect is repaired; it does not replace the PostgreSQL DB Change Gate.",
+      "review": "PASS independent read-only review at 2026-10-19 09:00 UTC for exact scope digest e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6; 0 Critical, 0 High, 0 Medium, 0 Low, 0 blockers. No tests or remote reads by reviewer.",
+      "remote_codeql": "PENDING: four PR findings were reported on old SHA d5220185cbb8d1975ebb901a5d6e8e77636b8b02; local fixes do not close remote alerts.",
+      "remote_pwi": "BLOCKED: pull_request_target loads trusted workflow from default main; a bootstrap only to desarrollo cannot activate PWI. Main is explicitly out of scope; no trusted external check provider was verified.",
+      "pr_body": "Updated locally from the versioned template; current PR 501, local digest, current Docker results, old remote run, Cloudflare deployment SHA, and separate alert inventories recorded; not published.",
+      "independent_review": {
+        "status": "PASS",
+        "reviewer": "independent read-only reviewer",
+        "target_head": "ef306edd91d339af3a9e0623217b49d86f1cdb1c plus the exact manifest-pinned working tree",
+        "target_scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+        "reviewed_at_utc": "2026-10-19 09:00 UTC",
+        "remote_access": false,
+        "tests_executed_by_reviewer": false,
+        "findings": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0,
+          "blocking": 0
+        },
+        "confirmed": "current_manifest_audit digest, superseded historical status wording, deduplicated Preview fact, 1176 scope pins, 13 catalogs, 1173 targets, 37 content-artifact pins, and manifest self-hash exclusion.",
+        "limitations": "Does not close GitHub alerts or establish remote checks, Development deployment, PWI, or human approval for a new SHA."
+      },
+      "intermediate_failures": [
+        {
+          "gate": "protected_path_scope_guard",
+          "result": "FAIL on the first post-fix rerun: referenced target hash differs for scripts/core/universal_harvester.py.",
+          "diagnosis": "The code fix changed the selected harvester bytes; the exact candidate_change reference pin in the manifest had not yet been refreshed.",
+          "correction": "Refreshed the exact manifest and catalog-reference pins for the modified selected source, then recomputed the 1,157-entry scope digest.",
+          "revalidation": "PASS in Docker; candidate_paths=1163, catalogs=13, catalog_targets=1173; negative cases passed."
+        }
+      ],
+      "b_reconciliation": "Connector snapshot remains historical. Later user confirmations of the gateway key ID Text and HMAC parity are recorded separately; user accepted Worker #2 temporary exception until 2026-10-25T23:59:00Z. No candidate Preview deployment or runtime smoke; B/integration remains incomplete.",
+      "documentary_re_review": "Current Preview and GitHub metadata reconciled in dated appendices; no further B configuration claim is attributed to the connector.",
+      "prior_independent_review": {
+        "status": "PENDING",
+        "reviewer": "r19_independent_review and r19_security_review",
+        "target_head": "ef306edd91d339af3a9e0623217b49d86f1cdb1c plus the current manifest-pinned working tree",
+        "target_scope_digest": "2f5548d886758c23461e0dc7ca08c0ec7b07f998c50fb5dfbe664f64697534f9",
+        "remote_access": false,
+        "required_findings": "manifest closure, artifact modes, security fixes, exact test evidence, PR template/body, and distinction of old/new remote results"
+      },
+      "intermediate_invocation_failures": [
+        "A delta-audit draft compared the manifest's full worktree candidate to the index/HEAD only and misclassified 29 scope paths as absent. The exact candidate is the worktree; 29 paths are 26 untracked additions plus three baseline files modified by this successor, all present and scoped. The actual PR-parent delta is 22 modified plus 26 added paths (48 total), with no deletions.",
+        "A second run of the manifest updater overwrote historically_missing_static_build_inputs with the already-empty current missing list. The seven historical dependencies were restored from the recorded dependency-addition history; the updater now unions historical/current values idempotently. The current exact Static Build inventory is eleven direct Node invocations; all are present and scoped.",
+        "Initial focused pytest invocation used system Python without pytest; rerun with the container venv passed (21 tests and 10 subtests).",
+        "Initial send-lead UAT invocation could not resolve TypeScript; rerun with the existing node_modules Docker volume read-only passed 7 checks. No dependency volume was modified.",
+        "The first credential-scanner invocation after the 2026-10-19 status correction used shell quoting that emitted a literal backslash-n path separator, so the scanner rejected a constructed nonexistent path before scanning candidate files. The corrected invocation emitted actual line separators and passed over the manifest scope and included package artifacts; this was a harness invocation error, not a candidate finding.",
+        "The first mode comparison used raw POSIX bits; the final audit compares Git-normalized 100644/100755 modes and passes without chmod or content changes.",
+        "The first normalized artifact audit counted the self-hash-excluded R19 manifest among 37 content artifacts and stopped at 38 records; the audit was corrected to separate 37 content artifacts from the manifest, then passed. This was a validation-harness counting error, not a candidate failure."
+      ],
+      "remote_checks_successor": {
+        "target_sha": null,
+        "status": "not_started_no_successor_commit",
+        "pending_gates": [
+          {
+            "name": "Python Compile And Tests",
+            "old_sha_status": "failure"
+          },
+          {
+            "name": "Static Build",
+            "old_sha_status": "failure"
+          },
+          {
+            "name": "PostgreSQL DB Change Gate",
+            "old_sha_status": "failure"
+          },
+          {
+            "name": "CodeQL",
+            "old_sha_status": "four findings reported"
+          },
+          {
+            "name": "Protected Workflow Integrity",
+            "old_sha_status": "no job; verifier absent on trusted desarrollo"
+          },
+          {
+            "name": "security-audit",
+            "old_sha_status": "failure"
+          },
+          {
+            "name": "actionlint And shellcheck",
+            "old_sha_status": "cancelled/skipped"
+          }
+        ],
+        "human_review": "old approval applies only to d5220185cbb8d1975ebb901a5d6e8e77636b8b02; fresh review is required for any new SHA."
+      },
+      "independent_code_security_review": {
+        "status": "PASS for reviewed code changes only; no findings reported",
+        "target_scope_digest": "4bcc1d5a3a7155ac57fa2b645f5ae9b637d2cf5dd9c1499c307b2ea9df8e55d4",
+        "reviewed": "four PR501 CodeQL fixes and four historical main-alert fixes",
+        "findings": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0,
+          "blocking": 0
+        },
+        "tests_executed_by_reviewer": false,
+        "not_final_package_review": true,
+        "limitations": "Does not close GitHub alerts and does not cover PWI documentary changes after this digest."
+      }
+    },
+    "remote_status_snapshot": {
+      "as_of_utc": "2026-10-19 07:05 UTC",
+      "pr_number": 501,
+      "base": "desarrollo",
+      "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+      "state": "open",
+      "run_id": 39177784316,
+      "run_conclusion": "failure",
+      "successful_jobs": [
+        "Documentation Source Registry",
+        "TypeScript Typecheck",
+        "Protected Path Integrity",
+        "Credential Scan",
+        "ESLint"
+      ],
+      "failed_jobs": [
+        "Python Compile And Tests",
+        "Static Build",
+        "PostgreSQL DB Change Gate",
+        "security-audit"
+      ],
+      "cancelled_or_skipped_jobs": {
+        "actionlint And shellcheck": "cancelled at actionlint; ShellCheck skipped",
+        "H2 Main Production Expand Gate": "skipped; outside this Development objective"
+      },
+      "pwi": "no job: workflow/helper absent from trusted desarrollo base",
+      "codeql": {
+        "sha_analyzed": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "current_successor_result": "not available",
+        "findings_reported": [
+          {
+            "rule": "Inefficient regular expression",
+            "severity": "High",
+            "path": "scripts/core/universal_harvester.py",
+            "line": 316
+          },
+          {
+            "rule": "Incomplete multi-character sanitization",
+            "severity": "High",
+            "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
+            "line": 53
+          },
+          {
+            "rule": "Server-side request forgery",
+            "severity": "Critical",
+            "path": "tests/h3req1_c03_integrated_runtime.mjs",
+            "line": 317
+          },
+          {
+            "rule": "Server-side request forgery",
+            "severity": "Critical",
+            "path": "tests/h3req1_c03_integrated_runtime.mjs",
+            "line": 348
+          }
+        ]
+      },
+      "human_review": {
+        "state": "APPROVED",
+        "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "submitted_at_utc": "2026-10-19T02:57:41Z",
+        "valid_for_successor": false
+      },
+      "cloudflare_preview": {
+        "deployment_id": "c7adff18-9a74-4eb2-9a08-83a5cc05da46",
+        "url": "https://c7adff18.studiamatch-aty.pages.dev",
+        "status": "success",
+        "created_at_utc": "2026-10-18T23:43:51.895404Z",
+        "branch": "feat/h3req1-sync-20261018-r19",
+        "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "current_local_delta_deployed": false,
+        "smoke": "not executed"
+      }
+    },
+    "security_remediation": {
+      "universal_harvester": "Replace the backtracking-prone nested-quantifier detector with a bounded single-pass structural scan; remove the unbounded re.search fallback when the optional regex dependency is absent and fail closed for regex exclusion/allowlist decisions; add regression cases.",
+      "documentation_integrity": "remove the incomplete-tag stripping regex; existing delimiter sanitizer remains and a truncated-tag regression is added",
+      "integrated_runtime_test": "use static allowlisted PostgREST destinations and exact query shapes, reject unknown methods/routes/queries, and stop forwarding the Edge query string",
+      "scope": "only four direct local-test imports are added; no unrelated working-tree files are selected"
+    },
+    "local_scope_reconciliation": {
+      "parent_manifest_entries": 1157,
+      "codeql_paths_added": [
+        "scripts/maintenance/taxonomy_roi_audit.py",
+        "scripts/shared/site_diagnostics.py",
+        "supabase/functions/send-lead-emails/index.ts",
+        "tests/h3_send_lead_error_uat.mjs",
+        "tests/test_site_diagnostics_security.py",
+        "tests/test_taxonomy_roi_audit_privacy.py"
+      ],
+      "exact_c03_runtime_pins_modified": [
+        "tests/h3req1-c03-integrated.sha256",
+        "tests/h3req1-c03-integrated-r51.sha256"
+      ],
+      "current_selected_entry_count": 1176,
+      "current_modified_entries": 89,
+      "current_untracked_entries": 1080,
+      "current_deletions": 7,
+      "unrelated_wip_included": false,
+      "r14_r18_evidence_rewritten": false,
+      "c03_exact_runtime_manifest_dependencies": [
+        "tests/h3req1-c03-bootstrap/package.json",
+        "tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock",
+        "tests/h3req1-c03-edge-lock-resolver/deno.json",
+        "tests/h3req1-c03-edge-main/index.ts",
+        "tests/h3req1-c03-startup-source-s1-v6.sha256",
+        "tests/h3req1_c03_postgrest_probe.mjs"
+      ],
+      "c03_manifest_pins_refreshed": [
+        "tests/h3req1-c03-integrated.sha256",
+        "tests/h3req1-c03-integrated-r51.sha256"
+      ],
+      "static_build_exact_workflow_dependencies": [
+        "tests/h3_admin_auth_error_uat.mjs",
+        "tests/h3_admin_bff_mock_uat.mjs",
+        "tests/h3_admin_invite_edge_typecheck.mjs",
+        "tests/h3_admin_invite_edge_uat.mjs",
+        "tests/h3_admin_quota_runtime.mjs",
+        "tests/h3_admin_quota_uat.mjs",
+        "tests/h3_admin_safe_suspend_runtime_uat.mjs",
+        "tests/h3_admin_safe_suspend_uat.mjs",
+        "tests/h3_send_lead_error_uat.mjs",
+        "tests/h3_supabase_sdk_headers_uat.mjs",
+        "tests/h3req1_c03_integrated_runtime.mjs"
+      ]
+    },
+    "historically_missing_static_build_inputs": [
+      "tests/h3_admin_invite_edge_typecheck.mjs",
+      "tests/h3_admin_invite_edge_uat.mjs",
+      "tests/h3_admin_quota_runtime.mjs",
+      "tests/h3_admin_quota_uat.mjs",
+      "tests/h3_admin_safe_suspend_runtime_uat.mjs",
+      "tests/h3_admin_safe_suspend_uat.mjs",
+      "tests/h3_supabase_sdk_headers_uat.mjs"
+    ],
+    "resolved_static_build_inputs": [
+      "tests/h3_admin_auth_error_uat.mjs",
+      "tests/h3_admin_bff_mock_uat.mjs",
+      "tests/h3_admin_invite_edge_typecheck.mjs",
+      "tests/h3_admin_invite_edge_uat.mjs",
+      "tests/h3_admin_quota_runtime.mjs",
+      "tests/h3_admin_quota_uat.mjs",
+      "tests/h3_admin_safe_suspend_runtime_uat.mjs",
+      "tests/h3_admin_safe_suspend_uat.mjs",
+      "tests/h3_send_lead_error_uat.mjs",
+      "tests/h3_supabase_sdk_headers_uat.mjs",
+      "tests/h3req1_c03_integrated_runtime.mjs"
+    ],
+    "missing_static_build_inputs": [],
+    "static_build_history_reconciliation": "Seven previously reported missing direct workflow inputs are retained as history. The exact current Static Build job has eleven direct Node invocations; all eleven are present and scoped. A non-idempotent updater previously replaced the historical list with an empty current-missing list; the list was restored from the recorded dependency additions and this updater now unions prior historical, prior-current, and recorded inputs on every run."
+  },
+  "publication_status": "blocked_pending_trusted_pwi_route_and_new_sha_remote_checks",
+  "remote_gate_denominator": {
+    "stable_total": 7,
+    "successor_completed": 0,
+    "successor_pending_or_absent": 6,
+    "names": [
+      "R19-remote-Python-Compile-And-Tests",
+      "R19-remote-Static-Build",
+      "R19-remote-PostgreSQL-DB-Change-Gate",
+      "R19-remote-CodeQL",
+      "R19-remote-Protected-Workflow-Integrity",
+      "R19-remote-security-audit",
+      "R19-remote-actionlint-And-shellcheck"
+    ],
+    "successor_blocked": 1
   }
 }

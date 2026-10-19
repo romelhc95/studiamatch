@@ -64,6 +64,92 @@ CANARY_RUN_METADATA_KEYS = (
 )
 
 
+def _quantifier_end(pattern, index):
+    """Return the end of a quantifier token at index, or None, without regex matching."""
+    if index >= len(pattern):
+        return None
+    if pattern[index] in '*+?':
+        return index + 1
+    if pattern[index] != '{':
+        return None
+
+    cursor = index + 1
+    first_digits = cursor
+    while cursor < len(pattern) and pattern[cursor].isdigit():
+        cursor += 1
+    if cursor == first_digits:
+        return None
+    if cursor < len(pattern) and pattern[cursor] == ',':
+        cursor += 1
+        while cursor < len(pattern) and pattern[cursor].isdigit():
+            cursor += 1
+    return cursor + 1 if cursor < len(pattern) and pattern[cursor] == '}' else None
+
+
+def _has_nested_quantified_group(pattern):
+    """Reject quantified groups that contain a repeated atom in one linear scan."""
+    groups = []
+    in_character_class = False
+    escaped = False
+    index = 0
+
+    while index < len(pattern):
+        char = pattern[index]
+        if escaped:
+            escaped = False
+            index += 1
+            continue
+        if char == '\\':
+            escaped = True
+            index += 1
+            continue
+        if in_character_class:
+            if char == ']':
+                in_character_class = False
+            index += 1
+            continue
+        if char == '[':
+            in_character_class = True
+            index += 1
+            continue
+        if char == '(':
+            groups.append(False)
+            # The question mark in group modifiers is syntax, not a quantifier.
+            index += 2 if index + 1 < len(pattern) and pattern[index + 1] == '?' else 1
+            continue
+        if char == ')':
+            if not groups:
+                index += 1
+                continue
+            contains_quantifier = groups.pop()
+            end = _quantifier_end(pattern, index + 1)
+            if contains_quantifier and end is not None:
+                return True
+            if groups:
+                groups[-1] = groups[-1] or contains_quantifier or end is not None
+            index = end if end is not None else index + 1
+            continue
+        if char in '*+?':
+            if groups:
+                groups[-1] = True
+            index += 1
+            if index < len(pattern) and pattern[index] in '?+':
+                index += 1
+            continue
+        if char == '{':
+            end = _quantifier_end(pattern, index)
+            if end is not None:
+                if groups:
+                    groups[-1] = True
+                index = end
+                if index < len(pattern) and pattern[index] in '?+':
+                    index += 1
+                continue
+        index += 1
+
+    return False
+
+
 def _active_canary_marker():
     for variable_name, metadata_key in CANARY_RUN_METADATA_KEYS:
         run_id = os.getenv(variable_name, "").strip()
@@ -205,22 +291,23 @@ class UniversalHarvester:
     def _is_safe_profile_regex(pattern):
         if not isinstance(pattern, str) or len(pattern) > 200:
             return False
-        unsafe = [r'(\([^)]*[*+][^)]*\))+[*+]', r'\\[1-9]', r'\(\?([=!<])']
-        return not any(re.search(expr, pattern) for expr in unsafe)
+        unsafe = [r'\\[1-9]', r'\(\?([=!<])']
+        return not _has_nested_quantified_group(pattern) and not any(re.search(expr, pattern) for expr in unsafe)
 
     @staticmethod
     def _safe_profile_search(pattern, text):
         text = str(text or '')[:2000]
-        if safe_regex:
-            try:
-                return safe_regex.search(pattern, text, safe_regex.IGNORECASE, timeout=0.05)
-            except TimeoutError:
-                logger.warning(f"Profile regex timed out and was rejected: {_safe_pattern_label(pattern)}")
-                return None
-            except Exception as e:
-                logger.warning(f"Profile regex rejected: {_safe_pattern_label(pattern)} ({_safe_error_label(e)})")
-                return None
-        return re.search(pattern, text, re.IGNORECASE)
+        if not safe_regex:
+            logger.error("Profile regex unavailable; failing closed: bounded regex dependency is missing")
+            return None
+        try:
+            return safe_regex.search(pattern, text, safe_regex.IGNORECASE, timeout=0.05)
+        except TimeoutError:
+            logger.warning(f"Profile regex timed out and was rejected: {_safe_pattern_label(pattern)}")
+            return None
+        except Exception as e:
+            logger.warning(f"Profile regex rejected: {_safe_pattern_label(pattern)} ({_safe_error_label(e)})")
+            return None
 
     def _load_site_profile(self):
         inst_id = self.institution.get('id')
@@ -313,7 +400,7 @@ class UniversalHarvester:
                             if len(pat) > 200:
                                 logger.warning(f"Regex pattern too long, skipping: {_safe_pattern_label(pat)}")
                                 continue
-                            if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                            if _has_nested_quantified_group(pat):
                                 logger.warning(f"ReDoS-risk pattern rejected: {_safe_pattern_label(pat)}")
                                 continue
                             try:
@@ -492,7 +579,8 @@ class UniversalHarvester:
             return False
         for exc in self.exclusions:
             if isinstance(exc, tuple) and exc[0] == 're':
-                if self._safe_profile_search(exc[1], low_url):
+                regex_match = self._safe_profile_search(exc[1], low_url)
+                if regex_match is None or regex_match:
                     return False
             elif isinstance(exc, re.Pattern):
                 if exc.search(low_url[:2000]):

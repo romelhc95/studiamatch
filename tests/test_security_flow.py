@@ -25,7 +25,8 @@ def test_obsidian_is_living_authority_and_redefinition_is_removed():
 
     assert "> Autoridad operativa única." in state
     assert "## Corte vigente" in state
-    assert "No se afirma adopción remota." in state
+    assert "El candidato no se publicó:" in state
+    assert "Development sigue NO-GO" in state
     assert "REDEFINICION.md" not in state
     assert not (ROOT / "REDEFINICION.md").exists()
 
@@ -62,6 +63,7 @@ def test_security_audit_allowlists_scanner_worktree_helper_and_pre_push():
     expected_paths = {
         ".githooks/pre-push",
         "scripts/security/scan_worktree_file.py",
+        "tests/h3req1_c03_docker_daemon_identity_f2d.py",
     }
     assert all(re.fullmatch(extra_pattern, path) for path in expected_paths)
     assert expected_paths <= local_paths
@@ -95,6 +97,13 @@ def test_manual_security_audit_dispatch_fails_closed_without_trusted_diff_base()
     assert "git hash-object -t tree -w /dev/null" in text
     assert 'base="$PROTECTED_BASELINE_SHA"' in text
     assert "database changes require a trusted pull_request or push baseline" in text
+
+
+def test_postgrest_ci_harness_invokes_binary_with_readable_config():
+    workflow = read(".github/workflows/security-audit.yml")
+
+    assert 'chmod 644 "$postgrest_config"' in workflow
+    assert "/bin/postgrest /etc/postgrest.conf" in workflow
 
 
 def test_protected_workflow_integrity_is_prepared_but_not_aggregated_in_stage_one():

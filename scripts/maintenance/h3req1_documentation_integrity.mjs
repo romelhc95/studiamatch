@@ -48,9 +48,85 @@ function candidateManifestOmissionAllowed(relative, exactAllowedPaths, candidate
   return Boolean(candidateScope && exactAllowedPaths.has(relative) && !candidateScope.selectedPaths.has(relative));
 }
 
+function isAsciiLetter(char) {
+  return (char >= "A" && char <= "Z") || (char >= "a" && char <= "z");
+}
+
+function findMarkupTagEnd(value, start) {
+  let quote = "";
+  for (let index = start; index < value.length; index += 1) {
+    const char = value[index];
+    if (quote) {
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (char === "\"" || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === ">") return index;
+  }
+  return -1;
+}
+
+function stripMarkupForAnchor(value) {
+  let output = "";
+  let cursor = 0;
+  while (cursor < value.length) {
+    if (value.startsWith("<!--", cursor)) {
+      const commentEnd = value.indexOf("-->", cursor + 4);
+      if (commentEnd < 0) {
+        output += value.slice(cursor + 1);
+        break;
+      }
+      cursor = commentEnd + 3;
+      continue;
+    }
+    if (value[cursor] !== "<") {
+      output += value[cursor];
+      cursor += 1;
+      continue;
+    }
+    if (value.startsWith("<!", cursor) || value.startsWith("<?", cursor)) {
+      const declarationEnd = findMarkupTagEnd(value, cursor + 2);
+      if (declarationEnd < 0) {
+        output += value.slice(cursor + 1);
+        break;
+      }
+      cursor = declarationEnd + 1;
+      continue;
+    }
+
+    let nameStart = cursor + 1;
+    if (value[nameStart] === "/") nameStart += 1;
+    if (!isAsciiLetter(value[nameStart] ?? "")) {
+      output += "<";
+      cursor += 1;
+      continue;
+    }
+    let nameEnd = nameStart + 1;
+    while (nameEnd < value.length) {
+      const char = value[nameEnd];
+      if (!isAsciiLetter(char) && !(char >= "0" && char <= "9") && char !== "-" && char !== ":") break;
+      nameEnd += 1;
+    }
+    if (nameEnd < value.length && ![" ", "\t", "\r", "\n", "/", ">"].includes(value[nameEnd])) {
+      output += "<";
+      cursor += 1;
+      continue;
+    }
+    const tagEnd = findMarkupTagEnd(value, nameEnd);
+    if (tagEnd < 0) {
+      output += value.slice(nameStart);
+      break;
+    }
+    cursor = tagEnd + 1;
+  }
+  return output;
+}
+
 function normalizeHeading(value) {
-  return value
-    .replace(/<[^>]*>/g, "")
+  return stripMarkupForAnchor(value)
     .replace(/`([^`]*)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/[*_~]/g, "")
@@ -665,6 +741,15 @@ function generatedDocumentation(registry) {
 }
 
 function runSelfTest(registry, discovered, assigned, candidateScope, candidateOnlyPaths) {
+  const incompleteTagHeading = normalizeHeading("<script");
+  const inlineMarkupHeading = normalizeHeading('<em title="x > y">Course</em>');
+  if (incompleteTagHeading !== "script"
+    || incompleteTagHeading.includes("<")
+    || incompleteTagHeading.includes(">")
+    || inlineMarkupHeading !== "course") {
+    process.stderr.write("DOC_SELF_TEST_FAIL heading normalization must remove markup delimiters from incomplete tags\n");
+    return false;
+  }
   const syntheticCandidateOnly = "scripts/core/__h3req1_candidate_only_source_self_test__.mjs";
   const syntheticExactOmissionPaths = new Set([syntheticCandidateOnly]);
   const syntheticCandidateScope = { selectedPaths: new Set() };

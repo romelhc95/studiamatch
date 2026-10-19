@@ -199,6 +199,7 @@ def test_admin_invite_behavioral_edge_harness_runs_in_ci():
     assert "node ../tests/h3_admin_auth_error_uat.mjs" in workflow
     assert "node ../tests/h3_admin_invite_edge_uat.mjs" in workflow
     assert "node ../tests/h3_supabase_sdk_headers_uat.mjs" in workflow
+    assert (ROOT / "tests/h3_admin_auth_error_uat.mjs").is_file()
 
 
 def test_signed_rpc_gateway_harness_is_run_in_ci():
@@ -259,6 +260,8 @@ def test_protected_h3_path_allowlist_is_narrow_and_covers_this_candidate():
         "web/eslint.config.mjs",
         ".context/sistema_db_supabase.md",
         "tests/h3_admin_auth_error_uat.mjs",
+        "tests/h3req1_c03_docker_daemon_identity_f2d.py",
+        "tests/test_h3req1_c03_docker_daemon_identity_f2d.py",
         "tests/sql/h3_invitation_onboarding_harness.sql",
         "tests/sql/h3_invitation_edge_runtime_harness.sql",
         ".context/operaciones/plan_go_h3req1_local_development_2026-10-02.md",  # deleted archive source path

@@ -1776,8 +1776,9 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Búsqueda acotada de tests/workflows encontró referencias de inventario de credenciales, no prueba funcional dedicada; no hay resultado de comportamiento local acreditado.",
+        "note": "The focused local UAT transpiles and invokes the actual Edge handler with a mocked provider failure; it verifies the generic 500 response, CORS and absence of provider exception text/stack. It does not establish remote deployment, caller, authentication or provider behavior.",
         "evidence": [
+          "path:tests/h3_send_lead_error_uat.mjs",
           "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md"
         ],
         "resolution": "Antes de activarla, crear/ejecutar contrato autorizado que cubra autenticación, métodos, body, destinatarios y errores."
@@ -1800,13 +1801,16 @@
         ]
       },
       "paths": [
-        "supabase/functions/send-lead-emails/index.ts"
+        "supabase/functions/send-lead-emails/index.ts",
+        "tests/h3_send_lead_error_uat.mjs"
       ],
       "source_document": {
         "path": ".context/componentes/admin_runtime.md",
         "anchor": "correo-de-leads"
       },
-      "candidate_only_paths": []
+      "candidate_only_paths": [
+        "tests/h3_send_lead_error_uat.mjs"
+      ]
     },
     {
       "component": "database",
@@ -13477,13 +13481,16 @@
       "id": "maintenance-tool-taxonomy-roi-audit",
       "purpose": "Maintenance CLI `taxonomy_roi_audit.py`; AST entry symbols: run_taxonomy_roi_audit.",
       "paths": [
-        "scripts/maintenance/taxonomy_roi_audit.py"
+        "scripts/maintenance/taxonomy_roi_audit.py",
+        "tests/test_taxonomy_roi_audit_privacy.py"
       ],
       "source_document": {
         "path": ".context/componentes/mantenimiento.md",
         "anchor": "herramienta-taxonomy-roi-audit"
       },
-      "candidate_only_paths": [],
+      "candidate_only_paths": [
+        "tests/test_taxonomy_roi_audit_privacy.py"
+      ],
       "contracts": {
         "state": "verified",
         "note": "Contrato estático de `scripts/maintenance/taxonomy_roi_audit.py`: símbolos (sin docstring de módulo); run_taxonomy_roi_audit; flags `(sin flags argparse detectados)`; efectos DB/red en la ficha. No demuestra ejecución.",
@@ -13511,8 +13518,9 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "No se encontró suite de comportamiento específica en el alcance. `test_supabase_credentials_contract.py` solo inventaría identidades/path y no prueba la funcionalidad. Impacto: si se cambia el contrato, agregar una prueba local apropiada y documentar su input/result.",
+        "note": "Focused local tests run the report writer against synthetic rows and verify aggregate counts, zero-conflict output, and absence of course titles, category labels/IDs and prices. They do not read or write operational data.",
         "evidence": [
+          "path:tests/test_taxonomy_roi_audit_privacy.py",
           "path:scripts/maintenance/taxonomy_roi_audit.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
           "path:.context/evidencia/h3req1_maintenance_consumer_search_2026-10-12.md"
@@ -14153,9 +14161,12 @@
       "status": "current",
       "purpose": "Diagnóstico HTTP de host institucional y propuesta de perfil para revisión.",
       "paths": [
-        "scripts/shared/site_diagnostics.py"
+        "scripts/shared/site_diagnostics.py",
+        "tests/test_site_diagnostics_security.py"
       ],
-      "candidate_only_paths": [],
+      "candidate_only_paths": [
+        "tests/test_site_diagnostics_security.py"
+      ],
       "contracts": {
         "state": "verified",
         "note": "_get/diagnose_site y detectores parsean CMS, sitemap, JSON-LD, precio, fechas, catálogo/JS y devuelven propuesta; timeout/error produce resultado parcial, sin persistencia directa.",
@@ -14184,8 +14195,9 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Búsqueda literal/símbolo en tests/ de ambos checkouts para diagnose_site, detectores, assign_template y site_diagnostics no encontró una suite que importe/invoque este módulo. test_fase121_extractors.py prueba otro contrato de extracción; no es evidencia de site diagnostics. No hay resultado dedicado.",
+        "note": "Focused local tests verify HubSpot detection from parsed exact hostnames, reject attacker-controlled URL substrings and userinfo, and tolerate malformed script URLs without aborting diagnosis.",
         "evidence": [
+          "path:tests/test_site_diagnostics_security.py",
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_fase121_extractors.py",
           "path:scripts/shared/site_diagnostics.py"

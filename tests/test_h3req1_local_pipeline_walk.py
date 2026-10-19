@@ -12,9 +12,16 @@ import asyncio
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+# Workers import sibling modules by script path; mirror that runtime context
+# without depending on an unconfigured runner-wide PYTHONPATH.
+core_script_dir = str(Path(__file__).resolve().parents[1] / "scripts" / "core")
+if core_script_dir not in sys.path:
+    sys.path.insert(0, core_script_dir)
 
 import integrity_ping as integrity_ping_module
 from scripts.core import enrichment_worker as enrichment_module
@@ -968,6 +975,50 @@ def test_catalog_scroll_keeps_discovered_links_when_a_later_scroll_fails() -> No
     assert {row["url"] for row in adapter.tables["staging_raw"]} == {first_url, recovered_url}
     assert len(adapter.tables["staging_raw"]) == 2
     assert all(row["status"] == "discovered" for row in adapter.tables["staging_raw"])
+
+
+def test_profile_regex_safety_scan_rejects_nested_quantifiers_linearly() -> None:
+    unsafe_patterns = ["(a+)+", "(a*){1,2}", "(a{1,3})+", "((a+))+"]
+    safe_patterns = ["a+", "(?:program|course)+", "[*+]+", r"\(a+\)+"]
+
+    assert all(harvester_module._has_nested_quantified_group(pattern) for pattern in unsafe_patterns)
+    assert all(not harvester_module._has_nested_quantified_group(pattern) for pattern in safe_patterns)
+    assert all(not UniversalHarvester._is_safe_profile_regex(pattern) for pattern in unsafe_patterns)
+
+
+def test_profile_regex_search_fails_closed_without_bounded_regex_dependency() -> None:
+    harvester = object.__new__(UniversalHarvester)
+    harvester.institution = {"website_url": BASE_URL}
+    harvester.exclusions = [("re", "blocked")]
+    harvester.profile = None
+
+    with patch.object(harvester_module, "safe_regex", None):
+        assert UniversalHarvester._safe_profile_search("blocked", "/blocked") is None
+        assert not harvester._is_valid_crawl_url(f"{BASE_URL}/blocked")
+
+        harvester.exclusions = []
+        harvester.profile = {"allowed_url_patterns": ["re:program"]}
+        assert not harvester._is_valid_crawl_url(f"{BASE_URL}/program")
+
+
+def test_profile_regex_timeout_fails_closed() -> None:
+    harvester = object.__new__(UniversalHarvester)
+    harvester.institution = {"website_url": BASE_URL}
+    harvester.exclusions = [("re", "blocked")]
+    harvester.profile = None
+    bounded_regex = Mock()
+    bounded_regex.IGNORECASE = harvester_module.re.IGNORECASE
+    bounded_regex.search.side_effect = TimeoutError("synthetic bounded-regex timeout")
+
+    with patch.object(harvester_module, "safe_regex", bounded_regex):
+        assert not harvester._is_valid_crawl_url(f"{BASE_URL}/blocked")
+
+    bounded_regex.search.assert_called_once_with(
+        "blocked",
+        f"{BASE_URL}/blocked",
+        bounded_regex.IGNORECASE,
+        timeout=0.05,
+    )
 
 
 if __name__ == "__main__":

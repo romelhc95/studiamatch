@@ -53,6 +53,16 @@ const BLOCKED_REQUEST_ID = 'c03-suspended-request-20261006';
 const DENIED_DISPATCH_NONCE = '77000000-0000-4000-8000-000000000001';
 const GATEWAY_KEY_ID = 'local-pg17-k1';
 const PROJECT_REF = 'local';
+const POSTGREST_RPC_TARGETS = new Map([
+  ['POST /rest/v1/rpc/admin_signed_rpc', new URL('/rpc/admin_signed_rpc', POSTGREST_BASE)],
+  ['POST /rest/v1/rpc/admin_invitation_request_admit', new URL('/rpc/admin_invitation_request_admit', POSTGREST_BASE)],
+  ['POST /rest/v1/rpc/admin_invitation_reserve', new URL('/rpc/admin_invitation_reserve', POSTGREST_BASE)],
+  ['POST /rest/v1/rpc/admin_invitation_complete', new URL('/rpc/admin_invitation_complete', POSTGREST_BASE)],
+  ['POST /rest/v1/rpc/admin_invitation_fail', new URL('/rpc/admin_invitation_fail', POSTGREST_BASE)],
+  ['POST /rest/v1/rpc/admin_invitation_record_failure', new URL('/rpc/admin_invitation_record_failure', POSTGREST_BASE)],
+  ['POST /rest/v1/rpc/admin_invitation_mark_delivery_reconciliation', new URL('/rpc/admin_invitation_mark_delivery_reconciliation', POSTGREST_BASE)],
+  ['POST /rest/v1/rpc/admin_invitation_expire', new URL('/rpc/admin_invitation_expire', POSTGREST_BASE)],
+]);
 const LOCAL_PASSWORD = 'LocalOnly-Password9!';
 const JWT_SECRET = createHash('sha256')
   .update('Studiamatch H3REQ1 C03 disposable PostgREST JWT fixture 2026-10-06')
@@ -175,12 +185,78 @@ async function readBody(request, maxBytes = 128 * 1024) {
   return Buffer.concat(parts);
 }
 
-function postgrestDestination(pathname, search) {
-  const restPath = pathname.replace(/^\/rest\/v1(?=\/|$)/, '') || '/';
-  if (!restPath.startsWith('/') || restPath.startsWith('//') || restPath.includes('\\')) return null;
-  const destination = new URL(`${restPath}${search}`, POSTGREST_BASE);
-  if (destination.origin !== POSTGREST_BASE.origin || destination.username || destination.password || destination.hash) return null;
-  return destination;
+function postgrestQueryMatches(search, expected) {
+  const actual = new URLSearchParams(search);
+  if (actual.size !== expected.length) return false;
+  return expected.every(([name, value]) => {
+    const values = actual.getAll(name);
+    return values.length === 1 && values[0] === value;
+  });
+}
+
+function postgrestTarget(pathname, expectedQuery = []) {
+  const target = new URL(pathname, POSTGREST_BASE);
+  for (const [name, value] of expectedQuery) target.searchParams.set(name, value);
+  return target;
+}
+
+const POSTGREST_MEMBER_TARGETS = new Map([
+  [ACTOR_ID, postgrestTarget('/admin_members', [
+    ['select', 'user_id,role,is_active,account_status'], ['user_id', `eq.${ACTOR_ID}`],
+  ])],
+  [TARGET_ID, postgrestTarget('/admin_members', [
+    ['select', 'user_id,role,is_active,account_status'], ['user_id', `eq.${TARGET_ID}`],
+  ])],
+]);
+const POSTGREST_INVITATION_TARGETS = [
+  {
+    query: [
+      ['select', 'id,status,expires_at,last_sent_at'],
+      ['email', `eq.${TARGET_EMAIL}`], ['status', 'eq.pending'],
+      ['order', 'created_at.desc'], ['limit', '1'],
+    ],
+    target: postgrestTarget('/admin_invitations', [
+      ['select', 'id,status,expires_at,last_sent_at'],
+      ['email', `eq.${TARGET_EMAIL}`], ['status', 'eq.pending'],
+      ['order', 'created_at.desc'], ['limit', '1'],
+    ]),
+  },
+  {
+    query: [
+      ['select', 'id,status,admin_member_user_id,resend_of_invitation_id,metadata'],
+      ['created_by_user_id', `eq.${ACTOR_ID}`], ['email', `eq.${TARGET_EMAIL}`],
+      ['role', 'eq.user'], ['metadata->>request_id', `eq.${REQUEST_ID}`],
+      ['order', 'created_at.desc'], ['limit', '1'],
+    ],
+    target: postgrestTarget('/admin_invitations', [
+      ['select', 'id,status,admin_member_user_id,resend_of_invitation_id,metadata'],
+      ['created_by_user_id', `eq.${ACTOR_ID}`], ['email', `eq.${TARGET_EMAIL}`],
+      ['role', 'eq.user'], ['metadata->>request_id', `eq.${REQUEST_ID}`],
+      ['order', 'created_at.desc'], ['limit', '1'],
+    ]),
+  },
+];
+
+function postgrestDestination(method, pathname, search) {
+  const route = `${method.toUpperCase()} ${pathname}`;
+  const rpcTarget = POSTGREST_RPC_TARGETS.get(route);
+  if (rpcTarget) return search === '' ? new URL(rpcTarget.href) : null;
+
+  if (route === 'GET /rest/v1/admin_members') {
+    for (const [userId, target] of POSTGREST_MEMBER_TARGETS) {
+      if (postgrestQueryMatches(search, [
+        ['select', 'user_id,role,is_active,account_status'], ['user_id', `eq.${userId}`],
+      ])) return new URL(target.href);
+    }
+    return null;
+  }
+
+  if (route === 'GET /rest/v1/admin_invitations') {
+    for (const entry of POSTGREST_INVITATION_TARGETS) {
+      if (postgrestQueryMatches(search, entry.query)) return new URL(entry.target.href);
+    }
+  }
+  return null;
 }
 
 function relayResponse(response, upstream) {
@@ -310,7 +386,7 @@ async function handlePostgrest(request, response, url, body) {
   if (/^\/rest\/v1\/rpc\/admin_invitation_request_admit$/.test(pathname)) counters.requestAdmission += 1;
   if (/^\/rest\/v1\/rpc\/admin_invitation_reserve$/.test(pathname)) counters.invitationReserve += 1;
 
-  const destination = postgrestDestination(url.pathname, url.search);
+  const destination = postgrestDestination(request.method, url.pathname, url.search);
   if (!destination) return respondJson(response, 400, { code: 'invalid_local_data_path', message: 'Local fixture only' });
   const init = { method: request.method, headers, redirect: 'manual' };
   if (!['GET', 'HEAD'].includes(request.method)) init.body = body;
@@ -326,7 +402,7 @@ async function handlePostgrest(request, response, url, body) {
   relayResponse(response, upstream);
 }
 
-async function handleFunction(request, response, url, body) {
+async function handleFunction(request, response, body) {
   counters.functionRequests += 1;
   if ((request.headers.apikey || '') !== PUBLISHABLE_KEY) {
     counters.functionCredentialRejected += 1;
@@ -338,7 +414,7 @@ async function handleFunction(request, response, url, body) {
     return respondJson(response, 401, { message: 'local synthetic session rejected' });
   }
   counters.functionCalls += 1;
-  const destination = new URL(`/admin-invite${url.search}`, EDGE_ACTIVE_ORIGIN);
+  const destination = new URL('/admin-invite', EDGE_ACTIVE_ORIGIN);
   const headers = new Headers();
   for (const [name, value] of Object.entries(request.headers)) {
     if (typeof value === 'string' && !['host', 'connection', 'content-length'].includes(name.toLowerCase())) headers.set(name, value);
@@ -355,7 +431,7 @@ async function handleGateway(request, response) {
   try {
     const body = ['GET', 'HEAD'].includes(request.method) ? Buffer.alloc(0) : await readBody(request);
     if (url.pathname.startsWith('/auth/v1/')) return await handleAuth(request, response, url, body);
-    if (url.pathname === '/functions/v1/admin-invite') return await handleFunction(request, response, url, body);
+    if (url.pathname === '/functions/v1/admin-invite') return await handleFunction(request, response, body);
     if (url.pathname.startsWith('/rest/v1/')) return await handlePostgrest(request, response, url, body);
     return respondJson(response, 404, { message: 'unsupported local Supabase fixture route' });
   } catch {
@@ -1050,9 +1126,11 @@ async function runServer({ startupOnly = false } = {}) {
     'immutable source snapshot manifest digest changed');
   execFileSync('sha256sum', ['-c', manifestPath], { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'] });
   const gatewayBindHost = edgeInterfaceAddress();
-  assert.equal(postgrestDestination('/rest/v1/rpc/admin_signed_rpc', '').origin, POSTGREST_BASE.origin);
-  assert.equal(postgrestDestination('/rest/v1//127.0.0.1:5432/', ''), null);
-  assert.equal(postgrestDestination('/rest/v1/\\127.0.0.1:5432/', ''), null);
+  assert.equal(postgrestDestination('POST', '/rest/v1/rpc/admin_signed_rpc', '').origin, POSTGREST_BASE.origin);
+  assert.equal(postgrestDestination('POST', '/rest/v1/rpc/admin_signed_rpc', '?host=127.0.0.1'), null);
+  assert.equal(postgrestDestination('POST', '/rest/v1/rpc/unlisted_function', ''), null);
+  assert.equal(postgrestDestination('GET', '/rest/v1//127.0.0.1:5432/', ''), null);
+  assert.equal(postgrestDestination('GET', '/rest/v1/\\127.0.0.1:5432/', ''), null);
   if (startupOnly) {
     assert.equal(process.env.H3_C03_DEPENDENCY_BOOTSTRAP_COMPLETE, 'true', 'startup-only smoke requires both locked npm bootstraps to finish');
     const actualDependencyDigests = await digestDirectories({
@@ -1100,6 +1178,96 @@ async function runServer({ startupOnly = false } = {}) {
   process.once('SIGINT', stop);
 }
 
+async function runProxyDestinationSelfTest() {
+  const memberQuery = new URLSearchParams([
+    ['select', 'user_id,role,is_active,account_status'],
+    ['user_id', `eq.${ACTOR_ID}`],
+  ]).toString();
+  const memberTarget = postgrestDestination('GET', '/rest/v1/admin_members', `?${memberQuery}`);
+  assert.equal(memberTarget?.origin, POSTGREST_BASE.origin);
+  assert.equal(memberTarget?.pathname, '/admin_members');
+  assert.equal(postgrestDestination('GET', '/rest/v1/admin_members', '?user_id=eq.127.0.0.1'), null);
+  assert.equal(postgrestDestination('GET', '/rest/v1/admin_members', `?${memberQuery}&host=127.0.0.1`), null);
+  assert.equal(postgrestDestination('POST', '/rest/v1/rpc/unlisted_function', ''), null);
+
+  const originalFetch = globalThis.fetch;
+  const fetchCalls = [];
+  const captureResponse = () => {
+    let finish;
+    const capture = { status: undefined, body: undefined };
+    capture.finished = new Promise((resolvePromise) => { finish = resolvePromise; });
+    capture.response = {
+      writeHead(status) { capture.status = status; },
+      end(body) {
+        capture.body = Buffer.from(body || '').toString('utf8');
+        finish();
+      },
+    };
+    return capture;
+  };
+  globalThis.fetch = async (destination, init) => {
+    const target = String(destination);
+    fetchCalls.push({ target, init });
+    return new Response(target.endsWith('/admin-invite')
+      ? 'fixture-edge-response'
+      : 'fixture-postgrest-response', {
+      status: 202,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+  };
+  try {
+    const postgrestUrl = `/rest/v1/admin_members?${memberQuery}`;
+    const postgrestCapture = captureResponse();
+    await handlePostgrest({
+      method: 'GET',
+      url: postgrestUrl,
+      headers: { apikey: PUBLISHABLE_KEY },
+    }, postgrestCapture.response, new URL(postgrestUrl, 'https://local.supabase.co'), Buffer.alloc(0));
+    await postgrestCapture.finished;
+    assert.equal(fetchCalls.length, 1, 'the accepted PostgREST fixture route must issue one mocked request');
+    assert.equal(fetchCalls[0].target, memberTarget.href, 'PostgREST must use the fixed allowlisted target');
+    assert.equal(new URL(fetchCalls[0].target).origin, POSTGREST_BASE.origin);
+    assert.equal(new URL(fetchCalls[0].target).searchParams.has('host'), false);
+    assert.equal(postgrestCapture.status, 202);
+    assert.equal(postgrestCapture.body, 'fixture-postgrest-response');
+
+    const blockedUrl = `/rest/v1/admin_members?${memberQuery}&host=127.0.0.1`;
+    const blockedCapture = captureResponse();
+    await handlePostgrest({
+      method: 'GET',
+      url: blockedUrl,
+      headers: { apikey: PUBLISHABLE_KEY },
+    }, blockedCapture.response, new URL(blockedUrl, 'https://local.supabase.co'), Buffer.alloc(0));
+    await blockedCapture.finished;
+    assert.equal(blockedCapture.status, 400, 'unlisted PostgREST query parameters must be rejected');
+    assert.equal(fetchCalls.length, 1, 'rejected PostgREST input must not reach fetch');
+
+    const edgeCapture = captureResponse();
+    await handleFunction({
+      method: 'POST',
+      url: '/functions/v1/admin-invite?next=https://attacker.example/collect',
+      headers: {
+        apikey: PUBLISHABLE_KEY,
+        authorization: `Bearer ${userJwt()}`,
+      },
+    }, edgeCapture.response, Buffer.from('{}'));
+    await edgeCapture.finished;
+    assert.equal(edgeCapture.status, 202);
+    assert.equal(edgeCapture.body, 'fixture-edge-response');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  const edgeFetch = fetchCalls.at(-1);
+  assert.equal(edgeFetch.target, `${EDGE_ACTIVE_ORIGIN}/admin-invite`);
+  assert.equal(new URL(edgeFetch.target).search, '');
+  assert.equal(edgeFetch.init.redirect, 'manual');
+  assert.equal(fetchCalls.length, 2);
+  assert.equal(counters.functionCalls, 1);
+  assert.equal(counters.functionCalls, 1);
+  process.stdout.write('local-upstream-route-self-test=PASS|routes=allowlisted|destinations=static|edge-handler=exercised\n');
+}
+
 async function invokeControl(command) {
   const response = await fetch(`http://${CONTROL_HOST}:${CONTROL_PORT}/control/${command}`, { method: 'POST' });
   const payload = await readJson(response);
@@ -1111,7 +1279,9 @@ async function invokeControl(command) {
   process.stdout.write(`${JSON.stringify(payload)}\n`);
 }
 
-if (process.argv[2] === '--startup-smoke') {
+if (process.argv[2] === '--self-test-proxy-destinations') {
+  await runProxyDestinationSelfTest();
+} else if (process.argv[2] === '--startup-smoke') {
   assert.equal(process.env.H3_C03_STARTUP_ONLY, 'true', 'startup-only mode requires the explicit smoke environment guard');
   await runServer({ startupOnly: true });
 } else if (process.argv[2] === '--control') {
