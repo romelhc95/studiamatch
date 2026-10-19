@@ -1,7 +1,7 @@
 {
   "manifest": "H3REQ1 R19 reconciled successor with current local security and tooling results",
-  "as_of_utc": "2026-10-19 11:22 UTC; current R19 reconciliation",
-  "package_kind": "R19 successor for PR 501; exact local scope independently reviewed with zero findings; trusted PWI route requires JIT and remote checks await a new SHA",
+  "as_of_utc": "2026-10-19 13:45 UTC; R19 security correction and targeted revalidation",
+  "package_kind": "R19 reconciled package with a focused CodeQL response-header correction after successful checks on 08dd; next-SHA CodeQL and other checks still required; PWI bootstrap remains separate and unapproved.",
   "candidate": {
     "workspace": "/tmp/h3req1_r19_publication_prep_20261018",
     "branch": "feat/h3req1-sync-20261018-r19",
@@ -137,7 +137,7 @@
     "status_sha256": "2761c9db07112f5aaa0d8b2df00fce0de0e626dbfa56a0259686fb59052a0bee",
     "selected_paths_are_manifest_reconciled": true,
     "snapshot_phase": "R19 successor reconstructed from baseline plus exact R18 scope and R19 deltas; source Syncthing and R18 preserved.",
-    "scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+    "scope_digest": "8778334dec43c57720c4c918eb0f41eba21441fd3de4c13c846b8ff94f97e2f4",
     "final_recheck_required": true,
     "candidate_paths": 1179,
     "present_blobs": 1172,
@@ -565,7 +565,7 @@
     "untracked_entries": 1081,
     "deleted_entries": 7,
     "ignored_untracked_entries": 37,
-    "entries_sha256": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+    "entries_sha256": "8778334dec43c57720c4c918eb0f41eba21441fd3de4c13c846b8ff94f97e2f4",
     "digest_method": "SHA-256 of compact UTF-8 JSON for sorted scope.entries, ordered by path; manifest self path is excluded.",
     "selection_rule": "R14 exact selection plus R15-R18 preserved artifacts, R19 current state and privacy-safe derivatives; excluded selected videos/original pixels and all other WIP. R8/R9/R12/R13 evidence preserved. The R19 successor adds only exact CI/C03 dependencies, four CodeQL remediation files, their focused regressions, and the two C03 runtime digest pins; all unrelated WIP remains excluded. Six individually selected C03 runtime-manifest inputs are included because the exact R19 integrated runner and its two pinned snapshots require them: bootstrap package, Edge lock output/resolver and test Edge entry, startup source manifest, and PostgREST probe. No other diagnostic WIP is included. PR501 Static Build adds only the exact pre-existing invitation Edge UAT invoked by the versioned workflow and already documented in the Admin runtime/evidence map; no other source WIP is included. Six more exact test inputs are selected solely because the current security-audit Static Build executes them directly; their exact source bytes match the read-only Syncthing checkout, and the component/evidence registry already identifies these UATs. No other WIP is selected. One exact PostgreSQL DB Change Gate runtime input is added because the current workflow invokes tests/h3_admin_quota_postgrest.mjs directly and the failed run 39228507399 proved it absent from the checked-out candidate. Its bytes match the read-only Syncthing checkout; no sibling or directory-wide WIP is selected. R19 adds only two exact H2 CI consumer tests because the protected-path allowlist moved from the workflow into its extracted helper; no test folder or wider H2 path set was added.",
     "entries": [
@@ -16941,11 +16941,11 @@
         "status": "untracked",
         "worktree_status": "??",
         "ignored_by_porcelain": false,
-        "bytes": 17582,
+        "bytes": 19564,
         "mode": "0644",
-        "sha256": "87072de3c03ba3aa9a1dc9cd31a69f433dbd845a08c3c9c53aa9403e5b1673ee",
-        "observed_workspace_sha256": "87072de3c03ba3aa9a1dc9cd31a69f433dbd845a08c3c9c53aa9403e5b1673ee",
-        "observed_workspace_bytes": 17582
+        "sha256": "576d633ea1d43b9b8df37db874485fb7f9125c93de6948f34968cb00ccb53e4c",
+        "observed_workspace_sha256": "576d633ea1d43b9b8df37db874485fb7f9125c93de6948f34968cb00ccb53e4c",
+        "observed_workspace_bytes": 19564
       },
       {
         "path": "tests/sql/h2_pro_pg17_harness.sql",
@@ -40333,7 +40333,13 @@
       "current_snapshot": true,
       "historical_snapshot": false,
       "reviewed_at_utc": "2026-10-19 11:22 UTC",
-      "findings": {"critical": 0, "high": 0, "medium": 0, "low": 0, "blocking": 0}
+      "findings": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "blocking": 0
+      }
     }
   ],
   "remote_read_cutoff_utc": "2026-10-19 11:22 UTC for the latest GitHub PR/check/review re-read; Supabase/Cloudflare observations remain at their separately recorded R19 cuts; no secret values",
@@ -40479,9 +40485,9 @@
     ],
     "preservation": "R19 parent commit, R18 and earlier evidence remain in history; unrelated WIP is excluded",
     "remaining_remote_findings": [
-      "The four PR CodeQL diagnostics have focused local remediations; the remote CodeQL result must be rerun on a newly published SHA before disposition.",
-      "The four main Code Scanning alerts #15–#18 have candidate-local remediations but remain open remotely on main until CodeQL reruns and the normal protected promotion flow reaches main.",
-      "Protected Workflow Integrity has no helper in trusted desarrollo, so the current PR cannot prove that gate; a separate protected bootstrap package and human review route is required."
+      "CodeQL completed successfully on SHA 08dd but reported two Medium HTTP Response Splitting annotations at tests/h3req1_pipeline_postgrest_pg17_integration.py:138; the candidate removes upstream response-header forwarding, has a focused Docker fixture PASS and an independent read-only review, and still requires CodeQL on the next SHA.",
+      "The four historical CodeQL diagnostics from PR 501 were analyzed on SHA 08dd; this next scan must confirm their disposition and the new header finding. Main alerts #15–#18 remain on main until the protected promotion flow reaches main.",
+      "Protected Workflow Integrity remains separate: the current development baseline lacks its trusted verifier, no PWI check is present on SHA 08dd, and the GitHub App bootstrap package still needs its exact protected approval."
     ],
     "local_validation": {
       "as_of_utc": "2026-10-19 11:15 UTC",
@@ -40535,7 +40541,13 @@
         "reviewed_at_utc": "2026-10-19 11:22 UTC",
         "remote_access": false,
         "required_findings": "manifest closure, artifact modes, security fixes, exact test evidence, PR template/body, and distinction of old/new remote results",
-        "findings": {"critical": 0, "high": 0, "medium": 0, "low": 0, "blocking": 0},
+        "findings": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0,
+          "blocking": 0
+        },
         "review_scope": "Final read-only package review after reconciling historical PENDING fields and the current PWI row; no Git, tests, or remote access."
       },
       "intermediate_failures": [
@@ -40625,103 +40637,54 @@
       }
     },
     "remote_status_snapshot": {
-      "as_of_utc": "2026-10-19 11:22 UTC",
+      "as_of_utc": "2026-10-19 13:38 UTC",
       "pr_number": 501,
       "base": "desarrollo",
-      "sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
-      "synthetic_merge_sha": "934453e149be23bf876f3e1f2671f943e7f762f1",
+      "sha": "08dd4e1f72c21d01aa8ed5e867b3097c81e442ce",
       "state": "open",
-      "run_id": 39228507399,
-      "run_status": "in_progress at actionlint; ShellCheck pending at 11:22 UTC",
-      "successful_jobs": [
-        "Documentation Source Registry",
+      "check_run_count": 17,
+      "check_runs": "15 completed success; 2 completed skipped; 0 failed, cancelled, in_progress, or queued",
+      "successful_checks": [
+        "security-audit",
+        "Cloudflare Pages",
+        "CodeQL",
         "TypeScript Typecheck",
-        "Protected Path Integrity",
-        "Credential Scan",
-        "ESLint"
-      ],
-      "failed_jobs": [
         "Python Compile And Tests",
         "Static Build",
-        "PostgreSQL DB Change Gate"
+        "Protected Path Integrity",
+        "PostgreSQL DB Change Gate",
+        "actionlint And shellcheck",
+        "Documentation Source Registry",
+        "Credential Scan",
+        "ESLint",
+        "Analyze (python)",
+        "Analyze (actions)",
+        "Analyze (javascript-typescript)"
       ],
-      "in_progress_jobs": {
-        "actionlint And shellcheck": "in_progress at actionlint; ShellCheck pending at 11:22 UTC"
+      "skipped_checks": {
+        "H2 Main Production Expand Gate": "skipped because PR base is desarrollo; main/Production is out of scope",
+        "Supabase Preview": "skipped because the feature branch is not associated with a Supabase Branch"
       },
-      "skipped_jobs": {
-        "H2 Main Production Expand Gate": "skipped; outside this Development objective"
-      },
-      "failure_causes": {
-        "Python Compile And Tests": "tests/test_h3req1_c03_docker_daemon_identity_f2d.py missing in synthetic merge checkout; selected locally in the exact R19 scope.",
-        "Static Build": "tests/h3_admin_auth_error_uat.mjs missing in synthetic merge checkout; selected locally in the exact R19 scope.",
-        "PostgreSQL DB Change Gate": "SQL harnesses advanced through the PostgREST wire step; tests/h3_admin_quota_postgrest.mjs was missing and Node reported MODULE_NOT_FOUND. The exact file is now selected locally from the read-only source checkout."
+      "codeql": {
+        "check": "success",
+        "run_id": 39260562815,
+        "check_url": "https://github.com/romelhc95/studiamatch/runs/118087106498",
+        "annotations_count": 2,
+        "finding": "HTTP Response Splitting, Medium (test), tests/h3req1_pipeline_postgrest_pg17_integration.py:138"
       },
       "pwi": {
-        "status": "failure",
-        "run_id": 39228629396,
-        "job_id": 117980944207,
-        "cause": "trusted base checkout 4eb4d877a50b012bb630a129bd0c74482c33be9c lacks scripts/security/protected_workflow_review.py",
-        "route": "external GitHub App verifier package prepared; no approval/install; no bypass"
+        "check_run_present": false,
+        "status": "not produced on this SHA",
+        "previous_failure_cause": "trusted development base 4eb4d877a50b012bb630a129bd0c74482c33be9c lacks scripts/security/protected_workflow_review.py"
       },
-      "overall_security_audit": "in_progress; not a passing completed check; old-SHA required workflow still has three failures and actionlint in progress",
-      "codeql": {
-        "original_findings_sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
-        "last_codeql_check_sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
-        "last_codeql_check": "success; individual alert status unavailable",
-        "current_successor_result": "not available",
-        "findings_reported": [
-          {
-            "rule": "Inefficient regular expression",
-            "severity": "High",
-            "path": "scripts/core/universal_harvester.py",
-            "line": 316
-          },
-          {
-            "rule": "Incomplete multi-character sanitization",
-            "severity": "High",
-            "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
-            "line": 53
-          },
-          {
-            "rule": "Server-side request forgery",
-            "severity": "Critical",
-            "path": "tests/h3req1_c03_integrated_runtime.mjs",
-            "line": 317
-          },
-          {
-            "rule": "Server-side request forgery",
-            "severity": "Critical",
-            "path": "tests/h3req1_c03_integrated_runtime.mjs",
-            "line": 348
-          }
-        ]
-      },
-      "human_review": {
-        "state": "DISMISSED",
-        "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
-        "submitted_at_utc": "2026-10-19T02:57:41Z",
-        "valid_for_successor": false
-      },
-      "cloudflare_preview": {
-        "deployment_id": "c7adff18-9a74-4eb2-9a08-83a5cc05da46",
-        "url": "https://c7adff18.studiamatch-aty.pages.dev",
-        "status": "success",
-        "created_at_utc": "2026-10-18T23:43:51.895404Z",
-        "branch": "feat/h3req1-sync-20261018-r19",
-        "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
-        "current_local_delta_deployed": false,
-        "smoke": "not executed"
-      },
-      "remote_pr_head_sha_reconfirmed": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
-      "remote_pr_body_note": "Current PR body still describes prior snapshot commit d5220185cbb8d1975ebb901a5d6e8e77636b8b02; PR head metadata remains 074583d9f6ea1b5686dc58c9669111f589cb8e7a. The local reviewed body draft is separate and not published.",
-      "successor_sha_or_runs": "none; R19 local delta remains uncommitted and unpublished",
-      "human_review_current_sha": "none; prior romelhc95-approver review is DISMISSED and anchored to d5220185cbb8d1975ebb901a5d6e8e77636b8b02"
+      "run_url": "https://github.com/romelhc95/studiamatch/actions/runs/39260562815"
     },
     "security_remediation": {
       "universal_harvester": "Replace the backtracking-prone nested-quantifier detector with a bounded single-pass structural scan; remove the unbounded re.search fallback when the optional regex dependency is absent and fail closed for regex exclusion/allowlist decisions; add regression cases.",
       "documentation_integrity": "remove the incomplete-tag stripping regex; existing delimiter sanitizer remains and a truncated-tag regression is added",
       "integrated_runtime_test": "use static allowlisted PostgREST destinations and exact query shapes, reject unknown methods/routes/queries, and stop forwarding the Edge query string",
-      "scope": "only four direct local-test imports are added; no unrelated working-tree files are selected"
+      "scope": "only four direct local-test imports are added; no unrelated working-tree files are selected",
+      "postgrest_test_proxy_headers": "The local PostgREST fixture now emits only a fixed application/json Content-Type and a computed Content-Length; it no longer relays arbitrary upstream headers through BaseHTTPRequestHandler.send_header."
     },
     "local_scope_reconciliation": {
       "parent_manifest_entries": 1157,
@@ -40877,7 +40840,154 @@
       "scope_entries_changed": true,
       "independent_review": "PASS on this exact state-bearing digest at 2026-10-19 11:22 UTC; zero findings, recorded in local_validation.independent_review",
       "previous_review_digest": "4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00"
-    }
+    },
+    "r19_remaining_remote_findings_at_2026_10_19_1122_utc": [
+      "The four PR CodeQL diagnostics have focused local remediations; the remote CodeQL result must be rerun on a newly published SHA before disposition.",
+      "The four main Code Scanning alerts #15–#18 have candidate-local remediations but remain open remotely on main until CodeQL reruns and the normal protected promotion flow reaches main.",
+      "Protected Workflow Integrity has no helper in trusted desarrollo, so the current PR cannot prove that gate; a separate protected bootstrap package and human review route is required."
+    ],
+    "remote_status_snapshot_before_08dd": {
+      "as_of_utc": "2026-10-19 11:22 UTC",
+      "pr_number": 501,
+      "base": "desarrollo",
+      "sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+      "synthetic_merge_sha": "934453e149be23bf876f3e1f2671f943e7f762f1",
+      "state": "open",
+      "run_id": 39228507399,
+      "run_status": "in_progress at actionlint; ShellCheck pending at 11:22 UTC",
+      "successful_jobs": [
+        "Documentation Source Registry",
+        "TypeScript Typecheck",
+        "Protected Path Integrity",
+        "Credential Scan",
+        "ESLint"
+      ],
+      "failed_jobs": [
+        "Python Compile And Tests",
+        "Static Build",
+        "PostgreSQL DB Change Gate"
+      ],
+      "in_progress_jobs": {
+        "actionlint And shellcheck": "in_progress at actionlint; ShellCheck pending at 11:22 UTC"
+      },
+      "skipped_jobs": {
+        "H2 Main Production Expand Gate": "skipped; outside this Development objective"
+      },
+      "failure_causes": {
+        "Python Compile And Tests": "tests/test_h3req1_c03_docker_daemon_identity_f2d.py missing in synthetic merge checkout; selected locally in the exact R19 scope.",
+        "Static Build": "tests/h3_admin_auth_error_uat.mjs missing in synthetic merge checkout; selected locally in the exact R19 scope.",
+        "PostgreSQL DB Change Gate": "SQL harnesses advanced through the PostgREST wire step; tests/h3_admin_quota_postgrest.mjs was missing and Node reported MODULE_NOT_FOUND. The exact file is now selected locally from the read-only source checkout."
+      },
+      "pwi": {
+        "status": "failure",
+        "run_id": 39228629396,
+        "job_id": 117980944207,
+        "cause": "trusted base checkout 4eb4d877a50b012bb630a129bd0c74482c33be9c lacks scripts/security/protected_workflow_review.py",
+        "route": "external GitHub App verifier package prepared; no approval/install; no bypass"
+      },
+      "overall_security_audit": "in_progress; not a passing completed check; old-SHA required workflow still has three failures and actionlint in progress",
+      "codeql": {
+        "original_findings_sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "last_codeql_check_sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+        "last_codeql_check": "success; individual alert status unavailable",
+        "current_successor_result": "not available",
+        "findings_reported": [
+          {
+            "rule": "Inefficient regular expression",
+            "severity": "High",
+            "path": "scripts/core/universal_harvester.py",
+            "line": 316
+          },
+          {
+            "rule": "Incomplete multi-character sanitization",
+            "severity": "High",
+            "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
+            "line": 53
+          },
+          {
+            "rule": "Server-side request forgery",
+            "severity": "Critical",
+            "path": "tests/h3req1_c03_integrated_runtime.mjs",
+            "line": 317
+          },
+          {
+            "rule": "Server-side request forgery",
+            "severity": "Critical",
+            "path": "tests/h3req1_c03_integrated_runtime.mjs",
+            "line": 348
+          }
+        ]
+      },
+      "human_review": {
+        "state": "DISMISSED",
+        "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "submitted_at_utc": "2026-10-19T02:57:41Z",
+        "valid_for_successor": false
+      },
+      "cloudflare_preview": {
+        "deployment_id": "c7adff18-9a74-4eb2-9a08-83a5cc05da46",
+        "url": "https://c7adff18.studiamatch-aty.pages.dev",
+        "status": "success",
+        "created_at_utc": "2026-10-18T23:43:51.895404Z",
+        "branch": "feat/h3req1-sync-20261018-r19",
+        "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "current_local_delta_deployed": false,
+        "smoke": "not executed"
+      },
+      "remote_pr_head_sha_reconfirmed": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+      "remote_pr_body_note": "Current PR body still describes prior snapshot commit d5220185cbb8d1975ebb901a5d6e8e77636b8b02; PR head metadata remains 074583d9f6ea1b5686dc58c9669111f589cb8e7a. The local reviewed body draft is separate and not published.",
+      "successor_sha_or_runs": "none; R19 local delta remains uncommitted and unpublished",
+      "human_review_current_sha": "none; prior romelhc95-approver review is DISMISSED and anchored to d5220185cbb8d1975ebb901a5d6e8e77636b8b02"
+    },
+    "postpublication_security_fix": {
+      "parent_remote_sha": "08dd4e1f72c21d01aa8ed5e867b3097c81e442ce",
+      "finding": {
+        "tool": "CodeQL",
+        "rule": "HTTP Response Splitting",
+        "severity": "Medium",
+        "category": "test",
+        "path": "tests/h3req1_pipeline_postgrest_pg17_integration.py",
+        "line": 138,
+        "annotations": 2,
+        "analyzed_sha": "08dd4e1f72c21d01aa8ed5e867b3097c81e442ce"
+      },
+      "candidate_patch": {
+        "path": "tests/h3req1_pipeline_postgrest_pg17_integration.py",
+        "sha256": "576d633ea1d43b9b8df37db874485fb7f9125c93de6948f34968cb00ccb53e4c",
+        "bytes": 19564,
+        "behavior": "upstream headers are not forwarded; Content-Type is a constant; Content-Length is computed from the response body; response status remains the parsed upstream integer status",
+        "adversarial_regression": "Injects a CRLF-bearing response header plus attacker-controlled Content-Length, Transfer-Encoding and Set-Cookie fields; asserts the raw response has exactly one fixed Content-Type and one computed Content-Length and emits none of those upstream headers."
+      },
+      "focused_docker_validation": {
+        "result": "PASS",
+        "command": "bash tests/sql/run_h3req1_pipeline_postgrest_pg17_r1.sh",
+        "postgres_image": "sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f",
+        "postgrest_image": "sha256:0a46780309a604cdc8b56c776c6e5e15788ce58174d709e40459ab5a2d44d228",
+        "application_image": "sha256:5a1c95a749ec56d332265bc161c3d0b9da497d31349911d4f19abfeacc12ca63",
+        "network": "isolated internal Docker network; synthetic PG17/PostgREST fixtures only",
+        "result_markers": [
+          "dotenv-isolation PASS",
+          "postgrest-proxy-response-headers PASS; hostile upstream headers dropped and raw duplicate headers rejected",
+          "postgrest-http PASS",
+          "discovery-checkpoint-resume PASS",
+          "discovery-to-staging PASS",
+          "cleansing-failure-recovery PASS",
+          "enrichment-failure-recovery PASS",
+          "sync-failure-manual-requeue-recovery PASS",
+          "pipeline-persistent-handoff PASS",
+          "pipeline-postgrest-pg17-r1 PASS"
+        ],
+        "recorded_at_utc": "2026-10-19 13:44 UTC"
+      },
+      "independent_read_only_review": {
+        "result": "PASS; no confirmed source-backed bypass or compatibility regression",
+        "review_scope": "current changed test proxy and response-header assertions; reviewer ran no tests",
+        "reviewer_note": "Review identified that dictionary conversion could hide duplicate response headers; assertion now preserves every header value and requires exactly one Content-Type and Content-Length. The affected Docker integration passed after that correction."
+      },
+      "next_step": "reconstruct this two-path candidate independently from remote SHA 08dd, verify tree and manifest pins, then publish under existing authorization and observe all check runs on its exact new SHA.",
+      "current_scope_digest": "8778334dec43c57720c4c918eb0f41eba21441fd3de4c13c846b8ff94f97e2f4"
+    },
+    "current_successor_scope_digest": "aa059d4a767f4690006d9c8bde1e3e31b48002d57bb26a17c26b4d3dbffb2c70"
   },
   "publication_status": "blocked_pending_trusted_pwi_route_jit_and_new_sha_remote_checks",
   "remote_gate_denominator": {

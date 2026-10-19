@@ -6,6 +6,7 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import http.client
 import json
 import logging
 import os
@@ -133,9 +134,9 @@ class PrefixProxyHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         self.send_response(response.status_code)
-        for key, value in response.headers.items():
-            if key.lower() not in {"connection", "content-length", "transfer-encoding", "content-encoding"}:
-                self.send_header(key, value)
+        # This fixture's PostgREST endpoints return JSON; never relay arbitrary
+        # upstream headers through BaseHTTPRequestHandler.
+        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(response.content)))
         self.end_headers()
         if response.content:
@@ -195,11 +196,53 @@ def verify_dotenv_isolation() -> None:
     print("phase=dotenv-isolation|result=PASS|disabled=verified|workspace=allowlisted")
 
 
+def verify_proxy_response_header_boundary() -> None:
+    original_request = requests.request
+    upstream = type("SyntheticResponse", (), {})()
+    upstream.status_code = 200
+    upstream.headers = {
+        "X-H3-Forwarded": "ordinary\r\nX-H3-Injected: yes",
+        "Content-Length": "999",
+        "Transfer-Encoding": "chunked",
+        "Set-Cookie": "session=synthetic",
+    }
+    upstream.content = b"{}"
+    requests.request = lambda *_args, **_kwargs: upstream
+    proxy = ThreadingHTTPServer(("127.0.0.1", 0), PrefixProxyHandler)
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+    connection = http.client.HTTPConnection("127.0.0.1", proxy.server_address[1], timeout=5)
+    try:
+        connection.request("GET", "/rest/v1/courses")
+        response = connection.getresponse()
+        body = response.read()
+        header_values: dict[str, list[str]] = {}
+        for key, value in response.getheaders():
+            header_values.setdefault(key.lower(), []).append(value)
+        require(response.status == 200 and body == b"{}", "proxy-response-headers", "FIXTURE_RESPONSE_CHANGED")
+        require(header_values.get("content-type") == ["application/json"], "proxy-response-headers", "CONTENT_TYPE_NOT_FIXED")
+        require(header_values.get("content-length") == ["2"], "proxy-response-headers", "CONTENT_LENGTH_NOT_COMPUTED")
+        require(
+            not ({"x-h3-forwarded", "x-h3-injected", "set-cookie", "transfer-encoding"} & header_values.keys()),
+            "proxy-response-headers",
+            "UPSTREAM_HEADER_REACHED_CLIENT",
+        )
+        print("phase=postgrest-proxy-response-headers|result=PASS|hostile-upstream-headers=dropped")
+    finally:
+        connection.close()
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        requests.request = original_request
+
+
 def run() -> None:
     global CURRENT_PHASE
     logging.disable(logging.CRITICAL)
     CURRENT_PHASE = "dotenv-isolation"
     verify_dotenv_isolation()
+    CURRENT_PHASE = "proxy-response-headers"
+    verify_proxy_response_header_boundary()
     CURRENT_PHASE = "postgrest-readiness"
     postgrest_ready = False
     for _ in range(30):
