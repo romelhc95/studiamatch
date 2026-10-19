@@ -1,7 +1,7 @@
 {
   "manifest": "H3REQ1 R19 reconciled successor with current local security and tooling results",
-  "as_of_utc": "2026-10-19 09:00 UTC; independent review recorded; publication parent reconciled",
-  "package_kind": "R19 successor; exact local scope independently reviewed; trusted PWI route blocked; remote checks pending",
+  "as_of_utc": "2026-10-19 11:22 UTC; current R19 reconciliation",
+  "package_kind": "R19 successor for PR 501; exact local scope independently reviewed with zero findings; trusted PWI route requires JIT and remote checks await a new SHA",
   "candidate": {
     "workspace": "/tmp/h3req1_r19_publication_prep_20261018",
     "branch": "feat/h3req1-sync-20261018-r19",
@@ -9,10 +9,11 @@
     "head_alone_does_not_identify_wip": true,
     "head_observed": "ef306edd91d339af3a9e0623217b49d86f1cdb1c",
     "snapshot_tree_is_separate_from_syncthing_and_R18": true,
-    "remote_branch_created": false,
-    "commit_created": false,
+    "remote_branch_created": true,
+    "commit_created": true,
     "corrections_uncommitted": true,
-    "pr_head_before_corrections": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02"
+    "pr_head_before_corrections": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+    "published_head_before_workflow_correction": "074583d9f6ea1b5686dc58c9669111f589cb8e7a"
   },
   "authorization": {
     "local_reconciliation": true,
@@ -20,7 +21,7 @@
     "push": "authorized only after B completion, exact local checks/review, and effective protected Development route; not executed.",
     "pull_request": "PR 501 already exists at the previous remote SHA. This authorization covers updating that PR only after B configuration and protected-route/local gates are satisfied; update not executed.",
     "merge": "authorized only after required checks and valid human review on exact current SHA; not executed.",
-    "remote_reads": "R19 filtered GitHub, Cloudflare and Supabase reads were extended on 2026-10-19 07:05 UTC. GitHub PR/run/review metadata and Cloudflare Preview deployment metadata only; no secret values or operational rows. No remote writes, workflow dispatch, PR update, commit, push or merge. Supabase/Cloudflare values were not reread. Public GitHub Actions documentation was checked on 2026-10-19: pull_request_target takes workflow code from the repository default branch. This invalidates the proposed desarrollo-only bootstrap; no repo settings or remote state were changed.",
+    "remote_reads": "GitHub read-only PR 501/head/review/workflow/job metadata was refreshed on 2026-10-19 10:57 UTC; the old SHA run remains in_progress at actionlint, ShellCheck is pending, and the prior human review remains DISMISSED. No secret values, operational rows or current Supabase/Cloudflare values were reread. No remote writes, workflow dispatch, PR update, commit, push or merge occurred in this reconciliation. Public GitHub Actions documentation was checked on 2026-10-19: pull_request_target takes workflow code from the repository default branch. This invalidates the proposed desarrollo-only bootstrap; no repo settings or remote state were changed.",
     "remote_writes_or_configuration": "No R19 connector writes. The responsible later confirmed manual Preview configuration of the gateway key ID Text and HMAC parity; values were not shared. Worker version #2 was accepted as a temporary baseline through 2026-10-25T23:59:00Z. No candidate Pages deployment, extra Worker deployment, rollback, or other remote operation was performed by Codex. The filtered 2026-10-19 re-read confirmed Pages Preview still serves the old PR SHA d5220185cbb8d1975ebb901a5d6e8e77636b8b02; the local successor is not deployed.",
     "deploy": "No Pages R19 deployment; no additional Worker/Edge deployment or rollback by this cycle.",
     "account_reset": "Physical Auth DELETE rejected. C retentive approved but unconsumed: A migration 3 is now applied; C still requires B, D01/D02 on the existing identity, exact private identity/Gmail preflight, and verified-disabled Auth security notifications.",
@@ -136,10 +137,10 @@
     "status_sha256": "2761c9db07112f5aaa0d8b2df00fce0de0e626dbfa56a0259686fb59052a0bee",
     "selected_paths_are_manifest_reconciled": true,
     "snapshot_phase": "R19 successor reconstructed from baseline plus exact R18 scope and R19 deltas; source Syncthing and R18 preserved.",
-    "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-    "final_recheck_required": false,
-    "candidate_paths": 1176,
-    "present_blobs": 1169,
+    "scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+    "final_recheck_required": true,
+    "candidate_paths": 1179,
+    "present_blobs": 1172,
     "deletions": 7,
     "successor_workspace": "/tmp/h3req1_r19_publication_prep_20261018",
     "source_wip_not_copied": true
@@ -208,11 +209,11 @@
       "unique_union": 1127
     },
     "R17_new_scope_artifacts": 5,
-    "final_scope_entries": 1176,
+    "final_scope_entries": 1179,
     "final_scope_status_counts": {
-      "deleted": 7,
-      "untracked": 1080,
-      "modified": 89
+      "modified": 91,
+      "untracked": 1081,
+      "deleted": 7
     },
     "final_scope_ignored_untracked": 37,
     "final_scope_deleted_paths": [
@@ -461,7 +462,7 @@
       "new_identity": "must be a new Auth identity; UUID comparison remains private and in-memory",
       "approvals": "A/B/C/D remain valid only in exact package scopes; A consumed; B/C/D not consumed."
     },
-    "scope_entries_sha256": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+    "scope_entries_sha256": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
     "R19_reconciled_successor": {
       "base": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
       "source_wip_head": "a57bc415257ab8154d40d7c71d34c69d0bdaeb0d",
@@ -469,10 +470,10 @@
       "R18_tree": "332ae4d156863c1f5524e7d5f6c8f1ecb4424dc2",
       "comparison_no_renames": {
         "R18_paths": 1138,
-        "R19_paths_without_manifest_replacement": 1147,
+        "R19_paths_without_manifest_replacement": 1179,
         "removed_video_paths": 2,
-        "added_R19_paths": 40,
-        "R19_scope_entries": 1176
+        "added_R19_paths": 41,
+        "R19_scope_entries": 1179
       },
       "visuals": {
         "png_neutral_derivatives": 46,
@@ -492,8 +493,8 @@
       "no_local_commit_push_update_merge_or_candidate_pages_deployment": true,
       "remote_pr": {
         "number": 501,
-        "remote_sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
-        "state_source": "Conversation history; no new connector read in this correction turn.",
+        "remote_sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+        "state_source": "GitHub connector read confirmed PR 501 head 074583d9f6ea1b5686dc58c9669111f589cb8e7a before this checkout correction; run 39228507399 in progress with three stale-merge checkout failures.",
         "approval": "Responsible reports approver approved the old remote SHA; a push dismisses stale review and requires fresh approval on the successor SHA."
       },
       "static_build_missing_dependency": {
@@ -534,6 +535,14 @@
           "source": "read-only Syncthing checkout",
           "included_reason": "directly invoked by the versioned Static Build workflow"
         }
+      },
+      "postgresql_gate_missing_input": {
+        "path": "tests/h3_admin_quota_postgrest.mjs",
+        "sha256": "e11034070050212bffe961f87467cc727b0c16053a3319515acb477f63d28e95",
+        "bytes": 6959,
+        "source": "read-only Syncthing checkout; exact byte match verified",
+        "why_selected": "direct workflow invocation; remote PostgreSQL job failed with MODULE_NOT_FOUND after the SQL harnesses completed",
+        "remote_evidence": "PR 501 run 39228507399, job 117980546689, SHA 074583d9f6ea1b5686dc58c9669111f589cb8e7a"
       }
     }
   },
@@ -551,14 +560,14 @@
     "remote_checks_pending": 5
   },
   "scope": {
-    "entry_count": 1176,
-    "tracked_entries": 89,
-    "untracked_entries": 1080,
+    "entry_count": 1179,
+    "tracked_entries": 91,
+    "untracked_entries": 1081,
     "deleted_entries": 7,
     "ignored_untracked_entries": 37,
-    "entries_sha256": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
+    "entries_sha256": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
     "digest_method": "SHA-256 of compact UTF-8 JSON for sorted scope.entries, ordered by path; manifest self path is excluded.",
-    "selection_rule": "R14 exact selection plus R15-R18 preserved artifacts, R19 current state and privacy-safe derivatives; excluded selected videos/original pixels and all other WIP. R8/R9/R12/R13 evidence preserved. The R19 successor adds only exact CI/C03 dependencies, four CodeQL remediation files, their focused regressions, and the two C03 runtime digest pins; all unrelated WIP remains excluded. Six individually selected C03 runtime-manifest inputs are included because the exact R19 integrated runner and its two pinned snapshots require them: bootstrap package, Edge lock output/resolver and test Edge entry, startup source manifest, and PostgREST probe. No other diagnostic WIP is included. PR501 Static Build adds only the exact pre-existing invitation Edge UAT invoked by the versioned workflow and already documented in the Admin runtime/evidence map; no other source WIP is included. Six more exact test inputs are selected solely because the current security-audit Static Build executes them directly; their exact source bytes match the read-only Syncthing checkout, and the component/evidence registry already identifies these UATs. No other WIP is selected.",
+    "selection_rule": "R14 exact selection plus R15-R18 preserved artifacts, R19 current state and privacy-safe derivatives; excluded selected videos/original pixels and all other WIP. R8/R9/R12/R13 evidence preserved. The R19 successor adds only exact CI/C03 dependencies, four CodeQL remediation files, their focused regressions, and the two C03 runtime digest pins; all unrelated WIP remains excluded. Six individually selected C03 runtime-manifest inputs are included because the exact R19 integrated runner and its two pinned snapshots require them: bootstrap package, Edge lock output/resolver and test Edge entry, startup source manifest, and PostgREST probe. No other diagnostic WIP is included. PR501 Static Build adds only the exact pre-existing invitation Edge UAT invoked by the versioned workflow and already documented in the Admin runtime/evidence map; no other source WIP is included. Six more exact test inputs are selected solely because the current security-audit Static Build executes them directly; their exact source bytes match the read-only Syncthing checkout, and the component/evidence registry already identifies these UATs. No other WIP is selected. One exact PostgreSQL DB Change Gate runtime input is added because the current workflow invokes tests/h3_admin_quota_postgrest.mjs directly and the failed run 39228507399 proved it absent from the checked-out candidate. Its bytes match the read-only Syncthing checkout; no sibling or directory-wide WIP is selected. R19 adds only two exact H2 CI consumer tests because the protected-path allowlist moved from the workflow into its extracted helper; no test folder or wider H2 path set was added.",
     "entries": [
       {
         "path": ".context/00_INDICE.md",
@@ -1157,11 +1166,11 @@
         "status": "modified",
         "worktree_status": "R19 current checkpoint and navigation pointer updated; R18 history retained.",
         "ignored_by_porcelain": false,
-        "bytes": 52747,
+        "bytes": 49937,
         "mode": "0664",
-        "sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
-        "observed_workspace_sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
-        "observed_workspace_bytes": 52747
+        "sha256": "1a718318dbfd057bc243afa3a0a2a06a615b6d96c7c07e5370b57d1fe1cc824b",
+        "observed_workspace_sha256": "1a718318dbfd057bc243afa3a0a2a06a615b6d96c7c07e5370b57d1fe1cc824b",
+        "observed_workspace_bytes": 49937
       },
       {
         "path": ".context/evidencia/h3_admin_email_header_local_cycle_2026-10-01.md",
@@ -4977,11 +4986,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 36164,
+        "bytes": 41399,
         "mode": "0664",
-        "sha256": "4a31e84e2b35a79368f2f8371877f0aa328c1d7c9d9f8392857003231652bd59",
-        "observed_workspace_sha256": "4a31e84e2b35a79368f2f8371877f0aa328c1d7c9d9f8392857003231652bd59",
-        "observed_workspace_bytes": 36164
+        "sha256": "7855d78868bdeaffbc594c19b602283450a6608d52a0a2563b99d30f73f48e37",
+        "observed_workspace_sha256": "7855d78868bdeaffbc594c19b602283450a6608d52a0a2563b99d30f73f48e37",
+        "observed_workspace_bytes": 41399
       },
       {
         "path": ".context/evidencia/h3req1_diagnostic_ci_prep_2026-10-08.md",
@@ -9370,11 +9379,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 19544,
+        "bytes": 19862,
         "mode": "0664",
-        "sha256": "7cbc184711e283029dced729c9721b4c27813a73ea7d9456387cbe5ef2662d80",
-        "observed_workspace_sha256": "7cbc184711e283029dced729c9721b4c27813a73ea7d9456387cbe5ef2662d80",
-        "observed_workspace_bytes": 19544
+        "sha256": "d39a0691c7526502458ffc0d3274b2e9739bbdcf0fdea8be68ad5e234ec5a828",
+        "observed_workspace_sha256": "d39a0691c7526502458ffc0d3274b2e9739bbdcf0fdea8be68ad5e234ec5a828",
+        "observed_workspace_bytes": 19862
       },
       {
         "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-11.json",
@@ -9727,11 +9736,11 @@
         "status": "untracked",
         "worktree_status": "R19 selected successor artifact from baseline; exact content pinned.",
         "ignored_by_porcelain": false,
-        "bytes": 25160,
+        "bytes": 36116,
         "mode": "0664",
-        "sha256": "69acd0c06c589d6ac4460853a6bfd61c417ae075a0df6f04cdc0daba42c945d5",
-        "observed_workspace_sha256": "69acd0c06c589d6ac4460853a6bfd61c417ae075a0df6f04cdc0daba42c945d5",
-        "observed_workspace_bytes": 25160
+        "sha256": "e9b4bbdded5e8cad72fc0bc38e60dc815cfea82bcc1d9db8f5a7567737d6b9fd",
+        "observed_workspace_sha256": "e9b4bbdded5e8cad72fc0bc38e60dc815cfea82bcc1d9db8f5a7567737d6b9fd",
+        "observed_workspace_bytes": 36116
       },
       {
         "path": ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt",
@@ -12024,13 +12033,13 @@
           "R8_functional_scope"
         ],
         "status": "modified",
-        "worktree_status": "R19 exact-path allowlist and manifest consumer updated.",
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
         "ignored_by_porcelain": false,
-        "bytes": 121691,
+        "bytes": 24515,
         "mode": "0664",
-        "sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
-        "observed_workspace_sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
-        "observed_workspace_bytes": 121691
+        "sha256": "29fbe5a721332495755ec46f099957019ddfa986813d882a8dd89100adeb008c",
+        "observed_workspace_sha256": "29fbe5a721332495755ec46f099957019ddfa986813d882a8dd89100adeb008c",
+        "observed_workspace_bytes": 24515
       },
       {
         "path": "AGENTS.md",
@@ -12512,13 +12521,13 @@
           "R14_overlay"
         ],
         "status": "untracked",
-        "worktree_status": "??",
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
         "ignored_by_porcelain": false,
-        "bytes": 983,
+        "bytes": 86627,
         "mode": "0664",
-        "sha256": "9bf994166a9bbd2d43309c5d9b3e809b2c5ad8a537d2a69090b4a3c38cde5b88",
-        "observed_workspace_sha256": "9bf994166a9bbd2d43309c5d9b3e809b2c5ad8a537d2a69090b4a3c38cde5b88",
-        "observed_workspace_bytes": 983
+        "sha256": "861dd16279495d1919b08c5742e66f265e1216b2d523cc3ed1bcc34d4f0e9bf6",
+        "observed_workspace_sha256": "861dd16279495d1919b08c5742e66f265e1216b2d523cc3ed1bcc34d4f0e9bf6",
+        "observed_workspace_bytes": 86627
       },
       {
         "path": "scripts/security/protected_workflow_review.py",
@@ -12558,13 +12567,13 @@
           "R14_overlay"
         ],
         "status": "modified",
-        "worktree_status": " M",
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
         "ignored_by_porcelain": false,
-        "bytes": 9123,
+        "bytes": 9169,
         "mode": "0775",
-        "sha256": "5d74e61c3aa2afabea5da78c7d60504bfb154035204000e9469e3788bd28571e",
-        "observed_workspace_sha256": "5d74e61c3aa2afabea5da78c7d60504bfb154035204000e9469e3788bd28571e",
-        "observed_workspace_bytes": 9123
+        "sha256": "c99381ac8b3d01f6f97209c29122dc35b731ed1dcfc4b3d3e45266527e9fc991",
+        "observed_workspace_sha256": "c99381ac8b3d01f6f97209c29122dc35b731ed1dcfc4b3d3e45266527e9fc991",
+        "observed_workspace_bytes": 9169
       },
       {
         "path": "scripts/security/scan_worktree_file.py",
@@ -12727,6 +12736,20 @@
         "sha256": "13d608cf1ac51bf66122460a258b7249f7cc6cb7074ec3456e971e45e755fbdf",
         "observed_workspace_sha256": "13d608cf1ac51bf66122460a258b7249f7cc6cb7074ec3456e971e45e755fbdf",
         "observed_workspace_bytes": 27356
+      },
+      {
+        "path": "tests/h3_admin_quota_postgrest.mjs",
+        "selections": [
+          "PR501_PostgreSQL_DB_Change_Gate_missing_direct_runtime_dependency"
+        ],
+        "status": "untracked",
+        "worktree_status": "??",
+        "ignored_by_porcelain": false,
+        "bytes": 6959,
+        "mode": "0644",
+        "sha256": "e11034070050212bffe961f87467cc727b0c16053a3319515acb477f63d28e95",
+        "observed_workspace_sha256": "e11034070050212bffe961f87467cc727b0c16053a3319515acb477f63d28e95",
+        "observed_workspace_bytes": 6959
       },
       {
         "path": "tests/h3_admin_quota_runtime.mjs",
@@ -17368,13 +17391,13 @@
           "R8_functional_scope"
         ],
         "status": "modified",
-        "worktree_status": " M",
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
         "ignored_by_porcelain": false,
-        "bytes": 18815,
+        "bytes": 18810,
         "mode": "0664",
-        "sha256": "77cfcec58edb9917a4257f0d914acd14652d0fdb60b43ef9e674e41f1864b1f0",
-        "observed_workspace_sha256": "77cfcec58edb9917a4257f0d914acd14652d0fdb60b43ef9e674e41f1864b1f0",
-        "observed_workspace_bytes": 18815
+        "sha256": "5085cf32ad3edc1f9ffae7b54335da51c8485d09f21ebb6a12e6bc09a06834bd",
+        "observed_workspace_sha256": "5085cf32ad3edc1f9ffae7b54335da51c8485d09f21ebb6a12e6bc09a06834bd",
+        "observed_workspace_bytes": 18810
       },
       {
         "path": "tests/test_fase09_9_certification_canary.py",
@@ -17392,19 +17415,49 @@
         "observed_workspace_bytes": 10312
       },
       {
+        "path": "tests/test_h2_development_legacy_compat.py",
+        "selections": [
+          "PR501_CI_correction",
+          "R19_scope_guard_consumer_correction"
+        ],
+        "status": "modified",
+        "worktree_status": "R19 exact test consumer updated to read the allowlist from its extracted guard helper.",
+        "ignored_by_porcelain": false,
+        "bytes": 6281,
+        "mode": "0664",
+        "sha256": "65c0965fe82143260dce4e182e8fceda13d3dd5bde0fa6eb55a0442271a5f297",
+        "observed_workspace_sha256": "65c0965fe82143260dce4e182e8fceda13d3dd5bde0fa6eb55a0442271a5f297",
+        "observed_workspace_bytes": 6281
+      },
+      {
+        "path": "tests/test_h2_pro_migration_controls.py",
+        "selections": [
+          "PR501_CI_correction",
+          "R19_scope_guard_consumer_correction"
+        ],
+        "status": "modified",
+        "worktree_status": "R19 exact test consumer updated to read the allowlist from its extracted guard helper.",
+        "ignored_by_porcelain": false,
+        "bytes": 7209,
+        "mode": "0664",
+        "sha256": "6e1fcde8a78c8c793f038537f62b2861f43ddbff873b8041b55cc486cfc7740f",
+        "observed_workspace_sha256": "6e1fcde8a78c8c793f038537f62b2861f43ddbff873b8041b55cc486cfc7740f",
+        "observed_workspace_bytes": 7209
+      },
+      {
         "path": "tests/test_h3_admin_queue_ux_contract.py",
         "selections": [
           "R8_functional_scope",
           "R14_overlay"
         ],
         "status": "modified",
-        "worktree_status": " M",
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
         "ignored_by_porcelain": false,
-        "bytes": 14002,
+        "bytes": 14006,
         "mode": "0664",
-        "sha256": "071c8647daf1a021ab8a1965b8e6650f1709c15adcb9ca2a4ffad2ee52d2df2b",
-        "observed_workspace_sha256": "071c8647daf1a021ab8a1965b8e6650f1709c15adcb9ca2a4ffad2ee52d2df2b",
-        "observed_workspace_bytes": 14002
+        "sha256": "d54157c96ebd8871bffb9e01739830723b5ce180e70b3545a9cd49586506b0da",
+        "observed_workspace_sha256": "d54157c96ebd8871bffb9e01739830723b5ce180e70b3545a9cd49586506b0da",
+        "observed_workspace_bytes": 14006
       },
       {
         "path": "tests/test_h3_invitation_callback_contract.py",
@@ -17563,13 +17616,13 @@
           "R17_current_fact_or_scope_consumer_update"
         ],
         "status": "untracked",
-        "worktree_status": "R19 exact-path allowlist and manifest consumer updated.",
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
         "ignored_by_porcelain": false,
-        "bytes": 10832,
+        "bytes": 10827,
         "mode": "0664",
-        "sha256": "f56eff7fcdd2af007fa25a4664d249640e2983b3ff653ac8ddcfb3c4613fc6f8",
-        "observed_workspace_sha256": "f56eff7fcdd2af007fa25a4664d249640e2983b3ff653ac8ddcfb3c4613fc6f8",
-        "observed_workspace_bytes": 10832
+        "sha256": "d899b096ff1dc8eae10a1444210e257613cc9e5e9575393199e0a8a0e31a4c9c",
+        "observed_workspace_sha256": "d899b096ff1dc8eae10a1444210e257613cc9e5e9575393199e0a8a0e31a4c9c",
+        "observed_workspace_bytes": 10827
       },
       {
         "path": "tests/test_protected_workflow_review.py",
@@ -17609,13 +17662,13 @@
           "R8_functional_scope"
         ],
         "status": "modified",
-        "worktree_status": " M",
+        "worktree_status": "R19 successor exact bytes after relocated protected-path assertions.",
         "ignored_by_porcelain": false,
-        "bytes": 9000,
+        "bytes": 9426,
         "mode": "0664",
-        "sha256": "b8ec2aa34a4e23f59e29a9b5f9115655e891677a0457c06b4d39e18995ab9c36",
-        "observed_workspace_sha256": "b8ec2aa34a4e23f59e29a9b5f9115655e891677a0457c06b4d39e18995ab9c36",
-        "observed_workspace_bytes": 9000
+        "sha256": "dcf49df2de852d0fcef881ff18d7abd928e5bf629f5bd142cf9d52c46aff03f0",
+        "observed_workspace_sha256": "dcf49df2de852d0fcef881ff18d7abd928e5bf629f5bd142cf9d52c46aff03f0",
+        "observed_workspace_bytes": 9426
       },
       {
         "path": "tests/test_site_diagnostics_security.py",
@@ -18222,7 +18275,7 @@
         "observed_workspace_bytes": 338
       }
     ],
-    "modified_entries": 89
+    "modified_entries": 91
   },
   "catalog_reference_closure": {
     "catalog_count": 13,
@@ -18643,11 +18696,11 @@
         "baseline_tracked": true,
         "local_delta_excluded": false,
         "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
-        "bytes": 52747,
+        "observed_workspace_sha256": "1a718318dbfd057bc243afa3a0a2a06a615b6d96c7c07e5370b57d1fe1cc824b",
+        "bytes": 49937,
         "mode": "0664",
-        "sha256": "3aec503f35d498468cd818f3c7ac8c62ac51386ae30a657b0b21a958393479d8",
-        "observed_workspace_bytes": 52747
+        "sha256": "1a718318dbfd057bc243afa3a0a2a06a615b6d96c7c07e5370b57d1fe1cc824b",
+        "observed_workspace_bytes": 49937
       },
       {
         "path": ".context/evidencia/H3REQ1_REMOTE_VALIDATION_PROGRESS.md",
@@ -27805,12 +27858,12 @@
         "availability": "candidate_change",
         "baseline_tracked": true,
         "local_delta_excluded": false,
-        "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
-        "bytes": 121691,
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
+        "observed_workspace_sha256": "29fbe5a721332495755ec46f099957019ddfa986813d882a8dd89100adeb008c",
+        "bytes": 24515,
         "mode": "0664",
-        "sha256": "8e9c164b6bc93b7eff269b195624c0725bd4be50ca6c7fc59ccb9465bf98de5f",
-        "observed_workspace_bytes": 121691
+        "sha256": "29fbe5a721332495755ec46f099957019ddfa986813d882a8dd89100adeb008c",
+        "observed_workspace_bytes": 24515
       },
       {
         "path": "config/institution_sources.json",
@@ -30647,12 +30700,12 @@
         "availability": "candidate_change",
         "baseline_tracked": false,
         "local_delta_excluded": false,
-        "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "9bf994166a9bbd2d43309c5d9b3e809b2c5ad8a537d2a69090b4a3c38cde5b88",
-        "bytes": 983,
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
+        "observed_workspace_sha256": "861dd16279495d1919b08c5742e66f265e1216b2d523cc3ed1bcc34d4f0e9bf6",
+        "bytes": 86627,
         "mode": "0664",
-        "sha256": "9bf994166a9bbd2d43309c5d9b3e809b2c5ad8a537d2a69090b4a3c38cde5b88",
-        "observed_workspace_bytes": 983
+        "sha256": "861dd16279495d1919b08c5742e66f265e1216b2d523cc3ed1bcc34d4f0e9bf6",
+        "observed_workspace_bytes": 86627
       },
       {
         "path": "scripts/security/protected_workflow_review.py",
@@ -30715,12 +30768,12 @@
         "availability": "candidate_change",
         "baseline_tracked": true,
         "local_delta_excluded": false,
-        "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "5d74e61c3aa2afabea5da78c7d60504bfb154035204000e9469e3788bd28571e",
-        "bytes": 9123,
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
+        "observed_workspace_sha256": "c99381ac8b3d01f6f97209c29122dc35b731ed1dcfc4b3d3e45266527e9fc991",
+        "bytes": 9169,
         "mode": "0775",
-        "sha256": "5d74e61c3aa2afabea5da78c7d60504bfb154035204000e9469e3788bd28571e",
-        "observed_workspace_bytes": 9123
+        "sha256": "c99381ac8b3d01f6f97209c29122dc35b731ed1dcfc4b3d3e45266527e9fc991",
+        "observed_workspace_bytes": 9169
       },
       {
         "path": "scripts/security/scan_worktree_file.py",
@@ -35597,12 +35650,12 @@
         "availability": "candidate_change",
         "baseline_tracked": false,
         "local_delta_excluded": false,
-        "worktree_status": "R19 successor exact bytes",
-        "observed_workspace_sha256": "f56eff7fcdd2af007fa25a4664d249640e2983b3ff653ac8ddcfb3c4613fc6f8",
-        "bytes": 10832,
+        "worktree_status": "R19 successor exact bytes after actionlint/ShellCheck deadlock correction and focused consumer updates.",
+        "observed_workspace_sha256": "d899b096ff1dc8eae10a1444210e257613cc9e5e9575393199e0a8a0e31a4c9c",
+        "bytes": 10827,
         "mode": "0664",
-        "sha256": "f56eff7fcdd2af007fa25a4664d249640e2983b3ff653ac8ddcfb3c4613fc6f8",
-        "observed_workspace_bytes": 10832
+        "sha256": "d899b096ff1dc8eae10a1444210e257613cc9e5e9575393199e0a8a0e31a4c9c",
+        "observed_workspace_bytes": 10827
       },
       {
         "path": "tests/test_scan_credentials.sh",
@@ -38936,9 +38989,9 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 36164,
+      "bytes": 41399,
       "mode": "0664",
-      "sha256": "4a31e84e2b35a79368f2f8371877f0aa328c1d7c9d9f8392857003231652bd59",
+      "sha256": "7855d78868bdeaffbc594c19b602283450a6608d52a0a2563b99d30f73f48e37",
       "status": "B partial; no publication",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
@@ -38948,9 +39001,9 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 19544,
+      "bytes": 19862,
       "mode": "0664",
-      "sha256": "7cbc184711e283029dced729c9721b4c27813a73ea7d9456387cbe5ef2662d80",
+      "sha256": "d39a0691c7526502458ffc0d3274b2e9739bbdcf0fdea8be68ad5e234ec5a828",
       "status": "Open PR 501 body synchronized to current local validation results; local only, not published.",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
@@ -38960,9 +39013,9 @@
       "included": true,
       "self_hash_excluded": false,
       "reason": null,
-      "bytes": 25160,
+      "bytes": 36116,
       "mode": "0664",
-      "sha256": "69acd0c06c589d6ac4460853a6bfd61c417ae075a0df6f04cdc0daba42c945d5",
+      "sha256": "e9b4bbdded5e8cad72fc0bc38e60dc815cfea82bcc1d9db8f5a7567737d6b9fd",
       "status": "R19 validation log",
       "worktree_status": "R19 successor artifact; no remote publication."
     },
@@ -40005,8 +40058,10 @@
       "historical_first_pass_status": "PASS",
       "historical_first_pass_reason": "Filtered connector reads and the separate human confirmation of Edge secret presence/HMAC parity are distinguished; B remains incomplete due to the gateway key ID and deployment-count discrepancy.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-selected-public-visual-redaction",
@@ -40016,8 +40071,10 @@
       "historical_first_pass_status": "PASS",
       "historical_first_pass_reason": "46 paths contain the exact neutral placeholder; 2 videos excluded; original pins retained in local/R18 evidence.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-github-accepted-object-review",
@@ -40027,8 +40084,10 @@
       "historical_first_pass_status": "PASS",
       "historical_first_pass_reason": "Tree/blob metadata reconciled without exposing content; rejected PNG NOT_FOUND; no new object uploads.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-documentation-integrity",
@@ -40038,8 +40097,10 @@
       "historical_first_pass_status": "PASS_HOST_FALLBACK",
       "historical_first_pass_reason": "Node checker PASS: 698/698 sources; 113/113 active documents; 433/433 historical docs; 13 catalogs; Docker normal gate remains unavailable.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-documentation-self-test",
@@ -40049,8 +40110,10 @@
       "historical_first_pass_status": "PASS_HOST_FALLBACK",
       "historical_first_pass_reason": "Node adversarial self-test PASS on exact candidate manifest; Docker runtime unavailable.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-protected-path-scope-guard",
@@ -40060,8 +40123,10 @@
       "historical_first_pass_status": "PASS_HOST_FALLBACK",
       "historical_first_pass_reason": "Host scope guard and negative regressions PASS: 1,153 candidate paths; Docker focal requirement remains unavailable.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-pr-template",
@@ -40071,8 +40136,10 @@
       "historical_first_pass_status": "PASS_HOST_FALLBACK",
       "historical_first_pass_reason": "Versioned template/body ordered headings match 10/10; actual R19 checks/risks are stated.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-credential-scan",
@@ -40082,8 +40149,10 @@
       "historical_first_pass_status": "PASS_HOST_FALLBACK",
       "historical_first_pass_reason": "Staged candidate scanner PASS; bash -n focal shell scripts PASS; Docker runtime unavailable.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-exact-manifest-stage",
@@ -40093,8 +40162,10 @@
       "historical_first_pass_status": "PASS",
       "historical_first_pass_reason": "Exact scope plus included package artifacts equals baseline-to-index diff: 1,153 paths (1,146 current blobs and 7 deletions); 1,145 content blobs match worktree bytes, SHA pins, and normalized Git modes. The R19 manifest self-file is the sole intentionally unpinned blob; zero extras/missing.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-functional-input-reuse",
@@ -40104,8 +40175,10 @@
       "historical_first_pass_status": "PASS_WITH_LIMIT",
       "historical_first_pass_reason": "59/60 selected product/test paths byte-identical to R18; changed scope-guard test rerun PASS on host; Docker state-contract pytest not rerun.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-git-diff-check",
@@ -40115,8 +40188,10 @@
       "historical_first_pass_status": "WARN_NO_NEW",
       "historical_first_pass_reason": "125 whitespace diagnostics (107 trailing, 18 blank EOF), all normalized findings match R18; zero new diagnostics.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-actionlint",
@@ -40126,8 +40201,10 @@
       "historical_first_pass_status": "BLOCKED",
       "historical_first_pass_reason": "security-audit.yml changed; Docker returns Input/output error and actionlint is absent from host.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-shellcheck-focal",
@@ -40137,8 +40214,10 @@
       "historical_first_pass_status": "BLOCKED",
       "historical_first_pass_reason": "scope guard focal input changed; Docker returns Input/output error and shellcheck is absent from host.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-docker-state-contract",
@@ -40148,8 +40227,10 @@
       "historical_first_pass_status": "BLOCKED",
       "historical_first_pass_reason": "Current project state contract changed; Docker returns Input/output error, so focused pytest could not run.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-independent-review",
@@ -40159,60 +40240,103 @@
       "historical_first_pass_status": "PENDING",
       "historical_first_pass_reason": "Round 1 findings were corrected; round 2 passed without HIGH/CRITICAL/blockers and found one LOW discrepancy-count wording issue, corrected in the current successor snapshot; targeted round-3 review is pending.",
       "historical_first_pass_scope_digest": "717c22ff90eb92b97274d573a94a4e22d92019d204827d4c2b53500696f6c992",
-      "current_snapshot": true,
-      "historical_first_pass_preserved": true
+      "current_snapshot": false,
+      "historical_first_pass_preserved": true,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-remote-Python-Compile-And-Tests",
       "status": "pending_new_sha",
       "reason": "Old PR SHA d5220185cbb8d1975ebb901a5d6e8e77636b8b02 failed; no successor SHA or run.",
       "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-      "current_snapshot": true
+      "current_snapshot": false,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-remote-Static-Build",
       "status": "pending_new_sha",
       "reason": "Old PR SHA failed; local candidate sequence passed only in Docker; no successor run.",
       "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-      "current_snapshot": true
+      "current_snapshot": false,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-remote-PostgreSQL-DB-Change-Gate",
       "status": "pending_new_sha",
       "reason": "Old PR SHA failed; local PostgREST probe is limited and no full PG17 gate is claimed.",
       "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-      "current_snapshot": true
+      "current_snapshot": false,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-remote-CodeQL",
       "status": "pending_new_sha",
       "reason": "Four PR findings remain associated with the old SHA until CodeQL analyzes the successor; local fixes do not close them remotely.",
       "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-      "current_snapshot": true
+      "current_snapshot": false,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-remote-Protected-Workflow-Integrity",
       "status": "blocked_out_of_scope_default_branch",
-      "reason": "BLOCKED: pull_request_target loads trusted workflow from default main; a bootstrap only to desarrollo cannot activate PWI. Main is explicitly out of scope; no trusted external check provider was verified.",
-      "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-      "current_snapshot": true
+      "reason": "BLOCKED: PWI run checked trusted desarrollo base and failed because scripts/security/protected_workflow_review.py is absent there; adding it to this PR head cannot satisfy the base-side verifier. The latest read-only GitHub observation (2026-10-19 11:22 UTC) still shows the PR at this prior SHA, so this is the current observed remote state, not a pass. An external GitHub App route is prepared, not approved or installed. No control is bypassed or weakened; main remains out of scope.",
+      "scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+      "current_snapshot": true,
+      "historical_snapshot": false,
+      "remote_head_sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+      "remote_observation_as_of_utc": "2026-10-19 11:22 UTC"
     },
     {
       "name": "R19-remote-security-audit",
       "status": "pending_new_sha",
       "reason": "Old PR SHA aggregate failed; no successor run.",
       "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-      "current_snapshot": true
+      "current_snapshot": false,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
     },
     {
       "name": "R19-remote-actionlint-And-shellcheck",
       "status": "pending_new_sha",
       "reason": "Old PR run cancelled actionlint and skipped ShellCheck; current local checks pass, but no successor remote result.",
       "scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-      "current_snapshot": true
+      "current_snapshot": false,
+      "historical_snapshot": true,
+      "superseded_by_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3"
+    },
+    {
+      "name": "R19-final-independent-review",
+      "status": "PASS_HISTORICAL_PRE_STATE_CHECKPOINT",
+      "reason": "PASS was for digest 4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00 before the operational state checkpoint changed; not current for the new state-bearing digest.",
+      "scope_digest": "4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00",
+      "current_snapshot": false,
+      "historical_snapshot": true,
+      "findings": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "blocking": 0
+      },
+      "scope": "Manifest-only metadata correction; no code/tests or remote state."
+    },
+    {
+      "name": "R19-state-checkpoint-independent-review",
+      "status": "PASS",
+      "reason": "Final independent read-only review of exact state-bearing digest d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695 completed at 2026-10-19 11:22 UTC; zero findings at every severity and no blockers.",
+      "scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+      "current_snapshot": true,
+      "historical_snapshot": false,
+      "reviewed_at_utc": "2026-10-19 11:22 UTC",
+      "findings": {"critical": 0, "high": 0, "medium": 0, "low": 0, "blocking": 0}
     }
   ],
-  "remote_read_cutoff_utc": "2026-10-18T20:33:00Z (R19 read-only connector observations; no secret values)",
+  "remote_read_cutoff_utc": "2026-10-19 11:22 UTC for the latest GitHub PR/check/review re-read; Supabase/Cloudflare observations remain at their separately recorded R19 cuts; no secret values",
   "remote_read_policy": {
     "github": "R19 read-only repository ref/protected status and prior accepted objects by tree/blob metadata; detailed protection remains 403; no writes.",
     "supabase": "R19 read-only Free Edge function metadata/source comparison; no rows, Auth users, mailbox, tokens, Edge secret values, SQL or RPC invocation.",
@@ -40292,11 +40416,12 @@
     "parent_local_commit": "ef306edd91d339af3a9e0623217b49d86f1cdb1c",
     "parent_remote_commit": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
     "pull_request": 501,
-    "purpose": "repair direct CI/test dependency omissions and the PostgREST invocation; remediate four PR CodeQL diagnostics and four historical main alerts with focused regressions; restore exact C03 runtime pins; preserve the trusted-base PWI boundary; reconcile current Docker, manifest and remote status evidence.",
+    "purpose": "repair direct CI/test dependency omissions and the PostgREST invocation; move only two affected H2 test consumers to the extracted scope-guard helper; remediate four PR CodeQL diagnostics and four historical main alerts with focused regressions; restore exact C03 runtime pins; preserve the trusted-base PWI boundary; reconcile current Docker, manifest and remote status evidence.",
     "added_paths": [
       "tests/h3_admin_auth_error_uat.mjs",
       "tests/h3_admin_invite_edge_typecheck.mjs",
       "tests/h3_admin_invite_edge_uat.mjs",
+      "tests/h3_admin_quota_postgrest.mjs",
       "tests/h3_admin_quota_runtime.mjs",
       "tests/h3_admin_quota_uat.mjs",
       "tests/h3_admin_safe_suspend_runtime_uat.mjs",
@@ -40335,13 +40460,20 @@
       "scripts/core/universal_harvester.py",
       "scripts/maintenance/h3req1_documentation_integrity.mjs",
       "scripts/maintenance/taxonomy_roi_audit.py",
+      "scripts/security/protected_path_scope_guard.sh",
+      "scripts/security/scan_credentials.sh",
       "scripts/shared/site_diagnostics.py",
       "supabase/functions/send-lead-emails/index.ts",
+      "tests/h3_admin_quota_postgrest.mjs",
       "tests/h3req1-c03-integrated-r51.sha256",
       "tests/h3req1-c03-integrated.sha256",
       "tests/h3req1_c03_integrated_runtime.mjs",
       "tests/test_admin_invite_edge_contract.py",
+      "tests/test_h2_development_legacy_compat.py",
+      "tests/test_h2_pro_migration_controls.py",
+      "tests/test_h3_admin_queue_ux_contract.py",
       "tests/test_h3req1_local_pipeline_walk.py",
+      "tests/test_protected_path_scope_guard.sh",
       "tests/test_security_flow.py",
       "tests/test_supabase_credentials_contract.py"
     ],
@@ -40352,66 +40484,59 @@
       "Protected Workflow Integrity has no helper in trusted desarrollo, so the current PR cannot prove that gate; a separate protected bootstrap package and human review route is required."
     ],
     "local_validation": {
-      "as_of_utc": "2026-10-19 08:59 UTC",
-      "candidate_parent": "Exact R19 files were reviewed from local HEAD ef306edd91d339af3a9e0623217b49d86f1cdb1c. The local publication branch feat/h3req1-sync-20261018-r19 is now based on the existing PR head d5220185cbb8d1975ebb901a5d6e8e77636b8b02; the two original base commits have identical Git trees (20f7e3edd87f49319af30256d6eaba3cdda78f5e). The original validation HEAD is preserved at codex/r19-validation-head-ef306. The reviewed worktree delta is preserved and the remote PR update will be a fast-forward; no force-push is used.",
+      "as_of_utc": "2026-10-19 11:15 UTC",
+      "candidate_parent": "HEAD 074583d9f6ea1b5686dc58c9669111f589cb8e7a on feat/h3req1-sync-20261018-r19; local working tree contains the uncommitted successor delta; remote branch remains at the prior SHA until the validated package is published.",
       "docker_image": "studiamatch-dev:r19-20261018; sha256:460484fdb765674851a450473d88778336ac5402cb171580e3b0c0beca188255; candidate mounted read-only for isolated checks. Separate habitual studiamatch-dev remains healthy, 0 restarts, and mounts the source checkout.",
       "results": {
         "h2_writer_scan": "PASS",
-        "credential_scanner_regressions": "PASS in Docker: clean/text/named credential/binary/lockfile/newline path/tree/history/I-O failure/concurrency/redaction cases; complete candidate tree scan reports credential scan passed.",
-        "protected_path_scope_guard": "PASS in Docker; candidate_paths=1182 (1176 scope paths plus 6 package artifacts), catalogs=13, catalog_targets=1173, force_add_ignored=37, ignored_catalog_targets=28; negative cases ordinary=3, newline=1, controls=1, malformed=3, unmanifested_h3=2.",
-        "offline_python_security_suite": "The previously recorded 229-test suite remains historical and was not repeated; the changed harvester path received the focused 13-test suite above.",
+        "credential_scanner_regressions": "PASS in Docker on the self-contained exact synthetic snapshot: clean/text/named credential/binary/lockfile/newline path/tree/history/I-O failure/concurrency/redaction cases; full tracked-tree scan reports credential scan passed.",
+        "protected_path_scope_guard": "PASS in Docker on the self-contained exact synthetic snapshot: candidate_paths=1185 (1179 scope paths plus 6 package artifacts), catalogs=13, catalog_targets=1173, force_add_ignored=37, ignored_catalog_targets=28; negative cases ordinary=3, newline=1, controls=1, malformed=3, unmanifested_h3=2. Exact baseline diff union and helper comparison passed.",
+        "offline_python_security_suite": "PASS in Docker with hashed requirements: compile all scripts, H2 writer scan, credential scanner regression and full tree scan, protected-path manifest integration/negatives; pytest primary 250 passed plus 10 subtests; second workflow pytest invocation 41 passed. A prior stale-pin failure and three corrected consumer assertions are retained as history; affected consumers passed 34 tests before the full workflow rerun.",
         "invitation_contract_followup": "PASS; 41 tests",
         "admin_auth_error_uat": "PASS; 7 checks",
         "new_dependency_syntax": "PASS; Node syntax for three added .mjs files and Python byte-compilation for three added .py files",
         "candidate_credential_scan": "PASS in Docker after final source/body/manifest reconciliation; complete candidate tree, network disabled.",
         "actionlint": "PASS in Docker; actionlint 1.7.7 on updated .github/workflows/security-audit.yml.",
         "shellcheck": "PASS previously; ShellCheck 0.11.0 on the same unchanged shell files, reused without rerun.",
-        "git_diff_check": "PASS in Docker on the tracked local delta; this does not claim a remote check.",
+        "git_diff_check": "PASS in Docker for the R19 working-tree delta against its parent. Full baseline-to-snapshot diff-check reports 107 trailing-whitespace and 18 blank-EOF formatting warnings in earlier selected documentation/evidence/fixtures; preserved without reformatting because they are not introduced by this R19 delta. This optional style diagnostic is not an Actions result.",
         "pipeline_regex_regression": "PASS in Docker; tests/test_h3req1_local_pipeline_walk.py: 14 passed; includes nested-quantifier rejection, safe-pattern acceptance, and fail-closed behavior when the bounded regex dependency is absent.",
         "proxy_destination_selftest": "PASS in Docker: C03 self-test confirms static PostgREST allowlist and exercises handleFunction; rejected query does not reach fetch and Edge caller query is dropped.",
-        "documentation_integrity": "PASS in Docker: 722/722 sources, 113/113 active docs, 433/433 historical docs; 13 catalogs.",
-        "python_compile": "PASS in Docker; py_compile for scripts/core/universal_harvester.py and tests/test_h3req1_local_pipeline_walk.py; exit 0.",
+        "documentation_integrity": "PASS in Docker: 723/723 sources, 113/113 active docs, 433/433 historical docs; 13 catalogs.",
+        "python_compile": "PASS in Docker: Python 3.11.2 py_compile across every scripts/**/*.py file.",
         "node_syntax": "PASS in Docker; integrated runtime and all four direct support modules pass node --check.",
-        "static_build": "PASS in Docker: h2_web_mock_smoke.sh; h2_web_mock_smoke_ok; Node 20.20.2; fixture-local, not Preview.",
+        "static_build": "PASS in Docker on exact R19 source inputs: all 11 direct Node invocations from Static Build passed; h2_web_mock_smoke.sh returned h2_web_mock_smoke_ok and produced expected catalog/detail pages; Node 20.20.2 and Node 22.22.0 with pinned Miniflare 4.20260730.0/esbuild 0.25.10. Local fixtures only, not Preview.",
         "security_regressions": "PASS in Docker: 21 focused pytest tests and 10 subtests across site diagnostics, taxonomy privacy and local pipeline; ReDoS includes synthetic timeout and missing-dependency fail-closed cases.",
         "pwi_helper_tests": "PASS in Docker: tests/test_protected_workflow_review.py, 13 passed; does not create a trusted-base PWI result.",
         "send_lead_handler_uat": "PASS in Docker: tests/h3_send_lead_error_uat.mjs, 7 checks; invokes real handler with mocked provider failure and generic 500 assertion.",
-        "workflow_lint": "PASS in Docker: actionlint 1.7.7; ShellCheck 0.11.0 on exact affected focal shell scripts.",
-        "scope_and_reference_manifest": "PASS in Docker: 1176/1176 scope pins, 1173/1173 catalog-reference pins, and 37/37 package-artifact content/byte/Git-normalized-mode checks; no missing or mismatched content; scope digest e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6; guard union 1182 exact paths. 32 raw POSIX 0644/0664 differences normalize to Git mode 100644; no chmod or content changes.",
+        "workflow_lint": "PASS in Docker on exact actionlint/ShellCheck inputs; reused without rerun because workflow and focal shell-script bytes are unchanged since the verified actionlint 1.7.7 and ShellCheck 0.11.0 runs.",
+        "scope_and_reference_manifest": "PASS in Docker: 1179/1179 scope pins, 1173/1173 catalog-reference pins, and 37/37 package-artifact content/byte/Git-normalized-mode checks; no missing or mismatched content; scope digest d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695; guard union 1185 exact paths. 32 raw POSIX 0644/0664 differences normalize to Git mode 100644; no chmod or content changes.",
         "habitual_docker": "PASS read-only recheck: studiamatch-dev running/healthy, 0 restarts, image sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1; /admin/login/ HTTP 200; mounts source checkout, not R19.",
-        "postgresql_gate": "NOT PASS: remote old-SHA PG gate failed. Local PostgREST startup probe only proves the executable/config correction; loopback DB intentionally unavailable and expected timeout; no full PG17 gate or cloud DB write claimed.",
-        "pr_template_contract": "PASS in Docker: tests/test_obsidian_context_state.py and tests/test_requirement_client_source_validation.py, 18 passed; all 10 versioned template headings present in order and the PR body has no PENDING or PLACEHOLDER text.",
+        "postgresql_gate": "PASS in Docker: isolated PostgreSQL 17.11/PostgREST 13.0.7 fixture ran H2 base/Pro, H3 Free/Pro/chain/future harnesses, quota/gateway/suspend, PostgREST wire/assertion, invitation concurrency, and five Node syntax checks. The missing direct workflow input tests/h3_admin_quota_postgrest.mjs is byte-identical to the source checkout (SHA-256 e11034070050212bffe961f87467cc727b0c16053a3319515acb477f63d28e95). No cloud writes.",
+        "pr_template_contract": "PASS in Docker on current exact body: state/client/workflow review contracts 46 passed; 10 versioned template headings matched in order; 9 required candidate links resolve; validation table has 17 rows including header; zero placeholder tokens.",
         "focused_pytest_current": "PASS in Docker: 130 passed, 10 subtests, 1 inherited PyPDF2 deprecation warning; 9 affected security/state/contract suites.",
         "state_and_client_contract": "PASS in Docker: 18 passed across tests/test_obsidian_context_state.py and tests/test_requirement_client_source_validation.py after current manifest refresh.",
         "frontend_eslint": "PASS in Docker on unchanged web inputs: 0 errors, 9 existing warnings.",
         "typescript_typecheck": "PASS in Docker on unchanged TypeScript inputs: npx tsc --noEmit --incremental false.",
         "static_build_runtime": "PASS locally in Docker: Node 20.20.2 h2_web_mock_smoke_ok; Node 22.22.0 quota runtime PASS (25 concurrent, 10 admitted, persistence and legacy payload); safe-suspend runtime PASS (3 Admin 503, 3 public 200, 8 encoded aliases rejected, 4 cookies cleared).",
-        "current_manifest_audit": "PASS in Docker: scope=1176; digest=e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6; catalog refs=1173; 37 content artifacts pass SHA/bytes/Git-mode; self-hash-excluded manifest=1; current missing Static Build inputs=0, seven historical missing inputs preserved, 11 direct invocations present.",
+        "current_manifest_audit": "PASS in Docker: scope=1179; digest=d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695; catalog refs=1173; 37 content artifacts pass SHA/bytes/Git-mode; self-hash-excluded manifest=1; current missing Static Build inputs=0, seven historical missing inputs preserved, 11 direct Static Build invocations present; the exact PostgreSQL wire-test input is selected and pinned.",
         "current_untracked_whitespace": "PASS in Docker: tracked git diff --check plus --no-index --check for 26 untracked files; focused py_compile passes for the corrected F2d test.",
         "local_vs_remote_boundary": "No local result is a GitHub Actions, CodeQL, Development Preview, or remote acceptance result."
       },
       "postgrest_invocation_probe": "LIMITED: pinned PostgREST 13.0.7 started using /bin/postgrest /etc/postgrest.conf, read a 0644 mounted config and listened on 127.0.0.1:3233; network was disabled and DB URI pointed to an unused loopback port, so expected connection-refused retries ended at the 8-second timeout (exit 124). This proves the former exit-126 executable/config-permission defect is repaired; it does not replace the PostgreSQL DB Change Gate.",
-      "review": "PASS independent read-only review at 2026-10-19 09:00 UTC for exact scope digest e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6; 0 Critical, 0 High, 0 Medium, 0 Low, 0 blockers. No tests or remote reads by reviewer.",
-      "remote_codeql": "PENDING: four PR findings were reported on old SHA d5220185cbb8d1975ebb901a5d6e8e77636b8b02; local fixes do not close remote alerts.",
-      "remote_pwi": "BLOCKED: pull_request_target loads trusted workflow from default main; a bootstrap only to desarrollo cannot activate PWI. Main is explicitly out of scope; no trusted external check provider was verified.",
-      "pr_body": "Updated locally from the versioned template; current PR 501, local digest, current Docker results, old remote run, Cloudflare deployment SHA, and separate alert inventories recorded; not published.",
+      "review": "PASS read-only independent review of exact scope digest d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695 on 2026-10-19 11:22 UTC; zero findings and blockers. Earlier snapshots remain historical.",
+      "remote_codeql": "Four PR findings were reported on d5220185cbb8d1975ebb901a5d6e8e77636b8b02; CodeQL check was success for later SHA 074583d9f6ea1b5686dc58c9669111f589cb8e7a, but individual alert disposition is unavailable and a new-SHA analysis is required. The four main alerts #15-#18 are a separate inventory; their last supplied view showed them open on main.",
+      "remote_pwi": "BLOCKED: PWI run checked trusted desarrollo base and failed because scripts/security/protected_workflow_review.py is absent there; adding it to this PR head cannot satisfy the base-side verifier. An external GitHub App route is prepared, not approved or installed. No control is bypassed or weakened; main remains out of scope.",
+      "pr_body": "Updated locally from the versioned template; current PR 501, local digest, current Docker results, old remote run, Cloudflare deployment SHA, separate alert inventories, and full-package whitespace warning count recorded; not published.",
       "independent_review": {
         "status": "PASS",
-        "reviewer": "independent read-only reviewer",
-        "target_head": "ef306edd91d339af3a9e0623217b49d86f1cdb1c plus the exact manifest-pinned working tree",
-        "target_scope_digest": "e12ee1979e130a571152ceea05ad5208aa1c4e75b09f2872b2a31b56b7ad32c6",
-        "reviewed_at_utc": "2026-10-19 09:00 UTC",
+        "reviewer": "r19_independent_review",
+        "target_head": "074583d9f6ea1b5686dc58c9669111f589cb8e7a plus the current manifest-pinned working tree",
+        "target_scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+        "reviewed_at_utc": "2026-10-19 11:22 UTC",
         "remote_access": false,
-        "tests_executed_by_reviewer": false,
-        "findings": {
-          "critical": 0,
-          "high": 0,
-          "medium": 0,
-          "low": 0,
-          "blocking": 0
-        },
-        "confirmed": "current_manifest_audit digest, superseded historical status wording, deduplicated Preview fact, 1176 scope pins, 13 catalogs, 1173 targets, 37 content-artifact pins, and manifest self-hash exclusion.",
-        "limitations": "Does not close GitHub alerts or establish remote checks, Development deployment, PWI, or human approval for a new SHA."
+        "required_findings": "manifest closure, artifact modes, security fixes, exact test evidence, PR template/body, and distinction of old/new remote results",
+        "findings": {"critical": 0, "high": 0, "medium": 0, "low": 0, "blocking": 0},
+        "review_scope": "Final read-only package review after reconciling historical PENDING fields and the current PWI row; no Git, tests, or remote access."
       },
       "intermediate_failures": [
         {
@@ -40425,12 +40550,16 @@
       "b_reconciliation": "Connector snapshot remains historical. Later user confirmations of the gateway key ID Text and HMAC parity are recorded separately; user accepted Worker #2 temporary exception until 2026-10-25T23:59:00Z. No candidate Preview deployment or runtime smoke; B/integration remains incomplete.",
       "documentary_re_review": "Current Preview and GitHub metadata reconciled in dated appendices; no further B configuration claim is attributed to the connector.",
       "prior_independent_review": {
-        "status": "PENDING",
+        "status": "HISTORICAL_SUPERSEDED",
         "reviewer": "r19_independent_review and r19_security_review",
         "target_head": "ef306edd91d339af3a9e0623217b49d86f1cdb1c plus the current manifest-pinned working tree",
         "target_scope_digest": "2f5548d886758c23461e0dc7ca08c0ec7b07f998c50fb5dfbe664f64697534f9",
         "remote_access": false,
-        "required_findings": "manifest closure, artifact modes, security fixes, exact test evidence, PR template/body, and distinction of old/new remote results"
+        "required_findings": "manifest closure, artifact modes, security fixes, exact test evidence, PR template/body, and distinction of old/new remote results",
+        "current_snapshot": false,
+        "historical_snapshot": true,
+        "superseded_by_scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+        "reason": "This pending request targeted the earlier 2f5548d snapshot; the only active review request is R19-state-checkpoint-independent-review for the current d770f4ca digest."
       },
       "intermediate_invocation_failures": [
         "A delta-audit draft compared the manifest's full worktree candidate to the index/HEAD only and misclassified 29 scope paths as absent. The exact candidate is the worktree; 29 paths are 26 untracked additions plus three baseline files modified by this successor, all present and scoped. The actual PR-parent delta is 22 modified plus 26 added paths (48 total), with no deletions.",
@@ -40439,7 +40568,8 @@
         "Initial send-lead UAT invocation could not resolve TypeScript; rerun with the existing node_modules Docker volume read-only passed 7 checks. No dependency volume was modified.",
         "The first credential-scanner invocation after the 2026-10-19 status correction used shell quoting that emitted a literal backslash-n path separator, so the scanner rejected a constructed nonexistent path before scanning candidate files. The corrected invocation emitted actual line separators and passed over the manifest scope and included package artifacts; this was a harness invocation error, not a candidate finding.",
         "The first mode comparison used raw POSIX bits; the final audit compares Git-normalized 100644/100755 modes and passes without chmod or content changes.",
-        "The first normalized artifact audit counted the self-hash-excluded R19 manifest among 37 content artifacts and stopped at 38 records; the audit was corrected to separate 37 content artifacts from the manifest, then passed. This was a validation-harness counting error, not a candidate failure."
+        "The first normalized artifact audit counted the self-hash-excluded R19 manifest among 37 content artifacts and stopped at 38 records; the audit was corrected to separate 37 content artifacts from the manifest, then passed. This was a validation-harness counting error, not a candidate failure.",
+        "The first synthetic-snapshot validation used a shared Git alternate that was unavailable to later Docker containers. It was rebuilt from the same exact selected bytes with a self-contained object store; the 1,185-path baseline diff and protected-scope comparison passed."
       ],
       "remote_checks_successor": {
         "target_sha": null,
@@ -40477,9 +40607,11 @@
         "human_review": "old approval applies only to d5220185cbb8d1975ebb901a5d6e8e77636b8b02; fresh review is required for any new SHA."
       },
       "independent_code_security_review": {
-        "status": "PASS for reviewed code changes only; no findings reported",
-        "target_scope_digest": "4bcc1d5a3a7155ac57fa2b645f5ae9b637d2cf5dd9c1499c307b2ea9df8e55d4",
-        "reviewed": "four PR501 CodeQL fixes and four historical main-alert fixes",
+        "status": "PASS for current R19 code; no findings reported",
+        "target_scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+        "reviewer": "r19_security_review",
+        "reviewed_at_utc": "2026-10-19 11:22 UTC",
+        "reviewed": "four PR501 CodeQL fixes and four historical main-alert fixes; current source hashes match the reviewed code",
         "findings": {
           "critical": 0,
           "high": 0,
@@ -40493,13 +40625,14 @@
       }
     },
     "remote_status_snapshot": {
-      "as_of_utc": "2026-10-19 07:05 UTC",
+      "as_of_utc": "2026-10-19 11:22 UTC",
       "pr_number": 501,
       "base": "desarrollo",
-      "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+      "sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+      "synthetic_merge_sha": "934453e149be23bf876f3e1f2671f943e7f762f1",
       "state": "open",
-      "run_id": 39177784316,
-      "run_conclusion": "failure",
+      "run_id": 39228507399,
+      "run_status": "in_progress at actionlint; ShellCheck pending at 11:22 UTC",
       "successful_jobs": [
         "Documentation Source Registry",
         "TypeScript Typecheck",
@@ -40510,16 +40643,31 @@
       "failed_jobs": [
         "Python Compile And Tests",
         "Static Build",
-        "PostgreSQL DB Change Gate",
-        "security-audit"
+        "PostgreSQL DB Change Gate"
       ],
-      "cancelled_or_skipped_jobs": {
-        "actionlint And shellcheck": "cancelled at actionlint; ShellCheck skipped",
+      "in_progress_jobs": {
+        "actionlint And shellcheck": "in_progress at actionlint; ShellCheck pending at 11:22 UTC"
+      },
+      "skipped_jobs": {
         "H2 Main Production Expand Gate": "skipped; outside this Development objective"
       },
-      "pwi": "no job: workflow/helper absent from trusted desarrollo base",
+      "failure_causes": {
+        "Python Compile And Tests": "tests/test_h3req1_c03_docker_daemon_identity_f2d.py missing in synthetic merge checkout; selected locally in the exact R19 scope.",
+        "Static Build": "tests/h3_admin_auth_error_uat.mjs missing in synthetic merge checkout; selected locally in the exact R19 scope.",
+        "PostgreSQL DB Change Gate": "SQL harnesses advanced through the PostgREST wire step; tests/h3_admin_quota_postgrest.mjs was missing and Node reported MODULE_NOT_FOUND. The exact file is now selected locally from the read-only source checkout."
+      },
+      "pwi": {
+        "status": "failure",
+        "run_id": 39228629396,
+        "job_id": 117980944207,
+        "cause": "trusted base checkout 4eb4d877a50b012bb630a129bd0c74482c33be9c lacks scripts/security/protected_workflow_review.py",
+        "route": "external GitHub App verifier package prepared; no approval/install; no bypass"
+      },
+      "overall_security_audit": "in_progress; not a passing completed check; old-SHA required workflow still has three failures and actionlint in progress",
       "codeql": {
-        "sha_analyzed": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "original_findings_sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+        "last_codeql_check_sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+        "last_codeql_check": "success; individual alert status unavailable",
         "current_successor_result": "not available",
         "findings_reported": [
           {
@@ -40549,7 +40697,7 @@
         ]
       },
       "human_review": {
-        "state": "APPROVED",
+        "state": "DISMISSED",
         "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
         "submitted_at_utc": "2026-10-19T02:57:41Z",
         "valid_for_successor": false
@@ -40563,7 +40711,11 @@
         "sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
         "current_local_delta_deployed": false,
         "smoke": "not executed"
-      }
+      },
+      "remote_pr_head_sha_reconfirmed": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+      "remote_pr_body_note": "Current PR body still describes prior snapshot commit d5220185cbb8d1975ebb901a5d6e8e77636b8b02; PR head metadata remains 074583d9f6ea1b5686dc58c9669111f589cb8e7a. The local reviewed body draft is separate and not published.",
+      "successor_sha_or_runs": "none; R19 local delta remains uncommitted and unpublished",
+      "human_review_current_sha": "none; prior romelhc95-approver review is DISMISSED and anchored to d5220185cbb8d1975ebb901a5d6e8e77636b8b02"
     },
     "security_remediation": {
       "universal_harvester": "Replace the backtracking-prone nested-quantifier detector with a bounded single-pass structural scan; remove the unbounded re.search fallback when the optional regex dependency is absent and fail closed for regex exclusion/allowlist decisions; add regression cases.",
@@ -40585,9 +40737,9 @@
         "tests/h3req1-c03-integrated.sha256",
         "tests/h3req1-c03-integrated-r51.sha256"
       ],
-      "current_selected_entry_count": 1176,
-      "current_modified_entries": 89,
-      "current_untracked_entries": 1080,
+      "current_selected_entry_count": 1179,
+      "current_modified_entries": 91,
+      "current_untracked_entries": 1081,
       "current_deletions": 7,
       "unrelated_wip_included": false,
       "r14_r18_evidence_rewritten": false,
@@ -40615,6 +40767,13 @@
         "tests/h3_send_lead_error_uat.mjs",
         "tests/h3_supabase_sdk_headers_uat.mjs",
         "tests/h3req1_c03_integrated_runtime.mjs"
+      ],
+      "postgresql_gate_exact_missing_inputs": [
+        "tests/h3_admin_quota_postgrest.mjs"
+      ],
+      "r19_scope_guard_consumer_corrections": [
+        "tests/test_h2_development_legacy_compat.py",
+        "tests/test_h2_pro_migration_controls.py"
       ]
     },
     "historically_missing_static_build_inputs": [
@@ -40640,9 +40799,87 @@
       "tests/h3req1_c03_integrated_runtime.mjs"
     ],
     "missing_static_build_inputs": [],
-    "static_build_history_reconciliation": "Seven previously reported missing direct workflow inputs are retained as history. The exact current Static Build job has eleven direct Node invocations; all eleven are present and scoped. A non-idempotent updater previously replaced the historical list with an empty current-missing list; the list was restored from the recorded dependency additions and this updater now unions prior historical, prior-current, and recorded inputs on every run."
+    "static_build_history_reconciliation": "Seven previously reported missing direct workflow inputs are retained as history. The exact current Static Build job has eleven direct Node invocations; all eleven are present and scoped. A non-idempotent updater previously replaced the historical list with an empty current-missing list; the list was restored from the recorded dependency additions and this updater now unions prior historical, prior-current, and recorded inputs on every run.",
+    "workflow_checkout_correction": {
+      "base_sha": "074583d9f6ea1b5686dc58c9669111f589cb8e7a",
+      "parent_sha": "d5220185cbb8d1975ebb901a5d6e8e77636b8b02",
+      "workflow_path": ".github/workflows/security-audit.yml",
+      "affected_jobs": 10,
+      "change": "Checkout github.event.pull_request.head.sha, falling back to github.sha; preserve PR base diff and all gates.",
+      "cause": "Run 39228507399 checked out stale synthetic merge SHA 934453e149be23bf876f3e1f2671f943e7f762f1; Python, Static Build, and PostgreSQL jobs then lacked selected test files that are present in head 074583d9f6ea1b5686dc58c9669111f589cb8e7a.",
+      "old_run_id": 39228507399,
+      "old_run_observation": "three jobs failed due stale merge checkout; actionlint remained in progress at last read; remaining final results retained in GitHub run history.",
+      "scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3",
+      "validation_state": "PASS in Docker on the exact self-contained synthetic R19 snapshot; GitHub rerun remains pending a newly published SHA.",
+      "final_local_validation_scope_digest": "4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00"
+    },
+    "manifest_history_reconciliation": {
+      "as_of_utc": "2026-10-19T09:42:18Z",
+      "current_scope_digest": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3",
+      "reclassified_historical_rows": [
+        "R19-remote-B-reconciliation",
+        "R19-selected-public-visual-redaction",
+        "R19-github-accepted-object-review",
+        "R19-documentation-integrity",
+        "R19-documentation-self-test",
+        "R19-protected-path-scope-guard",
+        "R19-pr-template",
+        "R19-credential-scan",
+        "R19-exact-manifest-stage",
+        "R19-functional-input-reuse",
+        "R19-git-diff-check",
+        "R19-actionlint",
+        "R19-shellcheck-focal",
+        "R19-docker-state-contract",
+        "R19-independent-review",
+        "R19-remote-Python-Compile-And-Tests",
+        "R19-remote-Static-Build",
+        "R19-remote-PostgreSQL-DB-Change-Gate",
+        "R19-remote-CodeQL",
+        "R19-remote-Protected-Workflow-Integrity",
+        "R19-remote-security-audit",
+        "R19-remote-actionlint-And-shellcheck"
+      ],
+      "reason": "Earlier rows with digest e12ee described the prior manifest snapshot; their original input digests and statuses remain preserved and are no longer marked current."
+    },
+    "actionlint_shellcheck_deadlock_correction": {
+      "cause": "actionlint 1.7.7 hung while ShellCheck processed the 86 KB protected-path allowlist embedded in a workflow run block; the affected run remained in progress.",
+      "change": "Moved the unchanged comparison body into scripts/security/protected_path_scope_guard.sh and reduced the workflow step to a single CLI invocation. Updated focused tests to read the exact allowlists from the helper. Rewrote two ShellCheck SC2015 expressions in the credential scanner as explicit conditionals without changing branch behavior.",
+      "old_workflow_run_id": 39228507399,
+      "old_status_preserved": "historical in-progress; not counted as a pass.",
+      "scope_digest_before": "ba206df13ec5bb92526f15cfa1349040867b6e30afa8339b37e08db1a04c1a87",
+      "scope_digest_after": "4321cbd09d48719df4e0c586f47475d1a67c99a368ce58d455e9b42683e528b3",
+      "validated_snapshot_sha": "Synthetic exact-scope validation commit c34ae891303b15b0881729d3f4900f59f489ec16; candidate scope digest 4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00. This is local evidence, not a PR SHA.",
+      "local_validation": "PASS in Docker on that exact snapshot: actionlint 1.7.7, ShellCheck 0.11.0, exact protected-path guard, scanner regressions, manifest audit, and focused Python contracts (46 passed). No remote GitHub check is implied.",
+      "final_local_validation_scope_digest": "4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00"
+    },
+    "resolved_postgresql_gate_inputs": [
+      "tests/h3_admin_quota_postgrest.mjs"
+    ],
+    "missing_postgresql_gate_inputs": [],
+    "manifest_only_reconciliation": {
+      "as_of_utc": "2026-10-19 11:06:57 UTC",
+      "cause": "Independent reviewer found stale pending/completing wording in two validation summaries although exact digest 4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00 had passed locally.",
+      "changes": [
+        "Clarified workflow checkout local result and kept remote rerun pending new SHA.",
+        "Reconciled actionlint/ShellCheck and focused Python completion wording with Docker evidence."
+      ],
+      "scope_entries_changed": false,
+      "scope_digest_unchanged": true,
+      "independent_review": "Historical PASS on digest 4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00; the current state-bearing digest is separately identified and awaits review.",
+      "reviewed_at_utc": "2026-10-19 11:07:52 UTC",
+      "review_scope_digest": "4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00"
+    },
+    "state_checkpoint_reconciliation": {
+      "as_of_utc": "2026-10-19 11:15 UTC",
+      "change": "Updated the current operational state with the Docker exact-snapshot results and latest read-only PR/check status; no functional source or test bytes changed.",
+      "scope_digest": "d770f4ca9d87e3e1bc2bc43778cf293b12cd9fa2c528604089ad5454226b5695",
+      "scope_entries_changed": true,
+      "independent_review": "PASS on this exact state-bearing digest at 2026-10-19 11:22 UTC; zero findings, recorded in local_validation.independent_review",
+      "previous_review_digest": "4416417af1719f72ac3726f1bff5785ddac98afe45c9099a0e046308149eaf00"
+    }
   },
-  "publication_status": "blocked_pending_trusted_pwi_route_and_new_sha_remote_checks",
+  "publication_status": "blocked_pending_trusted_pwi_route_jit_and_new_sha_remote_checks",
   "remote_gate_denominator": {
     "stable_total": 7,
     "successor_completed": 0,

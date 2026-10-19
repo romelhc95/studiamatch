@@ -212,11 +212,11 @@ def test_signed_rpc_gateway_harness_is_run_in_ci():
 
 
 def test_protected_h3_path_allowlist_is_narrow_and_covers_this_candidate():
-    workflow = (ROOT / ".github/workflows/security-audit.yml").read_text(encoding="utf-8")
-    match = re.search(r"allowed_h3='([^']+)'", workflow)
+    guard = (ROOT / "scripts/security/protected_path_scope_guard.sh").read_text(encoding="utf-8")
+    match = re.search(r"allowed_h3='([^']+)'", guard)
     assert match is not None
     allowed = [re.compile(match.group(1))]
-    extra = re.search(r"allowed_h3_extra='([^']+)'", workflow)
+    extra = re.search(r"allowed_h3_extra='([^']+)'", guard)
     if extra:
         allowed.append(re.compile(extra.group(1)))
 
@@ -276,8 +276,8 @@ def test_protected_h3_path_allowlist_is_narrow_and_covers_this_candidate():
         assert any(pattern.fullmatch(candidate) for pattern in allowed), candidate
 
     local_match = re.search(
-        r"allowed_h3_local=\$\(cat <<'H3_LOCAL_PATHS'\n(.*?)\n\s*H3_LOCAL_PATHS",
-        workflow,
+        r"allowed_h3_local=\$\(cat <<'H3_LOCAL_PATHS'\n(.*?)\nH3_LOCAL_PATHS",
+        guard,
         re.DOTALL,
     )
     assert local_match is not None

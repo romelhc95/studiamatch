@@ -40,7 +40,10 @@ case "$tmp_dir" in
     "$TMP_ROOT"/studiamatch-credential-scan.*) ;;
     *) fail 'temporary directory path is unexpected'; exit 2 ;;
 esac
-[ -d "$tmp_dir" ] && [ ! -L "$tmp_dir" ] || { fail 'private temporary directory is invalid'; exit 2; }
+  if [ ! -d "$tmp_dir" ] || [ -L "$tmp_dir" ]; then
+    fail 'private temporary directory is invalid'
+    exit 2
+  fi
 
 scan_matches() {
     input=$1
@@ -251,7 +254,10 @@ case "$mode" in
         if scan_tree; then :; else exit $?; fi
         ;;
     diff)
-        [ "$#" -ge 1 ] && [ "$#" -le 2 ] || { fail '--diff requires a base and optional head'; exit 2; }
+        if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+          fail '--diff requires a base and optional head'
+          exit 2
+        fi
         if scan_diff "$1" "${2:-HEAD}"; then :; else exit $?; fi
         ;;
     staged)

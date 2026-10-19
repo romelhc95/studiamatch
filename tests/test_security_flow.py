@@ -54,10 +54,11 @@ def test_security_audit_keeps_required_check_name():
 
 def test_security_audit_allowlists_scanner_worktree_helper_and_pre_push():
     workflow = read(".github/workflows/security-audit.yml")
-    extra_line = next(line for line in workflow.splitlines() if "allowed_h3_extra='" in line)
+    guard = read("scripts/security/protected_path_scope_guard.sh")
+    extra_line = next(line for line in guard.splitlines() if line.strip().startswith("allowed_h3_extra='"))
     extra_pattern = extra_line.split("allowed_h3_extra='", 1)[1].split("'", 1)[0]
-    local_block = workflow.split("allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'", 1)[1]
-    local_block = local_block.split("\n          H3_LOCAL_PATHS", 1)[0]
+    local_block = guard.split("allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'", 1)[1]
+    local_block = local_block.split("\nH3_LOCAL_PATHS", 1)[0]
     local_paths = {line.strip() for line in local_block.splitlines() if line.strip()}
 
     expected_paths = {
@@ -67,6 +68,7 @@ def test_security_audit_allowlists_scanner_worktree_helper_and_pre_push():
     }
     assert all(re.fullmatch(extra_pattern, path) for path in expected_paths)
     assert expected_paths <= local_paths
+    assert "run: bash scripts/security/protected_path_scope_guard.sh --compare-candidate" in workflow
 
 
 def test_security_audit_installs_python_dependencies_from_hashed_lockfile():
@@ -80,22 +82,25 @@ def test_protected_path_guard_preserves_git_filename_boundaries():
     workflow = read(".github/workflows/security-audit.yml")
     guard = read("scripts/security/protected_path_scope_guard.sh")
 
-    assert "git diff --name-only -z" in workflow
-    assert 'protected_path_scope_capture "$changed_path_file"' in workflow
+    assert "bash scripts/security/protected_path_scope_guard.sh --compare-candidate" in workflow
+    assert "git diff --name-only -z" in guard
+    assert 'protected_path_scope_capture "$changed_path_file"' in guard
     assert "read -r -d '' candidate" in guard
     assert "unsupported control character" in guard
 
 
 def test_manual_security_audit_dispatch_fails_closed_without_trusted_diff_base():
     text = read(".github/workflows/security-audit.yml")
+    guard = read("scripts/security/protected_path_scope_guard.sh")
 
     assert "PROTECTED_BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}" in text
     assert "PROTECTED_BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}" not in text
-    assert 'if [ -z "$PROTECTED_BASELINE_SHA" ]; then' in text
-    assert "protected-path checks require a trusted pull_request or push baseline" in text
-    assert 'if [ "$base" = "0000000000000000000000000000000000000000" ]; then' in text
-    assert "git hash-object -t tree -w /dev/null" in text
-    assert 'base="$PROTECTED_BASELINE_SHA"' in text
+    assert "bash scripts/security/protected_path_scope_guard.sh --compare-candidate" in text
+    assert 'if [ -z "$PROTECTED_BASELINE_SHA" ]; then' in guard
+    assert "protected-path checks require a trusted pull_request or push baseline" in guard
+    assert 'if [ "$base" = "0000000000000000000000000000000000000000" ]; then' in guard
+    assert "git hash-object -t tree -w /dev/null" in guard
+    assert 'base="$PROTECTED_BASELINE_SHA"' in guard
     assert "database changes require a trusted pull_request or push baseline" in text
 
 

@@ -71,12 +71,12 @@ def test_queue_pagination_rejects_null_limits_in_rpc_and_signed_dispatcher() -> 
 
 
 def test_queue_guard_paths_are_allowlisted_by_the_protected_workflow() -> None:
-    workflow = read(".github/workflows/security-audit.yml")
+    guard = read("scripts/security/protected_path_scope_guard.sh")
 
     patterns = {}
     for name in ("allowed_h3", "allowed_h3_extra"):
         assignment = next(
-            line.strip() for line in workflow.splitlines() if line.strip().startswith(f"{name}=")
+            line.strip() for line in guard.splitlines() if line.strip().startswith(f"{name}=")
         )
         patterns[name] = re.compile(assignment.split("='", 1)[1].rsplit("'", 1)[0])
 

@@ -1,119 +1,121 @@
 ## Resumen
 
-Sucesor local sanitizado para H3REQ1, construido desde `4eb4d877a50b012bb630a129bd0c74482c33be9c` con alcance R18 más deltas R19 y las correcciones de PR 501. Preserva funcionalidad R8 y selección documental R13 con R14–R18 históricos. R19 reemplaza los 46 PNG seleccionados por derivados neutros, excluye dos videos y reconcilia lecturas B de Cloudflare/Supabase sin exponer secretos ni filas. B permanece incompleto. El manifiesto fija 1.176 rutas y sus pins exactos. HEAD local es `ef306edd91d339af3a9e0623217b49d86f1cdb1c`, con el mismo árbol que el SHA publicado `d5220185cbb8d1975ebb901a5d6e8e77636b8b02`; la selección local incorpora 22 rutas modificadas y 26 añadidas frente a ese árbol. El PR 501 sigue abierto y este sucesor aún no tiene commit ni SHA propio. Branch local: `feat/h3req1-sync-20261018-r19`.
+Sucesor local de H3REQ1 para integrar en `desarrollo` bajo PR protegido. Incluye el alcance funcional R8, la selección documental R13 reconciliada por R14 y los deltas R19 autorizados. Conserva R8/R9/R12/R13 y sus evidencias; R18 permanece histórico e intacto. No incluye WIP ajeno ni reabre la reorganización Obsidian. El veredicto actual es **NO-GO Development**: todavía no hay SHA nuevo, deployment R19 ni aceptación remota.
 
-Vínculos requeridos: [estado vigente](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/estado_del_proyecto.md), [atestación cliente sanitizada](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md), [reporte remoto R19](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_g10_remote_preparation_2026-10-18_r19.md), [paquete Development R19](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_development_integration_package_2026-10-18_r19.md), [checks R19](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_remote_preparation_checks_2026-10-18_r19.txt), [manifiesto R19](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json) y [tratamiento visual](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_visual_evidence_redaction_2026-10-18_r19.md). Estos enlaces quedarán disponibles tras publicar la rama autorizada.
+- Repositorio: [romelhc95/studiamatch](https://github.com/romelhc95/studiamatch), PR [#501](https://github.com/romelhc95/studiamatch/pull/501), destino `desarrollo`.
+- Rama: `feat/h3req1-sync-20261018-r19`; HEAD local y remoto actual: `074583d9f6ea1b5686dc58c9669111f589cb8e7a`; baseline `desarrollo`: `4eb4d877a50b012bb630a129bd0c74482c33be9c`.
+- Las correcciones locales de workflow, guard, scanner, consumidores y el input directo del gate PostgreSQL siguen sin commit. La identidad exacta del paquete es el [manifiesto R19](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json), que registra 1.179 rutas y seis artefactos de paquete adicionales.
+- Evidencia vinculante: [estado vigente](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/estado_del_proyecto.md), [atestación cliente sanitizada](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md), [reporte remoto](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_g10_remote_preparation_2026-10-18_r19.md), [paquete Development](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_development_integration_package_2026-10-18_r19.md), [validaciones](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_remote_preparation_checks_2026-10-18_r19.txt), [revisión independiente](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_remote_preparation_independent_review_2026-10-18_r19.txt) y [tratamiento visual](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencia/h3req1_visual_evidence_redaction_2026-10-18_r19.md). El documento privado del cliente no se incluye.
 
 ## Evidencia De Este PR
 
-- Fuente Syncthing: `a57bc415257ab8154d40d7c71d34c69d0bdaeb0d`, 19.510 entradas WIP; no copiada. R18 histórico: `0d7c89dccffd1146b6cc669d4994787e9b78b533`, árbol `332ae4d156863c1f5524e7d5f6c8f1ecb4424dc2`; inalterado. Base R19: `4eb4d877a50b012bb630a129bd0c74482c33be9c`.
-- Reporte remoto R19: lecturas metadata filtradas; Pages Preview compartido con Certification, Worker/DO presentes, Edge `admin-invite` v14 y contenido idéntico a R18. Sin valores secretos ni datos operativos. Confirmaciones humanas posteriores indican que el key ID Text está en Preview, y que los HMAC corresponden a los valores guardados; no se atribuyen al conector ni se publican valores. `NEXT_SUPABASE_SECRET_KEY` no se configura en Pages Preview.
-- Este sucesor no tiene commit/push ni actualización del PR 501, y no se han ejecutado D01/D02, C, nueva invitación ni aceptación remota. La lectura filtrada de Cloudflare encontró un deployment Preview exitoso para el SHA anterior `d5220185cbb8d1975ebb901a5d6e8e77636b8b02`: `https://c7adff18.studiamatch-aty.pages.dev`, deployment `c7adff18-9a74-4eb2-9a08-83a5cc05da46`, creado el 2026-10-18 23:43:51 UTC. Ese deployment no incluye el delta local actual ni acredita su smoke. El responsable aceptó Worker #2 como excepción temporal hasta 2026-10-25 23:59 UTC; no autoriza otro deployment/rollback y no prueba compatibilidad runtime.
-- Los hashes originales de visuales se guardan en la nota R19 únicamente para identificar inventario local; el contenido original no está en el candidato y no se ha reintentado el PNG rechazado.
+- Docker aislado `studiamatch-dev:r19-20261018`: PostgreSQL 17.11/PostgREST 13.0.7 y las 11 invocaciones Node directas de Static Build pasan en el snapshot R19, incluidos el build mock H2 y los UAT runtime con Node 22.22.0. El flujo Python completo definido por `security-audit` también pasó con dependencias instaladas desde `requirements-pipeline.txt` bajo hashes: `py_compile`, escaneo H2, scanner regresiones/árbol, guard/negativos, pytest primario 250 passed + 10 subtests y segunda invocación 41 passed. Se corrigieron tres expectativas obsoletas; sus consumidores afectados y los 34 tests de seguridad/H2 ahora pasan. actionlint 1.7.7, ShellCheck 0.11.0 y `bash -n` pasan sobre inputs focales. Guard: 1.185 rutas (1.179 scope + 6 artefactos), 13 catálogos/1.173 referencias; negativos ordinary=3, newline=1, controls=1, malformed=3, unmanifested H3=2. Ningún PASS local es resultado de GitHub ni aceptación Development.
+- El cambio tooling saca la comparación de 86 KB del bloque `run:` del workflow y la invoca mediante `scripts/security/protected_path_scope_guard.sh --compare-candidate`. La allowlist y sus límites se conservan; las pruebas leen ahora el helper como fuente. Dos expresiones SC2015 del scanner se expresan con condiciones explícitas equivalentes.
+- Una invocación documental sin manifiesto en la copia sparse reportó rutas WIP registradas pero excluidas del paquete. La invocación exacta de CI con manifiesto candidato pasó; también pasó el self-test global del checkout de origen. No se añadieron esos WIP al paquete.
+- La lectura de GitHub del 2026-10-19 10:57 UTC confirma que el SHA remoto sigue en `074583d9f6ea1b5686dc58c9669111f589cb8e7a`; el cuerpo remoto aún refleja el snapshot previo. El run [39228507399](https://github.com/romelhc95/studiamatch/actions/runs/39228507399) permanece `in_progress` en actionlint; ShellCheck sigue pendiente. Python Compile And Tests, Static Build y PostgreSQL fallaron en ese checkout anterior por dependencias/configuración ausentes: el log registra `tests/test_h3req1_c03_docker_daemon_identity_f2d.py`, `tests/h3_admin_auth_error_uat.mjs` y `tests/h3_admin_quota_postgrest.mjs`. La entrada PostgreSQL recuperada coincide byte por byte con el checkout fuente (SHA-256 `e11034070050212bffe961f87467cc727b0c16053a3319515acb477f63d28e95`); el paquete local actual contiene los inputs y sus validaciones Docker pasan. Estos resultados no reemplazan los checks remotos del sucesor.
+- En ese run pasaron Documentation Source Registry, TypeScript, ESLint, Credential Scan y Protected Path Integrity; H2 Main Production Expand Gate quedó `skipped` fuera de alcance. CodeQL había terminado en success para `074583d9` según [39228503767](https://github.com/romelhc95/studiamatch/actions/runs/39228503767), pero no hay lectura individual de las alertas ni análisis del delta local. Cloudflare Pages sirvió Preview para el SHA viejo; no es aceptación Development. El job actionlint sigue en curso y ShellCheck pendiente; actionlint 1.7.7 y ShellCheck 0.11.0 pasan localmente sobre inputs que no cambiaron.
+- Protected Workflow Integrity falló porque el checkout confiable `desarrollo` usado por el job no contiene `scripts/security/protected_workflow_review.py`; añadirlo al head de este PR no lo hace visible durante la misma comprobación protegida. Las ejecuciones visibles son [117980575050](https://github.com/romelhc95/studiamatch/actions/runs/39228507363/job/117980575050) y [117980944207](https://github.com/romelhc95/studiamatch/actions/runs/39228629396/job/117980944207). Una ruta viable sin modificar `main` ni debilitar checks es el verificador externo con GitHub App mínima descrita en el paquete JIT `/tmp/h3req1_pwi_external_check_app_jit_package_20261019.md`; su instalación sigue sin aprobación y no se ejecutará por inferencia.
+- Los cuatro hallazgos CodeQL del PR y las alertas históricas de `main` son inventarios separados. Las alertas individuales no son legibles por el conector: ni el éxito del run CodeQL ni las correcciones locales permiten declararlas cerradas. El aprobador anterior figura `DISMISSED`; no aprueba ningún SHA futuro.
+
+### Cuatro hallazgos CodeQL reportados para PR 501
+
+Los siguientes avisos se reportaron en el commit analizado `d5220185cbb8d1975ebb901a5d6e8e77636b8b02`; las rutas/líneas son sus ubicaciones originales en esa versión. Su disposición por alerta no fue verificable. El CodeQL del SHA posterior `074583d9f6ea1b5686dc58c9669111f589cb8e7a` terminó en success, pero hace falta un análisis del nuevo SHA y lectura de alertas para afirmar cierre individual.
+
+| Regla/severidad | Archivo y ubicación analizada | Corrección local incluida | Estado verificable |
+|---|---|---|---|
+| Inefficient regular expression — High | `scripts/core/universal_harvester.py:316` | Detector estructural lineal, patrón acotado y timeout con rechazo cerrado. | Regresión local previa PASS; alerta individual pendiente de lectura CodeQL sobre SHA nuevo. |
+| Incomplete multi-character sanitization — High | `scripts/maintenance/h3req1_documentation_integrity.mjs:53` | Parser de tags con estado y casos de atributos/markup incompleto. | Self-test local con manifiesto PASS; alerta individual pendiente de lectura CodeQL sobre SHA nuevo. |
+| Server-side request forgery — Critical | `tests/h3req1_c03_integrated_runtime.mjs:317` | Destino PostgREST desde allowlist local exacta; se rechaza antes de `fetch`. | Self-test local de destinos proxy PASS; alerta individual pendiente de lectura CodeQL sobre SHA nuevo. |
+| Server-side request forgery — Critical | `tests/h3req1_c03_integrated_runtime.mjs:348` | Origen Edge fijo, ruta `/admin-invite` fija y query de caller descartada. | Self-test local de destinos proxy PASS; alerta individual pendiente de lectura CodeQL sobre SHA nuevo. |
+
+### Alertas históricas Code Scanning observadas en main
+
+El responsable compartió la vista de `main` con estas cuatro alertas abiertas. Las correcciones correspondientes están en este candidato, pero `main` no se modifica ni promueve en este ciclo. El conector no permite releer su estado actual; la misma ruta regular de PR decidirá su cierre al llegar a `main`.
+
+| Alerta y regla | Archivo/línea en la vista compartida | Estado/alcance |
+|---|---|---|
+| #15 — Clear-text storage of sensitive information — High | `scripts/maintenance/taxonomy_roi_audit.py:86` | Observada abierta en `main`; corrección local conserva agregados y evita persistir detalle por fila. |
+| #16 — Inefficient regular expression — High | `scripts/core/universal_harvester.py:316` | Observada abierta en `main`; ruta distinta del hallazgo del PR hasta promoción normal. |
+| #17 — Incomplete URL substring sanitization — High | `scripts/shared/site_diagnostics.py:94` | Observada abierta en `main`; validación local compara hostname exacto/sufijo permitido, no subcadena. |
+| #18 — Information exposure through a stack trace — Medium | `supabase/functions/send-lead-emails/index.ts:156` | Observada abierta en `main`; respuesta externa queda genérica y la regresión local cubre el handler. |
+- La aprobación humana previa está `DISMISSED` y no cubre el SHA futuro. Tras los checks, el aprobador designado u otro colaborador autorizado —distinto de autora y publicadora— debe revisar y aprobar el SHA exacto vigente. No se autoaprueba ni se usa bypass.
 
 ## Avances Del Cambio
 
 | Componente/contrato | Cambio implementado | Consumidores/impacto | Evidencia |
 |---|---|---|---|
-| H3REQ1 funcional | Snapshot funcional R8 preservado desde R18; no se reinicia ni cambia lógica en R19. | Admin BFF, Edge, Worker/DO, Pages y migraciones seleccionados. | Manifiesto R19; pruebas funcionales históricas solo si inputs fuente no cambiaron. |
-| Evidencia visual pública | 46 PNG se sustituyen por un PNG opaco uniforme `#E5E5E5`, estándar y sin metadatos; 2 WEBM excluidos; 3 referencias se redirigen a nota R19. | No publica píxeles de capturas ni cuadros de video; no acredita UAT visual. | Nota R19; originales 48/48 preservados localmente con hashes coincidentes. |
-| Preparación B | Actualiza la lectura de Preview, binding, Worker/DO y Edge v14; separa lecturas del conector y confirmaciones manuales. | El deployment Preview existente corresponde al SHA remoto anterior; el delta local no está servido y el runtime no se probó allí. B incompleto. | Reporte remoto R19; no se activa gateway ni se hace otro deploy/rollback. |
-| Correcciones de PR 501 | Corrige dependencias faltantes del workflow, la invocación/config de PostgREST y cuatro diagnósticos CodeQL del SHA publicado. | Workflow `security-audit` y regresiones focales. | Pruebas locales de los fixes pasan; los resultados remotos siguen ligados al SHA anterior. PWI no se ejecutó desde la base confiable. |
-| Control de scope/documentación | El guard usa el manifiesto R19 y admite solo rutas exactas; mantiene exclusiones explícitas. | Workflow `security-audit`, checker, registro y PR. | Pins de scope y cierre de referencias: 1.176/1.176 y 1.173/1.173; guard: 1.182 rutas efectivas, 13 catálogos/1.173 destinos. |
-
-### Code Scanning #15–#18 de main
-
-| Alerta | Cambio local en este candidato | Regresión local | Resultado remoto |
-|---|---|---|---|
-| #15 `taxonomy_roi_audit.py:86` — almacenamiento claro sensible | El reporte deja de persistir detalle por fila y conserva agregados. | `tests/test_taxonomy_roi_audit_privacy.py` | La última captura del responsable mostraba la alerta abierta en `main`; no hay análisis nuevo ni promoción. |
-| #16 `universal_harvester.py:316` — regex ineficiente | Parser lineal de grupos cuantificados; `regex` con timeout de 50 ms y fallo cerrado. | `tests/test_h3req1_local_pipeline_walk.py`: patrones peligrosos, timeout y dependencia ausente. | La última captura la mostraba abierta en `main`; no hay análisis nuevo ni promoción. |
-| #17 `site_diagnostics.py:94` — sanitización parcial de URL | Hostname validado tras parsear URL, con host exacto o subdominio permitido. | `tests/test_site_diagnostics_security.py` | La última captura la mostraba abierta en `main`; no hay análisis nuevo. |
-| #18 `send-lead-emails/index.ts:156` — exposición de stack | Error externo 500 genérico sin detalle ni stack. | `tests/h3_send_lead_error_uat.mjs` invoca el handler real. | La última captura la mostraba abierta en `main`; no hay análisis nuevo. |
-
-Estas remediaciones están incluidas localmente. No se declara cerrada ninguna alerta de GitHub: el conector no pudo leer el endpoint Code Scanning y las promociones a `main` siguen el flujo protegido.
-
-### Cuatro diagnósticos CodeQL del PR 501
-
-Estos cuatro diagnósticos fueron reportados sobre el SHA antiguo `d5220185cbb8d1975ebb901a5d6e8e77636b8b02` y no son las cuatro alertas históricas de `main` listadas arriba. El análisis remoto del sucesor todavía no existe.
-
-| Regla / ubicación en el SHA reportado | Remediación local actual | Prueba focal | Resultado CodeQL remoto actual |
-|---|---|---|---|
-| Inefficient regular expression (High), `scripts/core/universal_harvester.py:316` | Detector estructural lineal para cuantificadores anidados; `regex` con timeout de 50 ms y rechazo cerrado si falta la dependencia o vence el límite. | `tests/test_h3req1_local_pipeline_walk.py`: patrones anidados y seguros, timeout sintético y falta de `regex`; `python-check` invoca esta suite. | Pendiente de análisis del nuevo SHA; el resultado del SHA anterior no se reutiliza. |
-| Incomplete multi-character sanitization (High), `scripts/maintenance/h3req1_documentation_integrity.mjs:53` | Sustituye el borrado regex de tags por un recorrido que respeta atributos entre comillas; añade casos de markup incompleto y atributo con `>`. | `node scripts/maintenance/h3req1_documentation_integrity.mjs --self-test`; ejecutado en Docker. | Pendiente de análisis del nuevo SHA. |
-| Server-side request forgery (Critical), `tests/h3req1_c03_integrated_runtime.mjs:317` | PostgREST acepta método/ruta/consulta exactos y construye destinos desde un mapa local fijo; rechaza parámetros y rutas no incluidos. | `node tests/h3req1_c03_integrated_runtime.mjs --self-test-proxy-destinations`; mocked fetch confirma destino fijo y que el caso rechazado no alcanza `fetch`. | Pendiente de análisis del nuevo SHA. |
-| Server-side request forgery (Critical), `tests/h3req1_c03_integrated_runtime.mjs:348` | Edge fija `/admin-invite` al origen configurado y descarta query del caller; ejercita `handleFunction` con query adversarial. | El mismo self-test de destinos proxy, ejecutado en Docker. | Pendiente de análisis del nuevo SHA. |
-
-El resultado local confirma el comportamiento de los casos focales; no sustituye la ejecución CodeQL remota. Las dos alertas SSRF corresponden a un runtime de prueba y no a una ruta de producto desplegada.
+| H3REQ1 funcional | Conserva el alcance R8 seleccionado y los deltas de seguridad/administración del paquete. | Admin BFF, Edge, Worker/DO, Pages, migraciones y contratos escogidos. | Manifiesto y pruebas locales previas; no equivale a aceptación remota. |
+| Seguridad CodeQL | Remedia cuatro diagnósticos del PR y cuatro alertas históricas de `main` en sus rutas respectivas. | Harvester, checker documental, harness de runtime, ROI, diagnóstico de host y handler de correo. | Revisión de seguridad del código en el paquete anterior y regresiones focales; CodeQL debe analizar un SHA nuevo. |
+| Workflow y scope guard | Checkout de PR usa `head.sha`; la comparación protegida se ejecuta desde el helper corto sin ampliar rutas. | Checks Python, Static Build, PostgreSQL, PWI y workflow lint. | Actionlint, ShellCheck, guard, negativos y contratos pasan localmente en Docker. |
+| Evidencia visual | Incluye solo derivados PNG neutros; excluye dos WEBM. | El PR no revela las imágenes originales. | Reconciliación R19; el PNG rechazado no se volvió a cargar. |
+| B — configuración previa | Conserva el key ID Text confirmado por el responsable, HMAC existente y Worker v2 bajo excepción temporal. | Preview comparte ajustes con Certification; permanece fuera de pruebas de aceptación. | Confirmación humana separada de lectura del conector. B sigue incompleto hasta deployment/smoke compatible. |
 
 ## Pilares Obligatorios
 
 | Pilar | Estado | Resultado validado y límites |
 |---|---|---|
-| Funcionalidad | `PENDIENTE` | El smoke local R19 inició Next y `/admin/login/` respondió HTTP 200. No hubo aceptación remota; evidencia R178/R18 solo se reutiliza en inputs byte-idénticos. |
-| Escalabilidad | `PENDIENTE` | Sin carga remota; cuotas y límites D siguen vigentes. |
-| Seguridad | `PENDIENTE` | Secret values no leídos; el responsable confirmó presencia/paridad sin compartirlos; B incompleto. Las alertas #15–#18 de main tienen correcciones locales, no un análisis remoto nuevo. PWI pendiente. |
-| Mantenimiento | `PASS local documental` | Checker candidato: 722/722 fuentes asignadas; 113/113 documentos activos alcanzables; 433/433 históricos catalogados y enlazados. R8/R13 no se reorganizan. |
-| Calidad | `PENDIENTE` | UAT Auth/Edge, SSRF focal, py_compile y build smoke local pasan en Docker; el resultado final del manifiesto y la revisión independiente se registran abajo. CodeQL remoto y PWI pendientes. |
-| Rendimiento | `PENDIENTE` | Sin build/runtime R19 ni medición actual. |
+| Funcionalidad | `PENDIENTE` | Las pruebas locales anteriores cubren los contratos seleccionados; no hay aceptación Development. |
+| Escalabilidad | `PENDIENTE` | Sin carga remota; límites de cuotas permanecen según el paquete D aprobado. |
+| Seguridad | `PENDIENTE` | Scanner limpio y lint local; PWI no tiene fuente confiable y los checks del nuevo SHA no existen aún. |
+| Mantenimiento | `PASS local documental` | 723/723 fuentes asignadas; 113/113 documentos activos alcanzables; 433/433 históricos catalogados y enlazados. |
+| Calidad | `PENDIENTE` | Linters, guard y 17 contratos focales pasan; checks remotos y aprobación del SHA final pendientes. |
+| Rendimiento | `PENDIENTE` | No se ha medido un deployment Development. |
 
 ## Transicion Transparente
 
 | Fase | Alcance/resultado real | Evidencia / autorización cuando aplique |
 |---|---|---|
-| expand | A se consumió en Free bajo R18; no repetir. B muestra configuración parcial; no activar gateway. | R18 A; reporte R19; B aprobado en alcance exacto pero incompleto. |
-| compatibilidad | Worker/DO, binding Preview y Edge v14 identificados; dos despliegues exceden el límite y Worker #2 está bajo excepción temporal. El Preview existente sirve el SHA antiguo, no este delta. | Reporte R19 y lectura filtrada del 2026-10-19; Preview comparte configuración con Certification, que permanece intacta. |
-| deploy | No se ha servido el delta local. El deployment Preview registrado solo cubre `d5220185cbb8d1975ebb901a5d6e8e77636b8b02`. | Se requiere el gate B de Preview del sucesor, Docker, revisión independiente y controles protegidos. |
-| contract | Pendiente; no ejecutar antes de estabilidad y aceptación. | Plan canónico; fuera de esta etapa. |
-| Rollback/recuperación | No ejercido; preservar versión Worker activa, Edge v14 y schema expandido. | No deployment/rollback extra sin delta aprobado; stop-on-failure, cero retry automático. |
-| No degradacion funcional | No acreditada remotamente en R19. | Aceptación runtime/cliente pendiente; evidencia local R178 no sustituye Development. |
+| expand | A migration 3 se consumió en Free bajo su aprobación. | No repetir A ni modificar Pro. |
+| compatibilidad | Worker/DO, binding, Edge v14 y Preview se identificaron; el responsable aceptó Worker v2 temporalmente hasta 2026-10-25 23:59 UTC. | B aprobado; su gate final de Preview/runtimes aún no pasa. Preview comparte configuración con Certification, preservada. |
+| deploy | No hay deployment del nuevo SHA. | El push autorizado genera Preview automáticamente después de validación local/revisión; no se hará despliegue manual adicional. |
+| contract | No iniciado; depende de estabilidad y aceptación. | No activar el pre-request antes del BFF compatible. |
+| Rollback/recuperación | No ejercido para este SHA. | Conservar versión anterior; cualquier operación adicional protegida requiere paquete/permiso aplicable. |
+| No degradacion funcional | No acreditada remotamente. | D01–D14 y regresión adicional siguen 0/14 y 0/11. |
 
 ## Evidencia Para Cliente
 
-La [atestación sanitizada del criterio cliente](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md) enlaza la fuente privada sin adjuntarla. Aceptación remota H3REQ1 pendiente. D01–D14: 0/14 en R19; regresión adicional: 0/11. No declarar GO Development. El caso de último administrador requiere ambiente remoto aislado y autorización adicional si la cobertura disponible exigiría tocar Gmail u otra identidad protegida.
+La [atestación sanitizada de Sprint 1](https://github.com/romelhc95/studiamatch/blob/feat/h3req1-sync-20261018-r19/.context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md) enlaza la fuente privada sin adjuntarla. No se declara cierre contractual ni GO Development. D01–D14 y los 11 bloques de regresión adicional: 0/14 y 0/11 en remoto. El último administrador requiere escenario remoto aislado; Gmail y su configuración permanecen intactas.
 
 ## Validaciones
 
 | Validacion | Resultado/exit/casos | Ambiente/grado | Evidencia/límites/owner |
 |---|---|---|---|
-| Credential scan | `PASS` en el árbol completo candidato. | Docker aislado, red deshabilitada. | `credential scan passed`; regresiones del scanner también PASS. No se exponen secretos; owner Codex. |
-| Python/contratos funcionales | `PASS`, 21 pruebas focales y 10 subtests. `tests/test_protected_workflow_review.py`: 13 pruebas PASS por separado. | Docker aislado; fixtures deterministas. | Incluye los fixes de seguridad y el helper PWI. No es aceptación remota ni ejecución completa del job remoto. |
-| Python compile | `PASS` en los módulos y pruebas afectadas. | Docker aislado, Python 3.11 del venv. | `py_compile` exit 0; pycache aislado. |
-| PostgreSQL DB Change Gate | No PASS local del gate completo. | El run remoto anterior falló al ejecutar el archivo de configuración como binario. | La invocación local corregida solo probó el inicio de PostgREST contra loopback sin DB y terminó en timeout esperado; no reemplaza el gate con PostgreSQL 17. No se ejecutó DDL/DML adicional. |
-| ESLint | `PASS`, `npm run lint`: 0 errores y 9 warnings ya existentes. | Docker candidato; el árbol `web` coincide con el input validado. | Resultado local; no sustituye el job remoto ni se presentan warnings como errores. |
-| TypeScript | `PASS`, `npx tsc --noEmit --incremental false`. | Docker candidato; no hubo cambios posteriores en los inputs TypeScript. | Resultado local; no sustituye el job remoto. |
-| Static build y runtimes | `PASS`: `h2_web_mock_smoke_ok`; en Node 22, `h3_admin_quota_runtime.mjs` y `h3_admin_safe_suspend_runtime_uat.mjs` también PASS con el artefacto estático recién compilado. | Build Node 20.20.2 en Docker candidato; runtimes Node 22.22.0 en Docker aislado, red deshabilitada y fixtures locales. | Se corrigió la invocación que corría safe-suspend sin `web/out`; no es Preview ni aceptación remota. Los intentos intermedios de harness quedan registrados en el log. |
-| actionlint / ShellCheck | `PASS` en Docker: actionlint 1.7.7 con su invocación de shellcheck desactivada y ShellCheck 0.11.0 focal ejecutado por separado. | Imágenes aisladas; workflow y scripts montados de solo lectura. | Resultados locales; el run remoto anterior terminó cancelado en actionlint y omitió ShellCheck. |
-| Documentación, referencias y manifest | `PASS` en Docker: 722/722 fuentes asignadas, 113/113 activos, 433/433 históricos; scope 1.176/1.176 y cierre de referencias 1.173/1.173. | Guard: 1.182 rutas efectivas; 13 catálogos/1.173 destinos. | 37/37 artefactos de contenido coinciden en contenido/bytes y modo Git; el manifiesto R19 excluye solo su propio hash. Los 32 avisos POSIX `0644`/`0664` normalizan a `100644`. No se alteraron modos ni WIP excluido. Se preservan los siete inputs históricamente faltantes; el inventario actual contiene once invocaciones directas Static Build, todas presentes y scoped, y la lista vigente de faltantes está vacía. |
-| Contrato de estado Obsidian | `PASS`, 8 pruebas. | Docker aislado, sin red; `tests/test_obsidian_context_state.py`. | La ejecución bloqueada histórica se conserva; el follow-up es el resultado vigente. |
-| `git diff --check` y altas locales | `PASS`: delta rastreado y 26 archivos nuevos sin diagnósticos de whitespace. | Docker; `git diff --check HEAD` más revisión `--no-index --check` de las altas. | Se corrigió una línea vacía sobrante al final de `tests/h3req1_c03_docker_daemon_identity_f2d.py`; py_compile focal volvió a pasar. No se reformatearon archivos históricos. |
-| UAT/runtime/integración Development | NO EJECUTADO; D01–D14: 0/14; regresión: 0/11. | El smoke local de la app responde HTTP 200. Pages Preview actual es del SHA anterior, no del delta. | Owner responsable/Codex tras integración protegida y bloque de aceptación. |
-| security-audit / CI independiente efectivo | El run remoto anterior `39177784316` falló en security-audit. | SHA remoto `d5220185cbb8d1975ebb901a5d6e8e77636b8b02`; no existe run nuevo. PWI no generó job: GitHub toma `pull_request_target` desde `main`, y no puede habilitarse con un bootstrap solo a `desarrollo`. | Los resultados del sucesor requieren PR actualizado. PWI queda bloqueado hasta acordar una fuente confiable compatible; no se cambia `main` ni se debilitan controles. |
-| CodeQL si aplica | No reanalizado en el sucesor. | Sobre el SHA anterior se reportaron 2 Critical y 2 High en cuatro diagnósticos del PR. | Requiere nueva ejecución remota; los cuatro fixes locales no equivalen a cierre remoto. |
-| Cloudflare Pages / smoke preview | Preview anterior: build/deploy exitoso; smoke remoto del delta actual NO EJECUTADO. | URL `https://c7adff18.studiamatch-aty.pages.dev`; deployment para SHA `d5220185cbb8d1975ebb901a5d6e8e77636b8b02`. | B incompleto hasta servir y comprobar el sucesor dentro del alcance aprobado. |
-| Browser snapshot si aplica | NO EJECUTADO. | Sin host candidato. | Requiere guía e interacción humana. |
-| security-auditor | El veredicto independiente read-only del digest exacto se registra en el manifiesto. | Revisiones previas y findings históricos se conservan; el digest objetivo está fijado allí. | No sustituye aprobación humana GitHub del SHA que se publique. |
-| Documentación / trazabilidad / fuente cliente | Checker, referencias, scope guard y manifiesto pasan en Docker. | 722/722 fuentes; 1.176 pins; 1.173 destinos en 13 catálogos. | R8/R13 no se reorganizan; owner Codex. |
+| Credential scan | PASS; regresiones y escaneo completo sin hallazgos. | Docker aislado sobre el candidato local. | `credential scan passed`; no demuestra el nuevo check remoto. Owner Codex. |
+| Python tests | PASS; flujo exacto del job: 250 pruebas + 10 subtests y segunda invocación 41 pruebas; consumidores afectados 34 pruebas. | Docker aislado con lock de hashes. | No equivale al job remoto; el nuevo SHA debe ejecutar CI. |
+| Python compile | PASS en todos los scripts del candidato. | Docker. | El job remoto del SHA anterior falló por checkout incompleto; el sucesor debe ejecutar su propio check. |
+| PostgreSQL DB Change Gate | FAIL remoto en `074583d9` por falta de `tests/h3_admin_quota_postgrest.mjs`; PASS local en Docker con la dependencia restaurada y todo el fixture PG17/PostgREST. | GitHub Actions antiguo y Docker PG17/PostgREST desechable. | No hubo writes cloud. Nuevo SHA aún debe obtener su check remoto. Owner Codex. |
+| ESLint | PASS en el SHA remoto anterior y en la validación local previa; frontend sin cambios en este delta. | GitHub Actions `074583d9` y Docker previo. | Nuevo SHA debe obtener check propio. |
+| TypeScript | PASS en `074583d9`; frontend sin cambios en este delta. | GitHub Actions. | Nuevo SHA debe obtener check propio. |
+| Static build | FAIL remoto en `074583d9` por input ausente; PASS local en Docker: las 11 invocaciones Node, `h2_web_mock_smoke.sh` y build exportado esperado. | GitHub Actions antiguo y fixture local Docker. | El build local no es Preview; nuevo SHA aún debe obtener su check remoto. |
+| actionlint / ShellCheck | PASS local: actionlint 1.7.7 para tres workflows; ShellCheck 0.11.0 sobre siete scripts focales; `bash -n` PASS. | Contenedores Docker de herramientas, candidato de solo lectura. | El check remoto viejo sigue `in_progress` en actionlint; el nuevo SHA debe obtener resultado remoto. |
+| UAT/runtime/integración | No ejecutado en Development. | Sin URL del candidato nuevo. | D01–D14: 0/14; regresión remota: 0/11. |
+| security-audit / CI independiente efectivo | Run remoto 39228507399 seguía `in_progress` a las 10:57 UTC; Python, Static Build y PostgreSQL fallaron en el checkout anterior. Los gates locales del paquete exacto pasan en Docker. | SHA viejo `074583d9`; PWI 39228629396 falló por helper ausente en la base confiable. | PWI necesita la decisión JIT App descrita en el paquete preparado. No se elimina ni debilita el control. |
+| CodeQL si aplica | PASS en el análisis remoto del SHA anterior `074583d9`; pendiente para el sucesor. | GitHub CodeQL. | No hay lectura de estado por alerta; no se declaran cerradas individualmente. |
+| Cloudflare Pages / smoke preview | Preview anterior terminó success para `074583d9`; no hay Preview del nuevo SHA. | Cloudflare Preview, compartido con Certification. | No es Development; smoke/aceptación del sucesor no ejecutados. |
+| Browser snapshot si aplica | No ejecutado para este candidato. | Sin host Development nuevo. | Requiere deployment identificado. |
+| security-auditor | El bloque `independent_review` del manifiesto conserva estado, digest y veredicto de la revisión local exacta; debe ser PASS para publicar. | Revisión local read-only; distinta de la revisión remota del SHA. | La revisión humana de GitHub debe ser de persona distinta de autora/publicadora y del SHA final. |
+| Documentación / trazabilidad / fuente cliente | 723/723 fuentes asignadas, 113/113 activos, 433/433 históricos y 13 catálogos; manifiesto: 1.179 rutas y 1.173 referencias. Self-test exacto y guard/manifiesto ya pasaron en Docker. | `--candidate-manifest`; el checkout de origen también pasa el modo global. | El pin final se recalcula tras esta actualización; revisar digest exacto antes de publicar. No se incorporó WIP. |
+
+| `git diff --check` | PASS en el delta local R19; WARN al cotejar el paquete baseline→snapshot: 107 espacios finales y 18 líneas vacías al EOF. | Docker, snapshot exacto. | Avisos en documentos/evidencia histórica ya seleccionados; no reformatados porque no son un defecto funcional ni parte del delta R19. |
 
 ## Seguridad Y Datos
 
-- [x] Scanner R19 PASS en Docker sobre el árbol candidato y pruebas de regresión del scanner.
-- [x] Conector no leyó valores secretos ni filas, usuarios, buzones o tokens.
-- [x] Confirmación humana de presencia Edge, key ID Text en Preview y paridad HMAC; el conector no puede verificar valores y no se registraron. La solicitud de rotación de `NEXT_SUPABASE_SECRET_KEY` no está aprobada ni ejecutada.
-- [x] No se toca Gmail; C retentivo conserva Auth row, referencias e historial.
-- [x] No hay DDL/DML, reset, invitación, workflow, PR, push o merge en R19.
-- [ ] Las cuatro alertas reportadas para el PR 501 no se han reanalizado sobre el sucesor. Las alertas históricas #15–#18 de `main` están separadas arriba; la última captura del responsable las mostraba abiertas y el endpoint de alertas no está disponible en el conector. PWI pendiente.
+- [x] El scanner y sus regresiones pasan sobre el árbol candidato; no se guardan secretos ni PII en la evidencia nueva.
+- [x] No se leyó ningún valor secreto; las confirmaciones humanas de Preview/Vault no se convierten en lectura del conector. Gmail conserva identidad, rol, contraseña, MFA, sesiones e historial.
+- [ ] Checks del nuevo SHA y aprobación humana vigentes: pendientes; no se declara cero findings remoto ni GO.
+- [x] Sin DDL/DML, reset de cuenta, invitación, workflow dispatch, cambio de secret, merge o deploy manual en esta actualización local.
 
 ## Alcance Y Limites
 
-- [x] Candidato desde baseline con alcance R18 exacto y deltas R19 seleccionados.
-- [x] R8/R9/R12/R13/R14/R15/R16/R17/R18 y originales históricos preservados.
-- [x] WIP no manifestado, datos operativos, Certification, `main` y Production excluidos.
-- [ ] La ruta GitHub efectiva, B completo y candidato exacto aún no verificados para publicar.
+- [x] Candidato basado en PR 501 y `desarrollo`; el manifest fija el conjunto exacto, seis artefactos adicionales y exclusiones.
+- [x] R8/R9/R12/R13 y sus evidencias, R14–R18, originales y ramas ajenas preservados.
+- [x] WIP no manifestado, datos operativos, Certification, `main` y Production fuera del paquete.
+- [ ] PWI, nuevos checks remotos y aprobación humana del SHA final pendientes. No se autoriza promoción por este body.
 
 ## Checklist Tecnico
 
-- [ ] Los gates remotos deben pasar sobre un SHA nuevo; PWI requiere resolver su fuente confiable fuera del default branch protegido; el gate B espera el Preview/smoke del sucesor.
-- [x] Ficha B y tratamiento público de visuales escritos sin exponer contenido.
-- [x] A/B/C/D registrados sin repetir aprobaciones; A consumido, B parcial, C/D no consumidos.
-- [ ] Review humana debe venir de colaborador distinto de autora/pusher y corresponder al SHA más reciente.
-- [ ] NO-GO Development; la siguiente promoción no queda implícita.
+- [x] Validaciones locales afectadas ejecutadas en Docker; resultados registrados como locales, no remotos.
+- [ ] Publicar solo cuando el manifiesto registre PASS de la revisión del digest exacto y exista ruta PWI confiable; no se amplían carpetas de allowlist.
+- [x] Seis pilares, criterio cliente y transición/rollback documentados con su estado real.
+- [ ] PWI requiere proveedor de check confiable. Paquete JIT preparado en `/tmp/h3req1_pwi_external_check_app_jit_package_20261019.md`; ninguna App se instaló ni regla se cambió.
+- [ ] Obtener resultados CI para el nuevo SHA y revisión humana independiente vigente. Solo entonces evaluar merge a `desarrollo`; no incluye Certification, `main` ni Production.

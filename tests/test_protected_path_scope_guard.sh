@@ -60,7 +60,7 @@ if protected_path_scope_capture "$test_root/missing.nul" \
   fail 'missing path list was accepted'
 fi
 
-python3 - "$ROOT/.github/workflows/security-audit.yml" \
+python3 - "$ROOT/scripts/security/protected_path_scope_guard.sh" \
   "$ROOT/.context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json" \
   "$ROOT" <<'PY'
 import hashlib
@@ -71,18 +71,18 @@ import sys
 from urllib.parse import unquote
 from pathlib import Path
 
-workflow_path, manifest_path, root = map(Path, sys.argv[1:])
-workflow = workflow_path.read_text(encoding="utf-8")
+guard_path, manifest_path, root = map(Path, sys.argv[1:])
+guard = guard_path.read_text(encoding="utf-8")
 
 def workflow_regex(name):
-    match = re.search(rf"(?m)^\s*{re.escape(name)}='([^']*)'\s*$", workflow)
+    match = re.search(rf"(?m)^\s*{re.escape(name)}='([^']*)'\s*$", guard)
     if not match:
         raise SystemExit(f"protected path integration test: missing {name} matcher")
     return match.group(1)
 
 local_match = re.search(
     r"<<'H3_LOCAL_PATHS'\s*\n(?P<body>.*?)\n\s*H3_LOCAL_PATHS",
-    workflow,
+    guard,
     re.DOTALL,
 )
 if not local_match:

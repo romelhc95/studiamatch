@@ -90,9 +90,10 @@ def test_check_db_parity_has_h2_manifest_specific_contracts() -> None:
 
 def test_security_audit_runs_h2_pro_harness_and_allows_only_pro_remediation_paths() -> None:
     text = read(".github/workflows/security-audit.yml")
+    guard = read("scripts/security/protected_path_scope_guard.sh")
 
-    assert "20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|enable_legacy_cohort_rls|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract)" in text
-    assert "maintenance/(h2_(backfill_editorial_state|scan_unauthorized_writers)|h2_pro_preflight_report|db_migrate|check_db_parity)" in text
+    assert "20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|enable_legacy_cohort_rls|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract)" in guard
+    assert "maintenance/(h2_(backfill_editorial_state|scan_unauthorized_writers)|h2_pro_preflight_report|db_migrate|check_db_parity)" in guard
     assert "tests/sql/h2_pro_pg17_harness.sql" in text
     assert "tests/test_h2_pro_migration_controls.py" in text
     assert "psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f tests/sql/h2_pro_pg17_harness.sql" in text
