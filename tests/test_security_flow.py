@@ -111,36 +111,22 @@ def test_postgrest_ci_harness_invokes_binary_with_readable_config():
     assert "/bin/postgrest /etc/postgrest.conf" in workflow
 
 
-def test_protected_workflow_integrity_is_prepared_but_not_aggregated_in_stage_one():
-    integrity = read(".github/workflows/protected-workflow-integrity.yml")
+def test_pwi_is_external_and_candidate_workflow_is_removed():
     audit = read(".github/workflows/security-audit.yml")
-
-    assert "pull_request_target:" in integrity
-    assert "pull_request_review:" in integrity
-    assert "pull-requests: read" in integrity
-    assert "gh api --paginate" in integrity
-    assert "ref: ${{ github.event.pull_request.base.sha }}" in integrity
-    assert "persist-credentials: false" in integrity
-    assert "scripts/security/protected_workflow_review.py" in integrity
-    assert integrity.count("uses: actions/checkout@") == 1
-    helper = read("scripts/security/protected_workflow_review.py")
-    assert '".github/workflows/"' in helper
-    assert '".github/actions/"' in helper
-    assert '".githooks/"' in helper
-    assert '"scripts/security/"' in helper
-    assert 'review.get("commit_id") == head_sha' in helper
-    assert 'review.get("state") == "APPROVED"' in helper
-    assert "reviewer_key == author_key" in helper
-    assert "Protected Workflow Integrity" in integrity
-    assert "protected-workflow-integrity" in audit
+    pwi_readme = read("scripts/security/pwi_worker/README.md")
+    assert not (ROOT / ".github/workflows/protected-workflow-integrity.yml").exists()
+    assert "pwi-worker-contract:" in audit
+    assert "name: PWI Worker Contract" in audit
+    assert "Protected Workflow Integrity" in pwi_readme
+    assert "check from its GitHub App" in pwi_readme
+    assert "Pull requests: read" in pwi_readme
+    assert "Checks: write" in pwi_readme
     active_triggers = audit.split("permissions:", 1)[0]
     assert "pull_request_review:" not in active_triggers
     assert "trusted-workflow-integrity:" not in audit
     assert "needs: [trusted-workflow-integrity," not in audit
     assert "needs.trusted-workflow-integrity.result" not in audit
     assert "actions/workflows/protected-workflow-integrity.yml/runs" not in audit
-    assert "if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'" in audit
-    assert "pull_request_review" not in audit
 
 
 def test_admin_invitation_bff_sanitizes_internal_edge_business_codes():

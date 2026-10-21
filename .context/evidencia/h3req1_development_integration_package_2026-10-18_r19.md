@@ -136,6 +136,14 @@ Cualquier intervención humana se solicitará en bloques pequeños con objetivo,
 
 No declarar GO Development hasta candidato integrado y deployment identificado, protecciones efectivas/review/checks válidos, D01–D14 y regresión aplicable acreditados, aceptación cliente sanitizada, seis pilares satisfechos, rollback/transición documentados y ausencia de bloqueantes. R19 no satisface esos criterios.
 
+## Addendum PWI R3 — corrección de carrera full-queue
+
+La revisión independiente anterior encontró HIGH reproducible: con ocho filas activas y el evento actual ya `processing`, un webhook posterior del mismo SHA podía reabrir el check pero no quedar persistido. La alarma activa podía publicar un resultado calculado antes de la revocación. La fuente local `/tmp/studiamatch-pwi-r3-20261019` corrige este caso, redelivery fuera de orden y finalización tardía sin alterar esquema ni máximos 8/100. Docker ejecutó `node --check index.mjs`, Node 32/32, runtime Durable Object/SQLite 4/4 y `npm run check`; todos PASS en fuente candidata. El snapshot autónomo final, escáner integral, gates de documentación/manifest y revisión independiente exacta siguen pendientes; no se declara cierre local ni remoto con esas pruebas fuente.
+
+El paquete ampliado `/tmp/h3req1_pwi_r3_full_queue_current_head_jit_delta_20261019_r2.md` está pendiente de aprobación separada. Añade lectura mínima del head del PR 501 cuando la cola está llena, reemplazo determinista de una fila activa (incluida fila `processing` únicamente cuando no hay otra elegible), resecuencia monótona de delivery `failed` y finalización condicional. Reutiliza, sin ampliar, R3 App/Worker/R3-DO y el JIT pre-ACK ya aprobados. No se instala la App, se ingresan secretos, se despliega el Worker ni se consume el paquete mientras R2 no esté aprobado y el snapshot final no pase revisión.
+
+El PR 501 continúa abierto en `a73af141…`; su PWI fallido y su aprobación permanecen ligados a ese SHA. No existe check nuevo, deployment del candidato, integración, D01–D14 ni regresión remota. `main`, `certificacion` y Production continúan fuera.
+
 ## Reconciliación ejecutada — 2026-10-19 07:06 UTC
 
 Esta sección sustituye estados anteriores del mismo documento cuando describen que Docker seguía detenido, que no existía Preview, o que los últimos resultados eran solo validaciones de 14 pruebas. No modifica R18 ni sus evidencias.
@@ -214,3 +222,101 @@ La revisión independiente del paquete y las verificaciones finales de referenci
 - Se reutilizan los PASS Docker anteriores para full Python (250 + 10 subtests; segunda invocación 41), PostgreSQL 17.11/PostgREST 13.0.7, Static Build (11 invocaciones), actionlint 1.7.7, ShellCheck 0.11.0, ESLint y TypeScript, porque sus entradas de código, workflows y lockfiles no cambiaron. El contenedor habitual está `healthy`, reinicios 0; no se reconstruyó.
 - Última lectura remota 10:57 UTC: el SHA de PR 501 sigue `074583d9…`; run `39228507399` todavía `in_progress` durante actionlint (ShellCheck pendiente), con fallos previos Python/Static Build/PostgreSQL; PWI `39228629396` falla por helper ausente en la base confiable; no hay run CodeQL ni checks del successor local. La revisión GitHub anterior sigue `DISMISSED`. No se afirma PASS remoto del candidato ni aceptación Development.
 - El proveedor externo PWI del paquete JIT `/tmp/h3req1_pwi_external_check_app_jit_package_20261019.md` no está aprobado/instalado y es la condición administrativa pendiente antes de publicar el SHA sucesor. No se modifica `main`, ni se cambia o elude una protección. B y el despliegue Preview no se declaran completos; D01–D14 y regresión remota siguen 0/14 y 0/11.
+
+### Corte PWI App + Worker R3/DO aprobado — 2026-10-19 20:10 UTC
+
+Este corte reemplaza únicamente las notas anteriores que describían la aprobación R3 como pendiente. El responsable mantiene aprobado el paquete R3 de GitHub App + Worker y aprueba el delta exacto R3-DO `/tmp/h3req1_pwi_external_check_app_jit_package_20261019_r3_do_delta.md`. Alcance consumible: Worker `studiamatch-pwi-verifier`, binding `PWI_COORDINATOR`, clase SQLite `PwiCoordinator`, tabla `pwi_event_queue` y las columnas, límites, alarmas y operaciones ya descritos en R3/R3-DO. No permite otras tablas, datos, ambientes, Workers o bindings.
+
+**Estado:** todavía sin consumo. Primero debe completarse la revisión independiente del snapshot autónomo exacto y todos los controles locales pendientes. Después, el responsable GitHub registra el App, lo instala solo en `romelhc95/studiamatch`, declara `Pull requests: read` y `Checks: write` (metadata read automática), y suscribe `pull_request`, `pull_request_review` y `check_run`. No conceder Contents, Actions, administración o bypass. El responsable introduce la clave privada del App y el secreto webhook únicamente en la pantalla segura del Worker en Cloudflare; el mismo secreto webhook se configura directamente en la pantalla del App. `GITHUB_APP_ID` e `GITHUB_INSTALLATION_ID` son identificadores no secretos que el operador puede leer sin exponer claves.
+
+Luego se despliega solo el Worker y el DO del paquete; se comprueban versión, hostname, nombre/tipo del binding y clase, columnas exactas de `pwi_event_queue`, estado de webhook y ausencia de valores secretos en la evidencia. El administrador requiere `Protected Workflow Integrity` del proveedor App únicamente en la regla protegida de `desarrollo`, conservando PR obligatorio, una aprobación, `security-audit`, aprobación del último push, dismiss stale, no bypass, no force-push y no deletion. No cambia `main`, `certificacion` ni Production.
+
+El workflow defectuoso se elimina únicamente en el sucesor del PR. El fallo PWI en `a73af141d8419889ae6922f21e416b207a297391` permanece histórico, intacto. Aún no existe SHA sucesor publicado ni check del App, deployment del Worker, revisión humana nueva o resultado remoto. No integrar con checks fallidos, cancelados o pendientes; la autorización de merge sigue condicionada a sus gates y no se consume aquí.
+
+### Hallazgo independiente R3-DO y corrección local — 2026-10-19 20:37 UTC
+
+La revisión exacta del snapshot `6f8bdc41a19d1bbc90e13fc50991c1ead4abd9ad` (árbol `ccac8f086c1a7269a790bace87566297edc09543`, digest `61cbd0dc2bf76112bd420596bde9ed39549427cc270d777c7ed5221e968b8dbf`) detectó HIGH: el check App anterior podía quedarse en `completed/success` entre el `202` del webhook y el inicio de la alarma del Durable Object. La corrección local invalida primero ese check exacto a `in_progress`, con plazo máximo 7,5 s, y solo luego reconoce el webhook; los errores/timeout devuelven `503` y exigen redelivery, sin bypass. Las unitarias 26/26 y la runtime Workers/SQLite 3/3 pasan en Docker Node 22. El nuevo orden contradice una condición explícita del paquete R3-DO, que indica responder `202` sin esperar la API de GitHub. Hay un delta JIT separado pendiente y no se despliega hasta resolverlo. Faltan snapshot autónomo final, full scan final y revisión independiente del código exacto. No hay App/Worker remoto ni nuevo SHA/PR/checks; el fallo de `a73af141…` queda histórico. Development continúa NO-GO.
+
+### Gates locales PWI R3 — snapshot autónomo p — 2026-10-19 21:23 UTC
+
+Snapshot `p` (`ad894278ebfb5f78e9882d1f72817d9a1e6a25c7`, scope `231019c75783b0043d1ec4f1564103aa2f0ddbe8e9935970bcfa33f8c6195e93`) reconstruido desde baseline con 1.190 rutas y 39 artefactos. En Docker pasó el escaneo completo sin findings, Documentation Integrity/self-test, guard/negativos, cuerpo PR (10 headings, 10 enlaces, 16 filas de tabla con cabecera, cero placeholders), contratos Python 33/33, `git diff --check`, Worker syntax, 29/29 unitarias y 3/3 runtime SQLite/DO. Actionlint/ShellCheck se reutilizan por input SHA-256 idéntico. El manifest se está reconciliando con estos resultados antes del snapshot final para revisión exacta.
+
+El JIT de invalidación pre-ACK fue aprobado y permanece sin consumir. La lectura de base/SHA actual de PR 501 y el reemplazo de una fila pendiente stale-SHA requieren el delta específico aún no aprobado; sin él no se desplegará este comportamiento. App/Worker no registrados/desplegados. No hubo escrituras remotas, push, PR update, revisión GitHub nueva, merge ni aceptación Development. El fallo histórico PWI de `a73af141` se preserva; Development sigue NO-GO.
+
+
+## Reconciliación local PWI R3 — 2026-10-19 21:30 UTC
+
+Snapshot autónomo q quedó validado localmente en Docker: digest `2e91d682f9b35522d694c81b1111a4c532dc5641c41577f588491e5e5691720a`, commit sintético `03eb77e398e00e371c43e4f86d753edc374d2ddf`, árbol `f54cdfbbec63b25c275ddd950eb5a638bde76ddb`; full credential scan, Documentation Integrity/self-test, scope guard y negativos, 33 contratos Python, plantilla y diff incremental desde a73 PASS. Worker tests, actionlint y ShellCheck se reutilizan por hashes idénticos. La revisión independiente exacta continúa pendiente, por lo que este paquete no habilita publicación. El diff global desde 4eb permanece limitado por blobs históricos ausentes en la copia promisor; sin fallback ni red. R3 App/Worker, R3-DO y JIT pre-ACK están aprobados y no consumidos; el delta JIT full-queue/current-head sigue pendiente de aprobación. No hubo operaciones remotas ni se cambió PR 501.
+
+
+## Snapshot local r — resultado de gates — 2026-10-19 21:32 UTC
+
+Snapshot autónomo r validado en Docker: full scan, Documentation Integrity/self-test, scope guard/negativos, 33 contratos Python, auditoría de plantilla y diff incremental desde a73 PASS. Worker tests, actionlint y ShellCheck se reutilizan con hashes de inputs idénticos. La revisión independiente exacta está pendiente; la ruta protegida R3 aún no se desplegó. El diff global 4eb..r no pudo leer 95 blobs históricos de la copia promisor y queda explícitamente no comprobado. Pre-ACK JIT sigue aprobado/no consumido; el delta full-queue adicional sigue pendiente/no aprobado. El resultado no habilita publicación, merge ni Development GO.
+
+
+## Snapshot u — gates locales exactos — 2026-10-19 21:38 UTC
+
+Full scan, documentación/self-test, scope guard/negativos, plantilla y diff incremental `a73af141..u` pasaron en Docker. Estado 8/8 se revalidó en s y el archivo de estado permanece byte idéntico en u; los otros contratos y Worker/linter inputs son idénticos a los PASS previos. Revisión independiente todavía pendiente y no existe SHA nuevo remoto. El full diff desde 4eb queda limitado por 95 blobs base ausentes; sin fetch/fallback. Pre-ACK JIT aprobado/no consumido, full-queue JIT pendiente/no aprobado. No ejecutar App/Worker ni publicar hasta revisión y el permiso pendiente.
+
+
+## Snapshot v — gates locales — 2026-10-19 21:42 UTC
+
+Snapshot v pasó full scan, Documentation Integrity/self-test, scope guard/negatives, estado 8/8, plantilla y diff incremental desde a73 en Docker. Worker suites/actionlint/ShellCheck y otros contratos se reutilizan con hashes idénticos. La revisión independiente final se solicitará para w, luego de repinar estos resultados. Full-queue JIT no aprobado; sin operaciones remotas.
+
+
+## Snapshot w — gates locales — 2026-10-19 21:46 UTC
+
+Snapshot w pasó escaneo, docs/self-test, scope guard/negativos, estado 8/8, plantilla y diff incremental desde a73 en Docker. Otros contratos/Worker/linters se reutilizan por hashes idénticos. La revisión independiente se solicitará para x. El full diff 4eb sigue no comprobable por blobs históricos ausentes; no hubo fetch/fallback ni operación remota.
+
+## Reconciliación PWI R3 — gates locales z2 — 2026-10-19 22:23 UTC
+
+El snapshot autónomo z2 y su validación están registrados en el manifest/cuerpo/check log. Docker completó los gates sensibles al manifiesto: full scan exit 0, docs/self-test, scope guard y negativos, plantilla, estado 8/8 y diff incremental a73..z2. El Python CI completo y Worker/linter gates de z se reutilizaron únicamente tras verificar hashes de sus entradas. La revisión independiente local del código/test exacto sigue pendiente sobre el siguiente snapshot z3. App/Worker R3, R3-DO y el delta JIT pre-ACK de 7,5 s están aprobados y sin consumir. Sigue pendiente/no aprobado el delta R2 separado para leer la cabeza actual del PR y resolver el overflow. No hay operación remota, SHA nuevo, deploy, merge ni aceptación; no publicar hasta cerrar la revisión y obtener R2. `desarrollo` es el único target; `main`, `certificacion` y Production permanecen fuera.
+
+### Corrección bloqueante de revisión z4 — 2026-10-19 22:35 UTC
+
+La revisión independiente de z4 encontró HIGH: tras un precheck fallido en overflow, la redelivery idempotente podía invalidar el SHA obsoleto del payload y devolver 202 mientras el SHA API-confirmado guardado retenía un check `completed/success`. z4 y z5 se preservan como NO-GO; z5 pasó sus gates de snapshot, pero contiene el mismo código con HIGH. El candidato actual invalida el SHA persistido de la fila existente. La prueba de regresión falla sobre z5 y pasa en el candidato corregido. En Docker Node 22.22.0 pasan `npm run check`, Worker 32/32 y runtime 4/4. Siguiente gate: snapshot z6 autónomo, scanner y gates afectados, revisión independiente exacta; solo después de PASS puede continuarse hacia publicación. R3 App/Worker, R3-DO y pre-ACK permanecen aprobados/no consumidos; JIT full-queue R2 sigue pendiente/no aprobado. No hubo operación remota, App, secreto, deploy, PR update, merge ni aceptación. No cambia la aprobación humana condicionada de merge ni se toca main, certificación o Production.
+
+### Gate z6 y corrección de body — 2026-10-19 22:44 UTC
+
+Z6 exacto pasó escáner completo, documentación/self-test bajo manifiesto, scope guard/negativos, estado 8/8, `npm run check`, Worker unit 32/32 y diff incremental a73..z6. El audit de PR falló por una fila `PWI Worker` fuera del template versionado; la fila se retiró de la fuente y z6 se preserva NO-GO. El gate runtime 4/4 previo se reutiliza solo con hashes de inputs coincidentes; el intento exacto z6 tuvo fallos de dependencia/caché y no se contabiliza como nuevo PASS. El diff desde baseline no se declara por un blob promisor faltante. Se prepara z7 con esa única corrección documental, pines actualizados y revisión independiente final. La autorización R2 full-queue sigue pendiente; pre-ACK, R3 App/Worker y R3-DO aprobados/no consumidos. No hubo acción remota ni publicación.
+
+## Continuación local PWI R3 — 2026-10-19 23:09 UTC
+
+El Worker del sucesor ahora serializa sus secuencias de Check Run por Durable Object/PR. La redelivery del mismo delivery activo reordena la fila existente; el timeout del precheck es cerrado (`503`, sin ACK, redelivery posterior) y un Check Run duplicado falla sin escrituras. Docker Node 22.22.0: `npm run check` PASS, 36/36 unitarias y 4/4 runtime Workers/SQLite. Son resultados locales de fuente, no aceptación remota. El full scan, snapshot autónomo actualizado y revisión independiente exacta siguen pendientes.
+
+El JIT pre-ACK aprobado permanece sin consumir. El JIT R2 full-queue previo no se ejecutará aislado; el paquete consolidado exacto de cola llena y serialización `/tmp/h3req1_pwi_r3_queue_serialization_jit_delta_20261019_r3.md` está pendiente de aprobación. R3 App/Worker y R3-DO siguen aprobados sin consumir. No hubo App, secreto, Worker deployment, push, actualización PR, SHA nuevo, checks, revisión GitHub, merge ni prueba Development. Se preserva el fallo PWI de a73; `main`, `certificacion` y Production quedan fuera de alcance.
+
+### Checkpoint R3 — 2026-10-19 23:13 UTC
+
+El responsable aprobó el paquete exacto de invalidación pre-ACK de 7,5 s; permanece sin consumir. No cubre exclusión mutua, requeue activo, duplicados de Check Run ni cola llena. El delta combinado `/tmp/h3req1_pwi_r3_queue_serialization_jit_delta_20261019_r3.md` que sí describe esas operaciones continúa pendiente de aprobación. `studiamatch-dev` está saludable y sin reinicios; la suite Worker actual sigue validada únicamente en el contenedor Node 22.22.0 aislado. El snapshot autónomo y la revisión independiente final siguen pendientes. No hubo acción remota.
+
+### Resultado local z10 — 2026-10-19 23:23 UTC
+
+z10 quedó reconstruido desde baseline y pasó el escaneo completo, integridad/self-test documental, guard/negativos, estado 8/8, cuatro consumidores Python afectados 46/46, auditoría de plantilla, actionlint, ShellCheck y diff-check incremental. La suite Worker 36/36 + runtime 4/4 coincide por diez hashes exactos; Python completo, Static Build y PostgreSQL se reutilizan con igualdad de inputs/job demostrada. El resultado detallado está en el checks log. El body/log/manifiesto se están actualizando con esos resultados; el siguiente snapshot repetirá escaneo y gates sensibles a documentos antes de revisión independiente. Aún no hay App, secreto, Worker deploy, publicación, revisión remota, merge o aceptación Development.
+
+
+### Checkpoint z14 y próximo gate — 2026-10-19 23:50 UTC
+
+z14 autónomo pasó los gates locales Docker registrados en el reporte vigente; el snapshot y su identidad quedan preservados. Se actualizan los documentos/manifiesto con esos resultados y se construirá z15 para los gates sensibles y la revisión independiente exacta. El delta pre-ACK de 7,5 s está aprobado/no consumido; el delta r4 adicional de serialización/cola sigue pendiente de aprobación y App/Worker R3/R3-DO continúan aprobados/no consumidos. No se ha registrado App, ingresado secretos, desplegado Worker, actualizado PR ni ejecutado operación remota.
+
+## Revisión z15 y corrección local — 2026-10-20 00:04 UTC
+
+La review independiente exacta de z15 fue NO-GO con un HIGH: en cola llena, una redelivery que ve su fila activa puede esperar la lectura de cabeza; si durante esa espera la alarma finaliza el mismo delivery como `done`, el intento de insertar una fila duplicada falla antes de invalidar el check, y la redelivery siguiente podría ACKear por `already_processed`. Se conserva z15 y su dictamen. La corrección actual reusa esa fila terminal, la asigna a la cabeza confirmada, la resecuencia y la deja `pending` antes de invalidar el check; una fila que ya estaba `done` al comienzo mantiene su fast-path idempotente.
+
+En Docker Node 22.22.0: `npm run check` PASS, unitarias 39/39 y Durable Object/SQLite runtime 7/7. Esos resultados corresponden a los bytes Worker de la fuente, no al snapshot autónomo. R4 queda sustituido por el JIT r5 exacto `/tmp/h3req1_pwi_r3_queue_serialization_jit_delta_20261019_r5.md`, pendiente de aprobación. z16 será el siguiente snapshot; requiere full scan, gates locales afectados y revisión independiente exacta. No hubo operación remota. El pre-ACK exacto sigue aprobado/no consumido; el fallo remoto PWI de a73 permanece histórico; Development NO-GO.
+
+## Snapshot z16 y resultado local actual — 2026-10-20 00:15 UTC
+
+z16 fue reconstruido desde `4eb4d877a50b012bb630a129bd0c74482c33be9c` con el manifiesto exacto, sin fallback: commit `78c5ecd4d1f7088ccd2972138ebfda5e5919654d`, tree `aaf1b8a357b98388bb904d6b744baaff24380461`, scope `60345902b4068d696211c0e59a1a863792eea6defaa2e6fc6288924aac75b36a`; 1.190 entradas, 39 artefactos, unión 1.196/diff 1.195, 13 catálogos/1.173 referencias. Snapshot limpio.
+
+Docker/red deshabilitada: escáner completo sin findings; documentation/self-test PASS (732 fuentes, 113 activas, 433 históricas, 9.247 enlaces/4.625 anchors); guard/negativos PASS (1.196; 3/1/1/3/2); contratos focales Python 46/46; body/template PASS (10 headings, 10 links de candidato resolubles, 16 filas, 0 placeholders); `git diff --check a73..z16` PASS. Los diez hashes de código/tests/config/lock del Worker en z16 igualan la fuente validada en Docker Node 22.22.0: `npm run check`, 39/39 unitarias, 7/7 Workers/SQLite runtime. Los 789 inputs comunes fuera de documentación y paquete Worker coinciden con z10; se reutilizan sus gates locales de Python CI, Static Build, PostgreSQL, actionlint y ShellCheck. Las pruebas reutilizadas no son resultados remotos.
+
+La primera llamada a documentación omitió `--candidate-manifest` y falló por aplicar el modo de checkout completo a omisiones WIP intencionales; se conserva y clasifica como error de invocación. La llamada corregida con el manifiesto y self-test pasó. Se actualizan estos resultados en un sucesor documental z17; esa versión repetirá los gates sensibles y será revisada independientemente. z15 conserva NO-GO/HIGH. R5 sigue pendiente; no hubo operación remota ni consumo de permisos.
+
+## Snapshot z17 — validación local actual — 2026-10-20 00:18 UTC
+
+Snapshot autónomo z17: commit `235094e0fb75ef08cb4aa6f70a7af036f66014c0`, árbol `1bcdc9586abfd3445944f523c7314a883dbfc43e`, parent `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope `5bffe8054c5ab5a6c50000ae4517148ca01398fbc236e1cbba23df1baff56f7b`; 1.190 scope, 39 artefactos, unión 1.196/diff 1.195, 13 catálogos/1.173 refs, árbol limpio.
+
+En Docker/red deshabilitada pasaron escáner completo, docs/self-test, scope guard/negativos, contratos focales 46/46, body/template y diff-check a73..z17. La revisión de plantilla comprobó diez títulos ordenados, diez enlaces a rutas incluidas, 16 filas y ningún marcador; una primera regla temporal detectó por error la palabra «Todo», que no era placeholder. La regla corregida pasó sin cambiar el snapshot. Diez inputs Worker igualan la fuente con 39 unitarias/7 runtime; los 789 inputs restantes no documentales/no Worker coinciden con z10 y permiten reutilizar gates locales anteriores. Los resultados son locales.
+
+Se registran estos hechos en z18 antes de review independiente. El fallo z15 queda histórico; JIT R5, configuración App y publicación permanecen pendientes. No hubo operación remota ni aceptación Development.

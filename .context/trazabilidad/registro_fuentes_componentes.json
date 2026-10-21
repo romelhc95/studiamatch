@@ -129,9 +129,9 @@
       "name": "candidato R8 + documentación R9 prevista para reconciliación de paso 3",
       "source_set": "paths tracked del HEAD baseline más paths de scope R8 y scope R9; los paths candidatos fuera de ese conjunto son WIP local preservado y quedan señalados por grupo.",
       "candidate_only_path_count_at_cut": 367,
-      "note": "No significa que la fuente no exista en el candidato. En el gate local se inventaría y valida normalmente. En un checkout de integración, su ausencia solo se tolera para las rutas enumeradas en candidate_only_paths; nuevas fuentes siguen fallando y referencias no justificadas siguen siendo error.",
+      "note": "La proyección R8/R9 conserva sus exclusiones exactas; las 10 fuentes del Worker PWI están asignadas como delta deliberado del sucesor R19/R3 y se cuentan en la proyección actual, sin abrir carpetas adicionales.",
       "refresh": "Al reconciliar paso 3, recalcular todas las listas con el manifiesto combinado; no reutilizar estas listas si cambia el scope.",
-      "projected_relevant_source_paths_at_cut": 434
+      "projected_relevant_source_paths_at_cut": 443
     }
   },
   "exclusions": [
@@ -15328,7 +15328,7 @@
     {
       "id": "security-controls",
       "component": "seguridad-tooling",
-      "purpose": "Credential scanner, hooks, scope guard, workflow review and their security tests.",
+      "purpose": "Credential scanner, hooks, scope guard, static workflow review helper and their security tests; the external PWI App worker is assigned separately.",
       "status": "current",
       "inline_comment": "none",
       "comment_target": null,
@@ -15343,7 +15343,7 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "security-audit workflow calls scanner, H2 writer scan, protected path guard and focused tests; tests/test_protected_path_scope_guard.sh reads the reconciled R17 candidate manifest and checks selected paths, catalog closure, hashes and availability against the workflow allowlists. Hooks run only if installed.",
+        "note": "security-audit workflow calls the credential scanner, H2 writer scan, protected path guard and focused tests; tests/test_protected_path_scope_guard.sh reads the exact candidate manifest selected by security-audit.yml and verifies candidate paths, historical catalog closure, hashes and availability against exact allowlists. Hooks run only if installed.",
         "evidence": [
           "path:.github/workflows/security-audit.yml",
           "path:tests/test_protected_path_scope_guard.sh",
@@ -15362,7 +15362,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La evidencia R11 mapea por archivo el regresor del scanner, el test del scope guard, el contract de workflow, los controles H2 y tests de política/credenciales. El test consume el manifest candidato R17 y valida también cierre de 13 catálogos/1,173 destinos; assertions locales no prueban Actions, hooks instalados, secret store ni branch protection remoto.",
+        "note": "The R11 evidence maps the scanner regression, scope guard test, workflow contract, H2 controls and credential/policy tests. The exact successor manifest and test pin 13 historical catalogs and their direct target set; local assertions do not prove Actions, installed hooks, secret storage or remote branch protection.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15395,7 +15395,6 @@
         ".githooks/pre-commit",
         ".githooks/pre-push",
         ".github/scripts/production_control_preflight.sh",
-        ".github/workflows/protected-workflow-integrity.yml",
         "AGENTS.md",
         "scripts/security/h2_web_mock_smoke.sh",
         "scripts/security/protected_path_scope_guard.sh",
@@ -15417,6 +15416,81 @@
       "candidate_only_paths": [
         "tests/test_protected_path_scope_guard.sh"
       ]
+    },
+    {
+      "id": "pwi-external-app-worker",
+      "component": "seguridad-tooling",
+      "purpose": "GitHub App y Cloudflare Worker dedicados que publican el check PWI para PRs dirigidos a desarrollo.",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "contracts": {
+        "state": "verified",
+        "note": "Verifica firma de webhook, repositorio, rama desarrollo, SHA vigente y aprobación humana confiable no autora; la corrección local al recibir un evento persiste el metadato y reabre cualquier check previo del mismo App/PR/SHA como in_progress antes de confirmar, dentro de 7.5 s, y luego procesa la cola. En capacidad completa consulta el SHA actual validado por GitHub y reemplaza una fila activa con prioridad por SHA, estado y secuencia; redelivery fallida recibe secuencia nueva y el cierre del trabajo verifica secuencia/estado/intento. Estas operaciones alteran el orden explícito de R3-DO y requieren JIT adicionales antes de desplegarse; descarga solo metadatos, nombres de archivo y revisiones, nunca ejecuta código del PR ni obtiene contenidos de archivos.",
+        "evidence": [
+          "path:scripts/security/pwi_worker/README.md",
+          "path:scripts/security/pwi_worker/policy.mjs",
+          "path:scripts/security/pwi_worker/github.mjs"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "El webhook de GitHub alimenta una cola por PR en PwiCoordinator; la corrección local reabre cualquier check previo coincidente del App antes de confirmar y después procesa/evalúa la cola para publicar Protected Workflow Integrity. A capacidad completa sustituye una fila activa por el evento actual dentro del tope y solo una finalización que coincide con secuencia/estado/intento puede cerrar el evento. Si el precheck falla, retorna 503 y requiere redelivery. Estas operaciones requieren JIT adicionales antes del despliegue; la obligatoriedad en la protección de desarrollo se verifica por separado.",
+        "evidence": [
+          "path:scripts/security/pwi_worker/index.mjs",
+          "path:scripts/security/pwi_worker/wrangler.jsonc"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "PwiCoordinator persiste solo UUID de entrega, número de PR, SHA, estado, intentos y marcas de tiempo; máximo ocho filas pendientes/procesando y 100 terminales por PR. No persiste payload, diff, nombres, correos, reviews, JWT, tokens ni secretos.",
+        "evidence": [
+          "path:scripts/security/pwi_worker/index.mjs",
+          "path:scripts/security/pwi_worker/README.md"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "La suite Node cubre política, webhook, invalidación inmediata de un check previo, cola llena con SHA activo, redelivery reordenada, cierre condicional y carreras de eventos; la suite Workers prueba cola SQLite, tope de filas, monotonicidad AUTOINCREMENT, guardas de estado y procesamiento demorado. Los tests locales no acreditan el App ni el check remoto.",
+        "evidence": [
+          "path:scripts/security/pwi_worker/test/pwi_worker.test.mjs",
+          "path:scripts/security/pwi_worker/runtime-test/pwi_worker.runtime.test.mjs"
+        ]
+      },
+      "operations": {
+        "state": "remote_only",
+        "note": "Registro/instalación del App, secretos del Worker, despliegue del binding/DO y required check del proveedor en desarrollo requieren comprobación remota; el estado local no demuestra su configuración.",
+        "evidence": [],
+        "resolution": "Después del registro seguro y despliegue autorizado, verificar el Worker/version/host/binding/DO por metadatos, el check del App en el SHA actual y el proveedor requerido en la regla de desarrollo; detenerse ante cualquier discrepancia.",
+        "remote_checks": [
+          "pwi-app-worker-development"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Fuentes nuevas añadidas como sucesor explícito desde la base del PR a73af141; su alcance, revisión y digest final se registran en el manifiesto sucesor. No se infiere procedencia externa.",
+        "evidence": [
+          "path:scripts/security/pwi_worker/README.md"
+        ],
+        "resolution": "Conservar la revisión independiente sobre el snapshot final y la evidencia remota del proveedor por SHA."
+      },
+      "paths": [
+        "scripts/security/pwi_worker/README.md",
+        "scripts/security/pwi_worker/github.mjs",
+        "scripts/security/pwi_worker/index.mjs",
+        "scripts/security/pwi_worker/package-lock.json",
+        "scripts/security/pwi_worker/package.json",
+        "scripts/security/pwi_worker/policy.mjs",
+        "scripts/security/pwi_worker/runtime-test/pwi_worker.runtime.test.mjs",
+        "scripts/security/pwi_worker/test/pwi_worker.test.mjs",
+        "scripts/security/pwi_worker/vitest.config.mjs",
+        "scripts/security/pwi_worker/wrangler.jsonc"
+      ],
+      "source_document": {
+        "path": ".context/componentes/seguridad_tooling.md",
+        "anchor": "fuentes-y-relaciones"
+      },
+      "candidate_only_paths": []
     },
     {
       "id": "security-audit-workflow",
@@ -20488,11 +20562,10 @@
       "id": "github-development-snapshot-r15",
       "component": "infra-release",
       "sources": [
-        ".github/workflows/security-audit.yml",
-        ".github/workflows/protected-workflow-integrity.yml"
+        ".context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md"
       ],
       "question": "¿Qué rama default, ref desarrollo, workflows y check-runs se observaron para el baseline del candidato?",
-      "method": "R17 read-only confirmó default main, desarrollo en baseline 4eb4d877a50b012bb630a129bd0c74482c33be9c, feature branch ausente, workflows/runs relevantes y ruleset; PWI no aparece en main/desarrollo.",
+      "method": "R17 read-only confirmó default main, desarrollo en baseline 4eb4d877a50b012bb630a129bd0c74482c33be9c, feature branch ausente, workflows/runs relevantes y ruleset; PWI no aparece en main/desarrollo. The workflow path is retained as a historical identifier in the exact candidate-only registry entry; the successor removes the workflow.",
       "owner": "Responsable de integración antes de abrir PR.",
       "status": "verified",
       "evidence": [
@@ -20500,24 +20573,25 @@
       ],
       "verified_at": "2026-10-14",
       "result": "Snapshot de rama base actualizado; check-runs baseline son históricos, no prueban WIP. pull_request_target no puede bootstrapear workflow ausente en la base. Ruleset muestra bypass always en la conexión actual; no usado.",
-      "last_read_date": "2026-10-14"
+      "last_read_date": "2026-10-14",
+      "historical_source_path": ".github/workflows/protected-workflow-integrity.yml"
     },
     {
       "id": "github-branch-protection-detail-r15",
       "component": "seguridad-tooling",
       "sources": [
-        ".github/workflows/security-audit.yml",
-        ".github/workflows/protected-workflow-integrity.yml"
+        ".context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md"
       ],
       "question": "¿Qué approvals, required checks y reglas clásicas aplican a desarrollo?",
-      "method": "R17 GET de branch protection para desarrollo devolvió 403 Resource not accessible by integration. El ruleset no expone número de approvals ni required checks.",
+      "method": "R17 GET de branch protection para desarrollo devolvió 403 Resource not accessible by integration. El ruleset no expone número de approvals ni required checks. The workflow path is retained as a historical identifier in the exact candidate-only registry entry; the successor removes the workflow.",
       "owner": "Administrador GitHub del repositorio.",
       "status": "pending_separate_session",
       "last_observation": "Rama/ruleset visibles; branch protection, required checks, approvals, environments y operador non-bypass no verificados.",
       "evidence": [
         "path:.context/evidencia/h3req1_g10_remote_preparation_2026-10-14_r17_public_sanitized_r18.md"
       ],
-      "last_read_date": "2026-10-14"
+      "last_read_date": "2026-10-14",
+      "historical_source_path": ".github/workflows/protected-workflow-integrity.yml"
     },
     {
       "id": "supabase-pro-h3-metadata-r15",
@@ -20652,6 +20726,26 @@
       "verified_at": "2026-10-14",
       "last_read_date": "2026-10-14",
       "result": "Preflight aggregate-only: una identidad admin/active/ready, un TOTP, cero sesiones, tres admins activos, una invitación accepted referenciada. Bajo el contrato vigente, el reset NO es válido: accepted_user_id usa FK auth.users NO ACTION, el CHECK exige id no nulo y el trigger impide transicionar desde accepted. DML/desvinculación y borrado Auth no ejecutados. Gmail y auditoría permanecen intactas; decidir si se conserva el modelo (D03 pendiente) o se prepara un nuevo contrato/migración revisado. No se infiere permiso JIT."
+    },
+    {
+      "id": "pwi-app-worker-development",
+      "component": "seguridad-tooling",
+      "sources": [
+        "scripts/security/pwi_worker/README.md",
+        "scripts/security/pwi_worker/github.mjs",
+        "scripts/security/pwi_worker/index.mjs",
+        "scripts/security/pwi_worker/package-lock.json",
+        "scripts/security/pwi_worker/package.json",
+        "scripts/security/pwi_worker/policy.mjs",
+        "scripts/security/pwi_worker/runtime-test/pwi_worker.runtime.test.mjs",
+        "scripts/security/pwi_worker/test/pwi_worker.test.mjs",
+        "scripts/security/pwi_worker/vitest.config.mjs",
+        "scripts/security/pwi_worker/wrangler.jsonc"
+      ],
+      "question": "¿La GitHub App del proveedor PWI publicó un resultado para el SHA vigente del PR 501 y quedó seleccionada como required check únicamente en desarrollo?",
+      "method": "Tras registro/instalación y despliegue R3/R3-DO, leer check run por SHA y protección de desarrollo; limitar la evidencia a nombre/proveedor, SHA y conclusión. No leer secretos ni payloads.",
+      "owner": "Responsable administrador de GitHub y responsable Cloudflare; ejecución local no acredita configuración remota.",
+      "status": "pending_separate_session"
     }
   ],
   "navigation": {
@@ -34480,7 +34574,7 @@
       ],
       "requirement_basis": "explicit code in title or path; not acceptance verification",
       "source_paths": [
-        ".github/workflows/protected-workflow-integrity.yml",
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/workflows/security-audit.yml",
         "scripts/security/protected_workflow_review.py"
       ],
@@ -34492,11 +34586,11 @@
         "sources": {
           "state": "identified",
           "paths": [
-            ".github/workflows/protected-workflow-integrity.yml",
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/workflows/security-audit.yml",
             "scripts/security/protected_workflow_review.py"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "not_identified_in_local_search",
@@ -34955,8 +35049,8 @@
       "requirement_codes": [],
       "requirement_basis": "no requirement code in title/path; no requirement is inferred",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/pull_request_template.md",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml",
         "db/migrations/20260921_h3_invitation_onboarding_rpc.sql",
         "db/migrations/20260928_h3_invitation_accept_email_regex_fix.sql",
@@ -35002,8 +35096,8 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/pull_request_template.md",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml",
             "db/migrations/20260921_h3_invitation_onboarding_rpc.sql",
             "db/migrations/20260928_h3_invitation_accept_email_regex_fix.sql",
@@ -35019,7 +35113,7 @@
             "web/tsconfig.json",
             "web/vendor/braces-3.0.4-h3.1.tgz"
           ],
-          "note": "Se escanearon referencias locales y se publicó una copia con identificadores personales redactados; el original permanece sin cambios y fuera del paquete."
+          "note": "Se escanearon referencias locales y se publicó una copia con identificadores personales redactados; el original permanece sin cambios y fuera del paquete. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "identified",
@@ -39915,7 +40009,7 @@
       ],
       "requirement_basis": "explicit code in title or path; not acceptance verification",
       "source_paths": [
-        ".github/workflows/protected-workflow-integrity.yml",
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         "scripts/security/protected_workflow_review.py"
       ],
       "runner_paths": [],
@@ -39928,10 +40022,10 @@
         "sources": {
           "state": "identified",
           "paths": [
-            ".github/workflows/protected-workflow-integrity.yml",
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             "scripts/security/protected_workflow_review.py"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "not_identified_in_local_search",
@@ -40140,6 +40234,7 @@
       "requirement_codes": [],
       "requirement_basis": "no requirement code in title/path; no requirement is inferred",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/agents/api-designer.md",
         ".github/agents/architect-hexagonal.md",
         ".github/agents/backend-architect.md",
@@ -40172,7 +40267,6 @@
         ".github/workflows/opencode.yml",
         ".github/workflows/production_canary.yml",
         ".github/workflows/production_pipeline.yml",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml",
         "config/institution_sources.json",
         "db/PRODUCTION_MASTER.sql",
@@ -40762,6 +40856,7 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/agents/api-designer.md",
             ".github/agents/architect-hexagonal.md",
             ".github/agents/backend-architect.md",
@@ -40794,7 +40889,6 @@
             ".github/workflows/opencode.yml",
             ".github/workflows/production_canary.yml",
             ".github/workflows/production_pipeline.yml",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml",
             "config/institution_sources.json",
             "db/PRODUCTION_MASTER.sql",
@@ -41047,7 +41141,7 @@
             "workers/admin-quota/index.ts",
             "workers/admin-quota/wrangler.jsonc"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "identified",
@@ -42453,8 +42547,8 @@
       ],
       "requirement_basis": "explicit code in title or path; not acceptance verification",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/pull_request_template.md",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml",
         "db/migrations/20260927_h3_admin_queue_facets_filter.sql",
         "db/migrations/20260927_h3_publication_visibility_contract.sql",
@@ -42530,8 +42624,8 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/pull_request_template.md",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml",
             "db/migrations/20260927_h3_admin_queue_facets_filter.sql",
             "db/migrations/20260927_h3_publication_visibility_contract.sql",
@@ -42581,7 +42675,7 @@
             "workers/admin-quota/index.ts",
             "workers/admin-quota/wrangler.jsonc"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "not_identified_in_local_search",
@@ -43047,11 +43141,11 @@
       "requirement_codes": [],
       "requirement_basis": "no requirement code in title/path; no requirement is inferred",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/workflows/fg1_inventory.yml",
         ".github/workflows/fg3_integrity.yml",
         ".github/workflows/production_canary.yml",
         ".github/workflows/production_pipeline.yml",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml",
         "db/PRODUCTION_MASTER.sql",
         "db/migrations/20260412_dynamic_categories.sql",
@@ -43279,11 +43373,11 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/workflows/fg1_inventory.yml",
             ".github/workflows/fg3_integrity.yml",
             ".github/workflows/production_canary.yml",
             ".github/workflows/production_pipeline.yml",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml",
             "db/PRODUCTION_MASTER.sql",
             "db/migrations/20260412_dynamic_categories.sql",
@@ -43452,7 +43546,7 @@
             "workers/admin-quota/index.ts",
             "workers/admin-quota/wrangler.jsonc"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "identified",
@@ -44270,8 +44364,8 @@
       ],
       "requirement_basis": "explicit code in title or path; not acceptance verification",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/workflows/db-sync-to-pro.yml",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml",
         "scripts/security/scan_credentials.sh",
         "web/functions/_lib/admin-bff.ts",
@@ -44293,15 +44387,15 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/workflows/db-sync-to-pro.yml",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml",
             "scripts/security/scan_credentials.sh",
             "web/functions/_lib/admin-bff.ts",
             "web/package.json",
             "web/vendor/braces-3.0.4-h3.1.tgz"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "identified",
@@ -46288,7 +46382,7 @@
       ],
       "requirement_basis": "explicit code in title or path; not acceptance verification",
       "source_paths": [
-        ".github/workflows/protected-workflow-integrity.yml",
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/workflows/security-audit.yml",
         "scripts/security/protected_workflow_review.py"
       ],
@@ -46300,11 +46394,11 @@
         "sources": {
           "state": "identified",
           "paths": [
-            ".github/workflows/protected-workflow-integrity.yml",
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/workflows/security-audit.yml",
             "scripts/security/protected_workflow_review.py"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "not_identified_in_local_search",
@@ -49504,8 +49598,8 @@
       "requirement_codes": [],
       "requirement_basis": "no requirement code in title/path; no requirement is inferred",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/workflows/db-sync-to-pro.yml",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml"
       ],
       "runner_paths": [
@@ -49521,11 +49615,11 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/workflows/db-sync-to-pro.yml",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "identified",
@@ -49582,8 +49676,8 @@
       "requirement_codes": [],
       "requirement_basis": "no requirement code in title/path; no requirement is inferred",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/workflows/db-sync-to-pro.yml",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml"
       ],
       "runner_paths": [
@@ -49599,11 +49693,11 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/workflows/db-sync-to-pro.yml",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "identified",
@@ -49660,8 +49754,8 @@
       "requirement_codes": [],
       "requirement_basis": "no requirement code in title/path; no requirement is inferred",
       "source_paths": [
+        ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
         ".github/workflows/db-sync-to-pro.yml",
-        ".github/workflows/protected-workflow-integrity.yml",
         ".github/workflows/security-audit.yml"
       ],
       "runner_paths": [
@@ -49677,11 +49771,11 @@
         "sources": {
           "state": "identified",
           "paths": [
+            ".context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json",
             ".github/workflows/db-sync-to-pro.yml",
-            ".github/workflows/protected-workflow-integrity.yml",
             ".github/workflows/security-audit.yml"
           ],
-          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita."
+          "note": "Ruta exacta obtenida de enlaces/rutas citadas en el documento o de una coincidencia de cohorte local explícita. Historical source .github/workflows/protected-workflow-integrity.yml is retained as a historical identifier in the document and R19 parent manifest; its exact source hash remains pinned there, while this relation now links to that immutable manifest because the workflow is deleted from the R3 successor."
         },
         "runner": {
           "state": "identified",

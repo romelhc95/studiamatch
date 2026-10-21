@@ -319,23 +319,6 @@ def test_protected_h3_path_allowlist_is_narrow_and_covers_this_candidate():
         assert not any(pattern.fullmatch(unrelated) for pattern in allowed), unrelated
 
 
-def test_protected_workflow_gate_requires_current_trusted_human_approval():
-    workflow = (ROOT / ".github/workflows/protected-workflow-integrity.yml").read_text(encoding="utf-8")
-    helper = (ROOT / "scripts/security/protected_workflow_review.py").read_text(encoding="utf-8")
-
-    assert "pull_request_target:" in workflow
-    assert "pull_request_review:" in workflow
-    assert "contents: read" in workflow
-    assert "pull-requests: read" in workflow
-    assert "ref: ${{ github.event.pull_request.base.sha }}" in workflow
-    assert "persist-credentials: false" in workflow
-    assert "scripts/security/protected_workflow_review.py" in workflow
-    assert 'review.get("commit_id") == head_sha' in helper
-    assert 'review.get("state") == "APPROVED"' in helper
-    assert "reviewer_key == author_key" in helper
-    assert "TRUSTED_ASSOCIATIONS = {\"OWNER\", \"MEMBER\", \"COLLABORATOR\"}" in helper
-
-
 def test_admin_invite_has_duplicate_resend_and_failure_contracts_without_secrets():
     source = EDGE.read_text(encoding="utf-8")
     migration = MIGRATION.read_text(encoding="utf-8")

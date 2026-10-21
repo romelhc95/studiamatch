@@ -76,7 +76,7 @@ jobs:
         with:
           node-version: '20'
       - name: Check source registry, links and undocumented-source rejection
-        run: node scripts/maintenance/h3req1_documentation_integrity.mjs --self-test --candidate-manifest .context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json
+        run: node scripts/maintenance/h3req1_documentation_integrity.mjs --self-test --candidate-manifest .context/evidencia/h3req1_pr_scope_manifest_2026-10-19_r19_pwi_r3_reconciled.json
 
   python-check:
     name: Python Compile And Tests
@@ -219,9 +219,35 @@ jobs:
       - name: Run actionlint
         run: |
           set -euo pipefail
-          "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/protected-workflow-integrity.yml .github/workflows/db-sync-to-pro.yml
+          "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/db-sync-to-pro.yml
       - name: Run shellcheck
         run: shellcheck scripts/security/scan_credentials.sh scripts/security/protected_path_scope_guard.sh tests/test_protected_path_scope_guard.sh scripts/security/h2_web_mock_smoke.sh tests/sql/h3_invitation_reservation_concurrency.sh .githooks/pre-commit .githooks/pre-push
+
+  pwi-worker-contract:
+    name: PWI Worker Contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.22.0'
+          cache: npm
+          cache-dependency-path: scripts/security/pwi_worker/package-lock.json
+      - name: Install PWI Worker test tools
+        working-directory: scripts/security/pwi_worker
+        run: npm ci --legacy-peer-deps
+      - name: Check Worker source syntax
+        working-directory: scripts/security/pwi_worker
+        run: npm run check
+      - name: Run Worker contract tests
+        working-directory: scripts/security/pwi_worker
+        run: npm test
+      - name: Run Worker Durable Object runtime tests
+        working-directory: scripts/security/pwi_worker
+        run: npm run test:runtime
 
   db-gate:
     name: PostgreSQL DB Change Gate
@@ -442,7 +468,7 @@ jobs:
   security-audit:
     name: security-audit
     runs-on: ubuntu-latest
-    needs: [credential-scan, protected-paths, documentation-integrity, python-check, lint, typecheck, static-build, workflow-lint, db-gate, h2-main-production-expand-gate]
+    needs: [credential-scan, protected-paths, documentation-integrity, python-check, lint, typecheck, static-build, workflow-lint, pwi-worker-contract, db-gate, h2-main-production-expand-gate]
     if: always()
     steps:
       - name: Aggregate required checks
@@ -456,6 +482,7 @@ jobs:
           test '${{ needs.typecheck.result }}' = 'success'
           test '${{ needs.static-build.result }}' = 'success'
           test '${{ needs.workflow-lint.result }}' = 'success'
+          test '${{ needs.pwi-worker-contract.result }}' = 'success'
           test '${{ needs.db-gate.result }}' = 'success'
           if [ '${{ github.event_name }}' = 'pull_request' ] && [ '${{ github.event.pull_request.base.ref }}' = 'main' ]; then
             test '${{ needs.h2-main-production-expand-gate.result }}' = 'success'

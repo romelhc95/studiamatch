@@ -61,7 +61,7 @@ if protected_path_scope_capture "$test_root/missing.nul" \
 fi
 
 python3 - "$ROOT/scripts/security/protected_path_scope_guard.sh" \
-  "$ROOT/.context/evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json" \
+  "$ROOT/.context/evidencia/h3req1_pr_scope_manifest_2026-10-19_r19_pwi_r3_reconciled.json" \
   "$ROOT" <<'PY'
 import hashlib
 import json
@@ -90,6 +90,31 @@ if not local_match:
 
 patterns = [workflow_regex("allowed_h3"), workflow_regex("allowed_h3_extra")]
 local_paths = {line.strip() for line in local_match.group("body").splitlines() if line.strip()}
+pwi_worker_paths = {
+    "scripts/security/pwi_worker/README.md",
+    "scripts/security/pwi_worker/github.mjs",
+    "scripts/security/pwi_worker/index.mjs",
+    "scripts/security/pwi_worker/package.json",
+    "scripts/security/pwi_worker/package-lock.json",
+    "scripts/security/pwi_worker/policy.mjs",
+    "scripts/security/pwi_worker/test/pwi_worker.test.mjs",
+    "scripts/security/pwi_worker/runtime-test/pwi_worker.runtime.test.mjs",
+    "scripts/security/pwi_worker/vitest.config.mjs",
+    "scripts/security/pwi_worker/wrangler.jsonc",
+}
+for path in pwi_worker_paths:
+    if not any(re.search(pattern, path) for pattern in patterns):
+        raise SystemExit(f"protected path integration test: approved PWI path is not explicitly allowed: {path}")
+for unreviewed_pwi in (
+    "scripts/security/pwi_worker/unreviewed.mjs",
+    "scripts/security/pwi_worker/runtime-test/unreviewed.mjs",
+    "scripts/security/pwi_worker/extra/unreviewed.mjs",
+):
+    if unreviewed_pwi in local_paths or any(re.search(pattern, unreviewed_pwi) for pattern in patterns):
+        raise SystemExit(
+            "protected path integration test: unreviewed PWI path is accepted: "
+            f"{unreviewed_pwi}"
+        )
 for unmanifested_h3 in (
     ".context/evidencia/h3req1-unreviewed-forbidden.md",
     ".context/evidencia/h3_unreviewed-forbidden.md",
@@ -148,10 +173,11 @@ catalogs = closure.get("catalogs")
 references = closure.get("entries")
 if not isinstance(catalogs, list) or len(catalogs) != 13:
     raise SystemExit("protected path integration test: expected 13 historical catalogs")
-if not isinstance(references, list) or len(references) != 1173:
-    raise SystemExit("protected path integration test: expected 1173 direct catalog targets")
+expected_reference_count = closure.get("reference_count")
+if expected_reference_count != 1173 or not isinstance(references, list) or len(references) != 1173:
+    raise SystemExit("protected path integration test: expected 1173 direct catalog targets in the successor manifest")
 reference_paths = [entry.get("path") for entry in references if isinstance(entry, dict)]
-if len(reference_paths) != 1173 or len(reference_paths) != len(set(reference_paths)):
+if len(reference_paths) != expected_reference_count or len(reference_paths) != len(set(reference_paths)):
     raise SystemExit("protected path integration test: catalog target paths are missing or duplicated")
 
 for catalog in catalogs:

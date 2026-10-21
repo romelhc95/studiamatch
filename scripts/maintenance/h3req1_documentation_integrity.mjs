@@ -692,7 +692,7 @@ function renderRegistryMarkdown(registry) {
     const domainLinks = component.domain_documents.map((item) => `[${escapeMarkdown(item.path)}#${escapeMarkdown(item.anchor)}](${docLink(item)})`).join(", ");
     const sourceDocument = group.source_document ?? component.document;
     const isCandidateOnly = group.candidate_only_paths?.includes(relative) === true;
-    const candidateOnly = isCandidateOnly ? " · candidate-only WIP local" : "";
+    const candidateOnly = isCandidateOnly ? " · candidate-only; exact inclusion or omission is controlled by the selected manifest" : "";
     const sourceReference = isCandidateOnly ? `\`${escapeMarkdown(relative)}\`` : sourceLink(relative);
     lines.push(`| ${sourceReference} | ${escapeMarkdown(component.title)} | [${escapeMarkdown(component.document.anchor)}](${docLink(component.document)}) | [${escapeMarkdown(sourceDocument.path)}#${escapeMarkdown(sourceDocument.anchor)}](${docLink(sourceDocument)}) | ${domainLinks} | ${escapeMarkdown(group.purpose)}${candidateOnly} | ${escapeMarkdown(group.status)} |`);
   }
