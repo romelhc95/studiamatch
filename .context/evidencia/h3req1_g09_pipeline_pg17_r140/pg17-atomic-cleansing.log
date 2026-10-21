@@ -1,0 +1,28 @@
+DROP SCHEMA
+CREATE SCHEMA
+CREATE EXTENSION
+DO
+CREATE TABLE
+CREATE TABLE
+CREATE FUNCTION
+REVOKE
+REVOKE
+REVOKE
+GRANT
+INSERT 0 2
+INSERT 0 1
+                                                                                                                                                                              atomic_cleansing_promote                                                                                                                                                                              
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ (20000000-0000-0000-0000-000000000001,00000000-0000-0000-0000-000000000101,10000000-0000-0000-0000-000000000001,https://example.edu/program-a,https://example.edu/program-a?canonical=1,https://example.edu/program-a,"New name","New description",online,Lima,100,PEN,pending,"{""raw_name"": ""New raw"", ""historical"": true, ""f10_production_canary_run_id"": ""new-run""}")
+ (bffe3a05-c62b-4b09-9fd2-5041ea011225,00000000-0000-0000-0000-000000000102,10000000-0000-0000-0000-000000000001,https://example.edu/program-b,https://example.edu/program-b,https://example.edu/program-b,"Inserted name","Inserted description",presencial,Lima,200,PEN,pending,"{""f10_production_canary_run_id"": ""new-run""}")
+(2 rows)
+
+DO
+DO
+                                                                                                                                      atomic_cleansing_promote                                                                                                                                       
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ (20000000-0000-0000-0000-000000000001,00000000-0000-0000-0000-000000000101,10000000-0000-0000-0000-000000000001,https://example.edu/program-a,,,"Second run","Second description",,,,,pending,"{""raw_name"": ""New raw"", ""historical"": true, ""f10_production_canary_run_id"": ""new-run-2""}")
+(1 row)
+
+DO
+DO

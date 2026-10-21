@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,12 +23,11 @@ def test_agents_declares_simple_flow_and_boundaries():
 def test_obsidian_is_living_authority_and_redefinition_is_removed():
     state = read(".context/estado_del_proyecto.md")
 
-    assert "Esta nota es la autoridad exclusiva del estado vivo" in state
-    assert "H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA" in state
-    assert "H3_READY_FOR_PROMPT_CONTINUA" in state
-    assert "H3_GO_LOCAL_CLOSED_READY_FOR_SUPABASE_FREE_JIT" in state
-    assert "H3_SUPABASE_FREE_AUTH_JIT_VALIDATION" in state
-    assert "REDEFINICION.md` eliminado definitivamente" in state
+    assert "> Autoridad operativa única." in state
+    assert "## Corte vigente" in state
+    assert "El candidato no se publicó:" in state
+    assert "Development sigue NO-GO" in state
+    assert "REDEFINICION.md" not in state
     assert not (ROOT / "REDEFINICION.md").exists()
 
 
@@ -52,13 +52,116 @@ def test_security_audit_keeps_required_check_name():
     assert "validate_context_graph.py" not in text
 
 
+def test_security_audit_allowlists_scanner_worktree_helper_and_pre_push():
+    workflow = read(".github/workflows/security-audit.yml")
+    guard = read("scripts/security/protected_path_scope_guard.sh")
+    extra_line = next(line for line in guard.splitlines() if line.strip().startswith("allowed_h3_extra='"))
+    extra_pattern = extra_line.split("allowed_h3_extra='", 1)[1].split("'", 1)[0]
+    local_block = guard.split("allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'", 1)[1]
+    local_block = local_block.split("\nH3_LOCAL_PATHS", 1)[0]
+    local_paths = {line.strip() for line in local_block.splitlines() if line.strip()}
+
+    expected_paths = {
+        ".githooks/pre-push",
+        "scripts/security/scan_worktree_file.py",
+        "tests/h3req1_c03_docker_daemon_identity_f2d.py",
+    }
+    assert all(re.fullmatch(extra_pattern, path) for path in expected_paths)
+    assert expected_paths <= local_paths
+    assert "run: bash scripts/security/protected_path_scope_guard.sh --compare-candidate" in workflow
+
+
+def test_security_audit_installs_python_dependencies_from_hashed_lockfile():
+    workflow = read(".github/workflows/security-audit.yml")
+
+    assert "python3 -m pip install --require-hashes -r requirements-pipeline.txt" in workflow
+    assert "python3 -m pip install pytest requests python-dotenv PyPDF2 playwright" not in workflow
+
+
+def test_protected_path_guard_preserves_git_filename_boundaries():
+    workflow = read(".github/workflows/security-audit.yml")
+    guard = read("scripts/security/protected_path_scope_guard.sh")
+
+    assert "bash scripts/security/protected_path_scope_guard.sh --compare-candidate" in workflow
+    assert "git diff --name-only -z" in guard
+    assert 'protected_path_scope_capture "$changed_path_file"' in guard
+    assert "read -r -d '' candidate" in guard
+    assert "unsupported control character" in guard
+
+
+def test_manual_security_audit_dispatch_fails_closed_without_trusted_diff_base():
+    text = read(".github/workflows/security-audit.yml")
+    guard = read("scripts/security/protected_path_scope_guard.sh")
+
+    assert "PROTECTED_BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}" in text
+    assert "PROTECTED_BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}" not in text
+    assert "bash scripts/security/protected_path_scope_guard.sh --compare-candidate" in text
+    assert 'if [ -z "$PROTECTED_BASELINE_SHA" ]; then' in guard
+    assert "protected-path checks require a trusted pull_request or push baseline" in guard
+    assert 'if [ "$base" = "0000000000000000000000000000000000000000" ]; then' in guard
+    assert "git hash-object -t tree -w /dev/null" in guard
+    assert 'base="$PROTECTED_BASELINE_SHA"' in guard
+    assert "database changes require a trusted pull_request or push baseline" in text
+
+
+def test_postgrest_ci_harness_invokes_binary_with_readable_config():
+    workflow = read(".github/workflows/security-audit.yml")
+
+    assert 'chmod 644 "$postgrest_config"' in workflow
+    assert "/bin/postgrest /etc/postgrest.conf" in workflow
+
+
+def test_pwi_is_external_and_candidate_workflow_is_removed():
+    audit = read(".github/workflows/security-audit.yml")
+    pwi_readme = read("scripts/security/pwi_worker/README.md")
+    assert not (ROOT / ".github/workflows/protected-workflow-integrity.yml").exists()
+    assert "pwi-worker-contract:" in audit
+    assert "name: PWI Worker Contract" in audit
+    assert "Protected Workflow Integrity" in pwi_readme
+    assert "check from its GitHub App" in pwi_readme
+    assert "Pull requests: read" in pwi_readme
+    assert "Checks: write" in pwi_readme
+    active_triggers = audit.split("permissions:", 1)[0]
+    assert "pull_request_review:" not in active_triggers
+    assert "trusted-workflow-integrity:" not in audit
+    assert "needs: [trusted-workflow-integrity," not in audit
+    assert "needs.trusted-workflow-integrity.result" not in audit
+    assert "actions/workflows/protected-workflow-integrity.yml/runs" not in audit
+
+
+def test_admin_invitation_bff_sanitizes_internal_edge_business_codes():
+    bff = read("web/functions/_lib/admin-bff.ts")
+
+    assert "const SAFE_INVITE_ERROR_CODES = new Set([" in bff
+    assert "SAFE_INVITE_ERROR_CODES.has(requestedEdgeCode)" in bff
+    assert "? requestedEdgeCode" in bff
+    assert ": 'invitation_failed'" in bff
+    assert "edgeResponse.status" not in bff
+    assert "code: mfaRequired ? 'mfa_required' : 'rpc_failed'" in bff
+    assert "mfaRequired ? 403 : rpcStatus === 403 ? 403 : rpcStatus === 400 ? 400 : rpcStatus === 503 ? 503 : 502" in bff
+    assert "error.code || 'rpc_failed'" not in bff
+
+
 def test_pre_commit_scans_staged_blobs_not_working_tree():
     hook = read(".githooks/pre-commit")
     scanner = read("scripts/security/scan_credentials.sh")
 
     assert "--staged" in hook
     assert "git show \":$file\"" in scanner
+    assert 'grep -aE "$PATTERNS"' in scanner
+    assert 'git show "$commit:$file"' in scanner
+    assert 'git rev-list --reverse "$base..$head"' in scanner
+    assert 'git diff-tree --root -m --no-commit-id' in scanner
+    assert "CF_API_TOKEN|SUPABASE_ACCESS_TOKEN|RESEND_API_KEY" in scanner
+    assert "grep -nIE" not in scanner
     assert "^\\.env" not in scanner
+
+
+def test_pre_push_scans_each_commit_and_materializes_empty_tree_base():
+    hook = read(".githooks/pre-push")
+
+    assert 'git hash-object -t tree -w /dev/null' in hook
+    assert 'scan_credentials.sh --diff "$remote_sha" "$local_sha"' in hook
 
 
 def test_db_sync_is_manual_only():

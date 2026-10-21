@@ -11,7 +11,7 @@ INSERT INTO auth.users (
     updated_at
 ) VALUES (
     '30000000-0000-0000-0000-000000000001',
-    'admin@studiamatch.com',
+    'admin@local.test',
     crypt(current_setting('h3.test_password', true), gen_salt('bf')),
     'authenticated',
     'authenticated',

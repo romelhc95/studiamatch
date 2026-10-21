@@ -1,6 +1,22 @@
 # Sistema DB Supabase
 
 > Fuente canonica del modelo de datos, RLS, RPC, escritores y adopcion por ambiente. No autoriza DDL/DML ni operaciones remotas.
+>
+> **Referencia documental vigente para el código/schema local al 2026-10-12:** [database.md](database.md), [ledger local de migrations](componentes/database_migrations.md) y [estado operativo](estado_del_proyecto.md). Esta nota y sus registros de adopción quedan preservados con su fecha; los objetos SQL no demuestran el estado remoto. Pro sigue siendo el baseline autoritativo según AGENTS.md.
+
+## Lectura vigente de este documento — 2026-10-07
+
+El modelo/lineage siguiente conserva investigaciones y adopciones fechadas; snapshots de
+gobierno antiguos no autorizan operaciones y filas «admin futuro» no describen el candidato
+H3 ya implementado. Consultar [ficha de base de datos](database.md),
+[migrations y contratos DB](componentes/database_migrations.md), el [registro fuente-componente](trazabilidad/registro_fuentes_componentes.json)
+y estado vivo antes de
+cambiar schema/RPC/writer. Esta revisión no inspeccionó DB remota; adopción se acredita
+por evidencia ambiente, no por un SQL existente. Pro es baseline; PG17 fixture no DB operativa.
+La tabla de writers normales de courses no habilita maintenance/bypass; cada excepción
+requiere revisión/JIT. No restaurar masters SQL raíz ni copiar datos Free→Pro automáticamente.
+
+## Cortes de investigación/adopción históricos
 
 Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
 Snapshot GOV-CI10: `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, tree `e0029083e24016b97fc8896be3be2d4285414117`; sin cambios DB. PR #441 publico CI9 pero fallo post-merge con `POST_MERGE_ATTESTATION_DUPLICATE`; CI10 solo corrige gobierno CI y attestations. O3 posterior requiere R3 JIT explicito, reconoce Cloudflare Pages Production rebuild automatico y DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`.
@@ -95,8 +111,11 @@ flowchart LR
 
 - Publishable keys comienzan con `sb_publishable_` y se usan para reads/frontend.
 - Secret keys comienzan con `sb_secret_` y se usan solo en backend/CI autorizado.
-- Supabase Data API usa header `apikey`; no reutiliza la key como `Authorization: Bearer`.
+- Las API keys van exclusivamente en `apikey`; nunca se envían como `Authorization: Bearer`. Los clientes Supabase de navegador, BFF y Edge eliminan el fallback Bearer del SDK cuando coincide exactamente con la API key.
+- Excepción acotada aprobada para H3REQ1 el 2026-10-02: BFF server-side envía JWT de sesión solo al proyecto configurado, POST RPCs Admin allowlisted, GET/PUT Auth user, POST Auth factors y challenge/verify, DELETE factor con UUID válido y POST Edge admin-invite. Se evaluó una ampliación GET `/auth/v1/factors` el 2026-10-05, pero el SDK instalado (`@supabase/auth-js` 2.109.0) implementa `listFactors()` leyendo `user.factors` desde GET `/auth/v1/user`; por mínimo privilegio, la ruta extra no se habilitó y la aprobación quedó sin consumir. Edge solo puede reenviar JWT del solicitante a GET Auth user del mismo proyecto. Identidad desde cookie HttpOnly (BFF) o solicitud autenticada (Edge); sin JWT al navegador, tablas Data API, métodos/destinos arbitrarios ni redirects. La publishable key sigue en `apikey`; Supabase valida el JWT, service role no sustituye al usuario. Atestación sanitizada e inventario contractual registran el alcance; no autoriza operaciones remotas de Auth.
+- Gateway RPC Admin H3REQ1 (contrato propuesto, **runtime aún no validado**): el BFF firma con `ADMIN_RPC_GATEWAY_HMAC_KEY` (>=32 bytes) y `ADMIN_RPC_GATEWAY_KEY_ID`, separados de `ADMIN_QUOTA_HMAC_KEY`. La expansión original firma metadata; `20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql` firma también el JSON de args ligado al RPC objetivo. El transporte remapea únicamente RPC allowlisted a `public.admin_signed_rpc`; el dispatcher compara el payload firmado con `p_args`, valida keys y castea a las firmas tipadas originales sin SQL dinámico. Para `admin_get_course_queue_filtered`, el SQL `NULL` se rechaza antes de `LIMIT`; la migración forward-only `20261004_h3_admin_queue_first_null_guard.sql` actualiza la RPC ya aplicada o solo el snapshot privado si existe `H3_QUOTA_WRAPPER_V1`, y falla cerrada ante drift. El dispatcher convierte JSON `null` en sentinel entero acotado `0` por la RPC pública para conservar cuota, MFA/AAL2, RBAC y el error legacy, sin enviar SQL `NULL` a `LIMIT`. Al activarse el pre-request, `authenticated` solo puede invocar ese dispatcher; RPC legacy directas se rechazan y rutas service-role existentes se conservan. La identidad continúa en `auth.uid()` y las RPC originales aplican MFA/RBAC/RLS. Secretos espejo y nonces viven en `private.h3_admin_rpc_gateway_keys` y `private.h3_admin_rpc_gateway_nonces`, sin grants a roles API; el dispatcher valida firma, actor, proyecto, vigencia de 60 segundos y replay. Ninguna migración configura `pgrst.db_pre_request`, provisiona claves ni despliega. La secuencia EXPAND→compatibilidad→deploy→CONTRACT, activación, rollback y validación PG17/PostgREST requieren aprobaciones/JIT separados. El nonce es transaccional: tras rollback SQL se puede reintentar el proof, aunque el cupo BFF Durable Object permanece consumido. Esto solo cubre Data API/PostgREST, no Auth ni otros servicios Supabase. Estado 2026-10-04: revisión estática de seguridad sin hallazgos LOW+, runtime/JIT pendientes; NO-GO.
 - Operaciones Free+Pro simultaneas deben exigir pares explicitos `FREE_*` y `PRO_*` y rechazar reutilizacion.
+- BFF Admin H3REQ1: `ADMIN_SESSION_ACTIVITY_HMAC_KEY` es una clave server-side independiente (mínimo 32 bytes) de cuota y gateway. La cookie HttpOnly de actividad firma el timestamp con HMAC-SHA256; `GET /api/admin/session` solo renueva bajo `Sec-Fetch-Site: same-origin` y, si se envía `Origin`, exige que coincida. Provisionar esa binding en servicios remotos queda pendiente de autorización remota separada.
 - Nunca documentar valores, project refs sensibles o tokens en este archivo.
 
 ## Adopcion Por Ambiente
@@ -118,5 +137,5 @@ La matriz vigente se mantiene en [Matriz Adopcion DB](operaciones/matriz_adopcio
 ## Mecanismo De Actualizacion
 
 - Toda migracion, cambio RLS/RPC/grants o cambio de escritor debe actualizar esta nota.
-- Cambios de flujo, workflow o runtime deben sincronizarse con [Arquitectura Pipeline](arquitectura_pipeline.md).
+- Cambios de flujo, workflow o runtime deben sincronizarse con [AGENTS: arquitectura del pipeline](../AGENTS.md#arquitectura-del-pipeline-4-estaciones--auditoría), la [ficha vigente de pipeline](componentes/pipeline.md) y el [índice principal](indice.md). La antigua nota `arquitectura_pipeline.md` no está en este checkout; no crear una autoridad paralela.
 - Cambios por ambiente deben sincronizarse con [Matriz Adopcion DB](operaciones/matriz_adopcion_db.md).

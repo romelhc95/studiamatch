@@ -1,0 +1,162 @@
+H3REQ1 R19 independent review record
+
+Round 1 target digest: 5a03adaeff5d1ed4795a53ccea029bbd0d057e022d76c52dd7d9d673245bffb0
+Round 1 verdict: NO PASS. No HIGH or CRITICAL findings reported; one Blocking manifest finding, one Medium PR-body reconciliation finding, and one Low coverage-count finding.
+
+Findings and required corrections:
+- Blocking: included historical R18 manifest was incorrectly marked self-hash-excluded, leaving it without a content pin. The reviewer independently verified the R18 copy at 1,638,685 bytes and SHA-256 9e127bb38ec56b6bc8af2923fef7dda5b25292daf09bbf054ff04aa863e6a425. R19 must pin this historical input; only the R19 manifest's own self-hash remains excluded.
+- Medium: PR body claimed scanner/manifest/guard were pending while later sections recorded PASS, and lacked links to state, client attestation, and evidence. Correct the statuses and add candidate-branch links.
+- Low: manifest active-document count was 109 while current R19 validation reports 113. Update the current count.
+
+Round 1 scope audit confirmed exact 1,153-path closure, seven selected deletions, 1,144 currently pinned blobs before correction, no content mismatches among those pins, and safe uniform PNG derivatives. No Docker, actionlint, ShellCheck, runtime checks, or new remote reads were performed by the reviewer.
+
+Round 2 target digest: 27711db1e0757141a47f4f919ca0cce626855907a9a701a1298bb391f3ef19b8
+Round 2 verdict: PASS with one LOW wording finding; no HIGH, CRITICAL, or blocking finding. The reviewer reconfirmed exact 1,153-path closure, 1,145 content pins, the R18 manifest pin, active-document count 113, PR-body links/statuses, neutral PNGs, and B/transition/rollback limits.
+
+Round 2 LOW finding: the integration package said B had three discrepancies although it lists two (Worker deployment count vs approved maximum, and missing `ADMIN_RPC_GATEWAY_KEY_ID`). The wording is corrected in the current successor snapshot. A targeted round-3 check of that correction and the new exact digest is pending. The round-2 result is preserved here as historical review evidence; it does not claim a final round-3 result.
+
+This local review does not substitute for a separate GitHub review by a collaborator who is neither the author nor the pusher.
+
+Rounds 1 and 2 above remain historical and do not review the exact current successor digest. The current read-only review target and verdict are recorded in the `independent_review` field of the R19 manifest; this file preserves the earlier round-by-round evidence. The reviewer must check exact scope closure, current tests and body, alert dispositions, and package-artifact mode normalization. A local package verdict does not substitute for human GitHub approval of the newly published SHA.
+
+Reconciliation note — 2026-10-19: an earlier checks-log sentence reported “Final local independent review: PASS” without an associated digest. It is not evidence for the current worktree. The last independently verifiable historical pass in this record is Round 2 on digest `27711db1e0757141a47f4f919ca0cce626855907a9a701a1298bb391f3ef19b8`; at the time of this note, the current digest was pending review. The later discovery that a bootstrap PR only to `desarrollo` cannot activate `pull_request_target` is outside the scope of Rounds 1–2 and was submitted for review with the current package reconciliation.
+
+## Estado para siguiente revisión independiente — 2026-10-19 23:13 UTC
+
+La revisión exacta de z7 continúa NO-GO por concurrencia; su dictamen histórico se conserva. El nuevo código local tiene validación Worker 36/36 y runtime 4/4 en Docker, pero aún debe reconstruirse como snapshot autónomo y pasar full scan/gates afectados antes de solicitar revisión. No atribuir estos resultados a un snapshot hasta comparar los hashes exactos. El paquete de pre-ACK fue aprobado sin consumir; el delta combinado R3 continúa pendiente y no permite despliegue. Ninguna operación remota se ejecutó.
+
+## Objetivo para revisión independiente — z11 — 2026-10-19 23:23 UTC
+
+z10 pasó los gates locales y su identidad exacta se preserva en el checks log. Este documento, body, estado y manifiesto se actualizaron para registrar el resultado; z11 debe repetir full scan y gates documentales/de scope en Docker antes de revisión. Solicitar al revisor comprobar el SHA/tree/digest z11, cierre exacto de manifiesto, controles PWI y los diez hashes actuales del Worker; no tratar el resultado z7 como vigente. El JIT de pre-ACK fue aprobado/no consumido; el JIT combinado sigue pendiente. No se realizó operación remota.
+
+## R3-DO review of snapshot j — 2026-10-19 20:31 UTC
+
+Target: synthetic commit `6f8bdc41a19d1bbc90e13fc50991c1ead4abd9ad`, tree `ccac8f086c1a7269a790bace87566297edc09543`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope digest `61cbd0dc2bf76112bd420596bde9ed39549427cc270d777c7ed5221e968b8dbf`.
+
+Verdict: **NO PASS — HIGH**. `github.mjs` reopens a matching existing check only when alarm processing begins. The webhook path persists/enqueues and returns `202` before that alarm runs, so an earlier completed `success` may remain observable during the queued interval. The queue-full path can also return `503` without invalidating an old success. No tests or edits were made by the reviewer.
+
+The candidate implements pre-acknowledgement invalidation for the same App/PR/SHA and bounded failure behavior. This changes the explicit approved R3-DO ordering (“return 202 without waiting for GitHub”) and is not deployed; the exact additional JIT operation is documented in `/tmp/h3req1_pwi_r3_precheck_invalidation_jit_delta_20261019.md`. Final review must name a new exact autonomous snapshot after this correction and the affected documentation/pins are reconciled. This finding remains historical evidence and is not erased by the local fix.
+
+## R3-DO review of snapshot m — 2026-10-19 20:48 UTC
+
+Target: `/tmp/h3req1-pwi-r3-validation-20261019m/repo`, commit `f023411ce290a2d93d08a7b319fb5db6fc132b43`, observed tree `7b015aca69843fe4de493693c8694a9be21bfb12`, parent `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope digest `8c935f5dd3d35185820ea11dbda9f9c581c4f5b9bf37e013783737aa1c049095`.
+
+Verdict: **NO PASS — HIGH**. The exact snapshot/tree/digest and pins were verified. A pre-ACK invalidation error/timeout after enqueue returned 503 before `scheduleNextAlarm()`, leaving a previous completed success visible with no local retry. The normal path, pending duplicate, and full queue did invalidate before returning 202/503. No tests or edits were made by the reviewer. The expected tree and `tests/test_security_flow.py` hashes initially supplied to the reviewer were stale pins from earlier snapshots; the observed m tree is `7b015…`, and the exact test file hash is `83f973…`.
+
+## Local follow-up after snapshot m — 2026-10-19 20:51 UTC
+
+The candidate schedules the already-persisted queue when a pre-ACK invalidation fails, and schedules existing queue events when at capacity, while still returning 503. Docker Node 22.22.0 validation of the source package: syntax PASS, 28/28 unit tests PASS, 3/3 Workers SQLite runtime tests PASS after `npm ci` in an isolated temporary copy. The revised code and new failure-path test have not yet been independently reviewed or included in a final autonomous snapshot. No PASS verdict is claimed for this correction.
+
+## Revisión independiente z4 — 2026-10-19 22:34 UTC
+
+Target: `/tmp/h3req1-pwi-r3-validation-20261019z4/repo`, commit `7fc1df1b77922de6e0aa74b5c815d28542a3bd65`, tree `241badd0c01c29ae02b3c3289bf71f654bf1d11c`, parent `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope `60b8d41b5b74e5233021ac37df084f171f8c249d5f390e86deef2a9876d50914`.
+
+Dictamen: **NO-GO — 1 HIGH y discrepancia P2 de identidad de paquete.** HIGH en `scripts/security/pwi_worker/index.mjs:612-626` y `:659-669`: tras fallar el precheck de la admisión a cola llena, una redelivery idempotente usaba el SHA del payload antiguo en vez del SHA API-confirmado guardado en la fila. Si el SHA guardado aún tenía un check `completed/success`, el lookup del SHA antiguo podía no encontrar ningún check y responder 202 sin invalidar el éxito guardado. La prueba existente solo cubría el primer 503 y posterior recuperación del alarm, no redelivery A/B antes del alarm. Corrección propuesta: pasar a `reopenCheckForWebhook` el evento persistido (`delivery`, PR y SHA normalizado) para cualquier redelivery `pending/processing`; 202 queda condicionado a invalidar el SHA guardado.
+
+P2: el body y manifiesto de z4 todavía decían que z3 era la última evidencia y que z4 estaba pendiente. La fuente local se actualizó en el siguiente snapshot; z4 conserva su identidad histórica y no se reescribe. El revisor verificó los IDs, digest y 1.182 pines de contenido; sin ausencias o mismatches. Revisó el contrato de eliminación del workflow y la cobertura externa App sin hallazgos adicionales. No ejecutó pruebas ni edits; el dictamen se basa en revisión read-only del código exacto.
+
+## Corrección local de HIGH z4 — validación en copia fuente — 2026-10-19 22:35 UTC
+
+El candidato pasa el evento ya persistido a la invalidación idempotente; eventos nuevos conservan el mensaje de webhook mediante argumento por defecto. La regresión `redelivery invalidates the API-confirmed current SHA after a full-queue precheck failure` fue **ROJA** sobre el código z5 anterior y **VERDE** con la corrección (al redeliver A, el check almacenado B cambia a `in_progress` antes del 202). Docker Node 22.22.0: `npm run check` PASS, unitarias 32/32 PASS y runtime Workers/SQLite 4/4 PASS, con dependencias hash-idénticas al lockfile del paquete. Un primer intento de la suite completa detectó que faltaba el argumento por defecto para eventos nuevos; el código se corrigió antes de la ejecución completa PASS. La primera copia runtime montó `node_modules` read-only y dio EROFS; la ejecución final copió dependencias a espacio temporal escribible. z5 contiene bytes previos al fix y queda como histórico NO-GO; z6 debe integrar la corrección, pasar los gates afectados en Docker y recibir revisión independiente exacta. No hubo operación remota.
+
+
+## Dictamen independiente exacto z11 — 2026-10-19 23:30 UTC
+
+Target `/tmp/h3req1-pwi-r3-validation-20261019z11/repo`; commit `1fdc2eae35f30a8b7c1c9220916dab22c861b0f4`; árbol `7b211b71f11ffbcebc248dd86efbcc254b8a0224`; baseline `4eb4d877a50b012bb630a129bd0c74482c33be9`; scope `5a9f8f31d99861656f629176d82b2c211ad26c9ca81caa34bcf22801ac5073fe`.
+
+Dictamen: **NO-GO — dos defectos de cola**. Un evento atrasado de SHA A podía superseder la verificación del SHA B bajo capacidad porque `hasSupersedingEvent` no comparaba SHA; B podía terminar sin trabajo activo y su Check Run quedar `in_progress`. Una redelivery de un delivery activo con ocho filas tomaba la rama corta antes de calcular `atCapacity`, invalidaba el SHA antiguo y podía ACK mientras el SHA actual B conservaba un `success` anterior. Ambos fueron inferencias estáticas sin reproducción ni llamadas remotas. El revisor no editó el snapshot.
+
+Verificó identidad, digest y pins; 1.190 rutas, 39 artefactos, unión 1.196/diff esperado 1.195, 13 catálogos/1.173 referencias y correspondencia del body con la plantilla. No revisó como PASS código posterior a z11. Los hashes detallados del snapshot se conservan en el dictamen original; z11 queda como NO-GO histórico.
+
+## Objetivo de revisión posterior
+
+Revisar z12 solo después de reconstruirlo desde baseline/manifiesto repinado. Confirmar que commit, árbol, scope, manifiesto, body y hashes Worker corresponden al mismo snapshot; examinar específicamente las dos regresiones z11 y los caminos de cola y publicación relacionados. No atribuirle resultados de fuente hasta comprobar la igualdad de hashes.
+
+
+## Objetivo de revisión independiente — z13 — 2026-10-19 23:36 UTC
+
+z12 (`936583dbb48b303eb07274f54cb4f614d12ceaa4`, árbol `db3b71fdbb660bb4627a20cef1fa97df3f9d2731`, scope `9b2826baef021a3b4968b7dcd9c05b13489d93cb948201377648930a06c1988d`) pasó sus gates locales; el checks log conserva métodos y resultados. Se actualizaron body, estado y registros con esos resultados, por lo que z12 no es el objetivo final de review. Revisar z13 exacto después de reconstrucción y gates Docker: commit/tree/scope, paquete y body, rutas/manifest/closure, diez hashes Worker, dos regresiones z11 y cierre de ambos defectos, implementación de cola/concurrencia, scope sin expansión. Comparar salidas locales solo con sus inputs exactos; no ejecutar llamadas remotas ni operar servicios. Pre-ACK está aprobado/no consumido; paquete JIT r4 pendiente.
+
+
+## Pausa previa a review z13 — 2026-10-19 23:47 UTC
+
+La solicitud de revisión del snapshot z13 se interrumpió antes de recibir dictamen cuando se encontró una discrepancia documental concreta: README enlazaba el paquete JIT r3 ya sustituido por r4. No se registró review de z13 ni hallazgos del revisor. La referencia se corrigió en la fuente; z13 permanece inmutable y su resultado de gates sigue PASS. Revisar z14 con los nuevos pins, scope y hashes.
+
+
+## Target de revisión independiente — z15 — 2026-10-19 23:50 UTC
+
+z14 exacto pasó los gates locales en Docker y queda preservado; el resultado está en el checks log. La reconciliación de estado, body, reportes y manifest crea un paquete documental sucesor, por lo que no atribuir dictamen a z14. Revisar z15 después de reconstrucción autónoma y full scan/gates afectados. Confirmar identidad de commit/tree/scope, pins y cierre, body contra la plantilla versionada, hashes de los nueve inputs Worker y las dos regresiones z11; revisar concurrencia/overflow/pre-ACK/fallo y límites de recursos. Revisión read-only, sin llamadas remotas, tests con efectos, edición del snapshot ni ejecución de operaciones.
+
+El JIT pre-ACK exacto está aprobado/no consumido. App/Worker R3 y R3-DO aprobados/no consumidos. El JIT adicional r4 de serialización/cola sigue pendiente; no inferir aprobación del PR ni de estos permisos.
+
+## Dictamen independiente exacto z15 — 2026-10-19 23:58 UTC
+
+Target `/tmp/h3req1-pwi-r3-validation-20261019z15/repo`; commit sintético `5262e3aa792cdde0bd1fd3ccba0298302501f6e8`, árbol `7e7e1c7fc810459972ce0bea851c1b638f6830f0`, padre `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope `4b33a1a6eaa4502912605a5e94a19803e42b122f386167a0d7c4a6b05cd6fe4b`.
+
+Dictamen: **NO-GO — 1 HIGH**. En cola llena, una redelivery podía observar la fila del mismo delivery como `processing`, esperar la lectura GitHub de la cabeza actual y, durante esa espera, permitir que la alarma completara la fila como `done`. El callback solo reutilizaba estados `pending`/`processing` y `failed`; al caer en `insertEvent` violaba `UNIQUE(delivery)`, devolvía `503` antes de invalidar el check actual y dejaba que el retry `done` tomara el fast-path `already_processed`. En consecuencia podía reconocerse un webhook sin reabrir el éxito previo del SHA actual. El revisor propuso reproducirlo pero no ejecutó pruebas ni modificó el snapshot.
+
+El revisor confirmó identidad, árbol limpio, 1.190 entradas, 39 artefactos, 13 catálogos/1.173 referencias, pins, body/template y hashes del Worker. Los gates locales de z15 están reconciliados en su log. El hallazgo queda histórico en z15 y no se elimina ni reescribe.
+
+## Corrección local tras z15 — preparación de z16 — 2026-10-20 00:04 UTC
+
+El candidato fuente reusa la misma fila `done` solo cuando el delivery había sido activo al inicio de la consulta de cabeza y terminó durante esa espera; la resecuencia y cambio a `pending` preceden a la invalidación pre-ACK. Una fila ya `done` al entrar mantiene el fast-path idempotente. Se añadió regresión unitaria con GitHub simulado y regresión runtime sobre Durable Object SQLite para verificar que no se inserte el delivery duplicado y que siga limitado a ocho filas activas.
+
+Docker validó la fuente Worker: `npm run check` PASS, `npm test` 39/39 y `npm run test:runtime` 7/7 en Node 22.22.0; las 7 runtime corrieron en Cloudflare Workers local con SQLite. El snapshot z16 y la revisión independiente exacta aún están pendientes. No hubo operación remota, despliegue, publicación ni consumo de permisos. El delta de cola/serialización r5 debe aprobarse antes del despliegue; el pre-ACK exacto sigue aprobado/no consumido.
+
+## Preparación de review exacta — z17 — 2026-10-20 00:15 UTC
+
+z16 (`78c5ecd4d1f7088ccd2972138ebfda5e5919654d`, tree `aaf1b8a357b98388bb904d6b744baaff24380461`, parent `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope `60345902b4068d696211c0e59a1a863792eea6defaa2e6fc6288924aac75b36a`) pasó los gates locales descritos en el checks log. La revisión independiente exacta de z15 fue NO-GO con un HIGH, preservada. La corrección Worker se cubre con tests unitarios y Workers/SQLite; diez hashes de entradas coinciden entre fuente y z16. Los otros 789 inputs comunes no documentales ni Worker conservan hashes de z10.
+
+z17 se construirá tras reconciliar body, estado, log y manifiesto; la revisión siguiente debe citar commit, árbol, scope y hashes Worker exactos de z17. Revisión read-only, sin edición, tests, llamadas remotas ni despliegue. No afirmar PASS de revisión, CodeQL, PWI remoto o aceptación Development antes de evidencia. R5 y el registro seguro App/secretos siguen siendo gates distintos y pendientes.
+
+## Preparación de review exacta — z18 — 2026-10-20 00:18 UTC
+
+z17 (`235094e0fb75ef08cb4aa6f70a7af036f66014c0`, tree `1bcdc9586abfd3445944f523c7314a883dbfc43e`, parent `4eb4d877a50b012bb630a129bd0c74482c33be9`, scope `5bffe8054c5ab5a6c50000ae4517148ca01398fbc236e1cbba23df1baff56f7b`) pasó los gates locales, pero sus resultados se reconciliarán en z18; no se solicitó review z17. z15 permanece NO-GO/HIGH histórico.
+
+Después de construir y validar z18, realizar revisión independiente read-only sobre commit, tree, digest, pines y diez hashes Worker de z18. Foco: confirmar que la reutilización de la fila `done` cierra la carrera de z15 sin duplicar delivery, exceder límites, perder invalidación, alterar otros estados, abrir scope o debilitar controles; verificar el manifiesto/body/plantilla y que no haya findings HIGH/CRITICAL/bloqueantes. No ejecutar pruebas ni llamadas remotas durante review. R5, App/secretos y controles remotos son gates separados; no dar review PASS antes de inspección exacta.
+
+
+## Dictamen independiente exacto z18 — 2026-10-20 00:31 UTC
+
+Snapshot revisado en modo read-only: `/tmp/h3req1-pwi-r3-validation-20261020z18/repo`; commit `d200d556d7ba8e7d2bf5a5da3d073aa5c72683d9`; árbol `c55e708abb87ef7e5d0d5c085cc78fa6e4b2ff49`; padre `4eb4d877a50b012bb630a129bd0c74482c33be9c`; scope `e9fafbc4ff7e3a4e7f8ca2c82d0c7f1c6c442651617cbd88550f645c61ee722e`.
+
+Dictamen: **NO-GO — 1 HIGH y 1 P2**. El HIGH es una redelivery de fila `failed` con menos de ocho filas activas: la fila conservaba el SHA B que GitHub confirmó en una admisión anterior a capacidad, pero el camino de reintento reabría con el SHA A del webhook antiguo. El Worker podía responder `202` mientras el Check Run `success` para B seguía vigente. La regresión previa cubría `pending` durante una cola llena y una redelivery `failed` con SHA coincidente; ninguna probaba B persistido frente a A recibido bajo capacidad. Este camino no está cubierto por R5; requiere delta/JIT propio.
+
+El P2 es documental: el body conservaba el estado de revisión/gates z16 y el `package_actions.publication_status` del bloqueo z11, aunque el manifiesto registraba z17/z18 posteriores. La reconciliación z19 actualiza estado, body y manifiesto sin alterar los snapshots históricos.
+
+La revisión confirmó identidad y digest, 1.190 entradas, 39 artefactos, 13 catálogos/1.173 referencias, ausencia de rutas fuera del scope y disponibilidad local de las diez secciones/enlaces del body. No ejecutó pruebas, ediciones ni operaciones remotas. z18 conserva NO-GO histórico.
+
+Hashes SHA-256 de los diez inputs Worker revisados:
+
+| Archivo | SHA-256 |
+|---|---|
+| `index.mjs` | `e655b50523d1549b1ebd94bdb33aba2c81f1768509b12ff0e371e48076063a7a` |
+| `github.mjs` | `1808b21e0eb3a317b9c59a932d963e7971cf30ca116b3668e2da32e199178c9c` |
+| `policy.mjs` | `46a6a971eb891b463bce5bdfd4eae39ad7e9db6de6e595b3bc97d8971357d0ff` |
+| `wrangler.jsonc` | `19abeaff81d41fc085997915831009bb604ee7929d0bb60d81dcb654f73fd615` |
+| `README.md` | `0d74df52403ed57576738f85847964c6a47ddfe3d4764255ce9762cc89f3831b` |
+| `test/pwi_worker.test.mjs` | `fda20912f7728b9b3affd374ebfa4f5b4dcde3a2eef0f6553367d869eb163a44` |
+| `runtime-test/pwi_worker.runtime.test.mjs` | `f076894ea67a8e69c17adcdede82db11d827dc4e90a0ce1839073f4a143bc68a` |
+| `package.json` | `6fdb27a2439b31f21558187479f791c1aea267f57fb3fe6bb3d5401322dd4ae1` |
+| `package-lock.json` | `cead853f45a88325ffc23e3c9fd5ec6603c48629378f76632bbea311da08c965` |
+| `vitest.config.mjs` | `c955c972437d5b84868aa2e3f7ee7b946f8affddf5832cbdc4b75e5a1480a39f` |
+
+
+## Gates locales exactos z19 y preparación de revisión z20 — 2026-10-20 00:42 UTC
+
+z19 `17c7697f145c1885f298ecfc1607205a6ff616ae` / tree `85f57f5e02bc7ad495ed7e59edd96c7b0614cc05` / scope `8def93fec51498cc48a4f20abc175f3ad977b837fea7994691bb3184057160f4` quedó limpio con 1.190 entradas y 39 artefactos. En Docker/red deshabilitada pasan credential scan sin findings; Documentation Integrity/self-test (732 fuentes/9.247 links/4.625 anchors); scope guard y negativos (1.196 rutas, catálogos=13, refs=1.173, ordinary=3/newline=1/control=1/malformed=3/unmanifested H3=2); cuatro contratos focales 46/46; plantilla 10 headings/10 enlaces/16 filas/0 placeholders. Los 10 inputs Worker del snapshot igualan los ya probados en Docker Node 22.22.0 (check PASS, unit 40/40, runtime Workers/SQLite 8/8). Se compararon sin cambios workflows 7, web 61, DB 106, tests 356, Python 122 y shell 185 frente a z18.
+
+`git diff --check` directo desde baseline no puede leer algunos blobs históricos ausentes del repo autónomo; el baseline→z18 conservado sí pasó y el delta exacto z18→z19 de nueve archivos pasó `git diff --no-index --check`. No se usó fallback a checkout original. Se solicita revisión independiente read-only de z20 después de reconciliar estos resultados. R6 JIT continúa pendiente; no hubo actividad remota.
+
+
+## Dictamen independiente exacto z20 — 2026-10-20 00:50 UTC
+
+**PASS de código; sin hallazgos confirmados HIGH, CRITICAL o bloqueantes.** Revisión read-only del snapshot `/tmp/h3req1-pwi-r3-validation-20261020z20/repo`: commit `53547317e804852386ed83dfba57209123d5e754`, tree `1e2fae96e96f04fe2eea11c9332b10ee1814ce45`, parent `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope `36e2e5e365879ab01e7ace46d8c714f1488d6abfaf5205a4feefe2c051cfd83a`. El revisor no ejecutó tests ni consultó servicios remotos. Recalculó digest, verificó 1.190 entradas y pins, 39 artefactos, 13 catálogos/1.173 referencias, workflow retirado, 10 encabezados, 16 filas, 10 links, repositorio/branch fijos, permisos y límites. Confirmó que la fila `failed` se revalida contra el SHA actual antes de reusar y ACK y que la carrera active→done reusa la misma fila.
+
+Hashes SHA-256 revisados: `index.mjs` `b68896cd0074f5eeb3321a790e07519b793f0a4df4d66cb476a0bbc7713f96a9`; `github.mjs` `1808b21e0eb3a317b9c59a932d963e7971cf30ca116b3668e2da32e199178c9c`; `policy.mjs` `46a6a971eb891b463bce5bdfd4eae39ad7e9db6de6e595b3bc97d8971357d0ff`; `wrangler.jsonc` `19abeaff81d41fc085997915831009bb604ee7929d0bb60d81dcb654f73fd615`; `README.md` `19119033378a3bcb382beb21a299e44a20e90c49f5d9946963a200f4557d8b0f`; unitarias `d439c1dc1617e9b0fd5c916841c0da60aa8b2776587c557cb9f36fd15dbd6172`; runtime `b346588544f72d8769b95f774cab7b8be065517652c88a2b7aac132d39048442`; `package.json` `6fdb27a2439b31f21558187479f791c1aea267f57fb3fe6bb3d5401322dd4ae1`; lock `cead853f45a88325ffc23e3c9fd5ec6603c48629378f76632bbea311da08c965`; `vitest.config.mjs` `c955c972437d5b84868aa2e3f7ee7b946f8affddf5832cbdc4b75e5a1480a39f`. R6 approval is still pending. The verdict authorizes no App or secret setup, remote write, publication, deployment, merge, or Development acceptance.
+
+## Aprobación humana R6 registrada — 2026-10-20 00:53 UTC
+
+- Estado: aprobada, no consumida. El responsable respondió «Apruebo el delta exacto» al paquete `/tmp/h3req1_pwi_r3_failed_row_redelivery_jit_delta_20261020_r6.md`; SHA-256 `e19f5eba1b6be5b56be295f3ae62a863db910ee69692c7134ba4e3cc625f9d7e`.
+- Alcance: redelivery bajo capacidad de la fila existente `failed`, únicamente PR 501 de `romelhc95/studiamatch` con base `desarrollo`; consulta limitada de metadata actual, reuso de esa misma fila con SHA API-confirmado y precheck de Check Run antes del ACK, respetando R3/R3-DO/R5 y sus límites ya aprobados.
+- No agrega permisos, recursos, datos o ambientes; no autoriza publicación, despliegue, merge ni aceptación Development. Ninguna operación remota se ejecutó al registrar la aprobación.

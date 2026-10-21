@@ -27,3 +27,7 @@ Home publica fiel a `SRC-UI-HOME-001`: instituciones, destacados, inscripciones 
 ## Documentacion CA7
 
 Debe actualizar documentacion tecnica de datos, pipeline, operacion, gates y evidencia vinculada. CA7 no autoriza cambios de pipeline ni schedules.
+
+## Navegación
+
+[Matriz del hito](../matrices/matriz_hito_004.md) · [Frontend público](../frontend.md#rutas) · [Estado operativo](../estado_del_proyecto.md)

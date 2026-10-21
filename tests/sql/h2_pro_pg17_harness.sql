@@ -4,12 +4,15 @@ DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 
 DROP SCHEMA IF EXISTS private CASCADE;
-DROP ROLE IF EXISTS anon;
-DROP ROLE IF EXISTS authenticated;
-DROP ROLE IF EXISTS service_role;
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE authenticated NOLOGIN;
-CREATE ROLE service_role NOLOGIN;
+-- Roles belong to the server, not the disposable database. Never DROP a role
+-- referenced by another gate database in the same PG17 service.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
+END;
+$$;
 
 GRANT USAGE, CREATE ON SCHEMA public TO postgres;
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
@@ -68,13 +71,16 @@ CREATE TABLE public.courses (
     course_type TEXT,
     brochure_url TEXT,
     expected_monthly_salary NUMERIC,
-    seniority_level VARCHAR,
+    seniority_level VARCHAR DEFAULT 'Mid',
     roi_months NUMERIC,
     view_count INTEGER DEFAULT 0,
     comparison_count INTEGER DEFAULT 0,
     category TEXT,
     is_active BOOLEAN DEFAULT true,
     is_verified BOOLEAN DEFAULT false,
+    -- Schema metadata confirmed read-only against authoritative Pro on 2026-10-02.
+    provider_used TEXT DEFAULT 'mock',
+    is_mock_data BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -277,6 +283,20 @@ $$;
 
 \ir ../../db/migrations/20260827_h2_pro_contract_public_reader.sql
 
+-- Current Pro retains its compatibility cohort. The historical default below
+-- continues exercising FUTURE contraction; set h2_keep_cohort for current schema.
+\if :{?h2_keep_cohort}
+DO $$
+BEGIN
+    IF to_regclass('private.h2_legacy_public_course_cohort') IS NULL THEN
+        RAISE EXCEPTION 'current Pro model unexpectedly retired the cohort';
+    END IF;
+    IF (SELECT count(*) FROM public.courses_public_effective) <> 224 THEN
+        RAISE EXCEPTION 'current Pro compatibility reader changed';
+    END IF;
+END;
+$$;
+\else
 UPDATE public.course_editorial_state
    SET editorial_status = 'published',
        quality_status = 'complete',
@@ -324,3 +344,4 @@ BEGIN
     END IF;
 END;
 $$;
+\endif

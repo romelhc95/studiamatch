@@ -31,13 +31,33 @@ def test_sensitive_forms_do_not_fallback_to_get_query_submission() -> None:
 
 def test_mfa_client_uses_the_supabase_sdk_contract() -> None:
     source = read("web/src/lib/admin-auth.ts")
+    bff = read("web/functions/_lib/admin-bff.ts")
 
-    assert "supabaseBrowserClient.auth.mfa.listFactors()" in source
-    assert "supabaseBrowserClient.auth.mfa.enroll" in source
-    assert "supabaseBrowserClient.auth.mfa.challenge" in source
-    assert "supabaseBrowserClient.auth.mfa.verify" in source
-    assert "supabaseBrowserClient.auth.mfa.unenroll" in source
+    assert "mfaRequest<{ factors: AuthenticatorFactor[] }>" in source
+    assert "client.auth.mfa.listFactors()" in bff
+    assert "client.auth.mfa.enroll" in bff
+    assert "client.auth.mfa.challenge" in bff
+    assert "client.auth.mfa.verify" in bff
+    assert "client.auth.mfa.unenroll" in bff
+    assert "'/api/admin/auth/mfa'" in source
     assert "fetch(`${SUPABASE_URL}/auth/v1/factors`" not in source
+
+
+def test_mfa_mutations_are_server_mediated_and_assurance_is_checked():
+    bff = read("web/functions/_lib/admin-bff.ts")
+    auth = read("web/src/lib/admin-auth.ts")
+
+    assert "'/api/admin/auth/mfa'" in auth
+    assert "await client.auth.getUser()" in bff
+    assert "await aal2(client)" in bff
+    assert "client.auth.mfa.verify" in bff
+    assert "client.auth.mfa.unenroll" in bff
+    assert "action === 'unenroll'" in bff
+    assert "totpFactors.some((factor) => factor.status === 'verified') && !await aal2(client)" in bff
+    assert "targetFactor.status === 'verified' || hasVerifiedFactor" in bff
+    assert "mfa_enrollment_pending" in bff
+    assert "access_token" not in auth
+    assert "refresh_token" not in auth
 
 
 def test_sensitive_errors_are_normalized_to_an_explicit_mfa_state() -> None:

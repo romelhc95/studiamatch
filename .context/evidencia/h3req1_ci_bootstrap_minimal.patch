@@ -1,0 +1,522 @@
+diff --git a/.github/workflows/protected-workflow-integrity.yml b/.github/workflows/protected-workflow-integrity.yml
+new file mode 100644
+index 0000000..783967a
+--- /dev/null
++++ b/.github/workflows/protected-workflow-integrity.yml
+@@ -0,0 +1,71 @@
++name: Protected Workflow Integrity
++
++on:
++  pull_request_target:
++    types: [opened, edited, synchronize, reopened, ready_for_review]
++    branches:
++      - desarrollo
++      - certificacion
++      - main
++  pull_request_review:
++    types: [submitted, dismissed]
++
++concurrency:
++  group: protected-workflow-integrity-${{ github.event.pull_request.number || github.ref }}
++  cancel-in-progress: true
++
++permissions:
++  contents: read
++  pull-requests: read
++
++jobs:
++  workflow-integrity:
++    name: Protected Workflow Integrity
++    if: github.event.pull_request.base.ref == 'desarrollo' || github.event.pull_request.base.ref == 'certificacion' || github.event.pull_request.base.ref == 'main'
++    runs-on: ubuntu-latest
++    steps:
++      # pull_request_target must execute only helper code from the trusted base.
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
++        with:
++          ref: ${{ github.event.pull_request.base.sha }}
++          persist-credentials: false
++      - name: Reject changes to CI, release, and security control definitions
++        env:
++          GH_TOKEN: ${{ github.token }}
++          REPOSITORY: ${{ github.repository }}
++          PR_NUMBER: ${{ github.event.pull_request.number }}
++          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
++          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
++        shell: bash
++        run: |
++          set -euo pipefail
++          files_file="$RUNNER_TEMP/protected-workflow-files.json"
++          reviews_file="$RUNNER_TEMP/workflow-reviews.json"
++          gh api --paginate --slurp \
++            "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" > "$files_file"
++          protected_files_json="$(python3 scripts/security/protected_workflow_review.py \
++            --protected-files-json "$files_file")" || {
++              echo "::error::could not classify pull request files; refusing protected-control approval"
++              exit 1
++            }
++          if [ "$protected_files_json" = '[]' ]; then
++            current_head_sha="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
++            if [ "$current_head_sha" != "$PR_HEAD_SHA" ]; then
++              echo "::error::PR head changed while Protected Workflow Integrity was running"
++              exit 1
++            fi
++            echo "no protected workflow or security-control files changed"
++            exit 0
++          fi
++          printf 'review required for protected controls: %s\n' "$protected_files_json"
++          gh api --paginate --slurp \
++            "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews?per_page=100" > "$reviews_file"
++          python3 scripts/security/protected_workflow_review.py \
++            --check-approval-json "$reviews_file" \
++            --head-sha "$PR_HEAD_SHA" \
++            --pr-author "$PR_AUTHOR"
++          current_head_sha="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
++          if [ "$current_head_sha" != "$PR_HEAD_SHA" ]; then
++            echo "::error::PR head changed while Protected Workflow Integrity was running"
++            exit 1
++          fi
+diff --git a/.github/workflows/security-audit.yml b/.github/workflows/security-audit.yml
+index 112a27e..c0bbb81 100644
+--- a/.github/workflows/security-audit.yml
++++ b/.github/workflows/security-audit.yml
+@@ -114,6 +114,7 @@ jobs:
+              tests/test_h3_invitation_callback_contract.py \
+              tests/test_h3_mock_invitation_contract.py \
+              tests/test_admin_invite_edge_contract.py \
++             tests/test_protected_workflow_review.py \
+              -q
+            python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
+ 
+@@ -194,7 +195,7 @@ jobs:
+       - name: Run actionlint
+         run: |
+           set -euo pipefail
+-          "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/db-sync-to-pro.yml
++          "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/protected-workflow-integrity.yml .github/workflows/db-sync-to-pro.yml
+       - name: Run shellcheck
+         run: shellcheck scripts/security/scan_credentials.sh scripts/security/h2_web_mock_smoke.sh .githooks/pre-commit .githooks/pre-push
+ 
+diff --git a/scripts/security/protected_workflow_review.py b/scripts/security/protected_workflow_review.py
+new file mode 100644
+index 0000000..7db14eb
+--- /dev/null
++++ b/scripts/security/protected_workflow_review.py
+@@ -0,0 +1,166 @@
++#!/usr/bin/env python3
++"""Fail-closed parsing helpers for the protected workflow review gate."""
++
++from __future__ import annotations
++
++import argparse
++import json
++import sys
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any
++
++
++PROTECTED_PREFIXES = (
++    ".github/workflows/",
++    ".github/actions/",
++    ".github/scripts/",
++    ".githooks/",
++    "scripts/security/",
++)
++TRUSTED_ASSOCIATIONS = {"OWNER", "MEMBER", "COLLABORATOR"}
++MAX_PULL_REQUEST_FILES = 3000
++
++
++def load_pages(path: str | Path) -> list[list[dict[str, Any]]]:
++    """Load and validate gh --paginate --slurp output."""
++    try:
++        value = json.loads(Path(path).read_text(encoding="utf-8"))
++    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
++        raise ValueError("GitHub API response is unreadable or invalid JSON") from exc
++
++    if not isinstance(value, list):
++        raise ValueError("GitHub API response must contain a page array")
++    pages: list[list[dict[str, Any]]] = []
++    for page in value:
++        if not isinstance(page, list):
++            raise ValueError("GitHub API response contains a malformed page")
++        if any(not isinstance(item, dict) for item in page):
++            raise ValueError("GitHub API response contains a malformed record")
++        pages.append(page)
++    return pages
++
++
++def protected_paths(pages: list[list[dict[str, Any]]]) -> list[str]:
++    """Return protected source/destination paths without splitting filenames."""
++    found: list[str] = []
++    file_count = 0
++    for page in pages:
++        for item in page:
++            file_count += 1
++            if file_count >= MAX_PULL_REQUEST_FILES:
++                raise ValueError("GitHub changed-file list reached its 3000-file limit")
++            filename = item.get("filename")
++            if not isinstance(filename, str) or not filename:
++                raise ValueError("GitHub file record is missing a valid filename")
++            if filename.startswith(PROTECTED_PREFIXES):
++                found.append(filename)
++            previous_filename = item.get("previous_filename")
++            if previous_filename is not None:
++                if not isinstance(previous_filename, str) or not previous_filename:
++                    raise ValueError("GitHub rename record has an invalid previous filename")
++                if previous_filename.startswith(PROTECTED_PREFIXES):
++                    found.append(previous_filename)
++            elif item.get("status") == "renamed":
++                raise ValueError("GitHub rename record is missing its previous filename")
++    return found
++
++
++def _submitted_at(value: Any) -> datetime | None:
++    if value in (None, ""):
++        return None
++    if not isinstance(value, str):
++        raise ValueError("GitHub review has a malformed submission timestamp")
++    try:
++        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
++    except ValueError as exc:
++        raise ValueError("GitHub review has a malformed submission timestamp") from exc
++    if parsed.tzinfo is None:
++        raise ValueError("GitHub review timestamp has no timezone")
++    return parsed.astimezone(timezone.utc)
++
++
++def has_trusted_current_approval(
++    pages: list[list[dict[str, Any]]], *, head_sha: str, pr_author: str
++) -> bool:
++    """Require the latest submitted review by a trusted non-author to approve this head."""
++    if not head_sha or not pr_author:
++        raise ValueError("PR head SHA and author are required")
++
++    author_key = pr_author.casefold()
++    latest_reviews: dict[str, tuple[datetime, int, dict[str, Any]]] = {}
++    for page in pages:
++        for review in page:
++            user = review.get("user")
++            if not isinstance(user, dict) or not isinstance(user.get("login"), str):
++                raise ValueError("GitHub review record is missing reviewer identity")
++            reviewer = user["login"]
++            if not reviewer:
++                raise ValueError("GitHub review record has an empty reviewer identity")
++            user_type = user.get("type")
++            if not isinstance(user_type, str) or not user_type:
++                raise ValueError("GitHub review record is missing reviewer account type")
++            if user_type != "User":
++                # Bot and other non-human accounts cannot satisfy the approval gate.
++                continue
++            state = review.get("state")
++            if not isinstance(state, str):
++                raise ValueError("GitHub review record is missing review state")
++            review_id = review.get("id")
++            if not isinstance(review_id, int) or isinstance(review_id, bool) or review_id < 0:
++                raise ValueError("GitHub review record is missing a valid review ID")
++            submitted_at = _submitted_at(review.get("submitted_at"))
++            if submitted_at is None:
++                # Pending reviews are not approvals and cannot supersede a submitted review.
++                continue
++            reviewer_key = reviewer.casefold()
++            if reviewer_key == author_key:
++                continue
++            previous = latest_reviews.get(reviewer_key)
++            if previous is None or (submitted_at, review_id) >= (previous[0], previous[1]):
++                latest_reviews[reviewer_key] = (submitted_at, review_id, review)
++
++    return any(
++        review.get("state") == "APPROVED"
++        and review.get("commit_id") == head_sha
++        and review.get("author_association") in TRUSTED_ASSOCIATIONS
++        for _, _, review in latest_reviews.values()
++    )
++
++
++def main(argv: list[str] | None = None) -> int:
++    parser = argparse.ArgumentParser()
++    mode = parser.add_mutually_exclusive_group(required=True)
++    mode.add_argument("--protected-files-json", metavar="PATH")
++    mode.add_argument("--check-approval-json", metavar="PATH")
++    parser.add_argument("--head-sha")
++    parser.add_argument("--pr-author")
++    args = parser.parse_args(argv)
++
++    try:
++        pages = load_pages(
++            args.protected_files_json or args.check_approval_json
++        )
++        if args.protected_files_json:
++            print(json.dumps(protected_paths(pages), ensure_ascii=True, separators=(",", ":")))
++            return 0
++        if not args.head_sha or not args.pr_author:
++            raise ValueError("--check-approval-json requires --head-sha and --pr-author")
++        if has_trusted_current_approval(
++            pages, head_sha=args.head_sha, pr_author=args.pr_author
++        ):
++            print("protected workflow/security changes have a current trusted approval")
++            return 0
++        print(
++            "::error::protected workflow/security changes require a current approval "
++            "from a trusted repository collaborator",
++            file=sys.stderr,
++        )
++        return 1
++    except ValueError as exc:
++        print(f"::error::{exc}", file=sys.stderr)
++        return 2
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/tests/test_protected_workflow_review.py b/tests/test_protected_workflow_review.py
+new file mode 100644
+index 0000000..fcd55ca
+--- /dev/null
++++ b/tests/test_protected_workflow_review.py
+@@ -0,0 +1,246 @@
++import json
++
++import pytest
++
++from scripts.security.protected_workflow_review import (
++    has_trusted_current_approval,
++    load_pages,
++    protected_paths,
++)
++
++
++def review(login, state, association, sha, submitted_at, review_id=1, user_type="User"):
++    return {
++        "id": review_id,
++        "user": {"login": login, "type": user_type},
++        "state": state,
++        "author_association": association,
++        "commit_id": sha,
++        "submitted_at": submitted_at,
++    }
++
++
++def test_classifies_protected_path_prefixes_without_splitting_filenames():
++    pages = [[
++        {"filename": ".github/workflows/build.yml"},
++        {"filename": ".github/actions/lint/action.yml"},
++        {"filename": ".github/scripts/production_control_preflight.sh"},
++        {"filename": ".githooks/pre-commit"},
++        {"filename": "scripts/security/scan_credentials.sh"},
++        {"filename": "docs/readme\n.github/workflows/injected.yml"},
++        {"filename": "README.md"},
++    ]]
++
++    assert protected_paths(pages) == [
++        ".github/workflows/build.yml",
++        ".github/actions/lint/action.yml",
++        ".github/scripts/production_control_preflight.sh",
++        ".githooks/pre-commit",
++        "scripts/security/scan_credentials.sh",
++    ]
++
++
++def test_load_pages_rejects_malformed_or_unreadable_responses(tmp_path):
++    response = tmp_path / "response.json"
++    for payload in ("{}", "[{}]", "[[null]]", "not-json"):
++        response.write_text(payload, encoding="utf-8")
++        with pytest.raises(ValueError):
++            load_pages(response)
++
++    with pytest.raises(ValueError):
++        load_pages(tmp_path / "missing.json")
++
++
++def test_protected_paths_rejects_missing_filenames():
++    with pytest.raises(ValueError):
++        protected_paths([[{"status": "modified"}]])
++
++
++def test_renamed_file_checks_both_current_and_previous_paths():
++    pages = [[
++        {
++            "filename": "docs/workflow.txt",
++            "previous_filename": ".github/workflows/security.yml",
++            "status": "renamed",
++        },
++        {
++            "filename": ".githooks/pre-push",
++            "previous_filename": "docs/pre-push.txt",
++            "status": "renamed",
++        },
++        {
++            "filename": ".github/actions/new/action.yml",
++            "previous_filename": ".github/actions/old/action.yml",
++            "status": "renamed",
++        },
++    ]]
++
++    assert protected_paths(pages) == [
++        ".github/workflows/security.yml",
++        ".githooks/pre-push",
++        ".github/actions/new/action.yml",
++        ".github/actions/old/action.yml",
++    ]
++
++
++@pytest.mark.parametrize(
++    "record",
++    [
++        {"filename": "docs/workflow.txt", "previous_filename": "", "status": "renamed"},
++        {"filename": "docs/workflow.txt", "previous_filename": 7, "status": "renamed"},
++        {"filename": "docs/workflow.txt", "status": "renamed"},
++    ],
++)
++def test_renamed_file_requires_a_valid_previous_path(record):
++    with pytest.raises(ValueError):
++        protected_paths([[record]])
++
++
++def test_changed_file_list_at_github_api_limit_fails_closed():
++    pages = [[{"filename": f"docs/file-{index}.md"} for index in range(3000)]]
++
++    with pytest.raises(ValueError, match="3000-file limit"):
++        protected_paths(pages)
++
++
++def test_current_trusted_approval_is_required_and_latest_review_wins():
++    head = "a" * 40
++    approved = review(
++        "trusted-reviewer",
++        "APPROVED",
++        "MEMBER",
++        head,
++        "2026-10-08T12:00:00Z",
++    )
++    assert has_trusted_current_approval(
++        [[approved]], head_sha=head, pr_author="author"
++    )
++
++    stale = review(
++        "trusted-reviewer",
++        "APPROVED",
++        "MEMBER",
++        "b" * 40,
++        "2026-10-08T12:00:00Z",
++    )
++    assert not has_trusted_current_approval(
++        [[stale]], head_sha=head, pr_author="author"
++    )
++
++    self_approval = review(
++        "author",
++        "APPROVED",
++        "OWNER",
++        head,
++        "2026-10-08T12:00:00Z",
++    )
++    assert not has_trusted_current_approval(
++        [[self_approval]], head_sha=head, pr_author="author"
++    )
++
++    untrusted = review(
++        "external-reviewer",
++        "APPROVED",
++        "FIRST_TIME_CONTRIBUTOR",
++        head,
++        "2026-10-08T12:00:00Z",
++    )
++    assert not has_trusted_current_approval(
++        [[untrusted]], head_sha=head, pr_author="author"
++    )
++
++    bot_approval = review(
++        "trusted-bot",
++        "APPROVED",
++        "MEMBER",
++        head,
++        "2026-10-08T12:00:00Z",
++        user_type="Bot",
++    )
++    assert not has_trusted_current_approval(
++        [[bot_approval]], head_sha=head, pr_author="author"
++    )
++
++    dismissed_later = review(
++        "trusted-reviewer",
++        "DISMISSED",
++        "MEMBER",
++        head,
++        "2026-10-08T13:00:00Z",
++        review_id=2,
++    )
++    assert not has_trusted_current_approval(
++        [[approved, dismissed_later]], head_sha=head, pr_author="author"
++    )
++
++
++def test_pending_review_does_not_replace_a_submitted_approval():
++    head = "a" * 40
++    approved = review(
++        "trusted-reviewer",
++        "APPROVED",
++        "COLLABORATOR",
++        head,
++        "2026-10-08T12:00:00Z",
++    )
++    pending = review(
++        "trusted-reviewer",
++        "PENDING",
++        "COLLABORATOR",
++        head,
++        None,
++        review_id=2,
++    )
++    assert has_trusted_current_approval(
++        [[approved, pending]], head_sha=head, pr_author="author"
++    )
++
++
++def test_missing_reviewer_account_type_fails_closed():
++    head = "a" * 40
++    malformed = review(
++        "trusted-reviewer",
++        "APPROVED",
++        "MEMBER",
++        head,
++        "2026-10-08T12:00:00Z",
++    )
++    del malformed["user"]["type"]
++
++    with pytest.raises(ValueError, match="reviewer account type"):
++        has_trusted_current_approval(
++            [[malformed]], head_sha=head, pr_author="author"
++        )
++
++
++def test_equal_timestamp_reviews_use_github_review_id_as_tie_breaker():
++    head = "a" * 40
++    older_approval = review(
++        "trusted-reviewer",
++        "APPROVED",
++        "MEMBER",
++        head,
++        "2026-10-08T12:00:00Z",
++        review_id=10,
++    )
++    newer_dismissal = review(
++        "trusted-reviewer",
++        "DISMISSED",
++        "MEMBER",
++        head,
++        "2026-10-08T12:00:00Z",
++        review_id=11,
++    )
++
++    assert not has_trusted_current_approval(
++        [[newer_dismissal, older_approval]], head_sha=head, pr_author="author"
++    )
++
++
++def test_loaded_filename_newline_is_not_split_into_an_additional_path(tmp_path):
++    response = tmp_path / "files.json"
++    response.write_text(
++        json.dumps([[{"filename": "README.md\n.github/workflows/fake.yml"}]]),
++        encoding="utf-8",
++    )
++    assert protected_paths(load_pages(response)) == []

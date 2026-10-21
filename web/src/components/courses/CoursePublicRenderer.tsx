@@ -1,3 +1,4 @@
+// StudIAMatch-Docs: .context/componentes/presentacion_web_compartida.md#renderizado-de-curso
 "use client";
 
 import { useMemo, type ReactNode } from "react";

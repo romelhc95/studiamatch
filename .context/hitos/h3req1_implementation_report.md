@@ -1,5 +1,14 @@
 # H3REQ1 — Panel Administrativo Editorial
 
+> **Versión histórica de implementación/readiness.** Sus resultados y fechas anteriores se conservan. Para el corte vigente, usar [estado operativo](../estado_del_proyecto.md), [R178 local](../evidencia/h3req1_g09_local_close_r178_2026-10-11.md) y [R181/R182 de R8](../evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md). La preparación local no prueba adopción remota; el cierre contractual remoto continúa pendiente.
+
+> **REPORTE HISTÓRICO, corte 2026-09-23 y candidatos anteriores.** READY_LOCAL y
+> métricas siguientes no acreditan readiness del BFF/gateway candidato de octubre.
+> No rehacer pendientes ya resueltos ni heredar permisos. Estado actual en
+> [estado vivo](../estado_del_proyecto.md); implementación/impacto del proyecto en
+> [índice de transferencia](../indice.md), [runtime Admin](../componentes/admin_runtime.md)
+> y [estado operativo](../estado_del_proyecto.md). Se preserva cuerpo como historia.
+
 ## Estado
 
 - **Hito**: HITO-003 / H3REQ1

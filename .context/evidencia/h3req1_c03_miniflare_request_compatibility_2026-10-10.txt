@@ -1,0 +1,18 @@
+H3REQ1 C03 Miniflare request compatibility probe
+Date: 2026-10-10
+Scope: synthetic Worker only; no product bindings, DB, Edge, credentials or network egress.
+Runtime: pinned Node image; network none; rootfs read-only; user 1001; Miniflare dependency volume read-only.
+
+Case 1 — global Node Request passed to Miniflare worker.fetch:
+  outcome=TypeError
+
+Case 2 — Undici Request with Origin https://admin.local.test and no route for that host:
+  outcome=HTTP_403_INVALID_ORIGIN
+
+Case 3 — Undici Request with Miniflare route admin.local.test/*:
+  outcome=HTTP_200
+  request_url_matches=true
+  origin_matches_request_origin=true
+  sec_fetch_site=same-origin
+
+The minimal fixture returned only its synthetic URL/origin assertions. No raw exception messages or untrusted response bodies were retained.

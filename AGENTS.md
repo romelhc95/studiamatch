@@ -28,6 +28,42 @@ Reglas obligatorias:
 11. Todo agente debe comenzar cualquier trabajo de plan o build listando las tareas concretas que ejecutara y sus gates de validacion. Ningun cambio funcional se ejecuta hasta recibir el prompt humano `continua` asociado al ciclo; `continua` no sustituye JIT, aprobacion de PR, merge, deploy, workflow_dispatch ni writes Supabase.
 12. El cierre de cada ciclo exige checks locales en Docker, pilares y criterios de aceptacion, revision de hallazgos, actualizacion Obsidian, evidencia de `expand -> compatibilidad -> deploy -> contract` y promocion protegida `desarrollo -> certificacion -> main`. Un NO-GO detiene la siguiente etapa hasta remediar y revalidar.
 
+## Navegación y protocolo de mantenimiento técnico
+
+La única entrada Obsidian es [`.context/indice.md`](.context/indice.md); la autoridad
+operativa única sigue en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md).
+Para cambiar una fuente, usa el índice para abrir el dominio y la ficha del módulo; el
+[registro fuente-componente](.context/trazabilidad/registro_fuentes_componentes.md) es la
+autoridad de asignación exacta y el [protocolo constructor](.context/trazabilidad/protocolo_constructor.md)
+define la secuencia de impacto. No hay un segundo índice técnico ni un mapa alterno de
+fuentes.
+
+La entrada técnica anterior y los mapas redundantes se consolidaron en esta navegación,
+las fichas de dominio y el registro canónico. Sus copias, hashes y destinos se conservan
+en la evidencia de consolidación; no se reactivan como índices. Las rutas que aún aparecen
+en allowlists del scope guard permiten detectar la retirada del contenido y no son enlaces
+de navegación ni consumidores documentales vigentes.
+
+Antes de editar, ubica en el JSON canónico la fuente, componente y anchor; sigue desde la
+ficha a los contratos, consumidores, datos, suites/evidencia y permisos, y comprueba imports,
+RPC, SQL, workflows y callers en ambos sentidos. No listado no significa sin impacto.
+Crear, mover, eliminar o cambiar un contrato requiere actualizar esas relaciones, la ficha,
+los comentarios `StudIAMatch-Docs:` aplicables y los manifiestos por impacto. Al cerrar,
+registra resultados reales y actualiza el estado operativo. Esta guía no crea autoridad,
+JIT persistente ni reemplaza alcance cliente/reglas de ejecución.
+
+Antes de integrar se ejecuta `bash scripts/security/run_documentation_integrity.sh --self-test`;
+una fuente nueva sin relación registrada debe fallar el gate. El checker es read-only salvo
+`--render` explícito y no prueba consumidores ni estado remoto. No declarar runtime PASS por
+documentación, sintaxis, hashes o revisión estática.
+
+Notas de compatibilidad de esta guía: cloud-only describe la DB operativa; PG17 desechable
+es fixture de prueba con JIT separado, no DB local del producto. Los gates de Fase 75 y
+estructura de harvesters abajo conservan historia; el código actual usa gates Fase 100
+con fallback `pipeline_ready`, y los harvesters dedicados están en `scripts/deprecated/harvesters/`.
+Para comportamiento vigente consulta las fichas de [pipeline](.context/componentes/pipeline.md)
+y [canarios](.context/componentes/canarios.md), no reactives writers por ejemplos históricos.
+
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
 **NUNCA** expongas credenciales (API keys, Publishable and secret API keys, management tokens, passwords, secret tokens) en el repositorio, ni público ni privado. La detección ahora es **automática** vía:
@@ -124,6 +160,20 @@ El archivo `.env.local` o `.env.gitdesa` (gitignored) contiene:
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
 | `SUPABASE_URL` | Alias para scripts (deriva a `NEXT_PUBLIC_SUPABASE_URL`) | Scripts de migración |
+
+**Cloudflare Pages Functions Admin BFF (H3REQ1):** el runtime server-side requiere
+`SUPABASE_URL` (o `NEXT_PUBLIC_SUPABASE_URL`), `NEXT_SUPABASE_PUBLISHABLE_KEY`,
+`ADMIN_ALLOWED_HOSTS`, el binding interno `ADMIN_QUOTA`, `ADMIN_QUOTA_HMAC_KEY`,
+`ADMIN_RPC_GATEWAY_HMAC_KEY` y `ADMIN_RPC_GATEWAY_KEY_ID`. Las dos HMAC keys deben
+ser distintas; la firma RPC protege únicamente RPCs Admin POST allowlisted y usa un
+secreto espejo privado provisionado por ambiente. El BFF no requiere ni acepta una
+secret/service-role key. `ADMIN_ALLOWED_HOSTS` debe ser una lista exacta de hostnames
+Admin autorizados por ambiente. Las excepciones
+`ADMIN_BFF_ALLOW_LOCALHOST=true` y `ADMIN_BFF_ALLOW_LOCAL_AUTH_MOCK=true` son solo
+para desarrollo local aislado; no deben configurarse en Cloudflare. Estos bindings
+no están desplegados por esta edición local; `pgrst.db_pre_request`, claves, Worker/DO
+y cualquier otro cambio remoto conservan su JIT independiente. La migración EXPAND
+no activa el pre-request ni aprovisiona secretos.
 
 **IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.local`.
 
@@ -276,7 +326,7 @@ import sys
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
 
-db = get_db_client()  # singleton, lee env vars automáticamente
+db = get_db_client()  # crea una instancia nueva y lee env vars automáticamente
 
 # Métodos disponibles
 db.select('courses', filters='is_active=eq.true', columns='id,name,slug,url')
@@ -391,5 +441,6 @@ scripts/
 ### Contrato de autenticación HTTP
 - Las API keys Supabase modernas deben comenzar con `sb_publishable_` o `sb_secret_`; una key ausente o con otro formato detiene la operación.
 - Las API keys Supabase se envían exclusivamente en `apikey`; nunca se reutilizan como `Authorization: Bearer`.
-- `Authorization: Bearer` queda reservado a los tokens existentes de Supabase Management API, Cloudflare y Resend, inventariados por path, identidad, proveedor y variable de origen en `tests/test_supabase_credentials_contract.py`; la Supabase Data API no usa Bearer en esta rama.
+- `Authorization: Bearer` queda reservado a los tokens existentes de Supabase Management API, Cloudflare y Resend, más la excepción estrecha de JWT de sesión de usuario descrita a continuación; las identidades deben quedar inventariadas por path, proveedor y variable de origen en `tests/test_supabase_credentials_contract.py`.
+- Excepción acotada aprobada para H3REQ1 (2026-10-02): el BFF server-side en `web/functions/` puede enviar el JWT de sesión únicamente al proyecto configurado: POST RPCs Admin allowlisted, GET/PUT Auth `/auth/v1/user`, POST Auth `/auth/v1/factors` y challenge/verify, DELETE factor con UUID válido, y POST Edge `/functions/v1/admin-invite`. La consulta `listFactors()` del SDK actual usa GET Auth `/auth/v1/user`; no se habilita GET `/auth/v1/factors`. Edge solo reenvía el JWT del solicitante a GET Auth `/auth/v1/user` del mismo proyecto para validar identidad. API keys siguen únicamente en `apikey`; no JWT en JavaScript del navegador, tablas Data API, destinos/métodos arbitrarios ni redirects. Supabase valida firma/expiración/identidad; service role no sustituye al usuario. Inventariar por separado Auth, RPC y Edge en `tests/test_supabase_credentials_contract.py`; aprobación solo local, no JIT remoto.
 - Los scripts excepcionales que operen Free y Pro en una misma ejecución deben exigir pares explícitos `FREE_SUPABASE_URL` + `FREE_NEXT_SUPABASE_SECRET_KEY` y `PRO_SUPABASE_URL` + `PRO_NEXT_SUPABASE_SECRET_KEY`, y rechazar URLs o keys reutilizadas.

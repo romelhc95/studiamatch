@@ -1,0 +1,60 @@
+{
+  "candidate_baseline": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
+  "cleansed": {
+    "id": "50000000-0000-0000-0000-000000000091",
+    "name": "Anal\u00edtica Aplicada",
+    "price_pen": 1250.0,
+    "status": "pending"
+  },
+  "course": {
+    "benefits": "Proyecto pr\u00e1ctico",
+    "brochure_url": null,
+    "category": "Data",
+    "category_id": "10000000-0000-0000-0000-000000000001",
+    "certification": "Constancia sint\u00e9tica",
+    "course_type": "Curso",
+    "description_long": "Formaci\u00f3n aplicada en anal\u00edtica con un proyecto basado en datos sint\u00e9ticos.",
+    "duration": "6 meses",
+    "id": "70000000-0000-0000-0000-000000000091",
+    "institution_id": "00000000-0000-0000-0000-000000000001",
+    "is_active": true,
+    "is_mock_data": false,
+    "is_verified": true,
+    "last_scraped_at": "2026-10-11T05:25:34.003574+00:00",
+    "mode": "Remoto",
+    "name": "Anal\u00edtica Aplicada",
+    "objectives": "Modelar datos y comunicar hallazgos",
+    "price_pen": 1250.0,
+    "price_status": "publicado",
+    "provider_used": "synthetic-provider",
+    "requirements": "Conocimientos b\u00e1sicos de hojas de c\u00e1lculo",
+    "seniority_level": "Junior",
+    "slug": "analitica-aplicada-60000000",
+    "start_date": "2027-04-01",
+    "start_date_text": "2027-04-01",
+    "syllabus": "Modelado y comunicaci\u00f3n",
+    "target_audience": "Profesionales en transici\u00f3n",
+    "url": "https://synthetic.h3.example/programs/analitica-aplicada/"
+  },
+  "discarded": {
+    "id": "40000000-0000-0000-0000-000000000092",
+    "published": false,
+    "status": "discarded"
+  },
+  "enriched": {
+    "id": "60000000-0000-0000-0000-000000000091",
+    "is_mock_data": false,
+    "name": "Anal\u00edtica Aplicada",
+    "provider": "synthetic-provider",
+    "status": "synced"
+  },
+  "network_access": "disabled; HTTP fixture response injected at request boundary",
+  "same_identity_across_pipeline": true,
+  "staging": {
+    "content_sha256": "82d0ed446d6756f761c437105a1767338c45d35f793dba201221fb519f9d98c2",
+    "id": "40000000-0000-0000-0000-000000000091",
+    "status": "processed",
+    "url": "https://synthetic.h3.example/programs/analitica-aplicada"
+  },
+  "synthetic_only": true
+}

@@ -1,0 +1,5 @@
+             marker             
+--------------------------------
+ h3_uat_pipeline_course_seed_ok
+(1 row)
+

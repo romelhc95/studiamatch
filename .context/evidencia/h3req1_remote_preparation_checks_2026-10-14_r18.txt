@@ -1,0 +1,102 @@
+H3REQ1 R18 — REGISTRO DE EJECUCIÓN Y VALIDACIONES
+Fecha: 2026-10-14 UTC. Branch `feat/h3req1-sync-20261002`; HEAD base del checkpoint `a57bc415257ab8154d40d7c71d34c69d0bdaeb0d`; baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`.
+
+ESTADO REMOTO
+- A consumido en Free: nueve migrations aprobadas aplicadas y verificadas por ledger/hashes; ledger 71→80. Las dos migrations preexistentes se omitieron. Pro permaneció de solo lectura.
+- El helper de catálogo falló con `ARG_MAX` después de migrations 2/3; migration 4 no se ejecutó en ese intento. Recuperación read-only verificó ledger local/hash/catálogo; no hubo retry ni reapply. A finalizó después con metadata verificada.
+- B aprobado sin consumo: ningún cambio Pages Preview, Worker/DO, binding, Edge, secreto o deployment. Falta canal privado soportado para provisionar claves de forma coordinada.
+- C aprobado sin consumo: no se leyeron identidades ni Auth notification settings, no se hizo D01/D02, reset, correo o sesión. Migration 3 satisfecha; B y avisos Auth aún bloquean C.
+- D aprobado sin consumo: D01–D14 0/14; regresión adicional 0/11. Ningún browser/UAT.
+- GitHub R18: repo público/activo, default `main`; branch listing marca `desarrollo` protegida en baseline y `certificacion` protegida. GET branch-protection `desarrollo` devuelve 403. Ruleset activo `owner-only-protected-branch-updates`, regla `update`, un actor `always` (no usado). Workflow base `security-audit.yml` presente en `desarrollo`; PWI ausente en `main` y `desarrollo`. El run más reciente sobre `desarrollo` fue `Security Audit Gate` push del 2026-09-27 sobre SHA base, success. El SHA base tiene 15 check-runs: 14 success, 1 skipped; combined status contiene 0 statuses. Sin PR/checks del candidato.
+- Cloudflare R18: preview Pages global; último deployment consultado de `desarrollo` success sobre SHA base `4eb4d877…`, hostname `desarrollo.studiamatch-aty.pages.dev`, 2026-09-27. Config Preview contiene cinco variables esperadas y todas están tipadas `plain_text`, incluida `NEXT_SUPABASE_SECRET_KEY`; no hay bindings ni Pages Functions. Inventario actual: 0 Worker scripts, 0 namespaces DO. No se leyeron valores ni se hizo cambio remoto.
+- Supabase R18 re-read: Free `ACTIVE_HEALTHY`, PG17.6.1.111, ledger 80/latest `20261014144922`; Pro `ACTIVE_HEALTHY`, PG17.6.1.111, ledger 23/latest `20260607221002`. Free Edge `admin-invite` ACTIVE v12 `verify_jwt=true`; Auth-notification settings no tienen getter disponible. Sin filas de usuarios/operación.
+
+VALIDACIONES LOCALES R18
+- actionlint: PASS 1.7.12 sobre `.github/workflows/security-audit.yml`; archive oficial descargado en contenedor efímero y SHA-256 `8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8` verificado. Sin cambio persistente de imagen/proyecto.
+- ShellCheck focal: PASS 0.11.0 con `-x tests/test_protected_path_scope_guard.sh`. La invocación inicial falló por ejecutar fuera de `/app` (SC1091); se corrigió el directorio de trabajo y el comando focal pasó.
+- Contratos Docker: primer run 34 passed/1 failed porque el estado había quitado el literal exigido `No se afirma adopción remota.`. La primera corrección semántica no reprodujo el literal y el segundo run falló igual; se restauró la frase exacta y el run final pasó 35/35 en `tests/test_obsidian_context_state.py`, `tests/test_security_flow.py` y `tests/test_protected_workflow_review.py`.
+- Documentación: el primer gate falló porque los documentos R18 aún no estaban clasificados y faltaban referencias al manifest/revisión. Se registraron los tres Markdown activos, se actualizaron las vistas generadas y se completaron las rutas del paquete; el rerun normal y `--self-test` pasó con 801/801 fuentes, 109/109 documentos activos, 433/433 documentos históricos catalogados, 9548 enlaces y 4586 anchors.
+- Scope guard: el primer run halló pins catalogados obsoletos para `estado_del_proyecto.md`, `indice.md`, `security-audit.yml` y el test negativo. R18 actualizó solo esos cuatro pins y anotó la causa; rerun PASS con 1143 rutas, 13 catálogos, 1173 destinos, 35 force-adds exactos y todos los negativos PASS. Las rutas del workflow siguen limitadas a paths R18 exactos.
+- Plantilla versionada: PASS, 10/10 headings, 15/15 filas, 16/16 enlaces locales resolubles, cero placeholders y cero celdas vacías.
+- Credential scan: PASS en Docker `--network none`, 1136 archivos presentes del paquete, 0 findings. No imprime coincidencias ni valores privados.
+- Exposición de evidencia pública: 18 archivos históricos seleccionados tienen modo local `0600`, que Git no persiste. Scan sanitizado de esos 18 archivos: 0 email, 0 UUID, 0 JWT, 0 claves Supabase y 0 asignaciones sensibles. No se imprimió contenido; la revisión independiente debe cerrar este riesgo antes de publicar al repositorio público.
+- Las suites funcionales R14 y linters de producto se reutilizan únicamente porque sus inputs funcionales siguen intactos. actionlint y ShellCheck focal ya pasaron; los contratos afectados pasan 35/35.
+- Corte previo a congelar: auditoría baseline-to-candidate, repin de resultados y revisión independiente aún pendientes; queda histórico. La revisión independiente R18 se solicita sobre el snapshot final y no sobre ese corte.
+- Auditoría inicial de whitespace: el primer árbol agregado encontró 127 diagnósticos (107 trailing whitespace, 20 blank EOF), dos más que el baseline R17 preservado. Los dos adicionales eran líneas vacías finales en el reporte y paquete R18; se quitaron únicamente esas dos líneas. La comparación de rutas usa `--no-renames` para que Git no oculte como rename dos eliminaciones explícitas del manifest. Resultado final del audit exacto: 125 diagnósticos (107 trailing whitespace, 18 blank EOF), igual al WARN R17 preservado y sin avisos nuevos.
+
+No exponer filas, buzones, emails, UUIDs Auth, tokens, cookies, claves ni respuestas remotas crudas. R8/R9/R12/R13/R14/R15/R16/R17 y sus evidencias se preservan.
+
+CIERRE LOCAL R18 — SNAPSHOT CANDIDATO EXACTO
+- Docker image studiamatch-h3req1:20261009-v3, --network none: documentación normal y --self-test PASS. Resultado normal 801/801 fuentes, 109/109 docs activos, 433/433 históricos/13 catálogos, 9548 enlaces y 4586 anchors; self-test adversarial PASS.
+- Contratos afectados Docker PASS 35/35 (test_obsidian_context_state.py, test_security_flow.py, test_protected_workflow_review.py). Suites funcionales con inputs intactos se reutilizan; no se repiten.
+- Scope guard y negativos Docker PASS: 1143 rutas de integración, 13 catálogos, 1173 destinos, 35 force-adds/28 targets ignorados y negativos 3/1/1/3/2.
+- Plantilla versionada PASS: 10/10 headings, 15/15 filas, 16/16 enlaces del body usan URLs GitHub blob absolutas de la rama candidata y resuelven desde la raíz del repo; en los cuatro documentos hay además 14/14 enlaces locales; total 30/30 destinos resueltos y cero placeholders.
+- Credential scanner exacto Docker --network none: 1136 archivos presentes del paquete, cero hallazgos. Scan privado de los 18 artefactos con modo local 0600: email/UUID/JWT/keys/asignaciones sensibles = 0 por categoría; no se emitieron valores.
+- Auditoría exacta: índice temporal aislado desde baseline; 1143 rutas (1136 blobs, 7 deletes), bytes del blob iguales al worktree, modos cambiados 100644=1108 y 100755=28; SHA de scope reconciliado. Índice real y objetos compartidos no se modificaron. SHA del diff baseline→candidate, excluyendo el manifest, queda en el campo candidate_commit_audit del manifest.
+- git diff --check: exit 2 por el WARN histórico de 125 diagnósticos (107 espacios finales, 18 EOF); coincide con R17, sin other ni incremento.
+- actionlint 1.7.12 y ShellCheck focal 0.11.0 se reutilizan: sus inputs permanecen byte-idénticos a los que pasaron, confirmado por el pin actual del manifest; no se repitieron.
+- El entrypoint estándar del image rechazó la inicialización antes de ejecutar validaciones porque los manifests web del workspace no corresponden al sello del image. Como este paquete no modifica web/package.json/lock ni dependencias, los gates read-only se ejecutaron en la misma imagen con --entrypoint bash y red deshabilitada; no se reconstruyó ni cambió la imagen.
+- Pendiente: revisión independiente focalizada del snapshot corregido; GitHub branch-protection details siguen 403; B no se pudo provisionar, por lo que D01/D02, C y D no están habilitados.
+
+
+R18-TRACE-01 — CORRECCIONES DE REVISIÓN INDEPENDIENTE
+- Revisión read-only del snapshot previo: scope digest 9220a63e261555764326a45ea58818d8c741e809715e46a63e0b8800cedb3069; diff SHA excluyendo manifest ec16411df45f5fbdc2fa50976ce46ba70fd3a69b99956aca6a09711d0f880da2. Resultado: 0 Critical, 0 High, 1 Medium, 1 Low, 0 blocking.
+- MEDIUM: 16/16 links del body resolvían solo en el contexto local y no desde raíz del repo cuando se copia a GitHub PR. Corrección: URLs absolutas GitHub blob para romelhc95/studiamatch y rama candidata feat/h3req1-sync-20261002; validación focal 16/16 destinos seleccionados y anchor 1/1.
+- LOW: R18 excluía erróneamente el hash de su manifiesto padre R17. Corrección: R17 es incluido e inmutable, 1,520,276 bytes, modo 0644, SHA-256 d6498e9394ca5ad6e4cc7f2d193f8a070afb21a09351932cdb6b1cd5253648f2; solo el manifiesto R18 excluye su propio hash.
+- Gates afectados reejecutados: documentación normal PASS (801 fuentes, 109 activos, 433 históricos/13 catálogos, 9548 links, 4586 anchors); self-test PASS; scope guard/negativos PASS (1143 rutas, 1173 destinos; negativos 3/1/1/3/2); plantilla PASS (10/10 headings, 15 filas, cero placeholders); cierre 30/30 (16 URLs de rama y 14 links locales); credential scan PASS (1136 archivos, cero findings).
+- actionlint, ShellCheck y contratos Python no se repitieron: inputs permanecen idénticos. Auditoría exacta del árbol agregado PASS: 1143 rutas (1136 blobs, 7 deletes), modos 1108/28, bytes iguales y 125 WARN históricos iguales a R17; diff SHA y digest quedan solo en el manifest. Revisión focal de seguimiento sigue pendiente; no hay GO.
+
+
+R18-TRACE-02 — SEGUIMIENTO INDEPENDIENTE 1 Y CORRECCIONES
+- Seguimiento read-only del scope 63b46c7c6a2adadd1e7000430bfc42ac0dd4f0d4a1c64f9fd6950511e4eff51c y diff registrado b03fcb3e8acba9f64262ca42767a9877a00e8210c35472ae0e7240fc7909b7f3: 0 Critical, 0 High, 1 Medium, 1 Low, 0 bloqueos locales nuevos.
+- MEDIUM: la fila R18-scope-guard quedó PENDING aunque la ejecución con el digest revisado pasó. Se corrige su estado tras comprobarla de nuevo contra el digest final.
+- LOW: el registro R18 conservaba “revisión aún no realizada”. Se sustituyó por historial de ciclos 1 y seguimiento 1; solo la verificación focal final queda pendiente.
+- Las URLs root-safe y el pin R17 fueron verificados por el revisor; no verificó HTTP del ref aún no publicado. Se conserva el bloqueo de publicar la historia contaminada actual y no se afirma PR/deploy.
+- Revalidación afectada PASS: documentación normal y self-test; scope guard/negativos sobre el manifest actualizado; plantilla y links 30/30; scanner 1136/1136 sin findings. La fila scope-guard se reconcilia a PASS. Revisión focal final pendiente; Development sigue NO-GO.
+
+
+R18-TRACE-03 — VERIFICACIÓN FOCAL FINAL 1
+- Scope/diff revisados: 3335d448fd2f03a0ac0309f4bfdbdf11aa8ad92d3eed53fbacf0e6c05d40675d / 056b761619125e0d799ff89ff0d4a5124df45e788c191c3881717bdf52f4a65e. Resultado: 0 Critical, 0 High, 0 Medium, 1 Low, 0 bloqueos.
+- LOW: el registro de revisión decía “correcciones en validación” y “corrección pendiente de registrar” aunque los gates estaban PASS. Se cambió a estado revalidado/registrado PASS; la verificación read-only final queda pendiente.
+- No hubo nuevos hallazgos funcionales, de sanitización, permisos o controles remotos; el revisor confirmó que los pins y el estado NO-GO remoto eran coherentes.
+- Revalidación tras corregir la redacción: documentación normal/self-test PASS (801 fuentes, 109 activos, 433 históricos/13 catálogos, 9548 links, 4586 anchors); plantilla/cierre 30/30 PASS; scanner 1136/1136 sin hallazgos. Se repetirá scope guard contra el digest final después de fijar este log; auditoría exacta y verificación independiente focal final siguen pendientes.
+
+R18-TRACE-04 — CORRECCIÓN PUNTUAL Y REVALIDACIÓN
+- La auditoría exacta detectó un nuevo LF vacío al final del artefacto de revisión independiente. Se quitó solo ese LF; bytes 3428→3427. Texto sustantivo e historial de hallazgos permanecen iguales.
+- Revalidación Docker afectada: documentación normal y self-test PASS (801/801 fuentes, 109 activos, 433 históricos/13 catálogos, 9548 enlaces, 4586 anchors); scope guard/negativos PASS (1143 rutas, 1173 destinos, 35 force-adds; negativos 3/1/1/3/2); scanner de credenciales PASS sobre 1136 blobs, 0 findings.
+- Auditoría exacta agregada PASS: 1143 rutas, 1136 blobs, 7 eliminaciones; modos Git 1108×100644 y 28×100755; pins y blobs sin discrepancias. git diff --check conserva exactamente 125 WARN del baseline R17 (107 trailing whitespace y 18 blank EOF), sin incremento. El digest vigente se registra en candidate_commit_audit del manifiesto para evitar autorreferencia del log.
+- actionlint, ShellCheck focal, contratos, plantilla y cierre de enlaces se reutilizan: sus entradas no cambiaron desde la validación PASS correspondiente; no se repitieron.
+- El estado Obsidian vigente registra el checkpoint y la decisión C retentiva. Revisión independiente final del snapshot todavía pendiente. B sigue sin canal privado compatible para provisionar Edge/Cloudflare en orden; no hubo commit, push, PR, merge, despliegue, correo, reset ni write remoto. A consumido; B/C/D aprobados en alcances exactos y sin consumir.
+
+R18-TRACE-05 — CIERRE DE AUDITORÍA Y REVISIÓN INDEPENDIENTE
+- El review-cycle 4 encontró stale `R18-candidate-tree-audit.scope_digest`; se corrigió al digest actual. El ciclo siguiente detectó stale `baseline_to_index_diff_sha256_excludes_manifest`; se corrigió al diff actual. Ambos findings LOW quedaron cerrados sin cambiar el alcance funcional.
+- Revalidación Docker después de la corrección: scope guard y negativos PASS (1,143 rutas, 13 catálogos, 1,173 destinos, negativos 3/1/1/3/2); scanner exacto PASS sobre 1,136 blobs, cero findings.
+- Snapshot leído por el revisor independiente: scope `1b3749d99cf62795705eb8ef996a3e7bbbe97f26cac2c7197faa1001f2d1770c`; diff SHA excluyendo manifest `e124614dd9ff08deae4e00f35c20d281c445e5e626f15e3877b607714b9a3384`; 1,143 paths/1,136 blobs/7 deletions. El cierre documental posterior repina los valores vigentes en el manifest sin alterar fuentes funcionales.
+- Revisión independiente final PASS: 0 Critical/High/Medium/Low/bloqueos; pins y NO-GO Development coherentes. El reviewer no ejecutó Git, pruebas ni lecturas remotas. actionlint/ShellCheck y suites funcionales permanecen reutilizados por pins/inputs intactos.
+- Sin commit/push/PR/merge/deploy ni D01/D02/C/D. A consumido; B/C/D aprobados en alcance exacto y no consumidos.
+
+R18-TRACE-06 — GATES DESPUÉS DEL CIERRE DOCUMENTAL
+- Documentación normal y self-test Docker PASS: 801/801 fuentes, 109 documentos activos, 433 históricos/13 catálogos, 9,548 enlaces y 4,586 anchors.
+- Contratos afectados Docker PASS: 35/35 (`test_obsidian_context_state.py`, `test_security_flow.py`, `test_protected_workflow_review.py`).
+- Scope guard/negativos Docker PASS: 1,143 rutas, 13 catálogos, 1,173 destinos, 35 force-adds/28 destinos ignorados; negativos 3/1/1/3/2.
+- Plantilla/body PASS: 10/10 headings, 15/15 validation rows, 16/16 candidate-branch links y 14/14 local links resueltos; 0 placeholders y celdas vacías.
+- Credential scan exacto Docker `--network none` PASS sobre 1,136 blobs, cero findings.
+- La auditoría temporal aislada del candidato y diff-check se reconcilian en la fila actual del manifest; conteos 1,143 paths, 1,136 blobs, 7 eliminaciones, modos 1,108×100644/28×100755 y 125 WARN históricos (107 trailing whitespace, 18 blank EOF), sin incremento.
+- actionlint 1.7.12, ShellCheck focal 0.11.0 y la revisión independiente PASS se reutilizan por inputs/pins intactos; el scope exacto revisado está separado del repin documental posterior en el manifest.
+- No commit/push/PR/merge/deploy, D01/D02, C o D. B sigue aprobado y sin consumo; falta acceso privado para provisionar Edge secrets y ruta organizacional efectiva de workflow/protecciones hacia `desarrollo`.
+
+R18-TRACE-07 — RECONCILIACIÓN DEL AUDIT EXACTO Y CHECKPOINT VIGENTE
+- La revisión independiente de seguimiento reconstruyó el candidato R18 antes de este registro: scope `990f30c541ea3e94496cf113023751cce8c322a671e4874f8d838fa0e4ecfdc9`, diff SHA excluyendo manifest `ba3138bdbf511cbb596b0f8425694bcf33ce123b4a8fd4b88826bc0665ee9b56`; 1.143 rutas, 1.136 blobs, 7 eliminaciones y modos 1.108×100644/28×100755. El diff del índice temporal coincidió byte a byte con el del árbol temporal; no se modificaron índice ni objetos compartidos.
+- Se corrigió `reconciliation.scope_entries_sha256`, que había conservado el digest de revisión anterior. Los campos de revisión histórica `1b3749…` / `e124614…` permanecen separados de los pins del audit vigente. El resultado independiente del audit quedó en PASS, 0 Critical/High/Medium/Low/bloqueos.
+- Para mantener vigente Obsidian, el encabezado operativo avanza a R18-TRACE-07. El cambio de estado y este registro requieren un nuevo digest/diff agregado antes de congelar el snapshot final; su resultado se registra en el manifest R18.
+- Los dos primeros intentos del scanner exacto no leyeron archivos porque la lista externa no se montó/serializó como NUL; no emitieron findings. El intento corregido pasó en Docker aislado y de solo lectura sobre 1.136 blobs: cero findings. La integración del scope guard volvió a pasar: 1.143 rutas, 13 catálogos, 1.173 destinos, 35 force-adds/28 destinos ignorados; negativos 3/1/1/3/2. Documentación normal y self-test Docker PASS tras el checkpoint de estado.
+- Se reutilizan actionlint 1.7.12, ShellCheck focal 0.11.0 y body/plantilla/enlaces por inputs intactos. Tras el cambio del estado, los contratos afectados se reejecutaron en Docker con `/opt/venv/bin/python -m pytest`: 35/35 PASS.
+- A continúa consumido; B/C/D aprobados en sus alcances exactos y sin consumo. Free queda sano y Pro permanece de solo lectura. No hubo commit, push, PR, merge, deploy, D01/D02, C, correo, reset ni cambio remoto. Development permanece NO-GO; el blocker de B/ruta protegida y el siguiente paso permanecen documentados en el estado vigente.
+
+
+R18-TRACE-08 — CORRECCIÓN DEL CHECKPOINT Y REVALIDACIÓN FINAL
+- El encabezado operativo se actualizó porque R18-TRACE-07 todavía describía la reconciliación local como en curso tras registrar el cierre final en el manifiesto. Se mantiene explícito NO-GO Development y se apunta al manifiesto R18 para el estado de cada snapshot/revisión.
+- La revisión independiente final R18-TRACE-07 reconstruyó scope `48c30bedf3e5ff002d63e1065862a9f6eae98c7c52a514664015c25c085e8cb8` y diff `2a637c819efe5c25336769eea654b8dae400692ae3135db50f8e030a904ad8f6`: 1,143 rutas, 1,136 blobs, 7 eliminaciones; 0 Critical/High/Medium/Low/bloqueos. Este dictamen queda asociado a ese snapshot; el encabezado R18-TRACE-08 genera un scope actualizado que vuelve a pasar revisión final.
+- Se conserva el fallo del primer scanner de cierre: la lista de rutas utilizó los dos caracteres `\0` y no bytes NUL, por lo que el scanner rechazó la ruta como inexistente antes de leer blobs y sin emitir hallazgos. Corregida la serialización, scanner Docker `--network none` PASS sobre 1,136 blobs, cero hallazgos; el guard PASS con 1,143 rutas, 13 catálogos, 1,173 destinos y negativos 3/1/1/3/2. Estos resultados pertenecen al snapshot previo al cambio del checkpoint y se preservan.
+- El primer intento de los contratos R18 con `/usr/bin/python3` no llegó a pytest porque ese intérprete no incluye pytest; `/opt/venv/bin/python` en la imagen fijada ejecutó 35/35 PASS. La corrección y resultado se preservan también en la fila de contratos del manifiesto.
+- La reconciliación exacta, validaciones afectadas y revisión del nuevo snapshot R18-TRACE-08 se fijan por los pins vigentes del manifiesto. actionlint y ShellCheck focal se reutilizan por inputs byte-idénticos. Sin commit/push/PR/merge/deploy, escrituras remotas, D01/D02, C o D; A consumido y B/C/D no consumidos.

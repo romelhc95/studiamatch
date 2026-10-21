@@ -6,15 +6,15 @@ WEB = ROOT / "web/src"
 AUTH = WEB / "lib/admin-auth.ts"
 RECOVERY = WEB / "app/admin/reset-password/page.tsx"
 MIDDLEWARE = ROOT / "web/functions/_middleware.ts"
+BFF = ROOT / "web/functions/_lib/admin-bff.ts"
 STATIC_SERVER = ROOT / "mock-server/static-server.js"
 
 
 def test_recovery_route_uses_auth_only_and_never_onboarding_rpc():
     source = RECOVERY.read_text(encoding="utf-8")
     auth_source = AUTH.read_text(encoding="utf-8")
+    bff_source = BFF.read_text(encoding="utf-8")
 
-    assert "exchangeRecoveryCodeForSession" in source
-    assert "consumeRecoverySessionFromHash" in source
     assert "getAuthSession" in source
     assert "updateAdminPassword(password)" in source
     assert "signOutAdmin" in source
@@ -25,13 +25,17 @@ def test_recovery_route_uses_auth_only_and_never_onboarding_rpc():
     secret_key_marker = "NEXT_SUPABASE_" + "SECRET_KEY"
     assert secret_key_marker not in source
     assert secret_key_marker not in auth_source
+    assert "type === 'recovery'" in bff_source
+    assert "verifyOtp" in bff_source
+    assert "updateUser({ password })" in bff_source
 
 
 def test_recovery_route_removes_callback_credentials_and_rejects_non_recovery_type():
     source = RECOVERY.read_text(encoding="utf-8")
+    bff_source = BFF.read_text(encoding="utf-8")
 
     assert "window.history.replaceState" in source
-    assert "callbackType !== 'recovery'" in source
+    assert "type !== 'invite' && type !== 'recovery'" in bff_source
     assert "access_token" not in source
     assert "refresh_token" not in source
     assert "window.location.assign" not in source

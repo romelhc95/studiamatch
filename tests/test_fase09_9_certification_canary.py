@@ -214,7 +214,8 @@ def test_security_audit_accepts_certification_canary_redaction_boundary() -> Non
 
     assert "H2 Main Production Expand Gate" in workflow
     assert "archive_download_url" in workflow
-    assert "DDL-[A-Z0-9][A-Z0-9_-]{3,}\\.md" in workflow
+    assert "required_names = {" in workflow
+    assert "if set(names) != required_names:" in workflow
     assert "h2_main_production_expand_evidence.json" in workflow
     assert "supabase-security-advisors.json" in workflow
     assert "supabase-performance-advisors.json" in workflow

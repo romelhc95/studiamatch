@@ -1,0 +1,107 @@
+...........FF....                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_circuit_breaker_counts_consecutive_block_responses_only _________
+
+    def test_circuit_breaker_counts_consecutive_block_responses_only() -> None:
+        harvester = _harvester()
+        harvester.institution = {"id": "synthetic-institution", "name": "Synthetic"}
+        harvester.profile = {"max_consecutive_errors": 2}
+        harvester.max_consecutive_errors = 2
+        harvester.error_count = 0
+        harvester.circuit_open = False
+        writes = []
+        harvester.db = SimpleNamespace(patch=lambda *_args, **kwargs: writes.append(kwargs["data"]))
+        harvester.impersonate = "synthetic"
+        responses = iter((403, 200, 429))
+    
+        class Session:
+            async def get(self, *_args, **_kwargs):
+                return SimpleNamespace(status_code=next(responses))
+    
+        async def no_delay(_seconds):
+            return None
+    
+        async def exercise() -> None:
+            with patch.object(harvester_module.asyncio, "sleep", new=no_delay):
+                for _ in range(3):
+                    await harvester._safe_request(Session(), f"{BASE_URL}/page")
+    
+        asyncio.run(exercise())
+    
+>       assert harvester.error_count == 1
+E       assert 2 == 1
+E        +  where 2 = <scripts.core.universal_harvester.UniversalHarvester object at 0x7b8fc62aa2d0>.error_count
+
+tests/test_h3req1_pipeline_discovery_boundaries.py:132: AssertionError
+----------------------------- Captured stdout call -----------------------------
+2026-10-11T00:46:19.963477-05:00 - [UniversalHarvester] - WARNING - HTTP 403 for https://synthetic.h3.example/page (error #1/2)
+2026-10-11T00:46:19.963637-05:00 - [UniversalHarvester] - WARNING - HTTP 429 for https://synthetic.h3.example/page (error #2/2)
+2026-10-11T00:46:19.963698-05:00 - [UniversalHarvester] - ERROR - Too many source errors (2). Opening circuit for Synthetic.
+------------------------------ Captured log call -------------------------------
+WARNING  UniversalHarvester:universal_harvester.py:403 HTTP 403 for https://synthetic.h3.example/page (error #1/2)
+WARNING  UniversalHarvester:universal_harvester.py:403 HTTP 429 for https://synthetic.h3.example/page (error #2/2)
+ERROR    UniversalHarvester:universal_harvester.py:405 Too many source errors (2). Opening circuit for Synthetic.
+_ test_harvester_main_returns_without_discovery_when_discovery_gate_is_closed __
+
+    def test_harvester_main_returns_without_discovery_when_discovery_gate_is_closed() -> None:
+        profile = {
+            "institution_id": "synthetic-institution",
+            "discovery_enabled": False,
+            "pipeline_enabled": True,
+            "pipeline_ready": True,
+            "exclusion_patterns": [],
+        }
+        writes = []
+    
+        class GateOnlyDB:
+            def select_pipeline_raise(self, table, **_kwargs):
+                return [profile] if table == "institution_site_profiles" else []
+    
+            def patch(self, *_args, **kwargs):
+                writes.append(kwargs)
+    
+        institution = {
+            "id": "synthetic-institution",
+            "name": "Synthetic",
+            "slug": "synthetic",
+            "website_url": BASE_URL,
+        }
+    
+        async def unexpected_discovery(*_args, **_kwargs):
+            raise AssertionError("discovery must not run while its gate is closed")
+    
+        with (
+            patch.object(harvester_module, "get_db_client", return_value=GateOnlyDB()),
+            patch.object(harvester_module.sys, "argv", ["universal_harvester.py", json.dumps(institution)]),
+            patch.object(UniversalHarvester, "discover_courses", new=unexpected_discovery),
+        ):
+>           assert asyncio.run(harvester_module.main()) == 0
+E           assert 1 == 0
+E            +  where 1 = <function run at 0x7b8fc92bf880>(<coroutine object main at 0x7b8fc62fcd60>)
+E            +    where <function run at 0x7b8fc92bf880> = asyncio.run
+E            +    and   <coroutine object main at 0x7b8fc62fcd60> = <function main at 0x7b8fc627c4a0>()
+E            +      where <function main at 0x7b8fc627c4a0> = harvester_module.main
+
+tests/test_h3req1_pipeline_discovery_boundaries.py:169: AssertionError
+----------------------------- Captured stdout call -----------------------------
+2026-10-11T00:46:20.001457-05:00 - [UniversalHarvester] - INFO - Profile exists but incomplete for synthetic, will auto-detect.
+2026-10-11T00:46:20.004905-05:00 - [UniversalHarvester] - INFO - Auto-detecting profile for synthetic from https://synthetic.h3.example
+2026-10-11T00:46:20.005005-05:00 - [UniversalHarvester] - INFO - Diagnosticando https://synthetic.h3.example ...
+2026-10-11T00:46:20.106089-05:00 - [UniversalHarvester] - WARNING - Auto-diagnosis error for synthetic
+2026-10-11T00:46:20.106234-05:00 - [UniversalHarvester] - ERROR - SKIP Synthetic: No existe entrada en institution_site_profiles. Crea un perfil antes de ejecutar el pipeline.
+------------------------------ Captured log call -------------------------------
+INFO     UniversalHarvester:universal_harvester.py:244 Profile exists but incomplete for synthetic, will auto-detect.
+INFO     UniversalHarvester:universal_harvester.py:264 Auto-detecting profile for synthetic from https://synthetic.h3.example
+INFO     UniversalHarvester:site_diagnostics.py:349 Diagnosticando https://synthetic.h3.example ...
+WARNING  UniversalHarvester:universal_harvester.py:272 Auto-diagnosis error for synthetic
+ERROR    UniversalHarvester:universal_harvester.py:1305 SKIP Synthetic: No existe entrada en institution_site_profiles. Crea un perfil antes de ejecutar el pipeline.
+=============================== warnings summary ===============================
+../opt/venv/lib/python3.11/site-packages/PyPDF2/__init__.py:21
+  /opt/venv/lib/python3.11/site-packages/PyPDF2/__init__.py:21: DeprecationWarning: PyPDF2 is deprecated. Please move to the pypdf library instead.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_h3req1_pipeline_discovery_boundaries.py::test_circuit_breaker_counts_consecutive_block_responses_only
+FAILED tests/test_h3req1_pipeline_discovery_boundaries.py::test_harvester_main_returns_without_discovery_when_discovery_gate_is_closed
+2 failed, 15 passed, 1 warning in 0.85s

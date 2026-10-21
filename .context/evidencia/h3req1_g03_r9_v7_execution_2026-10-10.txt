@@ -1,0 +1,14 @@
+phase=r9-reused-web-inputs|error_code=HASHES_MATCH
+phase=r9-image-read-classifier-synthetics|error_code=OK
+phase=r9-continuation-preflight|error_code=OK
+phase=r9-continuation-preflight|error_code=OK
+phase=r9-actionlint-reuse|error_code=INPUT_HASHES_MATCH
+phase=r9-tool-extraction|error_code=OK
+phase=r9-shellcheck|error_code=OK
+phase=r9-candidate-copy|error_code=OK
+phase=r9-npm-dependency-manifest|error_code=OK
+phase=r9-node-and-typescript-versions|error_code=OK
+phase=r9-next-typegen|error_code=OK
+phase=r9-eslint|error_code=OK
+phase=r9-typescript|error_code=CHECK_FAILED
+exit=134

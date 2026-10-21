@@ -4,16 +4,32 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import AdminCourseQueue from '@/components/AdminCourseQueue';
-import { requireActiveAdmin, signOutAdmin, type AdminRole } from '@/lib/admin-auth';
+import { getAuthenticatedUserEmail, requireActiveAdmin, signOutAdmin, type AdminRole } from '@/lib/admin-auth';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [role, setRole] = useState<AdminRole | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    requireActiveAdmin()
-      .then(setRole)
-      .catch(() => router.replace('/admin/login/'));
+    let active = true;
+
+    void (async () => {
+      try {
+        const authenticatedRole = await requireActiveAdmin();
+        if (!active) return;
+        setRole(authenticatedRole);
+        void getAuthenticatedUserEmail().then((authenticatedEmail) => {
+          if (active) setUserEmail(authenticatedEmail);
+        });
+      } catch {
+        if (active) router.replace('/admin/login/');
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   const handleLogout = async () => {
@@ -40,8 +56,11 @@ export default function AdminDashboardPage() {
             <p className="text-xs text-brand-slate/70">Panel editorial</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="rounded-full bg-brand-mint px-3 py-1 text-xs font-semibold text-brand-blue">
-              {isAdmin ? 'Admin' : 'User'}
+            <span
+              className="max-w-[30vw] truncate rounded-full bg-brand-mint px-3 py-1 text-xs font-semibold text-brand-blue sm:max-w-64"
+              title={userEmail || undefined}
+            >
+              {userEmail || 'Usuario autenticado'}
             </span>
             {isAdmin && (
               <Link href="/admin/users/" className="text-sm font-medium text-brand-blue">Usuarios</Link>

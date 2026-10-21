@@ -32,7 +32,7 @@ BEGIN
     RETURN;
   END IF;
 
-  IF p_first < 1 OR p_first > 100 THEN
+  IF p_first IS NULL OR p_first < 1 OR p_first > 100 THEN
     RETURN QUERY SELECT NULL::JSONB, NULL::JSONB, 'First must be between 1 and 100'::TEXT;
     RETURN;
   END IF;

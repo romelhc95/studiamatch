@@ -1,134 +1,60 @@
-# Estado Del Proyecto
+# Estado del proyecto
 
-Snapshot: `SNAPSHOT-2026-09-27-H3-DEVELOPMENT-PREVIEW-UX-VALIDATED-NO-GO`.
+**Validación local z30 — PASS en Docker/red deshabilitada:** escáner árbol+diff PASS sin findings; documentación/self-test PASS (732 fuentes, 9.247 enlaces, 4.625 anchors); guard/scope/negativos PASS (1.196 rutas, 13 catálogos/1.173 refs, negativos 3/1/1/3/2); plantilla PASS (10 headings, 10 enlaces, 16 filas, cero placeholders); contrato de estado 8/8; identidad exacta PASS (9/9 hashes Worker y 798 archivos no contextuales iguales a z20); delta z29→z30 PASS en cuatro archivos `.context/`. actionlint, ShellCheck, Python focal 46/46 y suites Worker se reutilizan por inputs idénticos. El diff desde baseline se puede comprobar tras restaurar el objeto, pero conserva 125 diagnósticos de formato del paquete (107 trailing whitespace, 18 blank-EOF); no se reformatearon fuentes históricas. No equivale a checks GitHub ni aceptación Development.
 
-Historical gates preserved: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`, `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`, `H2_CLOSED_H3_READY_FOR_PROMPT_CONTINUA`, `H3_READY_FOR_PROMPT_CONTINUA`, `H3_GO_LOCAL_CLOSED_READY_FOR_SUPABASE_FREE_JIT`, `H3_SUPABASE_FREE_AUTH_JIT_VALIDATION`, `H3_LOCAL_EXPANDED_NO_GO` (histórico del ciclo anterior, fechado 2026-08-30), `H3_PR_DEVELOPMENT_NO_GO` (readiness, resuelto por el ciclo de corrección local del 2026-09-02).
+> Autoridad operativa única. Este documento contiene el corte vigente, sus resultados, pendientes y siguiente paso. La historia detallada vive en hitos, decisiones y evidencia enlazados desde el índice Obsidian.
 
-Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
-Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
+## Corte vigente
 
-## Ciclo Development/Free 2026-09-26
+**Corte vigente PWI R3 — 2026-10-20 01:51 UTC:** candidato sucesor z30 en `/tmp/h3req1-pwi-r3-validation-20261020z30/repo`, reconstruido desde baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c` para publicación protegida a `desarrollo`; el último SHA remoto documentado del PR 501 sigue siendo `a73af141…`. El manifiesto enumera fuentes/pins y permisos; el registro de ejecución separado contiene resultados y limitaciones. Sin GO Development ni aceptación remota.
 
-La evidencia canónica de este ciclo es
-[h3req1_development_remote_cycle_2026-09-26.md](evidencia/h3req1_development_remote_cycle_2026-09-26.md).
-El PR #499 está mergeado en `desarrollo` en
-`c56f1cb5a0dac722a92e7ef3a6000a9bb2d6b4a9`. Las acciones remotas autorizadas de
-este ciclo se limitaron a Free/Development.
+La revisión independiente exacta de z24 (`c4d8c3e1762aa94678a6f10e02eabcbd447414d7`, tree `20a8a91ca1660bf36e1c42b4e376ad70b25de7f9`, scope `d337722c6a8c22eb3c2c3ec64d20eee95a31218ba5bb887dadf986e684f09187`) confirmó que no hay hallazgos HIGH/CRITICAL de código, pero emitió NO-GO P2: body y manifiesto aún marcaban R6 pendiente y el body apuntaba a z21. R6 está aprobado y sin consumir: `/tmp/h3req1_pwi_r3_failed_row_redelivery_jit_delta_20261020_r6.md`, SHA-256 `e19f5eba1b6be5b56be295f3ae62a863db910ee69692c7134ba4e3cc625f9d7e`. z25 corrigió esos estados. En Docker pasaron scanner árbol+diff, self-test documental, scope/negativos, guard y contrato de estado 8/8. La verificación detuvo su finalización porque el body/registro afirmaban 10/10 hashes idénticos a z20 cuando solo nueve hashes de implementación/pruebas/configuración/lock coinciden y el README está modificado. La invocación del auditor de plantilla no encontró el auxiliar montado y no se cuenta; no hubo review independiente. z25 se preserva como snapshot intermedio, no se publica. z26 corrige el conteo y pasa en Docker escáner árbol/diff (0 hallazgos), documentación/self-test (732 fuentes, 9.247 enlaces, 4.625 anchors), scope/negativos/guard (1.196 rutas; 13 catálogos/1.173 referencias; negativos 3/1/1/3/2), plantilla (10 títulos/10 enlaces/16 filas/0 placeholders), contrato de estado (8/8) y diff incremental z25→z26 (4 archivos de contexto). Python 46/46, actionlint y ShellCheck se reutilizan solo por inputs idénticos. La primera comprobación de identidad falló por un expected abreviado en el helper; al corregirlo, z26 pasó con commit `af1026ab3bbd3cb6402fd7470fb369613179749a`, tree `e776eae92029242bbc8d8f9211228d8342428ee3`, padre `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope `7953df020b14cd5a9eb98fc6a6bc6bde88debbfd1febf436fb2c09cfd2f04738`, 9/9 hashes de implementación/pruebas/configuración/lock y 798 archivos no contextuales idénticos a z20. z27 corrigió el baseline abreviado y pasó sus gates e identidad. z28 registró esos resultados; sus propios gates Docker e identidad exacta también pasaron. z29 tuvo gates Docker PASS e identidad exacta; su review exacta encontró NO-GO P2 documental (código PASS, sin HIGH/CRITICAL). z30 corrige el estado desactualizado y separa el inventario de fuentes de los resultados de ejecución. Inputs ejecutables, permisos, recursos, datos, límites y ambientes sin cambios.
 
-El estado continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`. La autorización
-JIT Free/Development para los dos deltas exactos `20260925` fue consumida: ambos
-quedaron registrados y validados en Free, por lo que el drift específico de
-H3-001 queda corregido. H3-002/H3-003/H3-004 siguen `BLOCKED` hasta ejecutar
-sus autorizaciones y pruebas remotas separadas. En este ciclo se aplicó la
-plantilla Auth de recovery, se publicó el Preview actualizado y se ejecutó el
-recovery real del admin existente; no se ejecutaron usuarios adicionales,
-cleanup, rollback, push, merge ni promoción. La autorización JIT Edge permitió
-desplegar el artefacto aprobado como `admin-invite` versión 4, `ACTIVE` y
-`verify_jwt=true`. El smoke autenticado de invitaciones, RBAC y onboarding sigue
-pendiente de su autorización y UAT separadas.
+Validación z26 ejecutada: los gates locales y la identidad exacta constan en el registro de checks; el primer error del verificador se conserva como fallo del helper, no del snapshot.
 
-## Resumen H3 En Lenguaje Simple
+Validación z27 — commit `c5660af200b0d58521639294e5a7569c9e72be28`, tree `bfb5bfa1b512a9cd7214cbab0976b2a45817c16b`, padre baseline completo, scope `727e1c5af934bc1656fa71dcfab3fcf8e183c8487e5f4af63057fe016504359b`: identidad limpia; 9/9 hashes de código/pruebas/config/lock y 798 archivos no contextuales idénticos a z20; 1.190 rutas, 39 artefactos, 13 catálogos/1.173 refs. Docker: scanner árbol+diff sin hallazgos; docs/self-test 732 fuentes, 9.247 enlaces, 4.625 anchors; scope/negativos/guard 1.196 rutas y 3/1/1/3/2; plantilla 10 títulos/10 links/16 filas/0 placeholders; contrato de estado 8/8; diff incremental z26→z27 cuatro archivos de contexto. Python 46/46, actionlint y ShellCheck se reutilizan solo por inputs idénticos. Primera aserción de identidad falló por expected abreviado del helper; se corrigió el helper y la identidad exacta pasó. Ninguna operación remota ni revisión independiente de z27.
 
-### Qué se intenta construir
+Validación z28 — commit `3ec2d71a623ccfe021a9c52b3d9ec46806d5afac`, tree `c41fdf712f7ecd857b0508c856de14029a5822bf`, padre baseline completo, scope `afed3817c7156d94d6262811920b6c944097242ffaea764b25bab5c312598729`: identidad limpia; 9/9 hashes de implementación/test/config/lock y 798 archivos no contextuales idénticos a z20; 1.190 rutas, 39 artefactos, 13 catálogos/1.173 refs. Docker: scanner árbol+diff sin hallazgos; documentación/self-test 732 fuentes, 9.247 enlaces, 4.625 anchors; scope/negativos/guard 1.196 rutas y 3/1/1/3/2; plantilla 10 títulos/10 links/16 filas/0 placeholders; contrato estado 8/8; diff incremental z27→z28 cuatro archivos `.context/`. No se repitieron suites funcionales intactas; sin operación remota ni revisión independiente.
 
-H3 agrega una zona privada para que personas autorizadas revisen y corrijan la
-información de los cursos. Hay dos tipos de personas: `user`, que completa datos
-faltantes, y `admin`, que además aprueba cambios y administra usuarios. El acceso
-debe usar una segunda comprobación de seguridad y la zona privada no debe aparecer
-en la dirección pública normal.
+**Resultado exacto z29 preservado:** commit `b97e439d85933e4c5b5061b64978c1281bb95dde`, tree `43c1b229b759289db8cdc57765013667b22030aa`, scope `5a6f23237c05c6a22863ec4f7465ceb425320ec0b7575a1eabd49731eb4a05cb`; 1.190 pins, 39 artefactos, 13 catálogos/1.173 referencias. Escáner completo árbol+diff PASS (0 findings); documentación/self-test PASS (732 fuentes, 9.247 enlaces, 4.625 anchors); scope/negativos/guard PASS (1.196 rutas; negativos 3/1/1/3/2); plantilla PASS (10 headings, 10 links, 16 filas, 0 placeholders); contrato de estado 8/8; diff incremental z28→z29 PASS en cuatro archivos `.context/`. Python focal 46/46, actionlint, ShellCheck y suites Worker se reutilizaron por inputs idénticos. La revisión independiente z29 fue NO-GO P2 solo por body/manifiesto desactualizados; el código fue PASS, sin HIGH/CRITICAL/P1. El revisor comprobó pins, hashes y cierre de catálogos; no ejecutó pruebas. El diff-check directo baseline→z29 no podía leer el blob histórico `03d85fc4…`; el objeto se recuperó después desde GitHub y su identidad ahora está verificada.
 
-### Qué significa el estado actual
+Lectura remota de solo lectura realizada: se recuperó el blob histórico `IMPLEMENTATION_PLAN.md` desde GitHub para verificar identidad; no hubo escritura, registro/despliegue App/Worker, secretos, push, actualización de PR, merge ni aceptación.
 
-`H3_PR_DEVELOPMENT_READY_LOCAL` acredita **GO técnico local**, no cierre
-contractual. El ciclo read-only 2 del 2026-09-24 mantiene
-`NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`: Free ahora registra las
-migraciones 03A/03B y los hardenings 20260924, pero Pro sigue sin migraciones H3,
-tablas ni RPCs consultables. También faltan UAT
-remota completa, hostnames por ambiente, Certification y la transición
-`deploy -> contract`. La UAT canónica local conserva 47/47 casos y 141/141
-ejecuciones PASS con cero reintentos.
+**Siguiente gate:** revisión independiente exacta de z30. Tras PASS, ejecutar el alta/instalación App, entrada segura de secretos, despliegue `studiamatch-pwi-verifier` con `PWI_COORDINATOR`/`PwiCoordinator` SQLite, exigir el check del App solo en `desarrollo`, y publicar el sucesor. R3/R3-DO y R6 siguen aprobados en sus alcances; R6 no consumido. Después esperar checks completos y revisión humana vigente del SHA sucesor antes de integración. `main`, `certificacion` y Production fuera.
 
-### Qué se corrigió desde la prueba fallida anterior
+**Histórico de corte PWI R3 — 2026-10-19 22:44 UTC:** candidato `/tmp/studiamatch-pwi-r3-20261019`, rama `codex/pwi-r3-successor`, publicación prevista `feat/h3req1-sync-20261018-r19`, base `4eb4d877a50b012bb630a129bd0c74482c33be9c`, sucesor del SHA histórico `a73af141d8419889ae6922f21e416b207a297391`. Z4 (`7fc1df1b77922de6e0aa74b5c815d28542a3bd65`, tree `241badd0c01c29ae02b3c3289bf71f654bf1d11c`, scope `60b8d41b5b74e5233021ac37df084f171f8c249d5f390e86deef2a9876d50914`) conserva el NO-GO independiente por HIGH/P2. Z5 (`1d5216123c8dd9a966a5c41c1b4de45fd035a9db`, tree `50bebdde27209bb1608c89dd994fc8148f325eb6`, scope `4d4bf03a3810f58f4a9977c1a188b7c3481587db5c53bfc7fed2732f773c8c3f`) tiene el mismo Worker defectuoso y también es NO-GO. Z6 se reconstruyó desde baseline y selección exacta: commit `4edaa116a46767d0a6b7faa78a381ff03f5667b2`, tree `7623f857f1c28ac9a4c68fea9af991795e913beb`, scope `cfc140d70e3147a3e2a9370d18470491718ff3db593da31b09eebc0c7b1002b7`, 1.190 rutas/39 artefactos/unión 1.196/diff esperado 1.195. Z6 pasa escáner completo, gate documental/self-test con manifiesto, guard/negativos, estado 8/8, `npm run check`, Worker unitarias 32/32 y diff incremental `a73..z6`; falla el audit cuerpo/plantilla porque el cuerpo añadía una fila `PWI Worker` fuera de las filas versionadas. La fila extra se quitó en la fuente para z7; z6 queda inmutable y NO-GO.
 
-La corrida inicial falló porque las páginas privadas no aparecían en la copia
-servida. El programa de pruebas se corrigió para esperar a que la página terminara
-de cargar antes de interactuar (espera de hidratación), se validó el bloqueo
-público `studiamatch.com/admin/ → 404` sobre un servidor de perímetro real
-(`static-server.js`) y se corrigió un selector de prueba.
+Corrección local actual: la redelivery pendiente/en proceso vuelve a invalidar el SHA normalizado almacenado para ese delivery (incluido el SHA confirmado por API en overflow), no el SHA posiblemente obsoleto del payload. La regresión da rojo con z5 y verde con el fix. En z6, Docker Node 22.22.0 pasó `npm run check` y unitarias 32/32; el runtime 4/4 ya había pasado sobre la misma fuente/código y se reusa solo al comparar los hashes de todos sus inputs. Los intentos de runtime directo sobre z6 no se cuentan como PASS: el directorio fuente `node_modules` estaba vacío; una copia de caché produjo `vitest: Permission denied` y al invocar Vitest con Node faltó su optional binding WASI. Z7 repetirá el runtime con el paquete de dependencias correcto o conservará el gate pendiente con causa demostrada. `git diff --check a73..z6` pasó; `4eb..z6` no pudo leer el objeto local `03d85fc4…` y no se declara PASS. El audit cuerpo/plantilla de z6 encontró 17 filas frente a las 16 de la plantilla; z7 omite la fila adicional.
 
-### Qué acredita la evidencia actual
+Siguiente gate: registrar z6 como histórico NO-GO, repinear el manifiesto/cuerpo tras la corrección de fila y construir z7 desde baseline/alcance exactos; completar los gates afectados en Docker y obtener revisión independiente del código exacto. Pre-ACK JIT 7,5 s y R3 App/Worker + R3-DO aprobados/no consumidos; full-queue R2 sigue pendiente/no aprobado. No registrar App, introducir secretos, desplegar ni publicar. No hubo operación remota; PR 501 conserva a73, fallo PWI histórico y aprobación antigua. Sin commit/push/update PR/merge ni aceptación Development. `main`, `certificacion` y Production fuera; Development NO-GO.
 
-- UAT canónica `h3_local_uat.mjs` regenerada el 2026-09-02: **`47/47` casos y
-  `141/141` ejecuciones PASS, 141 screenshots, 0 retries**, evidencia en
-  `.context/evidencia/h3-expanded/`.
-- Build normal y `build:mock` ejecutados en Docker el 2026-09-03: compilación
-  exitosa y rutas `web/out/admin/{index,login,edit,users}/index.html` presentes.
-  El waiver de static export queda superseded para este candidato.
-- Suite CI-local seleccionada: 142 tests PASS; TypeScript PASS; lint sin errores
-  (9 warnings históricos); `py_compile`, credential scan, actionlint, shellcheck,
-  mock smoke y `git diff --check` PASS. H2/H2-Pro/H3 PG17 PASS; el harness H3
-  termina en `h3_pg17_harness_ok` e incluye regresión A6/A13.
-- La corrida completa indiscriminada `pytest -q` no es un gate válido en este
-  checkout porque recolecta worktrees históricos montados bajo `local/worktrees/`
-  y tests de integración que requieren entorno; produjo 540 errores de colección.
-  El PR usa el conjunto versionado del job `python-check` y documenta esta
-  exclusión.
+**Corte anterior PWI R3 — 2026-10-19 21:46 UTC:** candidato `/tmp/studiamatch-pwi-r3-20261019` (`codex/pwi-r3-successor`, padre local `a73af141d8419889ae6922f21e416b207a297391`); snapshot autónomo w `/tmp/h3req1-pwi-r3-validation-20261019w/repo`, commit `5e162083f58d61718e05d9dd9fc9363c17e4758c`, tree `8b80fa2d50581b7fb9ed1d8a1e6334a70c2d0a53`, digest `c8399b9d95fa653dbeaffb5123c2e5dd6b35fff4342d9f3cb397ab5f823fa4fc`; 1.190 rutas, 39 artefactos, unión 1.196/diff 1.195, 13 catálogos/1.173 referencias. En Docker/red deshabilitada: full credential scan PASS (exit 0, cero findings), Documentation Integrity/self-test PASS (732 fuentes, 113 activas, 433 históricas), scope guard/negativos PASS (1.196 rutas; ordinary=3, newline=1, controls=1, malformed=3, unmanifested H3=2), estado 8/8, plantilla 10/10 títulos, 10 links, 16 filas, 0 placeholders y `git diff --check a73af141..w` PASS. Otros contratos, Worker syntax/29 unit tests/3 runtime/actionlint/ShellCheck se reutilizan por hashes idénticos. Diff 4eb..w no comprobable por 95 blobs históricos ausentes; no hubo red/fallback. Review independiente aún pendiente; pre-ACK JIT aprobado/no consumido y full-queue JIT pendiente/no aprobado. Sin App/Worker, secretos, commit, push, update PR, review GitHub, merge ni aceptación remota. Fallo PWI de a73 preservado; Development NO-GO.
 
-### Qué resolvió el ciclo de corrección local (2026-09-02) y la sincronización documental (2026-09-03)
+**Continuación PWI R3 — 2026-10-19 21:23 UTC:** la revisión independiente del snapshot anterior `f6154eabba2c0638a186ba157cc1255ce4c9df1e` encontró HIGH en overflow y orden de supersession. La corrección local valida base/SHA actual, invalida ese check y sustituye como máximo la fila pendiente más antigua de otro SHA para conservar durable el evento vigente; mantiene 8 pendientes/100 terminales. Snapshot autónomo `p`, reconstruido del baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c` sin fallback a Syncthing: commit sintético `ad894278ebfb5f78e9882d1f72817d9a1e6a25c7`, scope digest `231019c75783b0043d1ec4f1564103aa2f0ddbe8e9935970bcfa33f8c6195e93`, 1.190 entradas, 39 artefactos, unión exacta 1.196/diff 1.195. En Docker: escaneo completo sin findings; Documentation Integrity/self-test PASS (732 fuentes, 113 documentos activos, 433 históricos); guard/negativos PASS (13 catálogos, 1.173 referencias); plantilla PASS (10/10 headings, 10 enlaces, 16 filas de tabla incluyendo cabecera, cero placeholders); contratos Python 33/33; `git diff --check` PASS; Worker syntax y 29/29 unitarias/3/3 runtime PASS. Actionlint/ShellCheck se reutilizan por SHA-256 de entradas idéntico. El manifest registra estos resultados y reconstruye un snapshot final autónomo antes de revisión independiente; la revisión exacta del candidato corregido sigue pendiente. El JIT de invalidación pre-ACK está aprobado y sin consumir; el delta distinto para resolver la cabeza actual y reemplazar fila en overflow sigue pendiente de aprobación. No hubo operaciones remotas, App/Worker, secretos, despliegue, commit, push, update PR, nueva aprobación, merge ni aceptación Development. Se preserva el fallo histórico PWI de `a73af141…`; Development sigue NO-GO.
 
-El ciclo descrito en [Siguiente Gate](#siguiente-gate) eliminó los bloqueadores
-locales que la auditoría de readiness había identificado en CI, contratos DB, MFA
-local, UAT/evidencia y rollback; la sincronización del 2026-09-03 incorporó el
-delta A6/A13 y separó explícitamente la evidencia remota parcial:
+**Ejecución local R3 — 2026-10-19 20:21 UTC:** snapshot autónomo exacto `1ebec3431f0e5f64aad4d9e742a75f61f623a62d`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope digest `10da6476b820d601317ae5725d0597760bfb1b0de70789cd5083a583d27149bc`. En Docker con red deshabilitada y snapshot de solo lectura: full credential scan PASS (0 findings); documentation checker/self-test PASS (732/732 fuentes, 113/113 documentos activos, 433/433 históricos); protected-path guard y negativos PASS (1.196 paths, 13 catálogos, 1.173 targets); contratos de estado/fuente cliente 18/18; cuerpo PR PASS (10/10 títulos, 15/15 filas, 12 enlaces, 0 instrucciones sin completar); `git diff --check a73af141..snapshot` PASS; ShellCheck 0.11.0 PASS. `actionlint` se reutiliza con hash idéntico `d71aae18…`; Worker syntax, unitarias 25/25, runtime 3/3 y 86 paquetes/0 vulnerabilidades conservan sus resultados sobre bytes de código idénticos. Una llamada de documentación sin el manifiesto candidato detectó omisiones WIP esperadas; el gate exacto con manifiesto pasó. La invocación directa del test de guard recibió Permission denied por modo no ejecutable; `bash tests/test_protected_path_scope_guard.sh` pasó. Estos errores de invocación quedan registrados, no son hallazgos del candidato. Revisión independiente del código exacto aún pendiente. No hay App/Worker desplegados, SHA remoto nuevo, checks remotos, aprobación del nuevo SHA, merge ni aceptación Development. NO-GO.
 
-1. `security-audit.yml` corregido (YAML válido), allowlist H3 explícita y
-   `db-gate` con harness H3 en PG17; gate emulado localmente `GATE_OK`.
-2. Migración `20260902_h3_pr_contract.sql`: lector efectivo de valores y gate de
-   publicabilidad; seed idempotente con categorías para los 30 cursos.
-3. MFA: `admin-auth.ts` y login muestran secreto/QR y resuelven `aal` real sin
-   forzarlo; retirado el spec UAT duplicado.
-4. Perímetro 3002 con `Host` mapping correcto (`/admin/login` 200 en admin
-   origin, `/admin/` 404 en `studiamatch.com`).
+**Ejecución local R3 — 2026-10-19 20:16 UTC:** snapshot autónomo `54b0646ab8bd96e14c328b0f17e260be7c0df74f`, scope digest `9576be4500f6134b116932cc5a36f95b23619135061362ab6b6f972e0be1b3c0`. En Docker, `bash scripts/security/scan_credentials.sh --tree` pasó sobre el árbol completo sin findings; `tests/test_obsidian_context_state.py` y `tests/test_requirement_client_source_validation.py` pasaron 18/18 con `/opt/venv/bin/python`. Checker/self-test documental y scope guard/negativos ya pasaron sobre este mismo digest. El primer intento de pytest usó el Python global de la imagen, que no instala pytest; se conserva como fallo de invocación y no como bloqueo. El delta sucesor `a73af141..snapshot` está limpio; los chequeos de actionlint/ShellCheck se reutilizan porque sus inputs hashados no cambiaron. La revisión independiente del snapshot final sigue pendiente. App/Worker no están desplegados; PR, SHA remoto, checks y aprobación nuevos aún no existen. Sin merge ni aceptación Development. Mantener NO-GO.
 
-### Qué sigue ahora
+**Continuación R3 PWI — 2026-10-19 20:08 UTC:** la revisión independiente del snapshot `46bd77bad486153cd13e896d96ce80a840031b2a` detectó que un check PASS anterior permanecía completado durante las lecturas del PR y podía sobrevivir cuando ya había un evento sucesor en cola. Ambas carreras se reprodujeron en Docker contra ese snapshot anterior. El Worker ahora reabre checks existentes a `in_progress` antes de leer PR/files/reviews y los deja pendientes si el evento ya fue sustituido. En el candidato local: regresiones focalizadas 4/4 y suite Worker 25/25 PASS; `npm run check` PASS; runtime Workers 3/3 PASS tras instalar en copia desechable 86 paquetes (0 vulnerabilidades). Todavía faltan manifiesto/pins finales, reconstrucción autónoma, escaneo/gates completos y revisión independiente del snapshot final. App/Worker remotos no están desplegados; no hay publicación, SHA sucesor en GitHub, merge ni aceptación Development. Mantener NO-GO.
 
-Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
-instrucción humana separada** y se ejecutan con la plantilla
-`.github/pull_request_template.md` llena con resultados reales del ciclo.
-Permanecen como gates remotos posteriores y separados: `security-audit` en
-GitHub y revisión del PR, aplicación/revalidación de `20260903` en Free,
-configuración Auth, Cloudflare restante, promoción a `certificacion`, merge y
-deploy. No se ejecuta ninguna de esas acciones sin su aprobación.
+**Continuación R3 PWI — 2026-10-19 19:55 UTC:** PR 501 permanece abierto en `a73af141d8419889ae6922f21e416b207a297391`; su fallo PWI histórico se conserva. El primer revisor halló HIGH en la carrera de revocación durante publicación; el Worker se corrigió y ambas regresiones que fallaban antes pasan ahora. Docker Node 22: 23/23 unitarias, `npm run check` PASS, runtime 3/3; 86 paquetes instalados, 0 vulnerabilidades. En el snapshot autónomo `5f0bf68dc601402a5d947b35ab373c723874487e` con digest de scope `67bff205…`: escaneo completo de credenciales PASS; gate y self-test documental PASS (732/732 fuentes, 13 catálogos); guard/negativos PASS (1196 rutas, 1173 referencias); contratos de estado/fuente cliente 18/18; actionlint 1.7.12 y ShellCheck 0.11.0 PASS en Docker. Diff del sucesor limpio; diff de baseline conserva solo 125 advertencias históricas (107 espacios finales, 18 EOF). La actualización de este checkpoint y su pin requiere una reconstrucción, escaneo y revisión final del árbol exacto. App/Worker no registrados/desplegados; permisos R3/R3-DO aprobados sin consumir. Aprobación humana del PR actual no cubre el SHA sucesor. Sin publicación, merge ni aceptación Development; D01–D14 0/14 y regresión 0/11.
 
-### Auditoría Final De Cierre H3REQ1 (2026-09-23)
+**Ejecución local — 2026-10-19 11:15 UTC:** Docker volvió a validar el snapshot autónomo tras el checkpoint operativo: 1.179 rutas de alcance, unión exacta de 1.185 rutas, 13 catálogos/1.173 referencias y 37 artefactos de contenido más el manifiesto autoexcluido. Checker/self-test documental: 723 fuentes, 113 documentos activos y 433 históricos; scope guard/negativos (3/1/1/3/2), contrato del estado (8 pruebas), árbol del escáner y `git diff --check HEAD`: PASS. El flujo Python amplio (250 + 10 subtests y segunda invocación 41) y actionlint/ShellCheck focal se reutilizan por inputs de código/workflow intactos. La revisión independiente del manifiesto anterior (digest `4416417a…`) fue PASS sin hallazgos; esa revisión es histórica y el manifiesto identifica por separado el estado de revisión del digest vigente. El cotejo baseline conserva 125 avisos de formato históricos (107 espacios finales, 18 líneas vacías finales), sin reformatos. Ningún resultado local equivale a GitHub o aceptación Development.
 
-El documento canónico es
-[H3REQ1 Closure Review Final](hitos/h3req1_closure_review_final_2026-09-23.md).
-La decisión es `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`.
+**El candidato no se publicó:** `/tmp/h3req1_r19_publication_prep_20261018`, rama `feat/h3req1-sync-20261018-r19`, HEAD `074583d9f6ea1b5686dc58c9669111f589cb8e7a`; las correcciones locales siguen sin commit. El snapshot se identifica por el manifiesto vigente: 1.179 entradas más seis artefactos de paquete. R18 (`0d7c89dccffd1146b6cc669d4994787e9b78b533`), el checkout Syncthing (`a57bc415257ab8154d40d7c71d34c69d0bdaeb0d`), respaldos y evidencias previas permanecen sin cambios. `braces@3.0.4-h3.1` se conserva; no se reabrió la reorganización Obsidian.
 
-- MFA fue retirado del gate de aceptación por decisión de alcance: la prueba es
-  compleja y no bloquea autenticación administrativa existente, RBAC,
-  invitaciones, onboarding, edición, ownership ni perímetro. El MFA/`aal2`
-  existente se conserva como compatibilidad y mejora evolutiva.
-- La evidencia local permanece PASS: core H3 47/47 y 141/141, builds,
-  contratos, PG17, Edge 03A, DB 03B y Mock UAT-02.
-- La evidencia remota permanece parcial: `admin-invite` está ACTIVE con
-  `verify_jwt=true`, pero las migraciones 03A/03B no aparecen en los inventarios
-  remotos revisados; el preview de Development devuelve 404 para callback,
-  aceptación y setup de password.
-- No se autoriza promoción `desarrollo -> certificacion -> main`, deploy, merge,
-  push ni writes adicionales con la evidencia actual.
+**Docker:** el contenedor habitual `studiamatch-dev` continúa `running/healthy`, 0 reinicios, imagen `sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`, con el checkout de origen montado. Las validaciones del delta se ejecutaron en la imagen aislada R19 con el candidato en solo lectura; no se reconstruyó el contenedor habitual ni se alteraron lockfiles, secretos o recursos ajenos.
 
-### Diccionario mínimo
+**GitHub — solo SHA remoto anterior `074583d9f6ea1b5686dc58c9669111f589cb8e7a`:** lectura de PR, jobs y reviews a las 11:11 UTC confirma que PR 501 sigue abierto en ese SHA; el cuerpo remoto todavía describe el snapshot anterior y se actualizaría solo al publicar el paquete revisado. El run `39228507399` sigue `in_progress` en actionlint y ShellCheck continúa pendiente; Python Compile And Tests, Static Build y PostgreSQL DB Change Gate están `failure` en ese checkout. Documentation Source Registry, TypeScript, Credential Scan, Protected Path Integrity y ESLint están `success`; H2 Main Production Expand Gate está `skipped` fuera del alcance. PWI separado `39228629396` terminó `failure` porque el trusted base carece del helper. No existe SHA/runs del sucesor; la revisión humana anterior permanece `DISMISSED` y debe renovarse sobre el SHA final por alguien distinto de autora y publicadora. Los PASS locales Docker no sustituyen resultados de GitHub.
 
-- `GO`: evidencia suficiente para pasar al siguiente control; no significa publicar.
-- `NO_GO`: hay fallas o evidencia insuficiente; se debe corregir y volver a probar.
-- `build`: proceso que convierte el código en las páginas que se pueden servir.
-- `UAT`: prueba que usa la interfaz como lo haría una persona.
-- `PASS` / `FAIL`: comprobación aprobada / comprobación fallida.
-- `mock`: imitación local de un servicio real, usada para probar sin tocar internet.
-- `JIT`: autorización humana puntual para una acción concreta y sensible.
-- `PR`: solicitud para revisar cambios antes de integrarlos.
+**Bloqueo PWI:** el workflow `pull_request_target` toma su definición de `main`; agregar el helper solo a `desarrollo` no habilita una fuente confiable. Main/Production permanecen fuera del alcance. Está preparado, pero no aprobado ni ejecutado, el paquete JIT `/tmp/h3req1_pwi_external_check_app_jit_package_20261019.md` para una GitHub App verificadora limitada al repositorio y al check requerido de `desarrollo`. Sin un proveedor PWI confiable, no se puede cerrar el control ni integrar.
+
+A está consumido; B/C/D conservan sus aprobaciones exactas. La excepción temporal Worker v2 vence el 2026-10-25 23:59 UTC; no autoriza otro deploy ni rollback. Gmail sigue intacta. D01/D02, C, invitación nueva, D01–D14 y regresión remota adicional permanecen pendientes: 0/14 y 0/11. Development sigue NO-GO; no hay un deployment R19 para aceptación.
+
+El [reporte remoto R19](evidencia/h3req1_g10_remote_preparation_2026-10-18_r19.md), [paquete Development R19](evidencia/h3req1_development_integration_package_2026-10-18_r19.md), [cuerpo PR R19 basado en plantilla](evidencia/h3req1_pr_body_draft_local_review_2026-10-18_r19.md), [checks R19](evidencia/h3req1_remote_preparation_checks_2026-10-18_r19.txt), [revisión independiente R19](evidencia/h3req1_remote_preparation_independent_review_2026-10-18_r19.txt), [manifiesto R19](evidencia/h3req1_pr_scope_manifest_2026-10-18_r19_reconciled.json) y [tratamiento visual seguro R19](evidencia/h3req1_visual_evidence_redaction_2026-10-18_r19.md) registran el corte vigente y su historia. R18 permanece como evidencia histórica inalterada.
+
+Histórico de gates H3: `H3_READY_FOR_PROMPT_CONTINUA` se conserva en las evidencias del hito; no equivale al estado vigente, que permanece NO-GO Development.
 
 ## Pilares Transversales Obligatorios
 
@@ -176,826 +102,173 @@ para completar sus secciones con resultados reales. La plantilla no se llena con
 intenciones, placeholders ni omisiones silenciosas; toda validacion no aplicable
 o pendiente debe indicar causa, riesgo residual y owner.
 
-## Fases
+- Candidato: `/home/romel/src/studiamatch-h3req1-sync-20261002`, rama `feat/h3req1-sync-20261002`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`; el commit `ac4a6c9b233ed450202ae9e6b09a84281fd3d8c5` contiene el candidato funcional inicial. El árbol agregado añade el checkpoint documental R17 y está delimitado por los pins y digests del manifest; la auditoría precommit histórica no sustituye esa reconciliación agregada.
+- Checkout original: `/home/romel/src/studiamatch`, rama `feat/h3req1-development-remote-tests`, HEAD `7650093b05a820e8e6faf9ec711e12fab8b50398`; se conserva en solo lectura.
+- Se preservan cambios ajenos, historia Git local, evidencia sellada, secretos y recursos Docker. Las lecturas autorizadas R16/R17 fueron read-only y se describen abajo; no se cambió configuración remota.
+- El resultado funcional R178 está en [cierre local G01–G09](evidencia/h3req1_g09_local_close_r178_2026-10-11.md). La revisión/correcciones R181/R182 y sus límites están en [revisión del delta R8](evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md), [scope scanner R181](evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt) y [scope scanner R182](evidencia/h3req1_g10_scope_scan_r182_2026-10-12.txt).
+- R8 permanece antecedente inalterado: [manifiesto R8](evidencia/h3req1_pr_scope_manifest_2026-10-12_r8.json) y [cuerpo propuesto R8](evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r8.md).
 
-| ID | Fase | Estado | Resultado vigente |
-|---|---|---|---|
-| `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
-| `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
-| `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | H3REQ1 ampliado: campos, invitaciones y hostname; MFA evolutivo fuera del gate | `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE` | GO técnico local preservado; UAT remota, 03A/03B remoto, hostnames por ambiente, Certification y contract pendientes. |
+## Fotografía R17 previa a la actualización humana vigente — histórica
 
-## Subfases F10
+R17 preserva R14/R15/R16 y corrige scope guard, workflow y pins seleccionados. El ciclo independiente 16 corrigió tres pins baseline y un follow-up detectó estados de checks desactualizados, reconciliados en el manifiesto. El ciclo independiente 17 revisó el snapshot `4513da925f7ff667bb66e037acb2e0423133881502f947011941e333b1b63515` / diff `7de593d26a349a7e787ddd5186961cda411611c670b539fe7160b6c15ade8af8`: PASS local, 0 HIGH/CRITICAL/MEDIUM/bloqueos y un LOW editorial en seis razones de checks. Se corrigieron esas razones en el manifiesto y se reconciliaron artefactos/gates afectados; `r17-independent-review` del manifiesto mantiene el estado vigente del follow-up exacto. Cierre funcional R14 no se repite donde inputs permanecen intactos. actionlint y ShellCheck focal se reutilizan por hashes intactos; diff-check continúa WARN 125/63. El responsable confirmó que quiere repetir DELETE de Outlook; la invitación accepted actual lo impide bajo FK/CHECK/trigger. C es retención alternativa no aprobada. No hubo operación remota.
 
-| ID | Estado | Identidad vigente |
+**Hechos R17:** GitHub default `main`; `desarrollo` en `4eb4d877…`; no feature remota; branch protection detallada 403; ruleset permite bypass `always` para esta conexión, que no se utiliza; PWI ausente en base. Free responde `ACTIVE_HEALTHY`, ledger 71 frente a Pro 23 y metadatos de schema/RLS/rutinas/grants divergentes. Pages despliega previews para todas las ramas; `desarrollo` sigue en baseline y Certification está en SHA `c80f6504…`, host alias `certificacion.studiamatch-aty.pages.dev`. Cloudflare documenta que Preview config/bindings aplican a todos los previews y no son branch-specific; el SHA actual de Certification no contiene `web/functions/`. Falta `ADMIN_QUOTA` y no se listan Worker/DO; `NEXT_SUPABASE_SECRET_KEY` aparece `plain_text` en Preview. La lectura actual lista `admin-invite` Free v12 (`verify_jwt=true`), `send-lead-emails` Free v21 y Pro v8. Un chequeo de `information_schema` no encontró tabla de configuración en `auth`; GET Auth settings sin API key devolvió 401 para Free/Pro, por lo que redirects, plantillas y ajustes runtime siguen sin verificación administrativa.
+
+Paquete A propone nueve migrations no aplicadas solamente en Free, luego de validar ledger/schema por hash; dos migrations ya aplicadas se omiten y Pro permanece de solo lectura. B prepara Worker/DO, bindings/variables cifradas y Edge antes de cualquier push que genere preview; registra el alcance Preview global, mantiene fuera el alias Certification y detiene si el alias del candidato difiere del esperado. C propone desactivar la membresía por RPC, cambiar el email Auth anterior a `example.invalid`, bloquear esa identidad y retirar TOTP, preservando la fila Auth, FK/invitación accepted y auditoría. C está aprobado como JIT condicional y no consumido: requiere A migration 3, B y comprobar deshabilitados ambos avisos Auth antes de escribir. D define la ventana de aceptación con efectos y recuperación. A, B y D esperan aprobaciones JIT concretas.
+
+La rama feature puede generar deployment preview automáticamente; por eso no se publica antes de preparar A/B. El filing requiere además resolver bootstrap PWI solo en `desarrollo` y una lectura de protecciones/checks/approvals que actualmente está bloqueada por 403. La autorización previa de push/PR/merge se mantiene bajo sus condiciones; no se usa bypass ni se autoaprueba.
+
+R17 conserva denominadores: D01–D14 0/14; catálogo adicional 0/11. D03 requiere A migration 3, B, las condiciones de C y el paquete D aprobado. Gmail puede actuar como admin para invitar/gestionar Outlook mediante interacción directa del responsable; no se modifica la propia cuenta Gmail. D04 usa Gmail como admin para los cambios de rol de Outlook; Outlook nunca se concede privilegios. D05 requiere cobertura aislada y JIT adicional si no puede probarse preservando Gmail y sin asumir un tercer admin.
+
+**Fotografía histórica previa a la aprobación C:** el responsable prefiere repetir el DELETE anterior para reutilizar Outlook. La invitación accepted registrada después de ese borrado ahora referencia la identidad y activa FK/CHECK/trigger que impiden repetirlo sin alterar datos históricos o el contrato. C propone una alternativa distinta: cambiar la identidad anterior a un email técnico `example.invalid`, bloquearla, desactivar membresía mediante el RPC auditado y retirar TOTP, preservando fila Auth/FK/invitación/auditoría. La respuesta posterior aprobó esta alternativa como JIT condicional no consumido; requiere A migration 3, B y verificar deshabilitadas ambas notificaciones Auth. Esto afecta el Auth compartido Free Development/Certification. C no crea invitación nueva ni autoriza el envío D03. Si no se pueden verificar los ajustes Auth, no se escribe. No se modificaron recursos remotos.
+
+**Reconciliación de paquete posterior — R17, 2026-10-14:** R17-TRACE-06 corrigió el MEDIUM de trazabilidad del ciclo 15; los checks del snapshot ciclo 17 registran docs/self-test, scope/negativos, 45/45 contratos, plantilla, exact-stage y scanners PASS. La revisión independiente ciclo 17 encontró un LOW textual en seis razones del manifiesto; se corrigieron, conservando el resultado medido y su historial. El repin y la verificación afectada se documentan en el manifiesto; no repetir actionlint/ShellCheck con hashes intactos. `git diff --cached --check` WARN cuantificado 125/63 (107 trailing whitespace, 18 blank EOF). Bootstrap protegido y JIT A/B/D siguen pendientes; C fue aprobado después como retentivo, condicional y no consumido. NO-GO Development, D01–D14 0/14, regresión adicional 0/11; no hubo cambios remotos.
+
+## Reconciliación local del candidato R14
+
+R14 combina el alcance funcional R8 con el cierre documental vigente R13 y preserva los manifiestos, cuerpos y evidencias R8/R9/R12/R13. R12 queda contenido por la versión más reciente R13; del delta R9 solo se conservan sus artefactos de evidencia y los archivos que el paquete actual requiere. No se reactivan los ocho mapas R9-only retirados que no tienen referencias en los catálogos. Se conserva la superposición R8/R13 usando los bytes actuales R13 para las rutas compartidas y la atestación cliente sanitizada; no se inspeccionó el documento privado. La corrección documental R14 retira del registro canónico tres enlaces a salidas/cache generadas excluidas del paquete; los artefactos históricos R13 permanecen intactos y el catálogo se regenera desde el JSON canónico.
+
+Los 13 catálogos vigentes contienen 1,173 destinos directos únicos después de corregir tres relaciones a salidas/cache generadas no versionables. El paquete selecciona 166 destinos directamente y el HEAD de base aporta 324 destinos versionados, con 54 rutas compartidas entre esos dos conjuntos; los 737 destinos restantes se incorporan como cierre exacto de referencias, sin seleccionar los demás archivos WIP. R14 fija 1,117 rutas propuestas: 1,082 paths con estado Git propuestos, 35 paths ignorados expresamente y el manifiesto incluido; estos totales se detallan por path en el manifiesto. De los 20,566 paths de `git status`, 19,484 quedan fuera. Los 13 logs ignorados de evidencia R8 y 22 logs de catálogo son destinos directos requeridos. El manifiesto registra los conteos, hashes, estado y origen de cada ruta. La reconciliación ejecutó 78/78 pruebas focales de contratos/workflows; alineó `security_flow` al estado R13 y quitó la rama imposible `pull_request_review` del gate H2 Stage 1, sin activar PWI Stage 2. La revisión independiente local dio PASS, 0 HIGH/CRITICAL y ningún finding de código pendiente. Las siete eliminaciones documentales R13 se mantienen como eliminaciones. No se reabre la reorganización documental.
+
+La dependencia `braces@3.0.4-h3.1` y su tarball local se mantienen sin cambios. Para G10 quedan tres opciones documentadas: conservar el snapshot y verificar procedencia/upstream antes de promoción; reemplazarlo por una versión oficial solo tras comprobar disponibilidad y equivalencia y regenerar/validar el lock; o separar el paquete hasta resolver la procedencia. R14 elige conservarlo localmente sin presentarlo como verificado upstream; responsable Romel, revisión prevista 2026-11-03.
+
+El [reporte R14](evidencia/h3req1_reconciliacion_local_2026-10-13_r14.md), [checks](evidencia/h3req1_reconciliation_checks_2026-10-13_r14.txt), [revisión independiente](evidencia/h3req1_reconciliation_independent_review_2026-10-13_r14.txt), [manifiesto del paquete](evidencia/h3req1_pr_scope_manifest_2026-10-13_r14_reconciled.json) y [cuerpo propuesto con la plantilla versionada](evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r14_reconciled.md) fijan el alcance y sus límites. El inventario observado supera veinte mil rutas WIP; solo se propone el conjunto fijado en R14. Al corte R14 no hubo commit, push, PR, lecturas/configuración remota, despliegue ni escrituras Supabase.
+
+## Corte histórico: preparación remota G10/R16
+
+Las lecturas autorizadas de preparación se refrescaron el 2026-10-14. El [reporte R16](evidencia/h3req1_g10_remote_preparation_2026-10-14_r16.md) separa hechos, discrepancias y superficies que no se pudieron consultar sin arriesgar exposición de valores. El [paquete de integración, transición y rollback](evidencia/h3req1_development_integration_package_2026-10-14_r16.md) prepara gates E0–E5 y fases `expand -> compatibilidad -> deploy -> contract`; no ejecuta ninguna. El [cuerpo local basado en la plantilla versionada](evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r16.md), [checks](evidencia/h3req1_remote_preparation_checks_2026-10-14_r16.txt), [revisión independiente](evidencia/h3req1_remote_preparation_independent_review_2026-10-14_r16.txt) y [overlay manifest](evidencia/h3req1_remote_preparation_manifest_2026-10-14_r16.json) componen el paquete revisable. La revisión independiente dio GO documental local acotado, sin hallazgos HIGH/CRITICAL adicionales; confirmó la cardinalidad del scanner (9 entries de scope más manifest). El scanner final pasó y los diez pins se repinaron tras incluir este dictamen. El scope guard sigue bloqueando el filing y el resultado remoto permanece NO-GO Development.
+
+| Plataforma | Hechos verificados R16 | Discrepancia o pendiente |
 |---|---|---|
-| `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 es el cutoff contractual de Hito 1. |
-| `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Evidencia tecnica historica preservada; no ejecutable. |
-| `F10.9` | `SUPERSEDED_BY_O0_B` | WP2B queda superseded; PR #413 cerrado sin merge y excluido. |
-| `F10.10` | `HISTORICAL_NON_PROMOTABLE` | M3 reader/DDL queda congelado; no autoriza DDL/DML ni payloads. |
-| `F10.11` | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Reemplaza WP/digest/Context Graph por flujo simple protegido; el soporte temporal fue retirado al recibir GO documental. |
+| GitHub | Default `main`; `desarrollo` sigue en baseline `4eb4…`; las tres ramas objetivo aparecen protegidas; 14/15 checks del SHA base success y uno skipped; siete workflows listados. | WIP no publicado; branch-protection detail 403; approvals/required checks desconocidos; PWI local no listado. |
+| Supabase | Pro `ACTIVE_HEALTHY`, 23 migrations hasta `20260607221002`, 18 relaciones en listado de tablas; Edge Pro `send-lead-emails` v8. Free `INACTIVE`; Edge inventory enumera invite v12 y leads v21. | Ledger/objetos Pro discrepan del candidato; Free metadata devuelve `INVALID_ARGUMENT`; Auth Pro 401 y Free DNS error. |
+| Cloudflare | Dominios `admin.studiamatch.com` y `www.studiamatch.com` activos en Pages; listados Worker y DO vacíos. | No se consultaron deployments/settings/bindings porque sus respuestas pueden incluir valores. Observaciones de deployments/`plain_text` R15 son históricas, no actuales. |
+| `braces` | PR upstream #72 cerrado/no merged; npm oficial indica 3.0.3; snapshot conserva SHA registrado y 9/10 blobs del commit público. | Snapshot local no es release oficial; bytes y pin permanecen sin cambio. |
 
-## Bases Vinculantes
+No se leyeron filas operativas, usuarios, buzones, tokens ni valores secretos. No hubo RPC mutadora, DDL/DML, workflow, PR, push, merge, deploy, purga ni cambio remoto. D01–D14 siguen 0/14. **NO-GO Development.**
 
-| Concepto | Valor |
-|---|---|
-| Requerimiento | `REQ-EST-001` |
-| Cutoff contractual Hito 1 | PR #291 / `64e4ed895d43121c5683e26a355993f18e528a5c` |
-| Baseline tecnico | PR #327 / `main@ad89e8ab9575b37476502d6062e22c044ad6447b` |
-| Tree tecnico | `54098b3ff581cc7728979afc8e6d47c9535141b5` |
-| Autoridad funcional | `desarrollo@9f163c2c5f8dc54b4986ce75ef1d5c69a740bedf` |
-| Certificacion preservada | `certificacion@33b1c9ec3c49117c2020860d5850d9d67988f836` |
-| PR #413 | `CLOSED_NOT_MERGED_EXCLUDED`, head `4461f13c79ac893cb428074a729d75140056557b` |
-| Archives Etapa 1 | `archive/post-h1-desarrollo-20260820-9f163c2`, `archive/post-h1-certificacion-20260820-33b1c9e` |
-| Desarrollo canonico O2 | `desarrollo@a2c97ec17aabc790b656d6db1b16bdc95f0af1b2` |
-| Certificacion canonica O2 | `certificacion@4e7e41a9fac08e657308849701b4b1f70b994e3b` |
-| Tree canonico O2 | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` |
+Validación local de scope: `tests/test_protected_path_scope_guard.sh` abortó por `referenced target hash differs: .context/componentes/admin_runtime.md`, porque consume el pin inmutable R14 y el overlay R15 actualiza esa ruta. La comparación separada extrae los tres matchers de `.github/workflows/security-audit.yml` y acepta 7/11 rutas R16: no se aceptan el log R181 citado por el estado, checks, revisión ni manifest. La comprobación de referencias añadió solo ese log R181 al overlay para que la evidencia citada esté disponible; no se editó el guard/workflow ni se incluyó el resto del WIP. Ver la [señal local R16](evidencia/h3req1_g10_remote_preparation_2026-10-14_r16.md#señal-local-de-reconciliación-del-scope-guard).
 
-## Tarea Activa
+## Corte histórico: preparación remota G10/R15
 
-- Requerimiento: `REQ-EST-001`.
-- Hito: [HITO-003](hitos/hito_003.md).
-- Tarea H3: `TASK-H3-001` en el backlog canónico versionado: `backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md`.
-- Subfase tecnica activa: `F11`.
-- Work package activo: `NONE_SUPERSEDED`.
-- Work package completado: `NONE_APPLICABLE`.
-- Gate técnico local: `H3_PR_DEVELOPMENT_READY_LOCAL`; gate de cierre vigente: `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`.
-- UAT canónica histórica: `47/47` casos y `141/141` ejecuciones PASS con 141
-  screenshots y 0 retries, evidencia en `.context/evidencia/h3-expanded/`. La
-  regresión A6/A13 del delta `20260903` fue revalidada separadamente en PG17.
-- Build normal/mock revalidado en Docker: PASS; rutas admin exportadas presentes.
-  El waiver de static export queda superseded para el candidato actual.
-- Gates reejecutados en Docker: suite CI-local 142 PASS; TypeScript PASS; lint 0
-  errores y 9 warnings históricos; py_compile PASS; credential scan PASS;
-  `git diff --check` limpio; actionlint/shellcheck PASS; H2/H2-Pro/H3 PG17
-  `h3_pg17_harness_ok` (incluye regresión A6/A13);
-  gate `protected-paths` emulado `GATE_OK`. `pytest -q` global indiscriminado no es
-  válido por recolectar worktrees históricos y tests de integración fuera del gate,
-  y produjo 540 errores de colección.
-- Auditorías especializadas del ciclo previo quedaron resueltas para el alcance
-  local. JIT-A remoto tiene `20260903` aplicado en Free y A6/A13 corregidos; JIT-DEV
-  dejó el ambiente limpio después de probar usuarios/factores temporales. JIT-B
-  valida el perímetro y membresía Cloudflare, pero la UAT administrativa completa
-  debe usar el deployment/preview correcto por ambiente; E2/E5/E6/E7 no se cierran
-  contra `admin.studiamatch.com` mientras este siga asociado al proyecto productivo.
-- Commit + push + PR protegido a `desarrollo` quedaron **autorizados por
-  instrucción humana separada** y se ejecutan con la plantilla de PR.
-- Gates remotos posteriores y separados: UAT administrativa por ambiente, proyecto/
-  artefacto Pages admin separado, políticas Access por ambiente, 404 público estable,
-  promoción a `certificacion`, merge y deploy. No se ejecutan sin su aprobación.
+Las lecturas iniciales se realizaron el 2026-10-13 18:30:52 UTC. El [reporte R15](evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md), [paquete](evidencia/h3req1_development_integration_package_2026-10-13_r15.md), [checks](evidencia/h3req1_remote_preparation_checks_2026-10-13_r15.txt), [revisión independiente](evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt), [body](evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r15_remote_prep.md) y [manifest overlay](evidencia/h3req1_remote_preparation_manifest_2026-10-13_r15.json) se conservan como corte histórico. R16 sustituye la actualidad de las observaciones de GitHub/Supabase que volvió a consultar y no puede revalidar deployments/bindings Cloudflare sin arriesgar que se devuelvan valores. La revisión local GO R15 sigue limitada a su snapshot y no acredita estado remoto ni readiness actual. El path guard aceptó 17/20 rutas R15; el bloqueo permanece.
 
-### Matriz de avance H3REQ1 ampliado
-
-Los porcentajes son estimaciones separadas: implementación no equivale a aceptación; validación exigida solo por evidencia ejecutada y reproducible. La UAT local acredita el cierre local. Development remoto sobre Free valida actualmente el contrato A6/A13 y el entorno de datos; la UAT administrativa/Pages/Access debe ejecutarse contra el deployment correcto de la rama antes de certificar.
-
-| Criterio | Implementación | Validación verificable | Bloqueo principal |
-|---|---:|---:|---|
-| H3-CA4 local | 78.7% provisional | GO técnico local | `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`; porcentajes previos conservados solo como estimación, no cierre contractual. |
-| H3-CA4.1 Auth/RBAC | 90% | 85% | UAT local cubre RBAC y negativos; Auth real pendiente de JIT. |
-| H3-CA4.2 Ownership | 85% | 75% | 13 campos y `missing_fields` cubiertos por UAT; falta entorno real. |
-| H3-CA4.3 Transporte independiente | 60% | 40% | Fixture E2E diferenciando cuatro campos validado local; falta entorno real. |
-| H3-CA4.4 Cola | 85% | 70% | Paginación, cursor y filtros cubiertos por UAT; falta entorno real. |
-| H3-CA4.5 Mutaciones | 90% | 75% | Mutaciones admin y locking cubiertos por UAT; falta entorno real. |
-| H3-CA4.6 Auditoría | 85% | 60% | Auditoría append-only cubierta por UAT; falta entorno real. |
-| H3-CA4.7 MFA/`aal2` (fuera del gate) | Evolutivo | No bloqueante | Implementación existente conservada como compatibilidad/mejora evolutiva; no se requiere Auth real para cerrar H3REQ1. |
-| H3-CA4.8 Membresías/invitaciones | 85% | 55% | Gestión, último admin, Edge 03A y DB onboarding 03B cubiertos localmente; falta Auth/frontend real y UAT remota. |
-| H3-CA4.9 Hostname/perímetro | 60% | 40% | Perímetro Access y 404 público parcial; falta separar el deployment admin por ambiente y validar cada hostname contra su SHA. |
-| H3-CA4.10 Convergencia Pro/Free/local | 55% | 35% | PG17 y Free validados; falta diff completo/remoto con Pro como baseline y configuración por ambiente. |
-| H3-CA4.11 UAT/artifacts | 100% estructural | 55% contractual | UAT canónica 47/47 y 141/141 PASS con 0 retries regenerada el 2026-09-02; evidencia autocontenida en `.context/evidencia/h3-expanded/`; falta UAT real en Free/Certification. |
-| **Promedio simple** | **78.7% provisional** | **No aplica como cierre** | **`NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE`; UAT administrativa por ambiente, 03A/03B remoto, separación Pages/Access y Certification pendientes.** |
-
-## Estado De Hitos Sprint 1
-
-| Hito | Estado | Tarea |
+| Plataforma | Hechos verificados | Discrepancia o pendiente que bloquea adopción |
 |---|---|---|
-| `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN` | `TASK-H2-001` |
-| `HITO-003` | `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE` | `TASK-H3-001` |
-| `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
-| `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
-
-## Activacion Documental
-
-| Etapa | Estado | Evidencia |
-|---|---|---|
-| Baseline local | `COMPLETED` | `origin/main@9b486146962bd2a092acfd649fdcf716e922de89` |
-| WIP previo | `DISCARDED_BY_AUTHORIZATION` | No se preserva WIP fuera del baseline. |
-| Flujo simple | `DEPLOYED_TO_MAIN` | PR #451 a `desarrollo`, PR #452 a `certificacion`, PR #453 a `main`. |
-| GO documental | `RECEIVED` | Pedido humano: aplicar actualizacion documental completa y retirar soporte temporal. |
-| Soporte temporal raiz | `REMOVED` | `REDEFINICION.md` eliminado definitivamente; no debe recrearse. |
-| Plan vinculante | `MOVED_TO_OBSIDIAN` | [Plan vinculante nuevo pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md). |
-| Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
-| CI/CD DB Sync Pro | `H2_VERIFY_NO_OP_APPLY_GATE_FIXED` | Workflow `db-sync-to-pro.yml` ajustado en PRs #480/#481 para que el job `Apply pending migrations` tenga exito como no-op bajo `operation=verify` cuando no hay migraciones pendientes, permitiendo generar el artifact H2 requerido por `security-audit`. |
-| Base de datos | `PRO_EXPAND_APPLIED_AND_VERIFIED` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed, fix de vista y compatibilidad legacy aplicados/verificados en Supabase Free. El manifiesto `h2-expand-compat` fue aplicado y verificado en Pro con backup/PITR verificado; baseline elegible productivo `224`, evidence canonico del run `33143730910` y rerun `33188932351` success, advisors sin hallazgos HIGH/CRITICAL. |
-| Evidencia cliente | `GRADE_A_CLIENT_SOURCE_VALIDATED_H2_CERTIFICACION` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, validacion contra `SRC-REQ-002` via adenda sanitizada, PRs #458/#459/#460 mergeados y QA read-only definida. |
-| QA certificacion previa | `PASS_CERTIFICATION_READ_ONLY_QA` | [QA H2/H3 read-only](operaciones/h2_h3_certification_readonly_qa.md) ejecutada antes de la compatibilidad legacy: suite `108 passed`, build/static smoke PASS, vista publica sin privados y advisors sin bloqueantes H2. |
-| Compatibilidad Desarrollo | `MERGED_TO_DESARROLLO_READY_FOR_CERTIFICATION_PROMOTION` | PR #466 mergeado a `desarrollo` en `e8376035d8d5c3e1b7893cbb1ede14f735ccd05d`; post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Preview final `af2ac376` valida Home, detalle, comparador, HTML inicial correcto, bundle sin `ratings`/`reviews` y rutas relacionadas `200`. |
-| Compatibilidad Certificacion | `MERGED_AND_DEPLOYED_STABLE` | PR #467 mergeado a `certificacion` en `2d499324bb21e750d9bc7c94cb80e7a193062b50`; deployment `4cc2e34c`; checks verdes; host `https://certificacion.studiamatch-aty.pages.dev/` con Home, detalle y comparador `200`. |
-| Remediacion productiva | `H2_EXPAND_VERIFIED_AND_PROMOTED_MAIN` | [Plan De Remediacion Productiva H2](operaciones/h2_production_remediation_plan.md), evidence canonico del run `33143730910`, rerun `33188932351` success y PR #486 mergeado a `main`. |
-
-## H3-BUILD-03B DB Implementation (2026-09-21)
-
-El checkpoint `H3-BUILD-03B-DB-IMPLEMENTATION` fue implementado y validado
-localmente en Docker PostgreSQL 17. La evidencia canonica del ciclo es
-`.context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_db_implementation_local_2026-09-21.md` y el reporte detallado es
-`STUDIAMATCH-INFORME-IMPLEMENTACION-H3-BUILD-03B-DB-2026-09-21.md`.
-
-### Cambios validados
-
-- Nueva migracion expand-only `db/migrations/20260921_h3_invitation_onboarding_rpc.sql`.
-- TTL server-side de 24 horas desde `last_sent_at`/`sent_at` interno.
-- RPCs `admin_accept_current_invitation`, `admin_complete_password_setup` y
-  `admin_get_onboarding_status`.
-- Locks por email/usuario/invitacion/membresia, expiracion lazy e idempotencia.
-- Auditoria `accept`, `expire` y `password_set` sin duplicados efectivos.
-- ACL minima, `SECURITY DEFINER`, search path explicito y sin exposicion de
-  token, password o secretos.
-- Harness nuevo integrado en `tests/sql/h3_pg17_harness.sql`.
-
-### Validacion
-
-- `h3_invitation_onboarding_harness_ok`.
-- `h3_pg17_harness_ok`.
-- `h3_invitation_edge_runtime_harness_ok`.
-- Credential scan PASS.
-- `git diff --check` PASS.
-
-### Estado y limites
-
-Estado: `H3-BUILD-03B-DB_LOCAL_VALIDATED`.
-
-No se ejecutaron migraciones remotas, writes Supabase, Auth remoto, deploy,
-schedules, workflow dispatch, commit, push, PR ni merge. Las migraciones
-`20260918`, `20260919` y `20260920` permanecen intactas. Las invitaciones
-anteriores al nuevo contrato no recibieron backfill DML.
-
-### Expand -> compatibilidad -> deploy -> contract
-
-- `expand`: nueva migracion y RPCs, conservando columnas/firmas legacy.
-- `compatibilidad`: runtime Edge 03A, Auth-owned token y usuarios legacy `ready`
-  permanecen soportados.
-- `deploy`: pendiente de aprobacion JIT y validacion Free/Certification/Pro.
-- `contract`: pendiente de callback/frontend validado y retiro controlado de
-  compatibilidad.
-- Rollback: futura migracion aprobada; no editar historicos ni aplicar rollback
-  remoto implícito.
-
-## Alcance Inmediato
-
-El alcance inmediato es versionar la remediacion productiva H2 y habilitar el
-flujo protegido hacia `main` sin ejecutarlo. Pro, `main`, writers, schedules,
-deploys manuales o DML adicional requieren aprobacion JIT separada. La secuencia
-obligatoria para produccion es expandir y verificar Pro antes del deploy frontend.
-`web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
-`scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
-salvo autorizacion separada. H2 fue mergeado por PR #458 a `desarrollo`, PR #459
-agrego gate documental post-merge y PR #460 lo promovio a `certificacion`, todos
-con CI verde. Forward-fix, remediacion Security Advisor, backfill editorial,
-seed, fix de vista publica y compatibilidad legacy aplicados/verificados en
-Supabase Free. La web real de Certificacion muestra cursos reales; la limpieza de
-calidad quedo validada remotamente en preview Cloudflare `4cc2e34c`. Pro, writer,
-schedule o nueva accion remota requiere aprobacion JIT separada.
-
-## H3-BUILD-03B Frontend Auth (2026-09-22)
-
-El checkpoint frontend quedó implementado y validado localmente en Docker como
-`H3-BUILD-03B-FRONTEND_AUTH_LOCAL_VALIDATED_WITH_RESIDUALS`. La evidencia
-canonica es `.context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_frontend_auth_local_2026-09-22.md`.
-
-- Cliente browser oficial Supabase con PKCE, persistencia de sesión compatible y
-  `detectSessionInUrl = false`.
-- Callback `/admin/auth/callback/` con exchange único, limpieza de URL,
-  aceptación RPC y destinos internos fijos.
-- Pantallas `/admin/accept-invite/` y `/admin/setup-password/` consumiendo las
-  tres RPCs de onboarding; password enviada solo a Auth, nunca al RPC.
-- Login/MFA legacy preservado como compatibilidad; MFA queda fuera del gate de
-  aceptación por decisión de alcance.
-- Mock local extendido para grant PKCE one-shot, actualización de password y
-  RPCs de onboarding.
-- `tsc`, lint sin errores, build normal, build mock, contratos focalizados,
-  credential scan y `git diff --check` PASS. Lint mantiene 9 warnings históricos
-  fuera del delta.
-- `npm audit --omit=dev --audit-level=high` conserva 16 hallazgos HIGH y 1
-  CRITICAL de dependencias transitorias; no se aplicó `npm audit fix` fuera del
-  alcance.
-
-No se ejecutaron Auth remoto, writes Supabase, migraciones remotas, deploy,
-workflow dispatch, commit, push, PR, merge ni promoción protegida. Mock UAT-02
-validó localmente callback, aceptación y password setup; el siguiente gate es UAT
-remota por ambiente.
-
-## Orden Vinculante Nuevo Pedido
-
-```text
-Intake documental
--> H2 Modelo editorial y pipeline tolerante a incompletos
--> H3 Administracion editorial autenticada
--> H1 Automatizacion segura y reactivacion gradual
--> H4 Home publica y documentacion tecnica
--> H5 Resultados publicos, filtros y cards
-```
-
-## Siguiente Gate
-
-El checkpoint local `H3-BUILD-03B-FRONTEND-AUTH` y Mock UAT-02 quedaron validados.
-El siguiente gate es UAT remota por ambiente, validación 03A/03B, Certification y
-`contract/cleanup`. Supabase remoto, deploy, workflow dispatch, commit, push, PR,
-merge y contract/cleanup requieren aprobaciones separadas.
-
-H2REQ1 esta cerrado: `h2-expand-compat` fue aplicado y verificado en Pro,
-la evidencia canonica esta en `.context/operaciones/h2_main_production_expand_evidence.json`
-y la promocion `certificacion -> main` fue completada por PR #486.
-
-La UAT ampliada de H3REQ1 alcanzó dos corridas estructurales 47/47 y 141/141 PASS,
-pero la auditoría de readiness posterior revocó el GO para PR y dejó el estado
-`H3_PR_DEVELOPMENT_NO_GO` (histórico). El build normal y mock ya pasaban en Docker
-y las rutas admin se exportaban, por lo que el waiver de static export quedó
-superseded; persistían bloqueadores reproducibles en CI, invariantes DB, MFA
-real, cobertura E2E, rollback y vinculación de evidencia al candidato. La
-atestación sanitizada
-`.context/evidencias_cliente/sprint_1/atestado_h3_ampliacion_prompt_humano_sanitizado.md`
-autorizó la corrección local hasta GO verificable. El ciclo siguiente resolvió esos
-bloqueadores y dejó el estado `H3_PR_DEVELOPMENT_READY_LOCAL`.
-
-### Ciclo de corrección local (2026-09-02) — bloqueadores HIGH/CRITICAL resueltos
-
-Correcciones aplicadas y revalidadas en Docker (sin push/PR/remoto):
-
-1. `security-audit.yml`: eliminada la línea corrupta bajo `h2-main-production-expand-gate:`
-   (YAML parse OK) y reescrita la allowlist de `protected-paths` con el contrato H3
-   explícito (`20260828_h3_admin_*`, `20260829_h3_rbac_users`, `20260830_h3_expanded_contract`,
-   `20260902_h3_pr_contract`, `20260903_h3_rbac_contract_fix`, seed, harnesses,
-   archivos admin web, workflows). El job
-   `db-gate` ahora también crea la DB `h3_gate` y ejecuta `h3_pg17_harness.sql`.
-   Gate replicado localmente con el diff real de `protected-paths` vs baseline
-   `9b486146…`: `GATE_OK` (57 archivos en scope, todos allowlisted, incluida la
-   restauración del sufijo `\.sql` compartido de migraciones H2/H3).
-2. Migración `20260902_h3_pr_contract.sql`: `admin_get_course_editorial` devuelve valores
-   efectivos consistentes (`current_values` + `current_value` por field) y
-   `admin_publish_course` aplica gate de publicabilidad (rechaza `pending`/missing con
-   error `Course is not publishable: pending quality or missing fields`).
-3. Seed `h3_admin_seed_local.sql` idempotente (`ON CONFLICT DO NOTHING`) y con categorías
-   asignadas a los 30 cursos fixture; el recompute de calidad tras ediciones ya no
-   degrada cursos completos (30/30 con `category_id`).
-4. Harness `h3_pg17_harness.sql` (CI, destructivo): re-run de seed idempotente, lector
-   efectivo, rechazo de publish en draft incompleto y publish exitoso con auditoría;
-   desde el candidato actual también cubre la regresión A6/A13 del delta `20260903`.
-   Verificado en PG17 (`h3_gate3`): `h3_pg17_harness_ok`.
-5. Harness `h3_pg17_harness_local.sql` (local, rollback): guard de idempotencia de seed +
-   gate de publish + lector efectivo. Verificado en `studiamatch_h3`:
-   `h3_pg17_harness_local_ok` (baseline DB restaurado a la seed canónica).
-6. MFA: `admin-auth.ts` normaliza `enrollTotp` (shape anidada real y top-level mock),
-   resuelve `aal` (top-level → decode JWT → `aal1`) sin forzar `aal2`, y el login
-   (`web/src/app/admin/login/page.tsx`) muestra el panel “Registra tu autenticador”
-   (QR `data:image`, secreto agrupado, `otpauth URI`) cuando el factor no está verificado.
-7. Harness local spec `tests/h3_local_uat.spec.mjs` retirado (duplicado del runner canónico).
-8. `.gitignore` actualizado (evidencia stale, `.worktrees/`, logs y node_modules del mock).
-
-Validaciones del ciclo (local, Docker): TypeScript `tsc --noEmit` 0 errores; `npm run lint`
-0 errores; build normal y `build:mock` estáticos PASS (rutas admin presentes);
-`scripts/security/h2_web_mock_smoke.sh` PASS; actionlint y shellcheck PASS; suite CI-local
-142 tests PASS; `py_compile`, credential scan y `git diff --check` PASS; H2/H2-Pro/H3
-PG17 PASS con `h3_pg17_harness_ok` y regresión A6/A13.
-
-Estado resultante: `H3_PR_DEVELOPMENT_READY_LOCAL` (GO para PR a `desarrollo`). El PR
-incluye el delta `20260903` y documentación JIT sincronizada, sin afirmar aplicación
-remota posterior. JIT-A mantiene A6/A13 históricos FAIL hasta revalidación; JIT-B
-mantiene E1/E3/E4/E8 PASS y E2/E5/E6/E7 pendientes. Commit + push + PR protegido a
-`desarrollo` siguen la plantilla `.github/pull_request_template.md`; la aplicación
-remota del delta, configuración Auth, dependencia build, certificación y deploy
-requieren aprobaciones separadas.
-
-### Remediación local de cierre H3REQ1 (2026-09-23)
-
-Con autorización humana `continua` se ejecutó únicamente el ciclo local. Se corrigió
-el runner `tests/h3_local_uat.mjs` para consumir la sesión persistida por el cliente
-oficial PKCE (`*-auth-token`, `access_token`, `refresh_token`), se hizo configurable
-el Chromium instalado en Docker y el mock reconstruye sus identidades RBAC estables
-antes de cada corrida. No se modificaron ambientes Supabase ni se ejecutaron
-deploy, workflow dispatch, commit, push, PR, merge o promoción protegida.
-
-Evidencia nueva y reproducible:
-
-- `.context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_remediation_local_2026-09-23.md`.
-- `.context/evidencia/h3req1_uat_matrix_local_2026-09-23.md`.
-- `.context/evidencia/h3req1_remediation_report_2026-09-23.md`.
-- `.context/evidencia/h3-expanded/h3-expanded-uat-matrix.json`: 47/47 casos y
-  141/141 ejecuciones PASS, 141 screenshots y 0 retries.
-- `tests/h3_invitation_uat.mjs`: 9/9 casos de invitación PASS, incluyendo user/admin,
-  aceptación, password setup, expiración, revocación, resend/supersede, redirect y replay.
-- Harness PG17 limpio: `h3_invitation_onboarding_harness_ok` y
-  `h3_pg17_harness_ok`.
-
-La matriz UAT local registra `PASS` únicamente para la evidencia local. El estado
-contractual vivo permanece `NO-GO_H3REQ1_CLOSURE_REMOTE_EVIDENCE_INCOMPLETE` porque
-siguen pendientes Auth/PKCE y correo real, aplicación y validación remota 03A/03B,
-UAT por ambiente, hostnames Development/Certification, Certification, Pro H3,
-deploy y `contract/cleanup`. No se declara cierre definitivo. MFA/`aal2` permanece
-fuera del gate H3REQ1 y como mejora evolutiva; su compatibilidad existente no fue
-retirada.
-
-### Ciclo 3 — afinación documental del plan y baseline local
-
-El 2026-09-24 se afinó únicamente `.context/operaciones/h3req1_remediation_plan_2026-09-24.md`
-y la ficha read-only del ciclo 2. No se modificó código, SQL, Edge, frontend ni
-pruebas; tampoco se ejecutaron DDL, writes, Auth, correo, deploy, push, PR,
-merge, cleanup, rollback o promoción. R1 queda clasificado como `PASS` por la
-captura read-only, mientras H3-001 sigue `FAIL` por drift Pro y H3-002/H3-003/
-H3-004 siguen `BLOCKED`. El siguiente paso autorizado es preparar el delta
-exacto y solicitar los paquetes JIT separados; no aplicar migraciones ni iniciar
-UAT con la evidencia actual.
-
-La validación Docker/PG17 del ciclo 3 cerró `LOCAL-VAL-001` y `LOCAL-VAL-002`
-como `PASS`: harness canónico limpio en `h3_cycle3_clean`, con resultados
-`h3_pg17_harness_ok` y `h3_invitation_onboarding_harness_ok`. Los contratos H3
-focalizados quedaron 8/8 `PASS`, la UAT mock de invitación 9/9 `PASS`, build
-mock, TypeScript, credential scan, sintaxis y perímetro local `PASS`. `pytest`
-continúa `BLOCKED` porque no está instalado en la imagen Docker y no se infiere
-PASS por otra herramienta.
-
-La revalidación remota read-only del ciclo 3 confirma: Free con 15 migraciones
-H3 relacionadas y `admin-invite` v3 `ACTIVE`/`verify_jwt=true`; Pro con 0
-migraciones H3, sin `admin_members`, `admin_membership_audit` ni
-`admin_invitations`, y sin `admin-invite`. En aquel snapshot el hardening
-registrado en Free no tenía archivo correspondiente en el checkout. El ciclo 4
-lo recuperó y lo validó localmente; queda pendiente únicamente su
-reconciliación after-apply remota. Estado contractual: H3-001 `FAIL`;
-H3-002/H3-003/H3-004 `BLOCKED`; no se solicita Certification.
-
-### Ciclo 4 — hardening local H3REQ1
-
-Se corrigió el bloqueador local de SQL no reproducible: las migraciones de
-hardening 20260924 fueron reincorporadas al checkout principal desde el
-worktree de remediación y validadas en PG17 limpio. El nuevo harness acredita
-protección de onboarding incompleto, RBAC de admin/user/inactivo, último admin,
-auditoría append-only compatible y preservación legacy. Resultado local:
-`h3_onboarding_rbac_hardening_harness_ok` y `h3_pg17_harness_ok`.
-
-También quedaron `PASS` los 60 tests focalizados con pytest, TypeScript,
-build normal, build mock, credential scan, sintaxis y UAT mock 9/9. Las
-dependencias de pytest quedaron versionadas con hashes en
-`requirements-pipeline.txt`. Los 9
-warnings ESLint históricos permanecen sin errores.
-
-Esto no cierra el gate remoto. H3-001 sigue `FAIL` porque Pro no tiene el
-baseline H3; H3-002/H3-003/H3-004 siguen `BLOCKED` por falta de DDL, Auth/correo,
-Edge/Pages, contract, cleanup y rollback autorizados. Estado: `NO-GO`.
-
-El ciclo 5 corrigió los dos hallazgos locales HIGH/MEDIUM del auditor: la ruta
-legacy `admin_create_member` ahora rechaza creación directa y el harness PG17
-comprueba ACL/RLS de roles PostgREST. Los tests focalizados siguen 60/60
-`PASS`; esto mantiene GO técnico local, pero no convierte evidencia local en
-GO contractual remoto.
-
-El ciclo 6 cerró la brecha de visibilidad operativa: se añadió el lector
-aditivo `admin_list_members_onboarding` y la pantalla de miembros lo consume,
-sin retirar el RPC legacy. TypeScript, build mock, lint sin errores, credential
-scan, harness PG17 y tests focalizados permanecen `PASS`.
-
-El ciclo 6 también alineó el mock server con ese RPC aditivo y limpió el lock
-de Pygments para que `requirements-pipeline.txt` mantenga un único bloque con
-hash reproducible. El gate remoto continúa `NO-GO` hasta las autorizaciones JIT
-y la convergencia Free/Pro.
-
-La reauditoría del ciclo 7 cerró los hallazgos locales restantes: mock reader
-protegido por RPC, fixture PG17 coherente, legacy guard probado contra un user
-`ready` real, lock pytest/Pygments reproducible y sin HIGH/MEDIUM local abierto.
-H3REQ1 queda en `GO técnico local`, pero sigue `NO-GO contractual remoto` por
-Pro sin baseline H3 y por falta de DDL/Auth/Edge/Pages/contract/rollback con
-autorización JIT.
-
-## Continuación del ciclo Development/Free — 2026-09-26
-
-El preflight y la revalidación posterior a `continua` conservaron el estado
-`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`. No se crearon usuarios,
-invitaciones ni datos temporales y no se ejecutaron writes remotos.
-
-- Free mantiene las dos migraciones `20260925`, las tablas H3 con RLS, las RPCs
-  hardenizadas y `admin-invite` versión 4 `ACTIVE` con `verify_jwt=true`.
-- El baseline final read-only permanece en 3 miembros activos, 0 invitaciones,
-  0 huérfanas, 1 auditoría y 4 usuarios Auth.
-- H3-001 Free queda `PASS`; H3-002, H3-003 y H3-004 permanecen `BLOCKED` por
-  falta de sesión admin AAL2, buzón accesible, hostname/artefacto Pages de
-  Development y rollback autorizado.
-- La validación Docker local quedó `PASS` para 60 contratos focalizados,
-  `h3_pg17_harness_ok`, TypeScript, lint sin errores, credential scan, sintaxis
-  y `git diff --check`. El build pasó con `NEXT_PUBLIC_H3_MOCK_URL` vacío; el
-  intento con `.env.local` cargado fue bloqueado correctamente por el guard de
-  producción contra variables de mock.
-- Los smokes Edge sin autorización devolvieron HTTP 401 y el conteo final
-  confirmó ausencia de mutaciones.
-
-El siguiente gate exacto es materializar fuera del chat la sesión admin
-ready/AAL2 y el buzón temporal, y obtener el hostname/artefacto Development
-correcto. Si se necesita frontend remoto, debe recibirse la autorización JIT
-Pages/preview separada. Hasta entonces no se ejecuta UAT Auth, cleanup,
-rollback, Certification, Pro, Production, push, PR o promoción.
-
-La revalidación de intake de las 13:12 UTC recibió la opción humana
-`A+B+C + continua`, pero la sesión admin, el buzón y el artefacto/hostname no
-quedaron materializados en las herramientas disponibles. La autorización no se
-consumió y el estado continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`, sin
-usuarios temporales, invitaciones ni writes remotos.
-
-### Revalidación coordinada y cierre del ciclo — 2026-09-26T14:40:25Z
-
-Ambiente único: Free/Development, project ref `aqrldlmlszjtgpqiegaa`, URL
-`https://aqrldlmlszjtgpqiegaa.supabase.co`. Checkout local evaluado:
-`97168646b2a6bbd8e59f6d704446759303e11e64`; Edge Development `admin-invite`
-remoto: versión `4`, `ACTIVE`, `verify_jwt=true`, bundle SHA
-`fc6e0c3dfdb337f4fcd38cdc75a74c0a73392673d78e169bc0125f8ca655a313`.
-
-Se consumió la autorización JIT consolidada para corregir únicamente el drift
-ACL de `public.admin_members`. El artefacto fuera del repositorio fue
-`h3req1_admin_members_acl_delta_20260926.sql`, SHA-256
-`39d5a2e852cebad117f7292591d0658255281804915ad7fdfec968f3366636ef`; la
-migración remota quedó registrada como
-`h3req1_admin_members_acl_delta_20260926` en la versión
-`20260926143836`. No se aplicó otro DDL.
-
-La revalidación after-apply quedó `PASS`: `anon` y `authenticated` ya no tienen
-ningún privilegio directo sobre `public.admin_members`; RLS continúa habilitado
-en las tres tablas H3; el guard legacy y
-`admin_list_members_onboarding()` permanecen presentes; los conteos no cambiaron
-(3 membresías, 2 admins activos/ready, 4 usuarios Auth, 0 invitaciones, 0
-huérfanas, 1 auditoría, 0 temporales, 0 filas de auditoría con marcadores de
-secretos). H3-001 Free queda `PASS`.
-
-La validación Docker quedó `PASS`: 60 contratos focalizados, 142 regresiones
-offline, TypeScript, credential scan, sintaxis Python/Node, `git diff --check`,
-build normal con `NEXT_PUBLIC_H3_MOCK_URL` vacío, build mock, UAT mock de
-invitación 9/9, `h3_pg17_harness_ok`,
-`h3_invitation_onboarding_harness_ok`,
-`h3_onboarding_rbac_hardening_harness_ok`,
-`h3_invitation_edge_runtime_harness_ok`, `h3_pg17_harness_local_ok`,
-`h2_pg17_harness_ok` y regresiones A6/A13. Los DB/containers temporales creados
-para esta ejecución fueron eliminados; no se modificaron otros datos locales.
-
-La auditoría de dependencias se ejecutó en Docker y queda `FAIL` residual:
-`npm audit --omit=dev --audit-level=high` reportó 36 vulnerabilidades, incluidas
-16 HIGH y 1 CRITICAL. No se ejecutó `npm audit fix` porque cambiar dependencias
-queda fuera de este ciclo; este hallazgo por sí solo impide cualquier GO.
-
-La selección humana de sesión admin, buzón y Pages no pudo materializarse en el
-entorno: el navegador disponible continúa fuera del hostname administrativo, no
-hay buzón/API conectado y el preview conocido mantiene 404 en callback,
-aceptación y setup de password. No se generó `run_id` ni se ejecutaron Auth,
-correo, PKCE, callback real, RBAC remoto por actor, cleanup remoto, rollback o
-Pages. H3-002, H3-003 y H3-004 permanecen `BLOCKED`.
-
-Rollback previsto del delta ACL: restaurar, solo con autorización separada, los
-privilegios previos de `anon` y `authenticated`; no se ejecutó rollback. Riesgo
-residual: falta evidencia remota de correo/Auth/PKCE, UAT por rol, hostname y
-artefacto Pages Development, y drill de rollback. El estado vigente permanece
-`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`; siguiente acción exacta: conectar
-la sesión admin `active/ready/aal2`, el buzón temporal y el hostname/artefacto
-Development desde el entorno seguro, sin compartir secretos.
-
-### Verificación posterior a `continua` — 2026-09-26T14:49:35Z
-
-La materialización se volvió a comprobar en modo read-only: no hay páginas
-Chrome DevTools abiertas y el navegador accesible continúa en una API de GitHub,
-no en el hostname administrativo Free/Development. Tampoco se expuso un buzón o
-API temporal al entorno de ejecución. No se generó `run_id`, no hubo Auth,
-correo, UAT remota, cleanup ni nuevos writes. El estado permanece
-`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`; siguiente acción: conectar esos
-inputs reales sin compartir secretos.
-
-### Pages/preview H3 recovery — 2026-09-26T17:38:49Z
-
-Se consumió la autorización JIT Pages/preview exclusivamente para
-Free/Development. El artefacto local incluye la nueva ruta separada
-`/admin/reset-password/`, además de `/admin/auth/callback/`,
-`/admin/accept-invite/` y `/admin/setup-password/`; la recuperación actualiza
-password únicamente mediante Supabase Auth y no invoca RPC de onboarding.
-
-Validación Docker: 165 pruebas contractuales/regresiones `PASS`, TypeScript
-`PASS`, credential scan `PASS`, Python compile `PASS`, build normal `PASS` (243
-páginas), build mock `PASS` (17 páginas), smoke Playwright de recovery `PASS` y
-`git diff --check` `PASS`. Las siete rutas administrativas se generaron y
-respondieron `200` en el servidor estático local; el callback de recovery limpia
-la URL y rechaza tipos de enlace no `recovery`.
-
-Preview Pages publicado en el proyecto `studiamatch`, ambiente `preview`, rama
-`feat/h3req1-development-remote-tests`: deployment `946d11cc`, URL canónica
-`https://946d11cc.studiamatch-aty.pages.dev` y alias operativo
-`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`. El deployment
-quedó `success` y asociado al commit base
-`97168646b2a6bbd8e59f6d704446759303e11e64` con cambios locales marcados como
-dirty. El smoke remoto del alias respondió `200` para `/admin/`, login,
-callback, aceptación, setup, recovery y users; recovery no expuso marcadores de
-token en el HTML.
-
-Para hacer operativo el preview se añadió únicamente el alias real a
-`ADMIN_ALLOWED_HOSTS` del entorno Preview de Pages, preservando el host anterior;
-no se alteró la configuración Production. No se ejecutaron Auth, correo, DDL,
-Edge, usuarios, MFA, cleanup, rollback, push, PR, merge ni promoción.
-
-El estado contractual sigue
-`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`: en el snapshot previo faltaba
-configurar el redirect de recuperación; ese punto quedó resuelto por el JIT de
-Auth registrado abajo. Continúan pendientes recuperar la sesión admin, ejecutar
-correo/PKCE/UAT real, RBAC, cleanup y rollback; además permanece el hallazgo
-`npm audit` de 16 HIGH y 1 CRITICAL.
-
-### Auth recovery redirect Free/Development — 2026-09-26T18:02:31Z
-
-Se consumió la autorización JIT exclusiva de configuración Auth en Free/
-Development, project ref `aqrldlmlszjtgpqiegaa`. Mediante Supabase Dashboard se
-establecieron y verificaron después de recargar:
-
-```text
-Site URL:
-https://feat-h3req1-development-remo.studiamatch-aty.pages.dev/admin/reset-password/
-
-Redirect URL permitido:
-https://feat-h3req1-development-remo.studiamatch-aty.pages.dev/admin/reset-password/
-```
-
-La configuración quedó persistida. No se modificaron usuarios, MFA, DDL, Edge,
-Certification, Pro, Production, cleanup, rollback ni promoción. Aún no se envió
-un correo de recovery ni se ejecutó Auth UAT; el siguiente paso humano es
-solicitar un correo nuevo desde el usuario Auth existente sin compartir su URL o
-token.
-
-### Password policy, live validation and recovery TTL — 2026-09-26T18:54:19Z
-
-Se consumió el ciclo autorizado `continua + Free Auth`, exclusivamente en
-Free/Development (`aqrldlmlszjtgpqiegaa`). La configuración Auth se verificó en
-el Dashboard antes y después de guardar:
-
-```text
-PASSWORD_MIN_LENGTH: 12
-Password requirements: lowercase, uppercase, digits and symbols
-MAILER_OTP_EXP: 86400 seconds (24 hours)
-```
-
-Se implementó una política compartida en recovery y setup inicial con validación
-en tiempo real de longitud, mayúscula, minúscula, número, símbolo y coincidencia.
-La contraseña continúa viajando únicamente a Supabase Auth; no se envía a RPC de
-onboarding. La plantilla HTML versionada quedó en
-`supabase/templates/password-recovery.html`; todavía no se aplicó al Dashboard
-remoto.
-
-Validación local: 23 contratos `PASS`, TypeScript `PASS`, lint `PASS` con 9
-warnings históricos, build normal `PASS` (243 páginas), build mock `PASS` (17
-páginas), `git diff --check` `PASS` y credential scan `PASS`. El Dashboard
-reporta la recomendación de seguridad esperable por configurar la expiración Auth
-por encima de una hora; el valor de 24 horas fue solicitado para alinear el
-correo de recuperación y queda pendiente observar el comportamiento real con un
-buzón autorizado.
-
-Transición: `expand` (política compartida y plantilla) y compatibilidad recovery /
-setup validadas localmente; `deploy` no ejecutado por alcance autorizado; el
-contrato remoto de correo/UAT aún está pendiente. Certification, Production,
-usuarios, MFA, cleanup, rollback, push, PR, merge y promoción no fueron tocados.
-El estado general continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` hasta
-completar plantilla remota autorizada, correo real, PKCE/UAT, RBAC, cleanup,
-rollback y resolver o aprobar el waiver de `npm audit` (16 HIGH, 1 CRITICAL).
-
-### Smoke UI live password validation — 2026-09-26T18:57Z
-
-Se verificó en navegador local contra `/admin/reset-password/` con una sesión
-local sintética aislada: valor incompleto mantiene el botón deshabilitado y marca
-los requisitos pendientes; coincidencia incorrecta muestra el estado de mismatch
-y mantiene el botón deshabilitado; valor completo marca las cinco reglas, muestra
-`Lista para guardar` y habilita el botón. No se realizó submit ni se enviaron
-credenciales a ningún backend; la sesión sintética y el contexto aislado fueron
-eliminados al terminar.
-
-### Security remediation and traceability — 2026-09-26T20:18:46Z
-
-La reauditoría corrigió la exposición incompleta de estados para accesibilidad:
-cada regla anuncia `cumplido/pendiente`, los inputs exponen `aria-invalid`, los
-mensajes de error solo se referencian cuando existen y setup anuncia errores
-generales con `role=alert`. Smoke final local: entrada incompleta deshabilitada,
-mismatch deshabilitado y cinco reglas coincidentes habilitan el submit sin enviar
-datos.
-
-Se registraron hashes del checkout actual en la evidencia canónica. El deployment
-histórico `946d11cc` mantiene sus hashes separados; no se atribuye el candidato
-actual a Pages porque no se ejecutó deploy. La expiración de 24 horas queda como
-riesgo autorizado y el Dashboard conserva su recomendación de usar un TTL menor a
-una hora. No hay hallazgos CRITICAL/HIGH en el código auditado; permanecen
-pendientes correo/UAT real, aplicación de plantilla remota, deploy, `npm audit`
-(16 HIGH, 1 CRITICAL) y promoción.
-
-Auditoría final de seguridad de la remediación: `GO técnico local`, 0 HIGH y 0
-MEDIUM nuevos. El `NO-GO` contractual global se mantiene por el TTL autorizado de
-24 horas, plantilla remota/UAT/correo/deploy pendientes y `npm audit` existente.
-
-### Recovery real y Preview actualizado — 2026-09-26T21:42:07Z
-
-Se consumió la autorización JIT exclusiva de Free/Development para aplicar la
-plantilla de recovery, publicar el artefacto actual y probar el recovery del
-usuario admin existente. La plantilla quedó persistida en Auth con asunto en
-español, `{{ .ConfirmationURL }}`, uso único, vigencia de 24 horas y requisitos
-de contraseña alineados con `PASSWORD_MIN_LENGTH=12` y las cuatro categorías
-fuertes. El endpoint Auth `/recover` devolvió `200`; los logs sanitizados del
-intervalo registraron `/verify` `303`, `/user` `200` y `/logout` `204`. La persona
-operadora confirmó que el correo real llegó, que el Preview mostró el formulario
-y el checklist en vivo, y que la edición de contraseña terminó correctamente.
-No se registraron enlaces, tokens ni passwords.
-
-Pages Preview `studiamatch` quedó en deployment `5fb35afa` (`success`), branch
-`feat/h3req1-development-remote-tests`, commit base
-`97168646b2a6bbd8e59f6d704446759303e11e64` con `commit-dirty=true`, y alias
-`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`. El HTML remoto
-de `/admin/reset-password/index.html` respondió `200` y coincidió con el export
-local: 21,321 bytes y SHA-256
-`c38d65166996cee5aed95b32764ff44eb8d7bd21fcb6eae53c2a6f6806488abe`.
-
-La indicación relacionada con MFA se conserva intencionalmente: no se ocultó ni
-se afirmó que el usuario tenga un factor habilitado. El Preview remoto vigente
-continúa siendo el deployment anterior, donde el login guiaba el enrolamiento
-cuando no existía un TOTP verificado y exigía AAL2 después de la verificación.
-No se habilitaron, revocaron ni modificaron factores MFA remotos en este ciclo.
-
-La transición `expand -> compatibilidad -> deploy -> contract` queda trazada en
-la evidencia canónica. `expand` incorporó la política compartida y la plantilla;
-`compatibilidad` conservó las rutas legacy y el callback existente;
-`deploy` corresponde al Preview `5fb35afa`; `contract` permanece limitado a
-Development hasta cerrar la UAT de invitaciones, RBAC, onboarding y MFA/AAL2.
-Rollback documentado: restaurar la plantilla Auth previa y reasignar el alias al
-deployment anterior, solo con autorización JIT separada; no se ejecutó rollback.
-
-El estado global continúa `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por los
-gates H3-002/H3-003/H3-004 todavía pendientes, `npm audit` con 16 HIGH y 1
-CRITICAL, y la falta de promoción protegida. Certification y Production no se
-modificaron.
-
-### Continuación local — MFA de compatibilidad — 2026-09-27
-
-El árbol local Docker incorpora la política MFA de compatibilidad: `aal1` permite
-autenticar y llegar al panel; las operaciones sensibles mantienen
-`admin_require_aal2()` y muestran una configuración/verificación TOTP explícita
-cuando la RPC devuelve `MFA aal2 required`. El login ya no consulta factores ni
-enrola silenciosamente. La integración usa el cliente MFA oficial de Supabase y
-el mock local expone los factores a través de `auth/v1/user`, contrato que evita
-el `GET /auth/v1/factors` remoto que devolvía `405`.
-
-La validación local ejecutada dentro de Docker pasó TypeScript, build normal,
-build mock, contratos MFA, sintaxis UAT, credential scan y `git diff --check`;
-lint pasó sin errores y conserva nueve warnings históricos. El static smoke
-confirmó password-only, configuración explícita, verify TOTP y sesión `aal2`.
-El UAT canónico fue relanzado contra el static export/mock server después de
-iniciar el PostgreSQL local detenido; el resultado final queda pendiente de su
-terminación y no se afirma como PASS antes de contar con la matriz completa.
-
-Este cambio permanece local: no se ejecutaron writes Supabase, DDL, cambios de
-factores remotos, deploy, push, PR, merge ni promoción. La transición queda
-`expand -> compatibilidad -> deploy pendiente -> contract pendiente`; rollback:
-restaurar el login/MFA previo y reasignar el alias al deployment estable, con JIT
-separado. Certification y Production no se modificaron.
-
-### Diagnóstico Auth recovery rate-limit — 2026-09-27T03:17:11Z
-
-La comprobación read-only de `auth_logs` en Free/Development confirmó que el
-error del Dashboard corresponde a `POST /recover` con HTTP `429` y
-`error_code=over_email_send_rate_limit`. Es la protección antiabuso de Supabase
-Auth: debe transcurrir una espera mínima de 9 segundos desde la solicitud
-anterior y el envío debe ejecutarse una sola vez. El evento no indica un fallo
-de MFA, redirect, RPC, Preview ni DDL; no se realizaron cambios remotos durante
-el diagnóstico.
-
-El login observado antes del diagnóstico terminó en `Invalid login credentials`
-antes de crear sesión, sin llegar a `aal1` autenticado, MFA o `aal2`. El Preview
-Development vigente es el deployment `10205113`, publicado en el alias
-`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`; el resto de
-ambientes permanece intacto.
-
-La credencial compartida en el intercambio y la expuesta durante la inspección
-previa deben considerarse comprometidas. No se conserva su valor ni se usará
-para una nueva validación. La rotación debe ocurrir antes de continuar la UAT
-autenticada; después se podrá comprobar login, enrolamiento/verificación MFA y
-una operación sensible. El estado global continúa
-`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
-
-### MFA `aal2` y operación sensible confirmadas — 2026-09-27T03:55:45Z
-
-OpenChamber confirmó que el código TOTP fue aceptado: el endpoint de verify
-respondió HTTP `200`, desapareció la tarjeta MFA y la cola editorial cargó 131
-cursos. Los RPCs `admin_get_course_queue` y `admin_count_course_queue` también
-respondieron HTTP `200`, demostrando que la sesión elevada fue aceptada por el
-enforcement server-side.
-
-No se registraron códigos ni secretos MFA. El gate remoto de login, MFA explícita
-y operación sensible queda `PASS`. Logout, refresh, regresión posterior al
-refresh y reconciliación final de transición continúan pendientes; el estado
-global sigue `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
-
-### MFA existente presenta challenge directo — 2026-09-27T03:48:54Z
-
-Los logs Auth sanitizados confirmaron creación de factor, challenge y verify con
-HTTP `200`, sin exponer secreto ni código. El login password-only continúa
-entrando en `aal1`; las operaciones sensibles elevan a `aal2` según el contrato.
-
-Se corrigió la tarjeta MFA para consultar los factores al montarse: si encuentra
-uno `verified`, inicia el challenge existente y muestra directamente el campo de
-6 dígitos. OpenChamber en el Preview `ea787a8a` ahora muestra `Verifica MFA para
-continuar`, `Tu autenticador ya está configurado`, `Código de 6 dígitos` y
-`Verificar MFA`, sin mostrar QR ni solicitar nuevo enrolamiento.
-
-El gate de detección del factor verificado y presentación del challenge queda
-`PASS`. Falta verificar el código actual y ejecutar la operación sensible con
-`aal2`; el estado global continúa
-`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
-
-### Remediación de redirección posterior al login — 2026-09-27T03:37:18Z
-
-La evidencia remota separó el rechazo de credenciales del problema posterior de
-autorización: Supabase Auth registró `POST /token` `200`, el RPC
-`admin_current_user_role` respondió `200`, y la membresía del usuario existente
-es `admin`, activa y `ready`. La función remota declara `RETURNS text`; el cliente
-solo extraía roles desde objeto/array, por lo que el valor escalar `admin` se
-convertía en `anon` y `AdminDashboardPage` redirigía a `/admin/login/`.
-
-Se corrigió `web/src/lib/admin-auth.ts` para aceptar respuesta escalar, objeto o
-array sin romper el contrato mock. Validación Docker: TypeScript `PASS`, 12
-contratos focalizados `PASS`, build normal de 243 páginas `PASS`, credential scan
-`PASS`, `git diff --check` `PASS`; lint sin errores y nueve warnings históricos.
-
-El candidato corregido se publicó exclusivamente en Pages Preview Free/
-Development como deployment `e6948d54`, con el alias operativo
-`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`. Las rutas
-`/admin/login/` y `/admin/` responden `200`. No se ejecutaron DDL, writes de datos,
-cambios de factores MFA, push, PR, merge ni promoción. Falta confirmar el login
-posterior al deployment y continuar la UAT MFA; el estado global permanece
-`NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
-
-### Login confirmado después de la remediación — 2026-09-27T03:41:43Z
-
-OpenChamber confirmó sobre el alias Preview corregido que la sesión permanece en
-`/admin/`, muestra `StudIAMatch Admin`, el rol visible `Admin`, `Cola editorial` y
-el enlace `Usuarios`. Auth registró `POST /auth/v1/token` con HTTP `200`.
-
-La tarjeta `Configura MFA para continuar` aparece como acción explícita y muestra
-que la contraseña es válida. No se enroló ni modificó ningún factor MFA durante
-esta comprobación. El gate de login/compatibilidad queda `PASS`; la verificación
-TOTP, la sesión `aal2` y la operación sensible continúan pendientes. El estado
-global permanece `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION`.
-
-### UX editorial y renderer compartido — 2026-09-27
-
-La mejora evolutiva de cola/editor/previsualización quedó implementada en el
-candidato local Docker. Free/Development conserva el delta DDL aditivo registrado
-como `20260927044751` (`20260927_h3_admin_queue_facets_filter`), con funciones
-server-side para filtro institucional, conteo filtrado y facets de estados. Las
-RPCs exigen `aal2`, editor activo y grants explícitos a `authenticated`/
-`service_role`; los contratos legacy permanecen.
-
-La cola ahora muestra estados con color y explicación, contadores de editorial y
-calidad, selector de institución catalogado y paginación server-side. El editor
-expone copy en español, ayuda contextual, impacto del campo y acciones con color
-semántico. `CoursePublicRenderer` es compartido por el detalle público y la
-previsualización inferior; los valores sin guardar actualizan el renderer, el
-cambio de campo desplaza/resalta automáticamente el bloque afectado y `Ver
-impacto` repite el salto manual.
-
-Validación local Docker del ciclo: TypeScript `PASS`, lint `PASS` con 9 warnings
-históricos y 0 errors, build normal `PASS` con 243 páginas, contratos focalizados
-`16 passed`, UAT `47/47` casos y `141/141` ejecuciones `PASS`, PG17 harness `PASS`,
-credential scan `PASS` y `git diff --check` `PASS`.
-
-El candidato UX no fue desplegado en Pages durante esta continuación. Se conserva
-la transición `expand -> compatibilidad -> deploy -> contract`, con rollback al
-artefacto Preview anterior pendiente de autorización separada. No se ejecutaron
-push, PR, merge, Certification, Production ni promoción. El estado contractual
-global sigue `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por los gates remotos y
-documentales restantes, `npm audit` con 16 HIGH/1 CRITICAL y promoción protegida
-pendiente.
-
-### Validación remota del candidato UX — 2026-09-27T16:18Z
-
-El candidato UX se publicó y validó únicamente en Free/Development. El PR `#500`
-continúa abierto hacia `desarrollo`, sin merge. El head del PR es
-`9d367f2f8ff487ec77080592946c4dfbdb2f34e1`; `security-audit`, protected paths,
-credential scan, Python, ESLint, TypeScript, build, actionlint y PostgreSQL DB
-gate quedaron `PASS`. CodeQL y sus tres jobs Analyze (`python`, `actions`,
-`javascript-typescript`) quedaron `success`.
-
-El branch preview hash del PR no está autorizado por `ADMIN_ALLOWED_HOSTS`, por
-lo que la rama que conserva el alias Preview autorizado se sincronizó con el
-frontend candidato mediante commit
-`5a9aeace32b14df4ff73b47918f7212d1fb985e2`. Pages generó el deployment
-`c0664c51-ed47-4c46-8ef7-e1a9a0e633d1` (`success`) en:
-`https://feat-h3req1-development-remo.studiamatch-aty.pages.dev`.
-
-La validación remota read-only del alias confirmó `HTTP 200` para home, login,
-dashboard, callback, aceptación, setup, recovery, users y un detalle público.
-Chrome DevTools observó recursos `200/304`, cero errores de consola y solo dos
-warnings de preload de fuentes. Con la sesión admin existente se observaron el
-rol `Admin`, la cola con `131` filas visibles, facets `350/219/131`, el filtro
-catalogado `Certus` con `16` filas, la búsqueda `Marketing` con `2` filas y el
-filtro de calidad pendiente con `219` filas. El editor mostró copy español,
-previsualización compartida, actualización en vivo del título, resaltado y
-desplazamiento `Ver impacto`; responsive móvil a `390px` quedó utilizable.
-
-No se ejecutaron guardar, publicar, archivar, actualizar calidad, cambios de rol,
-Auth/MFA, cleanup, rollback, merge ni promoción. La continuidad de login,
-challenge TOTP y operación sensible `aal2` queda referenciada a la evidencia
-remota `ea787a8a`; no se reingresó ni registró un código MFA en esta pasada.
-El gate de candidato UX Preview queda `PASS`, pero el estado contractual global
-permanece `NO-GO_H3REQ1_DEVELOPMENT_REMOTE_VALIDATION` por `npm audit` con 16 HIGH
-y 1 CRITICAL, invitación/cleanup/rollback y promoción protegida pendientes.
+| GitHub | Default `main`; `desarrollo` HEAD coincide con baseline `4eb4…`; 14/15 check-runs success (uno skipped); ruleset `update` activo para refs protegidos. | WIP R14 no está en ese SHA; endpoint branch protection 403; approvals/required checks desconocidos; PWI local no aparece en workflows remotos. |
+| Supabase | Pro `ACTIVE_HEALTHY`, ledger de 23 migrations hasta junio; Edge Pro `send-lead-emails` v8. Free `INACTIVE`; lista Edge `admin-invite` v12 y `send-lead-emails` v21. | Ninguna de las 28 migrations H3 locales figura en ledger Pro; no se enumeran tablas/RPC Admin esperadas. Free metadata timeout; Auth no secreta no accesible; Edge inventory no acredita funcionamiento. |
+| Cloudflare | Pages producción `main`/SHA `70d0f4fe…`; preview `desarrollo`/SHA `4eb4…`; hosts/binding names enumerados en R15. | No es el WIP R14; faltan bindings BFF/Worker/DO esperados y `NEXT_SUPABASE_SECRET_KEY` aparece `plain_text`. DNS fuera del proyecto no verificado. |
+| `braces` | PR upstream #72 cerrado/no merged; 9/10 archivos del snapshot coinciden con commit público y npm official declara 3.0.3. | Snapshot local no es un release oficial; se mantiene intacto. |
+
+No se leyeron valores de secretos, usuarios, invitaciones, correos ni filas operativas. No hubo consultas remotas con escritores, SQL mutador, RPC de negocio, workflows, PR, deploy o modificación de configuración. El backup previo a lecturas R15 `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r15_remote-preparation_2026-10-13` conserva 19/19 archivos; el backup de notas de módulos conserva 2/2. El estado documental R15 antes de correcciones finales está preservado aparte en `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r15_final_reconcile_2026-10-13`, con 19/19 hashes verificados. Todos están fuera de ambos checkouts y excluidos del paquete.
+
+## Transferencia documental local
+
+**Corte R13: navegación histórica y nomenclatura cerradas localmente con revisión independiente GO.** R12 se conserva como antecedente de transferencia local. La entrada Obsidian sigue siendo [.context/indice.md](indice.md), y este documento conserva la autoridad operativa. El [registro canónico](trazabilidad/registro_fuentes_componentes.md) asigna 801/801 fuentes a 14 componentes y 262 grupos; sus 4,715 relaciones locales aplicables están verificadas, 91 son N/A justificados y cinco verificaciones remotas siguen pendientes.
+
+La extensión R13 organiza la evidencia histórica en 13 catálogos por proceso/módulo. El [reporte R13](evidencia/h3req1_documentacion_navegacion_historica_2026-10-13_r13.md), [checks](evidencia/h3req1_documentacion_checks_2026-10-13_r13.txt), [revisión independiente](evidencia/h3req1_documentacion_revision_independiente_2026-10-13_r13.txt) y [borrador del paquete](evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r13_docs.md) detallan navegación, nomenclatura, validación y límites. El gate Docker reporta 95/95 documentos activos alcanzables y 433/433 documentos históricos enlazados individualmente desde su catálogo; hay cero documentos Markdown excluidos en este corte. El checker procesó 9,340 links y 4,567 anchors. Los catálogos sirven para navegar cortes históricos y no crean autoridad operativa. La preparación R37 enlaza R36 y R38; la secuencia documental continúa hasta R40. El log R37 se conserva y su preparación declara 29/29 en el contrato local, pero el manifiesto consumido por el drill no aparece en el checkout y no puede cotejarse independientemente.
+
+**Completado en R13:** gate normal/self-test Docker, enlaces individuales de historia, scanner explícito actualizado y regresiones scanner/scope. Un snapshot previo con 9,336 links recibió GO. El corte de 9,340 links/4,567 anchors tuvo revisión GO y reconciliación PASS: 138 entradas de scope (131 presentes, 7 eliminadas), 8 pins de evidencia, 26 overlays y 4 artefactos. Una relectura posterior detectó una celda del body que seguía diciendo revisión pendiente y una frase duplicada en el siguiente paso de este estado; ambas se corrigieron. La última relectura independiente dio GO a esta versión, tras confirmar el digest/pins y las métricas actuales. La prueba del consumidor de estado registró 8/8 en una ejecución previa; no pudo repetirse porque el contenedor actual no tiene el módulo `pytest`. El scope guard cotejó 138 entradas (131 presentes, 7 eliminadas) y 125 rutas únicas con el allowlist del workflow. `actionlint` y `shellcheck` tampoco están instalados; `bash -n` pasó. No se repiten suites funcionales con inputs intactos.
+
+La copia completa previa a este ciclo permanece fuera de ambos checkouts en `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_historical_navigation_2026-10-13`; inventario, hashes y comparación con originales se verificaron antes de editar. La [estructura R10](evidencia/h3req1_documentacion_estructura_2026-10-13_r10.md), la [consolidación R11](evidencia/h3req1_documentacion_consolidacion_trazabilidad_2026-10-13_r11.md) y el [cierre R12](evidencia/h3req1_documentacion_cierre_local_2026-10-13_r12.md) mantienen sus cortes y evidencias previas. R8/R9, R178/R181/R182, R12 y evidencia histórica sellada no se modifican. No hubo lectura remota ni acciones protegidas.
+
+## Pendientes operativos — fotografía histórica R13, reemplazada por el corte vigente
+
+Esta lista era válida para R13 y se conserva como historia; sus aprobaciones y siguientes pasos fueron sustituidos por los addenda R17 al final de este estado. No debe usarse para operar.
+
+1. La revalidación post ciclo 13 pasó y ciclo 14 encontró un LOW editorial por repetir el WARN de diff-check en body. Se quitó la repetición; el repin y gates afectados pasan; ciclo independiente 15 sigue pendiente. `git diff --cached --check` sigue WARN cuantificado (125 diagnósticos/63 paths) en documentación/evidencia/fixtures preservados; no se reescribe historia. actionlint y ShellCheck se reutilizan por hashes intactos.
+2. Resolver bootstrap PWI solo en `desarrollo` y obtener protección/required checks/approvals/environments/actor de merge. La lectura branch protection devolvió 403; no usar bypass.
+3. Aprobar/consumir A y B antes de push/PR que genere un preview; cubrir expand DB, Worker/DO, Pages config y Edge compatible. La autorización humana de push/PR/merge no sustituye estos JIT ni la condición de review/checks.
+4. D03: el responsable reitera su preferencia por DELETE Auth, que está bloqueado por FK/CHECK/trigger debido a la invitación accepted actual. La alternativa C de retención conserva el historial y aún requiere decisión/aprobación JIT explícita; no se asume aceptada. Si C no se aprueba, D03 queda pendiente o deberá cubrirse con otra identidad, cuya creación requiere consulta y aprobación adicional. Gmail y los demás admins permanecen intactos.
+5. Aprobar D y ejecutar interacciones guiadas y recuperación con el responsable. D01–D14 remotos siguen 0/14; regresión adicional 0/11.
+6. Mantener `braces@3.0.4-h3.1`; el snapshot local no es release oficial y no tiene waiver. No sustituirlo en este ciclo.
+
+## Verificaciones remotas pendientes
+
+R17 verificó GitHub refs/workflows/checks/runs/ruleset, metadata schema/ledger Pro y Free, estado Auth agregado del target, Edge, deployment/config Pages por campos sanitizados, bindings Worker/DO por nombre/tipo y procedencia pública de `braces`. Antes de A/B se refrescarán Free activo/schema/ledger, deployments/bindings Cloudflare y controles/refs/checks GitHub. Auth redirects/templates y avisos no se consideran verificados por R17; antes de C se comprobarán solo los dos estados no secretos exigidos. PWI/protecciones aún requieren una ruta protegida válida hacia `desarrollo`; no se consultará ni cambiará `main`. El registro canónico actualizado está en [trazabilidad](trazabilidad/registro_fuentes_componentes.md); ningún resultado de lectura acredita adopción.
+
+## Siguiente paso
+
+cerrar el snapshot R17 con gates afectados y revisión independiente; refrescar los metadatos autorizados. A/B/C/D están aprobados en sus paquetes exactos y no consumidos. Ejecutar A y B solo tras confirmar Free, ledger/schema, coexistencia Certification y configuración actual; no push antes de ello. Resolver una ruta protegida válida de `desarrollo` sin cambiar default branch ni usar bypass. Después integrar/desplegar, completar D01/D02 con la identidad Outlook existente, y solo entonces C si migration 3, B y ambos avisos Auth deshabilitados están confirmados. D03 usa Gmail como actor únicamente con intervención explícita y preservando íntegra su cuenta; D05 requiere escenario remoto aislado adicional si no hay cobertura segura. Al corte de esta actualización no se consumieron permisos ni se ejecutó efecto remoto. R14/R15/R16 quedan preservados y la reorganización Obsidian no se reabre.
+
+
+## Seguimiento del cuerpo PR — R17-TRACE-02, 2026-10-14
+
+La revisión independiente ciclo 11 confirmó el arreglo R17-DOC-02 y PASS 45/45; verificó pins/manifiesto, 1.137 rutas, 23 pins de artefactos no-manifest y 13 catálogos/1.173 destinos. Encontró una discrepancia MEDIUM en el cuerpo PR: el test DOC-02 figuraba pendiente, el conteo decía 9.528 en vez de 9.529 y el estado de scanner/repin no distinguía la fotografía revisada de las validaciones posteriores. El cuerpo se corrigió. Las validaciones afectadas y el repin del cuerpo corregido pasaron: documentación 9.529 enlaces, scope/negativos, plantilla, 45/45 tests, exact-stage y scanner; se mantienen 0 HIGH/CRITICAL del ciclo 11 sin extrapolarlos al ciclo 12. R17 permanece NO-GO Development; D01–D14 0/14, catálogo adicional 0/11. No hubo operación remota o de cuenta, commit, push, PR, merge, deploy o prueba con efectos.
+
+
+## Revalidación post-corrección del body — R17-TRACE-02
+
+Tras corregir las inconsistencias del cuerpo PR, las suites focales Docker pasaron 45/45; documentación normal/self-test pasó con 801 fuentes, 9.529 enlaces, 4.584 anchors, 106 documentos activos/433 históricos en 13 catálogos; scope guard/negativos pasó con 1.137 rutas, 1.173 destinos y casos 3/1/1/3/2; la plantilla pasó 10 headings, 15 filas, 18 enlaces/10 destinos y 0 placeholders; exact-stage confirmó 1.130 blobs, 7 eliminaciones y pins/bytes/modos exactos; scanner aislado sin red encontró 0 en 1.130 blobs. `git diff --cached --check` mantiene WARN cuantificado 125/63 (107 espacios finales, 18 EOF) en documentación/evidencia/fixtures preservados. actionlint/ShellCheck se reutilizaron por hashes sin cambio. Esta revalidación aplica al snapshot `e4be87ca…`; el ciclo independiente 12 posterior encontró una discrepancia MEDIUM en el reporte y se corrigió en el registro siguiente. No GO Development; D01–D14 0/14 y regresión adicional 0/11.
+
+
+## Hallazgo y corrección ciclo independiente 12 — R17-TRACE-03, 2026-10-14
+
+La revisión ciclo 12 confirmó que los gates 45/45, documentación, scope, plantilla, stage y scanner del snapshot `e4be87ca…` estaban incorporados y aprobados. Encontró un MEDIUM en el reporte: una frase decía que el log y estado todavía requerían repin y revalidación. La frase se corrigió para dejar claro que el siguiente repin/retest es por el dictamen ciclo 12. El estado, cuerpo PR, log de checks, reporte y registro de revisión se repinaron; las validaciones afectadas pasan con 45/45, 9.529 enlaces, scope 1.137/1.173, plantilla 10/15/18, stage 1.130 blobs/7 deletes, scanner 0 y diff hygiene WARN 125/63. El manifiesto fija la fotografía; la revisión independiente ciclo 13 queda pendiente. No HIGH/CRITICAL ni bloqueos en el snapshot ciclo 12. Development NO-GO; D01–D14 0/14, regresión adicional 0/11. No hubo lecturas remotas ni operaciones con efectos.
+
+
+## Seguimiento de revisión independiente ciclo 14 — R17-TRACE-05
+
+La lectura read-only del ciclo 14 revisó scope `ccdf9cf9e0a5c95bd71646f4be318ef6c9f5380b02c249ea8cfbb8c33788faf1` y staged diff reportado `36f5f17ff567148906318966e7e13f882a6f3a355c0ad881b9f61d3050975508`. Confirmó la reconciliación de R14/R15/R16, preservación de R8/R9/R12/R13, 1.137 rutas, catálogos, plantilla, allowlist/negativos, braces y paquetes A–D/C-D03. No encontró defectos funcionales, HIGH, CRITICAL, MEDIUM ni bloqueos. El único hallazgo fue LOW editorial: `git diff --cached --check WARN 125/63` aparecía duplicado en la fila Calidad del body PR. La repetición fue eliminada y el resultado se registró en reporte/body/logs; el repin y gates afectados pasan según R17-TRACE-05; ciclo 15 sigue pendiente.
+
+Checkpoint: R17-TRACE-06 corrigió el MEDIUM de ciclo 15, y el scope guard, stage audit, diff-check y scanner pasan o quedan cuantificados en el manifiesto final repinado. Siguiente gate: revisión independiente ciclo 16; después, continuar únicamente con las lecturas y aprobaciones protegidas pendientes. Development continúa NO-GO; A/B/C/D sin aprobar ni consumirse, D01–D14 0/14 y regresión adicional 0/11. No se realizó acción remota o de cuenta, ni commit/push/PR/merge/deploy. La preferencia del responsable por repetir DELETE Outlook no cambia la FK/CHECK/trigger; C es una alternativa de retención pendiente de aprobación JIT y no ejecutada. R14/R15/R16 permanecen preservados.
+
+## H3REQ1 R17 — checkpoint tras respuesta D03 y lecturas remotas, 2026-10-14
+
+Estado vigente: **NO-GO Development**. La protección GitHub de `desarrollo` dio 403; no se verificaron required checks/approvals efectivos. `protected-workflow-integrity.yml` usa `pull_request_target` y debe existir en la rama predeterminada `main`; el candidate/merge en `desarrollo` no lo activa. Resolverlo exige un seed protegido en `main` o una ruta equivalente fuera de este repo. `main` y esa operación quedan fuera de este ciclo: no abrir PR, no cambiar default branch ni usar bypass hasta nueva decisión/evidencia.
+
+Cloudflare Pages mantiene `desarrollo` en el SHA baseline `4eb4d877…` y el host Development esperado. No existen aún el binding `ADMIN_QUOTA`, el Worker ni la namespace DO requeridos. La configuración Preview es global; cualquier B afecta también previews compartidos con Certification. `NEXT_SUPABASE_SECRET_KEY` figura como `plain_text` en Preview y Production: B solo contempla corregir Preview; la observación Production requiere seguimiento separado y ningún valor fue leído.
+
+Free `aqrldlmlszjtgpqiegaa` está activo; Pro continúa autoritativo y solo lectura. No hubo SQL/RPC/write ni lectura de filas operativas. Auth/redirect settings siguen sin verificación concluyente. La invitación `accepted` actual referencia a la identidad Auth Outlook y las restricciones FK `NO ACTION`, CHECK y append-only bloquean su borrado literal. El responsable reiteró ese borrado; la opción C de retención preserva la invitación/historial, pero es distinta y requiere decisión/JIT nuevos. No resetear ni modificar Outlook hasta esa decisión. Gmail permanece intacta.
+
+Paquetes A–D están preparados, sin aprobación o consumo JIT. Para avanzar se necesita (1) decisión sobre seed PWI fuera de `desarrollo`, (2) aprobación concreta de A/B antes de cualquier push que cree Preview, y (3) elegir C de retención, otra identidad debidamente aprobada, o dejar D03 pendiente. R17-TRACE-07A pasó documentación, scope/negativos, 45/45 contratos, template y scanner; el manifest R17 consigna la auditoría exacta de índice y el estado de revisión independiente vigente. D01–D14: 0/14; regresión adicional: 0/11. R8/R9/R12/R13 y evidencias, R14/R15/R16 se conservan; no se reinicia implementación local ni reorganización Obsidian.
+
+
+## Cierre local R17 tras revisión independiente ciclo 16
+
+La revisión confirmó 1.137 rutas staged (1.130 blobs/7 deletes), los pins R14/R15/R16, la preservación R8/R9/R12/R13, 13 catálogos con 1.173 destinos, 35 force-adds y el body con plantilla. El hallazgo MEDIUM fue que tres destinos .github/agents/*.md estaban excluidos correctamente, pero el cierre de catálogo usaba hashes del worktree como si fueran baseline limpio. Se corrigió el manifest: bytes/sha256 representan HEAD/index, y observed_workspace_bytes/observed_workspace_sha256 registran el WIP separado y excluido. La revisión confirmó que no hay callers en código, workflows ni runtime. No quedan hallazgos locales HIGH/CRITICAL/MEDIUM/bloqueantes.
+
+Las validaciones R17-TRACE-08 cubren Docker docs normal/self-test (801 fuentes, 14 componentes, 4.715 relaciones locales, 9.529 links, 4.584 anchors, 106 activos/433 históricos, 13 catálogos), 45/45 contratos, scope guard/negativos (1.137 rutas/1.173 destinos; 3/1/1/3/2), plantilla 10/10 headings, 15/15 filas, 18/18 enlaces a 10 destinos del paquete, credential scanner staged y unión candidate-only, y auditoría exact-stage 1.137 rutas/1.130 blobs/7 deletes, modos 1.102 100644/28 100755, bytes/pins exactos y dos logs CRLF. actionlint 1.7.12 y ShellCheck focal 0.11.0 se reutilizaron por hashes intactos. Hygiene sigue WARN 125/63 sin formateo masivo.
+
+No hay PR: el workflow PWI pull_request_target no está en main, la rama default observada, y branch-protection detail sigue 403; no se usó bypass y no se promueven main, Certification ni Production. Cloudflare Preview es global y B necesita JIT antes de push; la metadata plain_text de Production requiere seguimiento separado. Supabase Free sigue activo y Pro read-only; no hubo filas operativas, SQL/RPC, writes ni lectura de valores secretos.
+
+A–D están preparados sin aprobar/consumir. Para D03 el responsable pidió repetir DELETE, pero la invitación accepted, FK NO ACTION, CHECK y trigger append-only lo hacen incompatible; no se eliminará ni se alterará el historial. C de retención requiere elección/JIT aparte. D01–D14 permanecen 0/14 y la regresión adicional 0/11. El próximo avance requiere resolver el bootstrap protegido PWI, aprobar A/B antes del push Preview y decidir C frente a D03 pendiente/otra identidad. La evidencia, scope y hashes exactos vigentes están en manifest/check log R17. No hubo commit, push, PR, merge, deploy, mail, reset ni operación remota con efectos.
+
+## Reconciliación de checks del manifiesto — R17, 2026-10-14
+
+El follow-up independiente detectó un MEDIUM de estado: varias filas `checks` conservaban `PENDING_FINAL_POST_LOG` y el digest `976620b…`, aunque R17-TRACE-08 ya registraba los gates posteriores al log en el snapshot `847c5d8…` / diff staged `af70f660…`. Los resultados ejecutados eran PASS/WARN; la discrepancia estaba en su reconciliación dentro del manifiesto, no en los resultados. Las filas, razones, pins y cierre del stage se alinean con la evidencia y se vuelven a cotejar en Docker. La decisión de la revisión final del snapshot se registra en el manifiesto R17.
+
+El DELETE literal que el responsable pide repetir sigue bloqueado por la FK/CHECK/trigger de la invitación accepted. No se modifican Auth, invitación, constraints, auditoría, Gmail ni Certification. C continúa siendo una alternativa de retención distinta que exige aprobación JIT; si no se elige, D03 queda diferido. El estado vigente de A–D, la revisión independiente y los digests está en el manifiesto. PWI/default-main y el 403 de branch protection mantienen NO-GO; no hay push/PR/merge/deploy ni D01–D14 (0/14) o regresión adicional (0/11).
+
+
+## Checkpoint R17 posterior al commit local
+
+El candidato local se guardó en `ac4a6c9b233ed450202ae9e6b09a84281fd3d8c5`, hijo directo del baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`. El pre-commit ejecutó el escáner de credenciales y pasó. La revisión independiente ciclo 19 confirmó la reconciliación de `candidate-package-staging` con `candidate_stage_audit`: scope `100e211b9ba469d241a6863b50cdcd248a343c1d6ad72ea5cbb4b0303dd18efc`, diff sin manifest `43e010b769cf56d2b2c4e5245f9115fcb131235fdc3dfe0a2b23744e60aaa5ba`; 1.137 rutas, 1.130 blobs y 7 eliminaciones.
+
+No se hizo push, PR, merge ni deploy. A/B permanecen preparados y sin JIT; el preview automático exige resolverlos antes de push. Filing/merge siguen NO-GO por PWI ausente de `main` y branch-protection detail 403; no se usa bypass. C de retención sigue pendiente de aprobación explícita; el DELETE literal de Outlook no se ejecutará. D01–D14 permanecen 0/14; regresión adicional 0/11. R8/R9/R12/R13 y evidencias, R14/R15/R16 permanecen preservados. Los cambios locales ajenos y el WIP no manifestado siguen excluidos.
+
+
+## Revisión independiente ciclo 21 y corrección R17-TRACE-12 — 2026-10-14
+
+El ciclo 21 revisó el snapshot agregado R17, confirmó sus digests y conteos, y no encontró HIGH, CRITICAL, MEDIUM ni bloqueos. Un LOW editorial indicó que el encabezado de este estado y el paquete llamaban “vigente” al ciclo 19 mientras el manifiesto dejaba pendiente el snapshot agregado. Se corrigieron ambas referencias; ciclo 19 queda histórico y el manifiesto R17 es fuente del estado de revisión vigente. La revalidación afectada y lectura independiente del snapshot corregido se registran en el manifiesto y check log. Development sigue NO-GO; no se hicieron cambios remotos.
+
+## Aprobación JIT C retentivo — R17-TRACE-15 (corte anterior a permisos A/B/D)
+
+El responsable aprobó como JIT alternativo el paquete C exacto de §5 del paquete R17: desactivar la membresía Outlook mediante RPC auditado, cambiar el email Auth anterior a un identificador técnico `example.invalid`, bloquear esa identidad y retirar su TOTP verificado, preservando la fila Auth, la invitación accepted y la auditoría. Aprobación registrada el 2026-10-14; **no consumida**. Solo puede ejecutarse después de A migration 3 y B, y si una lectura previa confirma que ambas notificaciones de seguridad Auth están deshabilitadas. Free es compartido con Certification. C no autoriza DELETE Auth, enviar invitación D03, usar otra identidad, actuar sobre Gmail, ni extender la ventana. La frase sobre JIT D pendiente corresponde a este corte anterior; R17-TRACE-20 registra la actualización posterior. No se ejecutaron cambios remotos en ese corte; Development sigue NO-GO, D01–D14 0/14 y regresión adicional 0/11.
+
+
+## Continuación autorizada R17 — R17-TRACE-20, 2026-10-14
+
+El responsable descarta DELETE físico y mantiene C retentivo aprobado. En esta misma continuación confirma que A/B/C/D están aprobados **solo en los alcances exactos** de sus paquetes R17; los cuatro permanecen `approved_unconsumed`. No volver a solicitar esos permisos ni extenderlos por similitud. A y B se ejecutan luego de refrescar metadatos y validar prerequisitos; el Preview automático no puede adelantarse a B. No se consumió permiso hasta que cada operación se complete y se registre.
+
+D01/D02 deben ejecutarse primero con la identidad Outlook existente, ya desplegada en Development, preservando su resultado. Antes de C, hacer comparación privada de la identidad autorizada, referencias, membership, factores, sesiones, invitaciones y conteo de admins; comprobar Gmail admin activa y no asumir la existencia de un tercer admin. Si el estado no coincide con C, parar. C conserva Auth row, invitación accepted/FK, auditoría e historial, cambia el email antiguo al identificador único preparado `example.invalid`, bloquea la identidad antigua, desactiva su membership mediante RPC auditado y retira su TOTP. Después comprobar que la sesión anterior no puede usar Admin mediante una solicitud no mutadora; no asumir revocación inmediata de JWT ni ejecutar revocación fuera de C.
+
+Con el paquete D aprobado, Gmail puede actuar como admin únicamente para invitar/gestionar Outlook durante intervención explícita del responsable. Gmail conserva identidad/email, membership admin activa, contraseña, factores, sesiones, historial y datos; no se cambian sus ajustes. Outlook completa una identidad Auth nueva; el UUID debe diferir del anterior y la comparación se conserva solo en memoria. No publicar correo, UUID, cookies, JWT ni tokens. D05 no puede desactivar Gmail ni otras identidades preservadas. Si no hay cobertura remota segura de último admin, preparar escenario aislado concreto y pedir solo el JIT incremental necesario.
+
+`main`, default branch, Certification y Production siguen fuera de alcance. Se busca una ruta protegida válida únicamente hacia `desarrollo`: si la lectura actual demuestra que PWI no puede ejecutarse sin seed en `main` y no hay workflow/required check equivalente efectivo, detener filing y presentar la decisión de diseño concreta; no cambiar default branch, usar bypass, autoaprobar ni desactivar checks. Al corte de esta actualización, los permisos no están consumidos y Development permanece NO-GO. D01–D14 0/14 y regresión adicional 0/11 hasta obtener evidencia remota.
+
+## Reanudación local R17 — checkpoint de ciclo 32
+
+El ciclo 29 verificó el agregado y encontró un LOW: `r17_review_corrections.review_status` aún llamaba pendiente al ciclo 27. R17-TRACE-24 marca ese campo histórico/cerrado; el estado vigente permanece en `candidate_commit_audit.review_status` y la fila actual. El ciclo 30 dio PASS local: 0 HIGH/CRITICAL/MEDIUM/LOW/bloqueantes; confirmó pins, catálogos, plantilla y corrección ciclo 29. El ciclo 31 revisó scope `f9b833ace50f1286f9a04007f31a591d5d38b494be794478e05ccd3b07f099d9` y diff `b09b124754912a27692814c08732416efbd2c5962e2069d2043572b130504a01`, con 0 HIGH/CRITICAL/MEDIUM, 2 LOW y 0 bloqueos. Señaló que R17-TRACE-26 dejaba gates como futuros frente a PASS y que la fila `credential-scan` mezclaba 1.129/1.130 blobs y excluía incorrectamente el log. R17-TRACE-27 corrige el estado verbal y deja scan, exclusiones y conteos consistentes; la revalidación Docker afectada y follow-up independiente ciclo 32 deben cerrar antes de lecturas remotas. El revisor no ejecutó Git; el audit local verificó antes el índice/worktree/diff. El agregado mantiene 1.137 rutas (1.130 blobs, 7 eliminaciones); `git diff --cached --check` conserva WARN 125/63 (107 espacios finales, 18 EOF). actionlint 1.7.12 y ShellCheck focal 0.11.0 se reutilizan por hashes intactos.
+
+Estado de permisos: A/B/C/D aprobados solo en sus alcances exactos y no consumidos. El ciclo 32 dio PASS sobre el snapshot prerregistro y R17-TRACE-28 incorporó ese dictamen; las validaciones locales afectadas del agregado posterior al registro están PASS según el manifiesto. Hasta este corte no hubo lecturas remotas, commit, push, PR, merge, deploy, workflow, correo, reset, DDL/DML o write. Siguiente paso: lecturas administrativas read-only autorizadas de GitHub, Free/Pro y Cloudflare y procedencia pública de braces; después, resolver ruta protegida antes de preparar/ejecutar A y B. No se hará push que active Preview antes de sus prerrequisitos. D01/D02 con Outlook actual preceden a C; Gmail permanece intacta y solo participa como admin con el responsable para el onboarding Outlook. Development sigue NO-GO, D01–D14 0/14 y catálogo adicional 0/11.

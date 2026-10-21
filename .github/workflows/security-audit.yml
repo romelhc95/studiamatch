@@ -1,3 +1,4 @@
+# StudIAMatch-Docs: .context/componentes/seguridad_tooling.md#registro-de-fuentes-y-gate
 name: Security Audit Gate
 
 on:
@@ -19,13 +20,18 @@ permissions:
   actions: read
 
 env:
-  PROTECTED_BASELINE_SHA: 9b486146962bd2a092acfd649fdcf716e922de89
+  # Compare protected paths against the trusted target branch for each event;
+  # a fixed historical SHA accumulates already-integrated changes and blocks all PRs.
+  # Never fall back to the checked-out commit: manual dispatch has no trusted
+  # diff base and the required path/database gates must fail closed.
+  PROTECTED_BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # PR merge_commit_sha can lag a just-updated branch; test the event's exact head.
   credential-scan:
     name: Credential Scan
     runs-on: ubuntu-latest
@@ -34,16 +40,17 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Scan tracked tree
-        run: sh scripts/security/scan_credentials.sh --tree
+        run: bash scripts/security/scan_credentials.sh --tree
       - name: Scan changed diff
         run: |
           set -euo pipefail
-          base="${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}"
+          base="$PROTECTED_BASELINE_SHA"
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
-            base=$(git hash-object -t tree /dev/null)
+            base=$(git hash-object -t tree -w /dev/null)
           fi
-          sh scripts/security/scan_credentials.sh --diff "$base" HEAD
+          bash scripts/security/scan_credentials.sh --diff "$base" HEAD
 
   protected-paths:
     name: Protected Path Integrity
@@ -53,31 +60,23 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Compare protected paths to baseline
-        run: |
-          set -euo pipefail
-          git cat-file -e "$PROTECTED_BASELINE_SHA^{commit}"
-          changed=$(git diff --name-only "$PROTECTED_BASELINE_SHA" HEAD -- \
-            web db supabase scripts/core scripts/shared scripts/maintenance config .github/workflows/security-audit.yml \
-            Dockerfile docker-compose.yml docker-compose.yaml package.json package-lock.json \
-            requirements.txt requirements-*.txt web/package.json web/package-lock.json || true)
-          if [ -n "$changed" ]; then
-             echo "protected H2/H3 paths changed; validating the scoped H3 candidate"
-             allowed_h3='^(\.context/(estado_del_proyecto|evidencia/h3req1.*|operaciones/h3req1.*|evidencias_cliente/sprint_1/.*|hitos/h3req1.*|matrices/matriz_hito_003\.md)|\.github/workflows/security-audit\.yml|Dockerfile|docker-compose\.(yml|yaml)|init-container\.sh|db/(migrations/.*\.sql|seeds/h3_admin_seed_local\.sql|production_(init|seed)\.sql)|supabase/.*|web/.*|mock-server/.*|tests/.*|scripts/(core/.*|shared/.*|maintenance/.*\.py)|requirements.*\.txt|public/_redirects|src/(lib/.*))$'
-             scoped_disallowed=$(printf '%s\n' "$changed" | grep -Ev "$allowed_h3" || true)
-             if [ -z "$scoped_disallowed" ]; then
-               echo "protected H3 candidate paths are allowlisted"
-               exit 0
-             fi
-             disallowed=$(printf '%s\n' "$changed" | grep -Ev '^(db/migrations/(2026082[56]_h2_(editorial_layer.*|security_advisor_remediation|public_effective_view_public_fields_fix|seed_editorial_field_definitions|development_legacy_public_compat)|20260827_h2_pro_(expand_schema_compat|seed_editorial_field_definitions|backfill_editorial_state|capture_legacy_cohort|enable_legacy_cohort_rls|contract_public_reader|contract_legacy_cohort|rollback_public_reader_contract))\.sql|db/migrations/(20260828_h3_admin_(auth|editorial_rpc|editorial_reader_rpc|course_queue_view|queue_rpc)|20260829_h3_rbac_users|20260830_h3_expanded_contract|20260902_h3_pr_contract|20260903_h3_rbac_contract_fix|20260927_h3_admin_queue_facets_filter)\.sql|db/seeds/h3_admin_seed_local\.sql|supabase/functions/admin-invite/index\.ts|web/functions/_middleware\.ts|scripts/(shared/editorial_contract\.py|core/(cleansing_worker|enrichment_worker|sync_vector_worker)\.py|maintenance/(h2_(backfill_editorial_state|scan_unauthorized_writers)|h2_pro_preflight_report|db_migrate|check_db_parity)\.py)|tests/(sql/(h2_pro_pg17_harness|h3_pg17_harness)\.sql|test_h2_pro_migration_controls\.py|test_h3_admin_queue_ux_contract\.py|h3_local_uat\.mjs)|web/(next\.config\.js|package\.json|package-lock\.json|tsconfig\.json|public/_redirects|src/(lib/(supabase|admin-auth)\.ts|app/(page\.tsx|HomeContent\.tsx|admin/(layout|page)\.tsx|admin/(login|edit|users)/page\.tsx|compare/CompareContent\.tsx|courses/\[institution\]/\[slug\]/(page\.tsx|CourseDetailClient\.tsx))|components/(AdminCourseQueue|admin/(editorial-ui|CourseLivePreview)|courses/CoursePublicRenderer|ui/(label|select))\.tsx))|requirements\.txt|\.github/workflows/(security-audit|db-sync-to-pro)\.yml)$' || true)
-            if [ -z "$disallowed" ]; then
-              echo "protected H2/H3 paths changed with editorial safeguards present"
-              exit 0
-            fi
-            printf '%s\n' "$disallowed" | sed 's/^/::error::protected path changed: /'
-            exit 1
-          fi
-          echo "protected paths match baseline"
+        run: bash scripts/security/protected_path_scope_guard.sh --compare-candidate
+  documentation-integrity:
+    name: Documentation Source Registry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '20'
+      - name: Check source registry, links and undocumented-source rejection
+        run: node scripts/maintenance/h3req1_documentation_integrity.mjs --self-test --candidate-manifest .context/evidencia/h3req1_pr_scope_manifest_2026-10-19_r19_pwi_r3_reconciled.json
 
   python-check:
     name: Python Compile And Tests
@@ -87,17 +86,20 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
       - name: Install test runner
-        run: python3 -m pip install pytest requests python-dotenv PyPDF2 playwright
+        run: python3 -m pip install --require-hashes -r requirements-pipeline.txt
       - name: Compile Python scripts
         run: find scripts -name '*.py' -exec python3 -m py_compile {} \;
       - name: Run offline security tests
         run: |
           set -euo pipefail
           python3 scripts/maintenance/h2_scan_unauthorized_writers.py
+          bash tests/test_scan_credentials.sh
+          bash tests/test_protected_path_scope_guard.sh
           python3 -m pytest \
             tests/test_supabase_credentials_contract.py \
             tests/test_security_flow.py \
@@ -112,8 +114,14 @@ jobs:
              tests/test_h2_pipeline_contract.py \
              tests/test_h2_writer_scan.py \
              tests/test_h3_invitation_callback_contract.py \
-             tests/test_h3_mock_invitation_contract.py \
-             tests/test_admin_invite_edge_contract.py \
+              tests/test_h3_mock_invitation_contract.py \
+              tests/test_h3_admin_queue_ux_contract.py \
+              tests/test_admin_invite_edge_contract.py \
+              tests/test_protected_workflow_review.py \
+              tests/test_h3req1_c03_docker_daemon_identity_f2d.py \
+              tests/test_site_diagnostics_security.py \
+              tests/test_taxonomy_roi_audit_privacy.py \
+              tests/test_h3req1_local_pipeline_walk.py \
              -q
            python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
 
@@ -127,6 +135,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
@@ -145,6 +154,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
@@ -156,9 +166,6 @@ jobs:
   static-build:
     name: Static Build
     runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: https://example.invalid
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
     defaults:
       run:
         working-directory: web
@@ -166,14 +173,31 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: node ../tests/h3_admin_bff_mock_uat.mjs
+      - run: node ../tests/h3_admin_auth_error_uat.mjs
+      - run: node ../tests/h3_send_lead_error_uat.mjs
+      - run: node ../tests/h3req1_c03_integrated_runtime.mjs --self-test-proxy-destinations
+      - run: node ../tests/h3_admin_invite_edge_uat.mjs
+      - run: node ../tests/h3_admin_invite_edge_typecheck.mjs
+      - run: node ../tests/h3_admin_quota_uat.mjs
+      - run: node ../tests/h3_admin_safe_suspend_uat.mjs
+      - run: node ../tests/h3_supabase_sdk_headers_uat.mjs
+      # The smoke owns a local fixture and runs the production build itself.
+      # Never build against a DNS placeholder before starting that fixture.
       - run: bash ../scripts/security/h2_web_mock_smoke.sh
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.22.0'
+      - run: npm install --prefix "$RUNNER_TEMP/h3-quota-tools" --no-save miniflare@4.20260730.0 esbuild@0.25.10
+      - run: H3_QUOTA_TOOLS="$RUNNER_TEMP/h3-quota-tools" node ../tests/h3_admin_quota_runtime.mjs
+      - run: H3_QUOTA_TOOLS="$RUNNER_TEMP/h3-quota-tools" node ../tests/h3_admin_safe_suspend_runtime_uat.mjs
 
   workflow-lint:
     name: actionlint And shellcheck
@@ -182,6 +206,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
         with:
           go-version: '1.23'
@@ -196,7 +221,33 @@ jobs:
           set -euo pipefail
           "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/db-sync-to-pro.yml
       - name: Run shellcheck
-        run: shellcheck scripts/security/scan_credentials.sh scripts/security/h2_web_mock_smoke.sh .githooks/pre-commit .githooks/pre-push
+        run: shellcheck scripts/security/scan_credentials.sh scripts/security/protected_path_scope_guard.sh tests/test_protected_path_scope_guard.sh scripts/security/h2_web_mock_smoke.sh tests/sql/h3_invitation_reservation_concurrency.sh .githooks/pre-commit .githooks/pre-push
+
+  pwi-worker-contract:
+    name: PWI Worker Contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.22.0'
+          cache: npm
+          cache-dependency-path: scripts/security/pwi_worker/package-lock.json
+      - name: Install PWI Worker test tools
+        working-directory: scripts/security/pwi_worker
+        run: npm ci --legacy-peer-deps
+      - name: Check Worker source syntax
+        working-directory: scripts/security/pwi_worker
+        run: npm run check
+      - name: Run Worker contract tests
+        working-directory: scripts/security/pwi_worker
+        run: npm test
+      - name: Run Worker Durable Object runtime tests
+        working-directory: scripts/security/pwi_worker
+        run: npm run test:runtime
 
   db-gate:
     name: PostgreSQL DB Change Gate
@@ -212,18 +263,24 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - "127.0.0.1:5432:5432"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Run only when db changes exist
+        # Node 22 is needed by the real SDK wire fixture; it does not deploy.
         run: |
           set -euo pipefail
-          base="${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}"
-          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
-            base="$PROTECTED_BASELINE_SHA"
+          base="$PROTECTED_BASELINE_SHA"
+          if [ -z "$base" ]; then
+            echo "::error::database changes require a trusted pull_request or push baseline"
+            exit 1
+          fi
+          if [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base=$(git hash-object -t tree -w /dev/null)
           fi
           if git diff --quiet "$base" HEAD -- db; then
             echo "no db changes; PostgreSQL gate skipped"
@@ -234,9 +291,53 @@ jobs:
           sudo apt-get install -y postgresql-client
           PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f tests/sql/h2_pg17_harness.sql
            PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f tests/sql/h2_pro_pg17_harness.sql
-           PGPASSWORD=postgres createdb -h localhost -U postgres h3_gate
-           PGPASSWORD=postgres psql -h localhost -U postgres -d h3_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_pg17_harness.sql
+            PGPASSWORD=postgres createdb -h localhost -U postgres h3_gate
+             PGPASSWORD=postgres psql -h localhost -U postgres -d h3_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_pg17_harness.sql
+             PGPASSWORD=postgres createdb -h localhost -U postgres h3_pro_gate
+              PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_gate -v h3_pro_baseline=1 -v ON_ERROR_STOP=1 -f tests/sql/h3_pg17_harness.sql
+              PGPASSWORD=postgres createdb -h localhost -U postgres h3_pro_chain_gate
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_chain_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_from_h2_pro_pg17_harness.sql
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_chain_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_admin_quota_harness.sql
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_chain_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_admin_rpc_signed_gateway_harness.sql
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_chain_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_safe_suspend_harness.sql
+              PGPASSWORD=postgres createdb -h localhost -U postgres h3_future_contract_gate
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_future_contract_gate -v h3_contracted_baseline=1 -v ON_ERROR_STOP=1 -f tests/sql/h3_from_h2_pro_pg17_harness.sql
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_future_contract_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_admin_quota_harness.sql
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_future_contract_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_admin_rpc_signed_gateway_harness.sql
+                PGPASSWORD=postgres psql -h localhost -U postgres -d h3_future_contract_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_safe_suspend_harness.sql
+                PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_chain_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_quota_postgrest_fixture.sql
+                # The PostgREST fixture replays the original EXPAND hook; restore the current payload-bound contract before wire assertions.
+                PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_chain_gate -v ON_ERROR_STOP=1 -f db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql
+                npm ci --prefix web
+               npm install --prefix "$RUNNER_TEMP/h3-quota-node" --no-save node@22.22.0
+                 postgrest_config="$(mktemp "$RUNNER_TEMP/h3-quota-postgrest.XXXXXX")"
+                 printf 'server-host = "127.0.0.1"\n' >"$postgrest_config"
+                 chmod 644 "$postgrest_config"
+                 trap 'docker stop h3-quota-postgrest-ci >/dev/null 2>&1 || true; rm -f "$postgrest_config"' EXIT
+                 docker run -d --name h3-quota-postgrest-ci --network host \
+                   --mount "type=bind,source=$postgrest_config,target=/etc/postgrest.conf,readonly" \
+                   -e PGRST_DB_URI=postgres://postgres:postgres@127.0.0.1:5432/h3_pro_chain_gate \
+                   -e PGRST_DB_SCHEMAS=public -e PGRST_DB_ANON_ROLE=anon -e PGRST_SERVER_PORT=3233 \
+                   -e PGRST_DB_PRE_REQUEST=public.h3_admin_rpc_signed_gateway_pre_request \
+                   -e PGRST_JWT_SECRET=local-only-postgrest-signing-fixture-20261002 \
+                  postgrest/postgrest:v13.0.7@sha256:0a46780309a604cdc8b56c776c6e5e15788ce58174d709e40459ab5a2d44d228 /bin/postgrest /etc/postgrest.conf
+               ready=false
+               for _attempt in $(seq 1 30); do
+                 if curl --silent --fail --output /dev/null http://127.0.0.1:3233/; then ready=true; break; fi
+                 sleep 1
+               done
+               [ "$ready" = true ]
+                H3_POSTGREST_TEST_URL=http://127.0.0.1:3233 \
+                  H3_POSTGREST_TEST_SECRET=local-only-postgrest-signing-fixture-20261002 \
+                  H3_POSTGREST_TEST_RPC_SECRET=local-only-pg17-rpc-gateway-fixture-key-32-bytes \
+                  "$RUNNER_TEMP/h3-quota-node/node_modules/node/bin/node" tests/h3_admin_quota_postgrest.mjs
+               PGPASSWORD=postgres psql -h localhost -U postgres -d h3_pro_chain_gate -v ON_ERROR_STOP=1 -f tests/sql/h3_quota_postgrest_assert.sql
+              PGPASSWORD=postgres PGHOST=localhost PGUSER=postgres PGDATABASE=h3_gate bash tests/sql/h3_invitation_reservation_concurrency.sh
            node --check tests/h3_invitation_uat.mjs
+           node --check tests/h3_admin_bff_mock_uat.mjs
+           node --check tests/h3_admin_auth_error_uat.mjs
+            node --check tests/h3_admin_invite_edge_uat.mjs
+            node --check tests/h3_supabase_sdk_headers_uat.mjs
 
   h2-main-production-expand-gate:
     name: H2 Main Production Expand Gate
@@ -246,6 +347,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify H2 production expand evidence
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -366,7 +468,7 @@ jobs:
   security-audit:
     name: security-audit
     runs-on: ubuntu-latest
-    needs: [credential-scan, protected-paths, python-check, lint, typecheck, static-build, workflow-lint, db-gate, h2-main-production-expand-gate]
+    needs: [credential-scan, protected-paths, documentation-integrity, python-check, lint, typecheck, static-build, workflow-lint, pwi-worker-contract, db-gate, h2-main-production-expand-gate]
     if: always()
     steps:
       - name: Aggregate required checks
@@ -374,11 +476,13 @@ jobs:
           set -euo pipefail
           test '${{ needs.credential-scan.result }}' = 'success'
           test '${{ needs.protected-paths.result }}' = 'success'
+          test '${{ needs.documentation-integrity.result }}' = 'success'
           test '${{ needs.python-check.result }}' = 'success'
           test '${{ needs.lint.result }}' = 'success'
           test '${{ needs.typecheck.result }}' = 'success'
           test '${{ needs.static-build.result }}' = 'success'
           test '${{ needs.workflow-lint.result }}' = 'success'
+          test '${{ needs.pwi-worker-contract.result }}' = 'success'
           test '${{ needs.db-gate.result }}' = 'success'
           if [ '${{ github.event_name }}' = 'pull_request' ] && [ '${{ github.event.pull_request.base.ref }}' = 'main' ]; then
             test '${{ needs.h2-main-production-expand-gate.result }}' = 'success'

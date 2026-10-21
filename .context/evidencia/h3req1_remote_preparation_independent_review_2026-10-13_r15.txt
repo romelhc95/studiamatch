@@ -1,0 +1,23 @@
+Revisión independiente R15 — preparación remota/documental
+Fecha: 2026-10-13 UTC
+Alcance: reporte de lecturas remotas, paquete Development/transición/rollback, body propuesto, estado, dominios, registro canónico, manifest overlay y evidencias/checks R15.
+Modo: lectura independiente; sin edición, consultas remotas, ejecución de pruebas ni lectura de secretos/filas operativas.
+
+Hallazgos iniciales y tratamiento
+
+1. P1 — Pins del overlay R15 desactualizados. El manifest no coincidía con siete entradas tras correcciones y las tres evidencias nuevas ya habían cambiado después de su primer pin. Resolución: recalcular el overlay completo y cotejar path, bytes, modo, SHA, estado Git, digest, cuatro artifacts y pin padre R14. La revisión final confirma 19/19 entradas y 4/4 artifacts para el snapshot sometido.
+2. P2 — El body decía que el credential scan R15 quedaba pendiente, mientras el log ya declaraba PASS. Resolución: alinear body/log con el scanner final en Docker y enumerar los 19 inputs; resultado PASS.
+3. P1 para integración futura — La comparación inicial aceptaba 16 de 17 paths y rechazaba el manifest JSON R15; luego se incluyeron explícitamente el log y la revisión en el paquete. El cotejo actual acepta 17/20 paths: no acepta el log R15, la revisión R15 ni el manifest overlay R15. La prueba versionada consume el manifest R14, no el overlay. Acción en este corte: mantener la brecha explícita y el paquete como NO-GO para filing; el cambio de workflow/test se deja para una autorización de integración posterior.
+4. Inconsistencias corregidas durante la revisión: CI/CD decía que no se consultó Pages/branch controls y Database decía que Supabase no se consultó; R15 sí realizó lecturas limitadas. Se reemplazaron por límites temporales y resultados exactos, incluido que el schema completo/Free sigue desconocido.
+5. Responsabilidad de braces: R14 registra owner Romel y revisión prevista 2026-11-03. Se aclaró que R15 mantiene ese seguimiento sin waiver ni afirmación de adopción.
+
+Alcance y límites observados
+
+- El paquete mantiene NO-GO Development y D01–D14 en 0/14; las lecturas R15 no prueban adopción del WIP ni runtime funcional.
+- E0–E5 separan las decisiones remotas; el orden `expand -> compatibilidad -> deploy -> D01-D14 -> contract` y rollback permanecen condicionales a permisos. No se propone DROP/restauración automática.
+- La documentación distingue metadata Pro observada, Free con timeout/inactividad, endpoint GitHub 403 y configuraciones Cloudflare por nombres/tipos. No equipara ausencia en el listado con ausencia funcional fuera del alcance consultado.
+- Los backups revisados están fuera de ambos checkouts y excluidos del paquete; no se leyeron valores de secretos, datos operativos, usuarios o buzones.
+
+Dictamen y cronología: el primer snapshot revisado tenía 9,453 links; el corte final reconciliado tiene 9,458 links y 4,581 anchors. Una relectura encontró la diferencia de contador y luego pidió distinguir ese corte histórico del signoff actual. La redacción se corrigió en log/revisión/body y la revisión final da GO local al snapshot actual. Para ese snapshot, el digest cotejado fue `ebfd0899f13f3a771f42484bd62fe7269a369d7769d24e8aed653317994414bf`: 19/19 rutas, 4/4 artifacts y padre R14 intactos. Se confirman los gates 801/801 fuentes, 14/14 componentes, 4,715 relaciones locales + 91 N/A, remoto 7/13, 100/100 activos, 433/433 históricos, 9,458/4,581 y scanner 19 inputs. No quedan bloqueantes documentales locales en este snapshot. El path guard acepta 17/20 rutas y sus tres rechazos siguen como bloqueo para un PR futuro; no se autoriza filing ni Development.
+
+Comprobación final de preservación: `git diff --check` pasa. El examen explícito de las 20 rutas documentales seleccionadas y el log R15 encontró cinco líneas con trailing whitespace en `componentes/database_migrations.md` (270, 298, 1068, 1180, 1390); las cinco coinciden byte por byte con el backup previo a la reconciliación final y no fueron introducidas por R15.

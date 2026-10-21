@@ -1,0 +1,138 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+candidate-wip-entry-count=4639
+Docker target PASS: context=default endpoint=unix:///var/run/docker.sock engine=fc2115b2-c3c4-440e-89c6-26899eb7cb04 server=29.8.2 memory_bytes=16664633344 cpu_count=12
+db/migrations/20260827_h2_pro_backfill_editorial_state.sql: OK
+db/migrations/20260827_h2_pro_capture_legacy_cohort.sql: OK
+db/migrations/20260827_h2_pro_contract_legacy_cohort.sql: OK
+db/migrations/20260827_h2_pro_contract_public_reader.sql: OK
+db/migrations/20260827_h2_pro_expand_schema_compat.sql: OK
+db/migrations/20260827_h2_pro_rollback_public_reader_contract.sql: OK
+db/migrations/20260827_h2_pro_seed_editorial_field_definitions.sql: OK
+db/migrations/20260828_h3_admin_auth.sql: OK
+db/migrations/20260828_h3_admin_course_queue_view.sql: OK
+db/migrations/20260828_h3_admin_editorial_reader_rpc.sql: OK
+db/migrations/20260828_h3_admin_editorial_rpc.sql: OK
+db/migrations/20260828_h3_admin_queue_rpc.sql: OK
+db/migrations/20260829_h3_rbac_users.sql: OK
+db/migrations/20260830_h3_expanded_contract.sql: OK
+db/migrations/20260902_h3_pr_contract.sql: OK
+db/migrations/20260903_h3_rbac_contract_fix.sql: OK
+db/migrations/20260918_h3_invitation_flow_persistence.sql: OK
+db/migrations/20260919_h3_invitation_auth_token_delta.sql: OK
+db/migrations/20260920_h3_invitation_edge_runtime.sql: OK
+db/migrations/20260921_h3_invitation_onboarding_rpc.sql: OK
+db/migrations/20260924_h3_onboarding_rbac_hardening.sql: OK
+db/migrations/20260924_h3_onboarding_rbac_hardening_fix.sql: OK
+db/migrations/20260925_h3_admin_members_onboarding_reader.sql: OK
+db/migrations/20260925_h3_legacy_member_creation_guard.sql: OK
+db/migrations/20260927_h3_admin_queue_facets_filter.sql: OK
+db/migrations/20260927_h3_publication_visibility_contract.sql: OK
+db/migrations/20260928_h3_invitation_accept_email_regex_fix.sql: OK
+db/migrations/20261001_h3_course_editorial_audit_availability.sql: OK
+db/migrations/20261001_h3_invitation_reservation_compensation.sql: OK
+db/migrations/20261002_h3_admin_quota_expand.sql: OK
+db/migrations/20261002_h3_admin_quotas.sql: OK
+db/migrations/20261004_h3_admin_queue_first_null_guard.sql: OK
+db/migrations/20261004_h3_admin_rpc_signed_gateway_expand.sql: OK
+db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql: OK
+db/migrations/20261010_h3_admin_members_service_select.sql: OK
+db/rollback/h3req1_safe_resume.sql: OK
+db/rollback/h3req1_safe_suspend.sql: OK
+supabase/functions/admin-invite/index.ts: OK
+tests/h3req1-c03-bootstrap/package-lock.json: OK
+tests/h3req1-c03-bootstrap/package.json: OK
+tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock: OK
+tests/h3req1-c03-edge-lock-resolver/deno.json: OK
+tests/h3req1-c03-edge-main/index.ts: OK
+tests/h3req1_c03_cache_digest.mjs: OK
+tests/h3req1_c03_integrated_drill_r16.sh: OK
+tests/h3req1_c03_integrated_drill_r16_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r17.sh: OK
+tests/h3req1_c03_integrated_drill_r17_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r19.sh: OK
+tests/h3req1_c03_integrated_drill_r19_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r20.sh: OK
+tests/h3req1_c03_integrated_drill_r20_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r21.sh: OK
+tests/h3req1_c03_integrated_drill_r21_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r22.sh: OK
+tests/h3req1_c03_integrated_drill_r22_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r23.sh: OK
+tests/h3req1_c03_integrated_drill_r23_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r24.sh: OK
+tests/h3req1_c03_integrated_drill_r24_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r25.sh: OK
+tests/h3req1_c03_integrated_drill_r25_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r26.sh: OK
+tests/h3req1_c03_integrated_drill_r26_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r27.sh: OK
+tests/h3req1_c03_integrated_drill_r27_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r28.sh: OK
+tests/h3req1_c03_integrated_drill_r28_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r29.sh: OK
+tests/h3req1_c03_integrated_drill_r29_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r30.sh: OK
+tests/h3req1_c03_integrated_drill_r30_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r31.sh: OK
+tests/h3req1_c03_integrated_drill_r31_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r32.sh: OK
+tests/h3req1_c03_integrated_drill_r32_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r33.sh: OK
+tests/h3req1_c03_integrated_drill_r33_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r34.sh: OK
+tests/h3req1_c03_integrated_drill_r34_contract.test.mjs: OK
+tests/h3req1_c03_integrated_runtime.mjs: OK
+tests/h3req1_c03_login_result.mjs: OK
+tests/h3req1_c03_postgrest_probe.mjs: OK
+tests/h3req1_c03_safe_postgrest_error_code.mjs: OK
+tests/sql/h2_pro_pg17_harness.sql: OK
+tests/sql/h3_from_h2_pro_pg17_harness.sql: OK
+tests/sql/h3req1_c03_integrated_assert_completed_suspended.sql: OK
+tests/sql/h3req1_c03_integrated_assert_final.sql: OK
+tests/sql/h3req1_c03_integrated_assert_inflight.sql: OK
+tests/sql/h3req1_c03_integrated_assert_recovered.sql: OK
+tests/sql/h3req1_c03_integrated_assert_suspended.sql: OK
+tests/sql/h3req1_c03_integrated_extension_setup_r13.sql: OK
+tests/sql/h3req1_c03_integrated_setup.sql: OK
+web/functions/_lib/admin-bff.ts: OK
+web/functions/_lib/admin-quota.ts: OK
+web/functions/_middleware.ts: OK
+web/package-lock.json: OK
+web/package.json: OK
+web/src/lib/supabase-transport.ts: OK
+web/vendor/braces-3.0.4-h3.1.tgz: OK
+workers/admin-quota/index.ts: OK
+tests/h3req1_c03_integrated_drill_r35.sh: OK
+tests/h3req1_c03_integrated_drill_r35_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r36.sh: OK
+tests/h3req1_c03_integrated_drill_r36_contract.test.mjs: OK
+tests/h3req1_c03_integrated_drill_r37.sh: OK
+tests/h3req1_c03_integrated_drill_r37_contract.test.mjs: OK
+PostgreSQL pinned image version PASS: 17.11
+container=h3req1-c03-source-snapshot-20261010-r37 metadata=2b4526ba8e6b96bfc254ae93ab1923078effcf46a7c84115b0069a072291d12c|sha256:dd5847a04b0deee391fa145f1f4c6d214196668b6bcc7988ebed67249f226844|exited|536870912|1000000000|128
+R37 runner safety contract tests PASS
+Locked dependency volume SHA-256: {"deno-cache":"0caf7782e6c39a383c41871d5d8bc62801c5ebd369ffd9400542fa9c9000c2ff","edge-node-modules":"00448e894ad63e0bc4d1f5a26cc92369a2d8cc9a882817a57d2a6c69ffe558c3","miniflare-node-modules":"637d7c16a194ec553e6cec3cd07efa1d06ba4a323a40f3ef72062f758e70088f","pages-node-modules":"cc440ac84152f8fcf22af29dd00d53d85a5edebf20e1f1ce20e7240a3ca0fc3d"}
+container=h3req1-c03-dependency-cache-verify-20261010-r37 metadata=d3d99449073ae566d8808573da8ce8deb47cbd70e6acee636790b26c8e14c594|sha256:dd5847a04b0deee391fa145f1f4c6d214196668b6bcc7988ebed67249f226844|exited|536870912|1000000000|128
+network=h3req1-c03-integrated-edge-20261010-r37 id=94fec21d34b3c517288aefc576ffbd18fa2f7de19e4b0d1e318f70e198f1dcc5 internal=true
+network=h3req1-c03-integrated-data-20261010-r37 id=76c15253ff520e3fd5a68a86cdd493eb49155939d6816e5740dfd3bb3e1996ae internal=true
+container=h3req1-c03-integrated-runtime-20261010-r37 metadata=02b1f4af2f66181afd35018bde12d0c8228ea6cb0e76a2f1b742dae0f40cdb15|sha256:dd5847a04b0deee391fa145f1f4c6d214196668b6bcc7988ebed67249f226844|running|4294967296|2000000000|512
+container=h3req1-c03-integrated-pg17-20261010-r37 metadata=abe112a3c38f2b0092f34d391bf75cf3f9d77e1da5056e3c77846792f24c4dd5|sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f|running|2147483648|2000000000|512
+H2-Pro-to-H3 schema bootstrap PASS (psql exit=0)
+integrated-only quota and signed-dispatcher schema setup PASS (psql exit=0)
+synthetic in-flight/editorial fixture PASS (psql exit=0)
+container=h3req1-c03-integrated-postgrest-20261010-r37 metadata=983e26f5a2a5af5f01ab6bd58d714bfdbf2e68acf8d16ff7ddc0ab62b0c253b2|sha256:0a46780309a604cdc8b56c776c6e5e15788ce58174d709e40459ab5a2d44d228|running|536870912|1000000000|256
+isolated PostgREST readiness PASS
+container=h3req1-c03-integrated-edge-active-20261010-r37 metadata=37eec86e92046992cde54271c0b878477f7407fd558c12315dc186f7912d17f1|sha256:cc355c3d0e9c063a351cad56d1c4c52a3c4d85aff4e1fad9d91688e75f9aad09|running|1073741824|1000000000|256
+Edge synthetic/system CA bundle SHA-256: 777cedca8b876f45d978ed1b42c48ab139d36ac66835649ffa8f90de10140b83
+{"result":"PASS","aal":"aal2","authCookie":true,"activityCookie":true}
+[redacted sensitive output line]
+reservation confirmed before Auth hold PASS (psql exit=0)
+persistent safe suspension PASS (psql exit=0)
+container=h3req1-c03-integrated-edge-suspended-20261010-r37 metadata=8706be880b8aaf249a0c636f33e170cf44a44809b6e62b087c003ef509c0dd50|sha256:cc355c3d0e9c063a351cad56d1c4c52a3c4d85aff4e1fad9d91688e75f9aad09|running|1073741824|1000000000|256
+Edge synthetic/system CA bundle SHA-256: 777cedca8b876f45d978ed1b42c48ab139d36ac66835649ffa8f90de10140b83
+{"result":"PASS","routes503":4,"cookiesExpired":7,"publicFixtures":3,"aliasesRejected":8}
+{"result":"PASS","status":503,"code":"maintenance_mode","syntheticGetUser":1,"admissionEvents":1,"reservations":0,"authEmailCalls":0}
+{"result":"PASS","status":403,"code":"42501","noncePreserved":true}
+sql-gate-failure|label=suspended ACL/data/quota/audit assertions|exit=3|code=H3S12
+NO-GO: SQL gate failed or exceeded its 90-second deadline: suspended ACL/data/quota/audit assertions
+failure-stop=completed exact_run_containers=5

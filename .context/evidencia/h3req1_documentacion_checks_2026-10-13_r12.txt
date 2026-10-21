@@ -1,0 +1,37 @@
+H3REQ1 — transferencia documental local R12
+Corte: 2026-10-13 UTC
+Candidato: /home/romel/src/studiamatch-h3req1-sync-20261002
+Rama: feat/h3req1-sync-20261002
+HEAD baseline: 4eb4d877a50b012bb630a129bd0c74482c33be9c (no identifica el WIP)
+Entorno: Docker studiamatch-dev, path /app; original /home/romel/src/studiamatch solo lectura.
+
+Cobertura final del registro ejecutado:
+DOC_COVERAGE sources=801 assigned=801/801 structurally_linked_sources=801/801 all_relation_dimensions_verified_sources=801/801 components=14/14 groups=262 relation_slots=4806 local_relation_slots=4715 verified_local=4715 pending_local=0 unknown_local=0 invalid_local=0 remote_only=0 not_applicable=91 remote_checks_verified=0/5 remote_checks_pending=5 integration_projection_sources=434 candidate_only_wip_sources=367
+DOC_GRAPH links=5416 anchors=3390 reachable=80/80 active_docs=80 archived_docs=433 artifacts=28 exclusions=29
+
+Checks y resultados:
+1. `bash scripts/security/run_documentation_integrity.sh --render` dentro de Docker: exit 0; `DOC_REGISTRY_RENDERED .context/trazabilidad/registro_fuentes_componentes.md`.
+2. `node scripts/maintenance/h3req1_documentation_integrity.mjs --self-test` dentro de Docker: exit 0; `DOC_SELF_TEST_PASS`. La autoprueba rechaza fuente no asignada, unknown genérico, relación remote incompleta, root/extensión no registrados, comentario discordante/malformado/duplicado, path/anchor ausente, índice principal duplicado y documento retirado aún presente.
+3. Gate normal `node scripts/maintenance/h3req1_documentation_integrity.mjs` dentro de Docker: exit 0; `DOC_GATE_PASS`. 801 fuentes, 14 componentes, 262 grupos, 80/80 páginas alcanzables, 4,715 relaciones locales aplicables verificadas, 91 N/A con motivo, 0 pending/unknown/invalid; remotos 0/5.
+4. `bash tests/test_protected_path_scope_guard.sh` dentro de Docker: exit 0; `protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3`. El comparador global que depende de `.git` no se ejecutó: `/app` no contiene metadatos Git.
+5. `npx tsc --noEmit` desde `/app/web`: exit 0.
+6. `npm run lint` desde `/app/web`: exit 0, 0 errors y 9 warnings en `web/src/app/HomeContent.tsx`: siete avisos `react-hooks/exhaustive-deps` sobre `getFilteredExcluding` (líneas 155, 161, 167, 173, 185, 199, 217) y dos `no-unused-vars` para `_e` (líneas 301 y 325). No se editó ese archivo durante las correcciones R12; los warnings no se presentan como PASS sin límite.
+7. `python3 -m py_compile` dentro de Docker para `scripts/core/certification_canary_manifest.py`, `certification_canary_state.py`, `production_canary_source_preflight.py`, `production_canary_manifest.py`, `production_canary_state.py` y `scripts/shared/roi_engine.py`: exit 0. Las caches resultantes se preservan y no se incluyen en el paquete.
+8. `bash -n scripts/security/run_documentation_integrity.sh` dentro de Docker: exit 0.
+9. `git diff --check` en el candidato local: exit 0. Es un check Git local, no un comando dentro del contenedor.
+10. ESLint/TypeScript/Python compile validan sintaxis o tipos locales; no repiten pruebas funcionales ni prueban runtimes remotos.
+11. Tras documentar la excepción de borrados del scope guard en `seguridad_tooling.md`, se repitieron en Docker el gate normal y `--self-test`: ambos exit 0; el grafo es 5,416 links / 3,390 anchors / 80 de 80 documentos activos alcanzables. `tests/test_protected_path_scope_guard.sh` pasó (ordinary=3, newline=1, controls=1, malformed=3). La revisión R4 detectó que el comentario del test de allowlist agrupaba por error el protocolo vigente con los paths retirados. Se separó `retired_local_paths` y se afirmó por separado que el protocolo activo existe y está allowlisted; en Docker pasaron `py_compile` y la invocación directa de `test_protected_h3_path_allowlist_is_narrow_and_covers_this_candidate`.
+
+Scanner de credenciales:
+Scanner final post-R5 en Docker: exit 0 sobre 127 paths únicos: 103 presentes, 7 eliminados no enviados al scanner, 26 marcadores, el manifiesto y 3 solapamientos. Se ejecutó después de registrar R5 y refrescar los pins del paquete.
+
+Herramientas/limitaciones:
+- `actionlint`, `ShellCheck`, PyYAML y Ruby YAML parser no están instalados en `studiamatch-dev`; no se instalaron. Se declara `bash -n`, no se atribuye validación semántica completa del workflow.
+- `pytest` no está disponible según la comprobación Docker documentada en el corte R11; no se instaló ni se repitió una suite funcional. El autogate Node sí ejecutó sus pruebas negativas.
+- El job local `documentation-integrity` está definido en `.github/workflows/security-audit.yml`; GitHub no se consultó, por lo que instalación/ejecución remota queda no verificada.
+- La primera revisión independiente dio NO-GO con cuatro findings (dos P1, dos P2); las correcciones están aplicadas. Los rereads R2/R3 dieron GO. R4 detectó un P2 de clasificación en el comentario de la prueba; se corrigió y su prueba focalizada pasa. El reread R5 dio GO sin bloqueantes para el paquete y la corrección.
+- No se ejecutaron suites funcionales nuevas; R178/R181/R182 solo se reutilizan para inputs compatibles. No se leyó `.env`, secreto operativo, documento privado del cliente ni dump de tokens; no se accedió a GitHub, Supabase o Cloudflare; no se hizo SQL, writer, deploy, merge, fetch o push.
+
+Estado al actualizar este log: gate normal/self-test, scope guard, prueba focalizada, pins y scanner pasan después de registrar R5. No quedan tareas locales de transferencia ni relaciones locales pendientes en el registro. El manifiesto excluye su propio hash y registra el scope exacto.
+
+Verificación de pins final en Docker: `PACKAGE_PINS_PASS`; 110 entradas (103 presentes, 7 eliminadas), 26 marcadores, siete evidencias R9 no privadas, hashes de log/cuerpo y digest ordenado. Las rutas eliminadas se comprobaron ausentes. La atestación de cliente conserva su pin R9 y no se leyó. El hash propio del manifiesto queda excluido.

@@ -1,0 +1,9 @@
+7690ea33b386f2b13c930f50ba31446dce792e8947619c05fb8d5c1dc7d20519  tests/h3_local_uat.mjs
+60c429c7a848a70c285d6b3fc9065c34b562098b5d69b933c902c1d58f4516b1  .context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/run_h3_uat002_003_r170.sh
+28697b1e0182d4b5fef323f319ee44aa1c219452eb00e75ebd8a665634e5fc49  .context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/run_h3_uat002_003_r171.sh
+8a0f7c7cccb2fbbfd3e8e9eb6ff26840b88df0d4ff75493872944a9cc590ff66  .context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r146/runtime-helper/h3_local_runtime_server_r146_uat072.mjs
+5bac05aa8ab0b013fb6fd04b4a890d59ae0d933d3e85d4e769e74f280dc6fb2d  .context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r146/onboarding-summary-r146.json
+635f5ed57b8eb21d14aa93e78c50de052657164f7a0f1029c9cc9db20ad46e67  .context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r146/uat072-current/h3-expanded-uat-manifest.json
+7213729f926c8ea95635d528e62bb444fc65b3fc46644b85b4e968c3a278b4a4  .context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r146/uat072-current/h3-expanded-uat-artifact-hashes.json
+66132c920d6b55d9dcf3e8c33a13e6f74506fb82a891de2fceb1aa6f5a1ac362  .context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-r162-candidate-source-check.log
+8b6502da3b04b044bbab194cb5b0becd7e502b70959a8a4d5968044407a72779  .context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-r162-r146-artifact-check.log

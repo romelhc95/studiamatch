@@ -1,3 +1,4 @@
+// StudIAMatch-Docs: .context/componentes/admin_portal.md#cola-editorial
 'use client';
 
 import Link from 'next/link';

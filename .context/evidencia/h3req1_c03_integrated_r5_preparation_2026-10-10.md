@@ -1,0 +1,43 @@
+# H3REQ1 C03 integrado R5 — preparación
+
+Fecha: 2026-10-10. Estado: preparado; el ensayo integrado aún no se ha ejecutado.
+
+## Candidato e impacto
+
+- Checkout: `/home/romel/src/studiamatch-h3req1-sync-20261002`.
+- Rama/HEAD baseline: `feat/h3req1-sync-20261002` / `4eb4d877a50b012bb630a129bd0c74482c33be9c`.
+- WIP de entrada observado: 4434 entradas (incluye cambios preexistentes, evidencia de esta sesión y archivos no relacionados). Se preserva íntegro; este conteo no se usa como identidad del candidato.
+- Objetivo: revalidar Pages/workerd + Edge Runtime + PostgreSQL 17.11 + PostgREST y el ciclo C03 de reserva, suspensión, finalización in-flight, resume persistente y recuperación.
+- Consumidores: `tests/h3req1_c03_integrated_runtime.mjs`, workflow del Edge Admin invite, BFF Admin, migraciones H2/H3 y harness SQL integrado. La evidencia SQL C03 v3 (41/41) y PG17 editorial (36/36) sigue preservada y no sustituye este ensayo integrado.
+- Cambio de contrato: ninguno. El runner y manifiesto R5 actualizan integridad/aislamiento para el candidato; no modifican el checkout original, BFF ni runtime funcional.
+
+## Evidencia preservada y motivo de renovación
+
+- R4 permanece intacto en [log R4](h3req1_c03_integrated_run_2026-10-06_r4.log) y en su manifiesto histórico [R4](h3req1_c03_integrated_manifest_r4.sha256). R4 pasó 60/62 hashes, pero detuvo el runtime con `healthz` timeout, exit 1, OOM false.
+- R4 no es reutilizable como ejecución: dos hashes cambiaron (`tests/h3req1_c03_integrated_runtime.mjs` y `web/functions/_lib/admin-bff.ts`); su runner tampoco fijaba Docker Desktop, límites por contenedor ni redes internas/egress con alcance equivalente.
+- R5 usa esos dos inputs actuales y reemplaza la entrada del runner por `tests/h3req1_c03_integrated_drill_r5.sh`. Manifiesto actual: 63 entradas, SHA-256 `4e12f52b113881d264421e555c6c1dd56ae7868a738a70124f11f809e9125393`; `sha256sum -c` PASS 63/63. Incluye la prueba de contrato del runner.
+- Runner R5 SHA-256 `7e2d4c018852d0bdb702ed198deb9b679838293dc3a9129a000b36d9fff74a2d`; prueba de contrato SHA-256 `dd3b6fed570d0c1dd396317144e7c7e75ec1b6f83ec9b4ce5619d57fc346e40c`.
+- La revisión independiente de una versión previa detectó que el manifiesto conservaba dos hashes antiguos y que los helpers bajo `/usr/bin/timeout` omitían `--host`; ambos bloqueos se corrigieron. El binario `/usr/bin/docker` y host esperado quedan explícitos en `docker()`, `bounded_docker` y `bounded_exec`, con aserciones contractuales específicas. Cada `docker run` lleva `--pull=never`; `docker exec` conserva deadlines externos/internos; traps solo paran IDs etiquetados con JIT/manifiesto/nonce actuales tras acreditar el daemon. Cleanup combina identidad/estado/labels en una lectura y elimina contenedores/redes por el ID inmutable inspeccionado.
+- Validaciones del delta corregido: Bash `-n`, seis pruebas contractuales Node 6/6, ShellCheck oficial 0.11.0 con severity `warning`, `git diff --check` y manifiesto 63/63: PASS. La prueba contractual corre también desde el snapshot antes de iniciar servicios, en un contenedor efímero `network=none`, rootfs read-only y mount read-only. Revisión independiente final de estos tres pins todavía pendiente; G07 aún no se ejecuta.
+- Errores de despacho de pruebas preservados: la primera prueba Node no halló el runner por nombres de mount distintos a la estructura real del snapshot; una pasada temprana del test tuvo tres aserciones incorrectas (posición de `--pull=never` y espacios de Bash), corregidas y revalidadas 5/5. Un primer despacho ShellCheck repitió el nombre del ejecutable que ya era el ENTRYPOINT de la imagen; no llegó a analizar el archivo. El despacho corregido pasó exit 0. Una consulta read-only de mounts pidió `.Name` en un bind mount que no lo contiene; no creó/modificó recursos y se sustituyó por una proyección diferenciada bind/volume.
+- El parser de lista de archivos del snapshot pasó probe sintético en contenedor Node fijado, `network=none`, rootfs read-only. El primer comando de probe no llegó al runner: falló por comillas en ese comando de prueba. Se redujo a `sed` sin awk anidado; la prueba mínima pasó.
+- El parser de lista de archivos del snapshot pasó probe sintético en contenedor Node fijado, `network=none`, rootfs read-only. El primer comando de probe no llegó al runner: falló por comillas en ese comando de prueba. Se redujo a `sed` sin awk anidado; la prueba mínima pasó.
+
+## Ficha de ejecución y recuperación
+
+- Runtime: Docker Desktop local ya observado en contexto `default`, endpoint `unix:///var/run/docker.sock`, engine `fc2115b2-c3c4-440e-89c6-26899eb7cb04`, versión `29.8.2`. El runner vuelve a comprobar estos valores y exige capacidad mínima de 10 GiB y 8 CPU; cualquier diferencia detiene antes de crear recursos.
+- Imágenes: referencias locales por digest para Node, Edge Runtime, PostgreSQL `17.11` y PostgREST; cada invocación `docker run` usa `--pull=never`, sin build ni descarga.
+- Bootstrap: snapshot exacto de los paths manifestados, sin `.env*`, `node_modules` del checkout ni `.git`; verificación de hashes, set de archivos y ausencia de symlinks. Las cachés R4 son read-only, requieren labels R4 exactos, cero consumidores activos y los cuatro digests históricos.
+- Aislamiento: redes Docker `--internal` para Edge/data; snapshot/cache verifier usan `network=none`. Contenedores con límites explícitos; PG usa `PGDATA` en tmpfs, sin puertos/volúmenes. Credenciales/fixtures SQL y Auth son sintéticos; no carga `.env*` ni consulta servicios operativos.
+- Recursos R5 previstos: dos redes internas; contenedores efímeros de snapshot/cache verifier, Pages/workerd, PG17, PostgREST y dos instancias Edge; volumen snapshot completo, volumen TLS sintético y mounts read-only de cachés R4.
+- Ante FAIL/timeout, el runner para (sin eliminar) únicamente los servicios activos cuyos IDs y etiquetas coinciden con esta ejecución ya verificada; conserva evidencia/log y recursos etiquetados para inspección. En PASS, elimina solo los siete contenedores completados y dos redes internas cuyos ID/estado/JIT/manifiesto/nonce coincidan; usa IDs obtenidos en la misma lectura. No usa `-v`, prune ni borra imágenes. Conserva el snapshot fuente, TLS sintético y cachés R4. Ningún archivo del checkout se elimina.
+- Recuperación: si falla, conservar `.context/evidencia/h3req1_c03_integrated_run_2026-10-10_r5.log` y el estado de los recursos R5; corregir solo el componente demostrado y usar nombres/manifest nuevos para el siguiente ensayo autorizado por el alcance local vigente.
+
+## Revisiones y siguiente gate
+
+- Revisión independiente final de seguridad y protocolo estático PASS para runner `7e2d4c…`, test `dd3b6f…` y manifiesto `4e12f5…`: confirma 63/63 hashes, endpoint fijado incluso bajo `timeout`, deadlines, ownership/nonce, stop/cleanup por IDs, `--pull=never`, redes internas y mounts read-only. No equivale a resultado de runtime.
+- R5 exige 10 GiB/8 CPU frente a 8,5 GiB/7 CPU acotados y motor observado de 15,5 GiB/12 CPU. Con ambos dictámenes PASS se inicia la invocación integrada única del JIT local vigente; el resultado de runtime aún no está disponible.
+- Ejecución R5 iniciada tras ambos PASS estáticos. Exit `1`, fase `isolated-postgrest`: el PG17 17.11 terminó bootstrap H2→Pro→H3, setup C03 y fixtures sintéticos con exit 0; Pages/workerd ya había superado `healthz`. PostgREST permaneció `running`, pero 60 sondas `GET /` desde el runtime no devolvieron 2xx. La salida del probe reducía DNS, conexión, timeout y status HTTP a un único fallo, así que la causa exacta no está demostrada. Al detener por FAIL, runtime salió 143 (SIGTERM esperado), PG 0, PostgREST 255 tras `docker stop`; no hay OOM. El runner tiene `log-driver none`, por lo que no hay logs crudos recuperables. Se conservaron los contenedores R5 detenidos, dos redes internas, snapshot/TLS y cachés R4; no se ejecutó Edge ni el C03 integrado. Evidencia: [log R5](h3req1_c03_integrated_run_2026-10-10_r5.log).
+- Próximo paso local autorizado: clasificar el probe desde el mismo runtime en códigos sanitizados separados (HTTP status, DNS, conexión, timeout y error no clasificado), probar el clasificador con fixtures sintéticos y hacer revisión independiente. Solo con revisión PASS, correr una versión de ensayo con manifiesto actualizado y timeout total 1800 s; un resultado específico guiará la corrección mínima. No repetir el runner intacto ni atribuir el fallo al producto o a Docker.
+- Gates: G01–G06 completos en el corte vigente; G07 pendiente hasta resultado real de runtime integrado. G08/G09 no comienzan antes de G07 PASS. G10 conserva CI remoto y revisión humana; esta autorización local no lo ejecuta.
+

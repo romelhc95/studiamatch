@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "environment": "local-docker-mock",
+  "generatedAt": "2026-10-12T01:16:50.085Z",
+  "baseURL": "http://localhost:3380",
+  "mockURL": "http://localhost:3381",
+  "retries": 0,
+  "expected": {
+    "logicalCases": 2,
+    "viewportExecutions": 6,
+    "screenshots": 6
+  },
+  "actual": {
+    "logicalCases": 2,
+    "logicalCasesPassed": 0,
+    "viewportExecutions": 6,
+    "viewportExecutionsPassed": 0,
+    "screenshots": 6,
+    "videos": 0,
+    "videoCaptureFailures": 0
+  },
+  "distribution": {
+    "H3-CA4.1": 2,
+    "H3-CA4.2": 0,
+    "H3-CA4.3": 0,
+    "H3-CA4.4": 0,
+    "H3-CA4.5": 0,
+    "H3-CA4.6": 0,
+    "H3-CA4.7": 0,
+    "H3-CA4.8": 0,
+    "H3-CA4.9": 0,
+    "H3-CA4.10": 0,
+    "H3-CA4.11": 0
+  },
+  "byViewport": {
+    "desktop": {
+      "expected": 2,
+      "actual": 2,
+      "passed": 0
+    },
+    "tablet": {
+      "expected": 2,
+      "actual": 2,
+      "passed": 0
+    },
+    "mobile": {
+      "expected": 2,
+      "actual": 2,
+      "passed": 0
+    }
+  },
+  "fatalError": null,
+  "result": "FAIL",
+  "logicalCases": [
+    {
+      "id": "H3-UAT-002",
+      "title": "active admin reaches the editorial dashboard",
+      "requirementId": "H3-CA4.1",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 0,
+      "result": "FAIL"
+    },
+    {
+      "id": "H3-UAT-003",
+      "title": "active user reaches the limited dashboard",
+      "requirementId": "H3-CA4.1",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 0,
+      "result": "FAIL"
+    }
+  ]
+}
