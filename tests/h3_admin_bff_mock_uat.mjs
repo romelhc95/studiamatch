@@ -42,7 +42,12 @@ let inviteFailure = false;
 let inviteFailureCode = 'reconciliation_required';
 let rpcFailure = null;
 let currentSession = null;
-let mockFactors = [{ id: 'factor-1', factor_type: 'totp', status: 'verified' }];
+let mockFactors = [{ id: '00000000-0000-4000-8000-000000000001', factor_type: 'totp', status: 'verified' }];
+let malformedFactorList = false;
+let factorListFailure = false;
+let assuranceFailure = false;
+let assuranceNextLevelOverride;
+let updateUserCalls = 0;
 let enrollmentCount = 0;
 const pendingFactorId = '00000000-0000-4000-8000-000000000002';
 const user = { id: '30000000-0000-0000-0000-000000000001', email: 'admin@local.test' };
@@ -91,7 +96,7 @@ function setSession(cookies, aal = 'aal1', sessionId = sessionAId) {
 
 function createServerClient(_url, _key, options) {
   const cookies = options.cookies;
-  const currentAal = () => currentSession?.aal || 'aal1';
+  const currentAal = () => currentSession?.aal ?? null;
   return {
     auth: {
       signInWithPassword: async ({ email, password }) => {
@@ -123,10 +128,20 @@ function createServerClient(_url, _key, options) {
         setSession(cookies);
         return { data: { session: currentSession }, error: null };
       },
-      updateUser: async () => ({ data: { user }, error: null }),
+      updateUser: async () => {
+        updateUserCalls += 1;
+        return { data: { user }, error: null };
+      },
       mfa: {
-        getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: currentAal(), nextLevel: 'aal2' }, error: null }),
-        listFactors: async () => ({ data: { all: [...mockFactors] }, error: null }),
+        getAuthenticatorAssuranceLevel: async () => assuranceFailure
+          ? { data: null, error: { message: 'fixture assurance service unavailable' } }
+          : { data: {
+            currentLevel: currentAal(),
+            nextLevel: assuranceNextLevelOverride ?? (mockFactors.some((factor) => factor.status === 'verified') ? 'aal2' : currentAal()),
+          }, error: null },
+        listFactors: async () => factorListFailure
+          ? { data: null, error: { message: 'fixture factor service unavailable' } }
+          : { data: malformedFactorList ? {} : { all: [...mockFactors] }, error: null },
         enroll: async () => {
           enrollmentCount += 1;
           mockFactors.push({ id: pendingFactorId, factor_type: 'totp', status: 'unverified' });
@@ -303,6 +318,90 @@ const session = await route(request('/api/admin/session', {
   cookie: csrfCookie,
 }));
 assert.equal(session.status, 200);
+
+const recoveryPassword = 'Recovery-Password9!';
+const passwordUpdateWithMfaAal1 = await route(request('/api/admin/auth/password', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { password: recoveryPassword },
+}));
+assert.equal(passwordUpdateWithMfaAal1.status, 403, 'the BFF must reject direct password updates when a verified MFA factor exists but the session is not aal2');
+assert.deepEqual(await passwordUpdateWithMfaAal1.json(), {
+  error: { code: 'mfa_required', message: 'Completa la verificación MFA antes de cambiar la contraseña.' },
+});
+assert.equal(updateUserCalls, 0, 'the Auth password mutation must not run for an aal1 session with verified MFA');
+
+malformedFactorList = true;
+const passwordUpdateWithMalformedFactors = await route(request('/api/admin/auth/password', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { password: recoveryPassword },
+}));
+assert.equal(passwordUpdateWithMalformedFactors.status, 503, 'the BFF must fail closed when it cannot validate the MFA inventory');
+assert.deepEqual(await passwordUpdateWithMalformedFactors.json(), {
+  error: { code: 'mfa_unavailable', message: 'No se pudo confirmar el estado MFA. Inténtalo de nuevo.' },
+});
+assert.equal(updateUserCalls, 0, 'malformed factors must never reach the Auth password mutation');
+malformedFactorList = false;
+
+factorListFailure = true;
+const passwordUpdateWithUnavailableFactors = await route(request('/api/admin/auth/password', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { password: recoveryPassword },
+}));
+assert.equal(passwordUpdateWithUnavailableFactors.status, 503, 'the BFF must fail closed when Auth cannot list MFA factors');
+assert.equal(updateUserCalls, 0, 'an unavailable MFA inventory must never reach the Auth password mutation');
+factorListFailure = false;
+
+assuranceFailure = true;
+const passwordUpdateWithUnavailableAssurance = await route(request('/api/admin/auth/password', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { password: recoveryPassword },
+}));
+assert.equal(passwordUpdateWithUnavailableAssurance.status, 503, 'the BFF must fail closed when Auth cannot determine session assurance');
+assert.equal(updateUserCalls, 0, 'unavailable assurance must never reach the Auth password mutation');
+assuranceFailure = false;
+
+currentSession.aal = 'aal2';
+const passwordUpdateWithVerifiedMfa = await route(request('/api/admin/auth/password', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { password: recoveryPassword },
+}));
+assert.equal(passwordUpdateWithVerifiedMfa.status, 200, 'aal2 sessions with a verified factor may update the password');
+assert.equal(updateUserCalls, 1);
+
+currentSession.aal = 'aal1';
+mockFactors = [];
+const passwordUpdateWithoutMfa = await route(request('/api/admin/auth/password', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { password: recoveryPassword },
+}));
+assert.equal(passwordUpdateWithoutMfa.status, 200, 'password setup remains available to a session without verified MFA factors');
+assert.equal(updateUserCalls, 2);
+assuranceNextLevelOverride = 'aal2';
+const passwordUpdateWithMfaAssuranceMismatch = await route(request('/api/admin/auth/password', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { password: recoveryPassword },
+}));
+assert.equal(passwordUpdateWithMfaAssuranceMismatch.status, 403, 'a next aal2 assurance level must stay gated even if the separate factor inventory omits a verified factor');
+assert.deepEqual(await passwordUpdateWithMfaAssuranceMismatch.json(), {
+  error: { code: 'mfa_required', message: 'Completa la verificación MFA antes de cambiar la contraseña.' },
+});
+assert.equal(updateUserCalls, 2, 'inconsistent assurance and factor reads must never reach the Auth password mutation');
+assuranceNextLevelOverride = undefined;
+mockFactors = [{ id: '00000000-0000-4000-8000-000000000001', factor_type: 'totp', status: 'verified' }];
 assert(!/__Host-studiamatch-admin-auth(?:\.|=)/.test(session.headers.get('set-cookie') || ''),
   'read response must not echo stale Auth cookies and race MFA upgrade');
 assert.equal((await session.json()).authenticated, true);
@@ -443,6 +542,92 @@ assert.equal(limitedRpc.status, 429);
 assert.equal(limitedRpc.headers.get('Retry-After'), '37');
 assert.equal(rpcCalls.length, rpcCountBeforeLimit, 'a quota denial never calls PostgREST');
 rpcQuotaFailure = null;
+
+const validMfaFactorId = '00000000-0000-4000-8000-000000000004';
+const validPhoneFactorId = '00000000-0000-4000-8000-000000000005';
+mockFactors = [
+  { id: validMfaFactorId, factor_type: 'totp', status: 'verified' },
+  { id: validPhoneFactorId, factor_type: 'phone', status: 'verified' },
+];
+const recoveryMfaAssurance = await route(request('/api/admin/auth/mfa', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { action: 'recovery_assurance' },
+}));
+assert.equal(recoveryMfaAssurance.status, 200);
+assert.deepEqual(await recoveryMfaAssurance.json(), {
+  currentLevel: 'aal1',
+  nextLevel: 'aal2',
+  hasVerifiedFactor: true,
+  verifiedFactors: [{ id: validMfaFactorId, factor_type: 'totp', status: 'verified' }],
+}, 'assurance returns verified factor presence while exposing only TOTP factors usable by this recovery flow');
+
+mockFactors = [];
+currentSession.aal = null;
+const assuranceWithoutFactors = await route(request('/api/admin/auth/mfa', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { action: 'recovery_assurance' },
+}));
+assert.equal(assuranceWithoutFactors.status, 200);
+assert.deepEqual(await assuranceWithoutFactors.json(), {
+  currentLevel: null,
+  nextLevel: null,
+  hasVerifiedFactor: false,
+  verifiedFactors: [],
+}, 'nullable SDK AAL levels with no verified factors remain distinguishable from an unavailable MFA state');
+
+mockFactors = [{ id: validPhoneFactorId, factor_type: 'phone', status: 'verified' }];
+const phoneOnlyRecoveryAssurance = await route(request('/api/admin/auth/mfa', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { action: 'recovery_assurance' },
+}));
+assert.equal(phoneOnlyRecoveryAssurance.status, 200);
+assert.deepEqual(await phoneOnlyRecoveryAssurance.json(), {
+  currentLevel: null,
+  nextLevel: 'aal2',
+  hasVerifiedFactor: true,
+  verifiedFactors: [],
+}, 'a verified phone factor is recognized as enrolled but is not returned as a usable TOTP factor');
+
+mockFactors = [
+  { id: validMfaFactorId, factor_type: 'totp', status: 'verified' },
+  { id: validPhoneFactorId, factor_type: 'phone', status: 'verified' },
+];
+currentSession.aal = 'aal1';
+const listedMfaFactors = await route(request('/api/admin/auth/mfa', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { action: 'list' },
+}));
+assert.equal(listedMfaFactors.status, 200, 'a well-formed verified TOTP factor remains available to the recovery flow');
+assert.deepEqual(await listedMfaFactors.json(), {
+  factors: [{ id: validMfaFactorId, factor_type: 'totp', status: 'verified' }],
+}, 'a known phone factor must not make the TOTP recovery factor unavailable');
+
+malformedFactorList = true;
+const malformedMfaFactors = await route(request('/api/admin/auth/mfa', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { action: 'list' },
+}));
+assert.equal(malformedMfaFactors.status, 502, 'malformed factor data must fail closed instead of looking like no enrolled MFA');
+assert.deepEqual(await malformedMfaFactors.json(), { error: { code: 'mfa_unavailable' } });
+const malformedMfaAssurance = await route(request('/api/admin/auth/mfa', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { action: 'recovery_assurance' },
+}));
+assert.equal(malformedMfaAssurance.status, 502, 'assurance must fail closed if the factor inventory is malformed');
+assert.deepEqual(await malformedMfaAssurance.json(), { error: { code: 'mfa_unavailable' } });
+malformedFactorList = false;
 
 const verifiedFactorId = '00000000-0000-4000-8000-000000000004';
 mockFactors = [{ id: verifiedFactorId, factor_type: 'totp', status: 'verified' }];
@@ -773,7 +958,7 @@ for(const name of [
 assert(cookieOptionsSeen.filter((options) => options.name.startsWith('__Host-studiamatch-admin-auth')).every((options) => options.httpOnly && options.secure && options.path === '/'));
 console.log(JSON.stringify({
   result: 'PASS',
-  checks: 96,
+  checks: 127,
   quotaCases: 10,
   activityCookieRejectCases: 6,
   mfaSessionRebindCases: 1,

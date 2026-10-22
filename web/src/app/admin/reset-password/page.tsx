@@ -5,16 +5,58 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Check, KeyRound, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/admin/PasswordInput';
 import { PasswordRequirements } from '@/components/admin/PasswordRequirements';
+import type { AuthenticatorFactor } from '@/lib/admin-auth';
 import {
+  challengeTotp,
+  getPasswordRecoveryAssurance,
   getAuthSession,
+  isMfaRequiredError,
+  listFactors,
   signOutAdmin,
   updateAdminPassword,
+  verifyTotp,
 } from '@/lib/admin-auth';
 import { getPasswordValidationMessage, hasPasswordRequirements, isPasswordValid, PASSWORD_MIN_LENGTH } from '@/lib/password-policy';
 
-type PageState = 'preparing' | 'ready' | 'saving' | 'complete' | 'error';
+type PageState = 'preparing' | 'mfa' | 'verifying-mfa' | 'ready' | 'saving' | 'complete' | 'error';
+
+function isAssuranceLevel(value: unknown): value is 'aal1' | 'aal2' {
+  return value === 'aal1' || value === 'aal2';
+}
+
+function isNullableAssuranceLevel(value: unknown): value is 'aal1' | 'aal2' | null {
+  return value === null || isAssuranceLevel(value);
+}
+
+function assertValidAssurance(value: unknown): asserts value is {
+  currentLevel: 'aal1' | 'aal2' | null;
+  nextLevel: 'aal1' | 'aal2' | null;
+  hasVerifiedFactor: boolean;
+  verifiedFactors: AuthenticatorFactor[];
+} {
+  if (!value || typeof value !== 'object') {
+    throw new Error('No se pudo validar el nivel de seguridad de la sesión.');
+  }
+
+  const assurance = value as Record<string, unknown>;
+  if (!isNullableAssuranceLevel(assurance.currentLevel)
+    || !isNullableAssuranceLevel(assurance.nextLevel)
+    || typeof assurance.hasVerifiedFactor !== 'boolean'
+    || !Array.isArray(assurance.verifiedFactors)
+    || !assurance.verifiedFactors.every((factor) => factor
+      && typeof factor === 'object'
+      && typeof factor.id === 'string'
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(factor.id)
+      && factor.factor_type === 'totp'
+      && factor.status === 'verified')
+    || (assurance.verifiedFactors.length > 0 && assurance.hasVerifiedFactor !== true)) {
+    throw new Error('No se pudo validar el nivel de seguridad de la sesión.');
+  }
+}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -24,6 +66,10 @@ export default function ResetPasswordPage() {
   const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [verifiedFactors, setVerifiedFactors] = useState<AuthenticatorFactor[]>([]);
+  const [factorIndex, setFactorIndex] = useState(0);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,6 +80,29 @@ export default function ResetPasswordPage() {
       try {
         if (!(await getAuthSession())) {
           throw new Error('Abre esta pantalla desde el enlace de recuperación recibido por correo.');
+        }
+
+        const assurance = await getPasswordRecoveryAssurance();
+        assertValidAssurance(assurance);
+        if (assurance.currentLevel === 'aal2') {
+          if (active) setPageState('ready');
+          return;
+        }
+
+        const availableFactors = assurance.verifiedFactors;
+        if (assurance.hasVerifiedFactor) {
+          if (availableFactors.length === 0) {
+            throw new Error('Tu cuenta usa un factor MFA que esta pantalla no puede verificar. Contacta al administrador sin cambiar tu factor.');
+          }
+          if (!active) return;
+          setVerifiedFactors(availableFactors);
+          setFactorIndex(0);
+          setPageState('mfa');
+          return;
+        }
+
+        if (assurance.nextLevel === 'aal2') {
+          throw new Error('No se pudo confirmar el estado MFA de la sesión.');
         }
 
         if (active) setPageState('ready');
@@ -56,6 +125,36 @@ export default function ResetPasswordPage() {
   const passwordInvalid = Boolean(password && !hasPasswordRequirements(password));
   const confirmationInvalid = Boolean(confirmation && password !== confirmation);
 
+  const handleMfaSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const selectedFactor = verifiedFactors[factorIndex];
+    if (!selectedFactor || !/^\d{6}$/.test(mfaCode)) return;
+
+    setPageState('verifying-mfa');
+    setMfaError(null);
+    try {
+      const listedFactors = await listFactors();
+      const currentFactors = Array.isArray(listedFactors) ? listedFactors : [];
+      const currentFactor = currentFactors.find((factor) => factor
+        && factor.id === selectedFactor.id
+        && factor.factor_type === 'totp'
+        && factor.status === 'verified');
+      if (!currentFactor) throw new Error('El autenticador ya no está disponible. Recarga la pantalla e inténtalo de nuevo.');
+
+      const challenge = await challengeTotp(currentFactor.id);
+      await verifyTotp(currentFactor.id, challenge.id, mfaCode);
+      const assurance = await getPasswordRecoveryAssurance();
+      assertValidAssurance(assurance);
+      if (assurance.currentLevel !== 'aal2') throw new Error('No se pudo confirmar el segundo factor.');
+      setMfaCode('');
+      setPageState('ready');
+    } catch (reason) {
+      setMfaCode('');
+      setMfaError(reason instanceof Error ? reason.message : 'No se pudo verificar el código MFA.');
+      setPageState('mfa');
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
@@ -70,7 +169,9 @@ export default function ResetPasswordPage() {
       await signOutAdmin().catch(() => undefined);
       setPageState('complete');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo actualizar la contraseña.');
+      setError(isMfaRequiredError(reason)
+        ? 'La verificación MFA de la sesión ya no está vigente. Recarga esta página y completa nuevamente el segundo factor.'
+        : reason instanceof Error ? reason.message : 'No se pudo actualizar la contraseña.');
       setPageState('ready');
     }
   };
@@ -125,6 +226,50 @@ export default function ResetPasswordPage() {
               </div>
               <Button type="button" className="w-full" onClick={() => router.replace('/admin/login/')}>Ir al login <ArrowRight /></Button>
             </div>
+          )}
+
+          {(pageState === 'mfa' || pageState === 'verifying-mfa') && (
+            <form method="post" className="space-y-5" onSubmit={handleMfaSubmit}>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900" role="status">
+                Tu cuenta ya tiene MFA configurado. Verifica el autenticador existente para continuar; esta pantalla no cambia ni reemplaza tus factores.
+              </div>
+              {verifiedFactors.length > 1 && (
+                <div className="space-y-2">
+                  <Label htmlFor="recovery-mfa-factor">Autenticador registrado</Label>
+                  <select
+                    id="recovery-mfa-factor"
+                    name="totp-factor"
+                    className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+                    value={factorIndex}
+                    onChange={(event) => setFactorIndex(Number(event.target.value))}
+                    disabled={pageState === 'verifying-mfa'}
+                  >
+                    {verifiedFactors.map((factor, index) => (
+                      <option key={factor.id} value={index}>Autenticador {index + 1}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="recovery-mfa-code">Código de verificación</Label>
+                <Input
+                  id="recovery-mfa-code"
+                  name="totp-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  disabled={pageState === 'verifying-mfa'}
+                  required
+                />
+              </div>
+              {mfaError && <p className="text-sm leading-5 text-red-600" aria-live="polite">{mfaError}</p>}
+              <Button type="submit" className="h-11 w-full" disabled={pageState === 'verifying-mfa' || !/^\d{6}$/.test(mfaCode)}>
+                {pageState === 'verifying-mfa' ? 'Verificando…' : 'Verificar MFA'} <ArrowRight />
+              </Button>
+            </form>
           )}
 
           {(pageState === 'ready' || pageState === 'saving') && (

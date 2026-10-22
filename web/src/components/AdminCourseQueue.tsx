@@ -188,7 +188,7 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
     const timeout = window.setTimeout(() => {
       void getAuthenticatorAssuranceLevel()
         .then(({ currentLevel }) => {
-          setAssurance(currentLevel);
+          setAssurance(currentLevel ?? 'aal1');
           setMfaRequired(currentLevel !== 'aal2');
         })
         .catch((reason) => {

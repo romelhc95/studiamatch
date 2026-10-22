@@ -590,6 +590,28 @@ async function aal2(client: SupabaseClient): Promise<boolean> {
   return !error && data?.currentLevel === 'aal2';
 }
 
+type MfaFactorSummary = {
+  id: string;
+  factor_type: 'totp' | 'phone' | 'webauthn';
+  status: 'verified' | 'unverified';
+};
+
+function readMfaFactorSummaries(value: unknown): MfaFactorSummary[] | null {
+  if (!value || typeof value !== 'object' || !Array.isArray((value as Record<string, unknown>).all)) return null;
+  const factors = (value as { all: unknown[] }).all;
+  if (factors.some((factor) => {
+    if (!factor || typeof factor !== 'object') return true;
+    const candidate = factor as Record<string, unknown>;
+    return (candidate.factor_type !== 'totp' && candidate.factor_type !== 'phone' && candidate.factor_type !== 'webauthn')
+      || typeof candidate.id !== 'string'
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate.id)
+      || (candidate.status !== 'verified' && candidate.status !== 'unverified');
+  })) {
+    return null;
+  }
+  return factors as MfaFactorSummary[];
+}
+
 function safeAuthMessage(status: number): string {
   if (status === 429) return 'Demasiados intentos. Espera antes de volver a intentarlo.';
   return 'No se pudo autenticar la cuenta. Verifica los datos o solicita ayuda al administrador.';
@@ -801,6 +823,23 @@ async function routeMutation(
       && /[A-Z]/.test(password) && /[a-z]/.test(password)
       && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
     if (!valid) return jsonResponse(state, { error: { code: 'invalid_password', message: 'La contraseña no cumple los requisitos.' } }, 400);
+    const { data: factorsData, error: factorsError } = await client.auth.mfa.listFactors();
+    const factors = readMfaFactorSummaries(factorsData);
+    if (factorsError || !factors) {
+      return jsonResponse(state, { error: { code: 'mfa_unavailable', message: 'No se pudo confirmar el estado MFA. Inténtalo de nuevo.' } }, 503);
+    }
+    const { data: assuranceData, error: assuranceError } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+    const currentLevel = assuranceData?.currentLevel;
+    const nextLevel = assuranceData?.nextLevel;
+    if (assuranceError
+      || !assuranceData
+      || (currentLevel !== 'aal1' && currentLevel !== 'aal2' && currentLevel !== null)
+      || (nextLevel !== 'aal1' && nextLevel !== 'aal2' && nextLevel !== null)) {
+      return jsonResponse(state, { error: { code: 'mfa_unavailable', message: 'No se pudo confirmar el estado MFA. Inténtalo de nuevo.' } }, 503);
+    }
+    if ((factors.some((factor) => factor.status === 'verified') || nextLevel === 'aal2') && currentLevel !== 'aal2') {
+      return jsonResponse(state, { error: { code: 'mfa_required', message: 'Completa la verificación MFA antes de cambiar la contraseña.' } }, 403);
+    }
     const { error } = await client.auth.updateUser({ password });
     if (error) return jsonResponse(state, { error: { code: 'password_update_failed', message: 'No se pudo actualizar la contraseña.' } }, 400);
     return jsonResponse(state, { success: true });
@@ -808,19 +847,36 @@ async function routeMutation(
 
   if (pathname === '/api/admin/auth/mfa') {
     const action = typeof body.action === 'string' ? body.action : '';
-    if (action !== 'assurance' && action !== 'list') {
+    if (action !== 'assurance' && action !== 'recovery_assurance' && action !== 'list') {
       const limited = await checkAdminQuota(request, context.env, [{ kind: 'mfa', identity: user.id }]);
       if (limited) return limited;
     }
     if (action === 'assurance') {
       const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (error) return jsonResponse(state, { error: { code: 'mfa_unavailable' } }, 502);
+      if (error || !data) return jsonResponse(state, { error: { code: 'mfa_unavailable' } }, 502);
       return jsonResponse(state, { currentLevel: data.currentLevel, nextLevel: data.nextLevel });
+    }
+    if (action === 'recovery_assurance') {
+      const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error || !data) return jsonResponse(state, { error: { code: 'mfa_unavailable' } }, 502);
+      const { data: factorData, error: factorError } = await client.auth.mfa.listFactors();
+      const factors = readMfaFactorSummaries(factorData);
+      if (factorError || !factors) return jsonResponse(state, { error: { code: 'mfa_unavailable' } }, 502);
+      const verifiedFactors = factors.filter((factor) => factor.status === 'verified');
+      const verifiedTotpFactors = verifiedFactors.filter((factor) => factor.factor_type === 'totp');
+      return jsonResponse(state, {
+        currentLevel: data.currentLevel,
+        nextLevel: data.nextLevel,
+        hasVerifiedFactor: verifiedFactors.length > 0,
+        verifiedFactors: verifiedTotpFactors.map(({ id, factor_type, status }) => ({ id, factor_type, status })),
+      });
     }
     if (action === 'list') {
       const { data, error } = await client.auth.mfa.listFactors();
-      if (error) return jsonResponse(state, { error: { code: 'mfa_unavailable' } }, 502);
-      return jsonResponse(state, { factors: (data.all || []).filter((factor) => factor.factor_type === 'totp').map(({ id, factor_type, status }) => ({ id, factor_type, status })) });
+      const factors = readMfaFactorSummaries(data);
+      if (error || !factors) return jsonResponse(state, { error: { code: 'mfa_unavailable' } }, 502);
+      const totpFactors = factors.filter((factor) => factor.factor_type === 'totp');
+      return jsonResponse(state, { factors: totpFactors.map(({ id, factor_type, status }) => ({ id, factor_type, status })) });
     }
     if (action === 'enroll') {
       const { data: factorData, error: factorError } = await client.auth.mfa.listFactors();

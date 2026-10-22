@@ -58,8 +58,13 @@ export interface TotpEnrollment {
 }
 
 interface AssuranceResponse {
-  currentLevel: 'aal1' | 'aal2';
-  nextLevel: 'aal1' | 'aal2';
+  currentLevel: 'aal1' | 'aal2' | null;
+  nextLevel: 'aal1' | 'aal2' | null;
+}
+
+interface PasswordRecoveryAssuranceResponse extends AssuranceResponse {
+  hasVerifiedFactor: boolean;
+  verifiedFactors: AuthenticatorFactor[];
 }
 
 interface ApiErrorPayload {
@@ -352,8 +357,22 @@ async function mfaRequest<T>(body: Record<string, unknown>): Promise<T> {
 }
 
 export async function listFactors(): Promise<AuthenticatorFactor[]> {
-  const result = await mfaRequest<{ factors: AuthenticatorFactor[] }>({ action: 'list' });
-  return result.factors || [];
+  const result = await mfaRequest<{ factors?: unknown }>({ action: 'list' });
+  if (!Array.isArray(result.factors)) {
+    throw new Error('No se pudo validar el estado de los factores MFA.');
+  }
+
+  const factors = result.factors as unknown[];
+  if (!factors.every((factor) => factor
+    && typeof factor === 'object'
+    && typeof (factor as Record<string, unknown>).id === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test((factor as Record<string, unknown>).id as string)
+    && (factor as Record<string, unknown>).factor_type === 'totp'
+    && ((factor as Record<string, unknown>).status === 'verified' || (factor as Record<string, unknown>).status === 'unverified'))) {
+    throw new Error('No se pudo validar el estado de los factores MFA.');
+  }
+
+  return factors as AuthenticatorFactor[];
 }
 
 export async function enrollTotp(): Promise<TotpEnrollment> {
@@ -381,6 +400,10 @@ export async function unenrollTotp(factorId: string): Promise<void> {
 
 export async function getAuthenticatorAssuranceLevel(): Promise<AssuranceResponse> {
   return mfaRequest<AssuranceResponse>({ action: 'assurance' });
+}
+
+export async function getPasswordRecoveryAssurance(): Promise<PasswordRecoveryAssuranceResponse> {
+  return mfaRequest<PasswordRecoveryAssuranceResponse>({ action: 'recovery_assurance' });
 }
 
 export async function currentAdminRole(): Promise<AdminRole> {

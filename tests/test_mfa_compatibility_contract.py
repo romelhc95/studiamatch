@@ -33,7 +33,8 @@ def test_mfa_client_uses_the_supabase_sdk_contract() -> None:
     source = read("web/src/lib/admin-auth.ts")
     bff = read("web/functions/_lib/admin-bff.ts")
 
-    assert "mfaRequest<{ factors: AuthenticatorFactor[] }>" in source
+    assert "mfaRequest<{ factors?: unknown }>" in source
+    assert "if (!Array.isArray(result.factors))" in source
     assert "client.auth.mfa.listFactors()" in bff
     assert "client.auth.mfa.enroll" in bff
     assert "client.auth.mfa.challenge" in bff
@@ -41,6 +42,7 @@ def test_mfa_client_uses_the_supabase_sdk_contract() -> None:
     assert "client.auth.mfa.unenroll" in bff
     assert "'/api/admin/auth/mfa'" in source
     assert "fetch(`${SUPABASE_URL}/auth/v1/factors`" not in source
+    assert "action: 'recovery_assurance'" in source
 
 
 def test_mfa_mutations_are_server_mediated_and_assurance_is_checked():
