@@ -67,6 +67,7 @@ import hashlib
 import json
 import posixpath
 import re
+import subprocess
 import sys
 from urllib.parse import unquote
 from pathlib import Path
@@ -180,15 +181,57 @@ reference_paths = [entry.get("path") for entry in references if isinstance(entry
 if len(reference_paths) != expected_reference_count or len(reference_paths) != len(set(reference_paths)):
     raise SystemExit("protected path integration test: catalog target paths are missing or duplicated")
 
+# The selected R19 manifest is immutable evidence for PR #501. Validate its
+# historical target set and candidate hashes against the integrated tree; the
+# successor worktree is checked separately by --compare-candidate.
+historical_candidate_commit = "8ac174d81cf6ce23658bff132236a78935ace1ad"
+historical_paths = sorted(
+    set(reference_paths)
+    | {
+        catalog["path"]
+        for catalog in catalogs
+        if isinstance(catalog, dict) and catalog.get("path")
+    }
+)
+historical_result = subprocess.run(
+    ["git", "cat-file", "--batch"],
+    cwd=root,
+    input="".join(f"{historical_candidate_commit}:{path}\n" for path in historical_paths).encode(),
+    capture_output=True,
+    check=False,
+)
+if historical_result.returncode != 0:
+    raise SystemExit("protected path integration test: historical candidate tree is unavailable")
+historical_data = historical_result.stdout
+historical_blobs = {}
+cursor = 0
+for path in historical_paths:
+    header_end = historical_data.find(b"\n", cursor)
+    if header_end < 0:
+        raise SystemExit("protected path integration test: historical candidate response is malformed")
+    header = historical_data[cursor:header_end].decode("ascii", errors="replace")
+    cursor = header_end + 1
+    if header.endswith(" missing"):
+        raise SystemExit(f"protected path integration test: historical target is unavailable: {path}")
+    parts = header.split()
+    if len(parts) != 3 or parts[1] != "blob":
+        raise SystemExit(f"protected path integration test: historical target is not a blob: {path}")
+    blob_size = int(parts[2])
+    blob = historical_data[cursor : cursor + blob_size]
+    if len(blob) != blob_size or historical_data[cursor + blob_size : cursor + blob_size + 1] != b"\n":
+        raise SystemExit("protected path integration test: historical candidate response is truncated")
+    historical_blobs[path] = blob
+    cursor += blob_size + 1
+
 for catalog in catalogs:
     catalog_path = catalog.get("path") if isinstance(catalog, dict) else None
-    if not catalog_path or not (root / catalog_path).is_file():
+    if not catalog_path or catalog_path not in historical_blobs:
         raise SystemExit(f"protected path integration test: catalog is unavailable: {catalog_path}")
 
 actual_reference_paths = set()
 for catalog in catalogs:
     catalog_path = catalog["path"]
-    markdown = (root / catalog_path).read_text(encoding="utf-8")
+    markdown = historical_blobs[catalog_path].decode("utf-8")
     links = [match.group(1) for match in re.finditer(r"!?\[[^\]]*\]\(([^)]*)\)", markdown)]
     links.extend(match.group(1).split("|", 1)[0].strip() for match in re.finditer(r"\[\[([^\]]+)\]\]", markdown))
     for raw in links:
@@ -224,13 +267,12 @@ ignored_catalog_targets = {
 }
 for reference in references:
     path = reference["path"]
-    target = root / path
-    if not target.is_file():
+    if path not in historical_blobs:
         raise SystemExit(f"protected path integration test: referenced target is unavailable: {path}")
     availability = reference.get("availability")
     if availability == "candidate_change":
         expected_hash = reference.get("sha256")
-        if not expected_hash or hashlib.sha256(target.read_bytes()).hexdigest() != expected_hash:
+        if not expected_hash or hashlib.sha256(historical_blobs[path]).hexdigest() != expected_hash:
             raise SystemExit(f"protected path integration test: referenced target hash differs: {path}")
         scope_entry = scope_by_path.get(path)
         if path not in changed or not scope_entry or scope_entry.get("status") == "deleted":
