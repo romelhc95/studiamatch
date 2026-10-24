@@ -64,7 +64,7 @@ El cierre R178 declara 337 passed, 4 skipped y 1 warning en su suite de proyecto
 
 ## Contrato unitario del catálogo público
 
-`tests/h3_duration_parser.test.mjs` ejecuta siete contratos sintéticos del parser compartido: no sumar unidades equivalentes entre texto y aclaración parentética, mantener periodos aditivos incluso cuando uno coincide con un total intermedio, usar el fallback cuando solo hay duración parentética y tolerar el paréntesis sin cerrar. Su resultado Docker 7/7 está en `run-duration-parser-green-r2/output.jsonl`; cubre el delta local del parser y no reemplaza H3-UAT-059 ni un filtro en el navegador. El test es WIP no publicado al corte del PR #503.
+`tests/h3_duration_parser.test.mjs` ejecuta once contratos sintéticos del parser compartido, incluidas equivalencias entre el texto y la aclaración parentética, suma de periodos distintos, fallback parentético, paréntesis incompleto y complejidad acotada. Pasó 11/11 en Docker; el stdout bruto de una corrida histórica 7/7 se conserva localmente fuera del PR y el resumen sanitizado está en el acta del ciclo H3REQ1. El test está incluido en #503; no reemplaza H3-UAT-059 ni valida filtros en un navegador real.
 
 ## Pipeline cases
 
