@@ -3151,7 +3151,7 @@ No son componentes fuente independientes. Se clasifican por familia con producto
 
 ## Catálogos de evidencia histórica
 
-El corte contiene 113 documentos activos declarados, 433 documentos históricos catalogados y 4 documentos excluidos con motivo. Clasificación JSON no equivale a navegación: el checker exige un enlace Markdown desde el catálogo para cada histórico.
+El corte contiene 115 documentos activos declarados, 433 documentos históricos catalogados y 4 documentos excluidos con motivo. Clasificación JSON no equivale a navegación: el checker exige un enlace Markdown desde el catálogo para cada histórico.
 
 | Proceso/familia | Catálogo navegable | Históricos catalogados | Estado |
 |---|---|---:|---|

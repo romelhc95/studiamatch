@@ -1789,6 +1789,67 @@ const ALL_CASES = Object.freeze([
     await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
     const listing = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
     check('public listing has no horizontal overflow', listing.scroll <= listing.client + 1);
+    await page.getByRole('button', { name: 'Más filtros', exact: true }).click();
+    await page.getByText('Duración', { exact: true }).waitFor({ state: 'visible' });
+    const expandedListing = await page.evaluate(() => {
+      const trigger = [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Más filtros');
+      const panel = trigger?.parentElement?.querySelector(':scope > div.absolute');
+      const rect = panel?.getBoundingClientRect();
+      return {
+        scroll: document.documentElement.scrollWidth,
+        client: document.documentElement.clientWidth,
+        panelLeft: rect?.left ?? null,
+        panelRight: rect?.right ?? null,
+      };
+    });
+    check('expanded public filter panel stays within the active viewport',
+      expandedListing.panelLeft !== null && expandedListing.panelLeft >= 0
+        && expandedListing.panelRight !== null && expandedListing.panelRight <= expandedListing.client + 1,
+      `panel=${expandedListing.panelLeft}-${expandedListing.panelRight}; viewport=${expandedListing.client}; page=${expandedListing.scroll}/${expandedListing.client}`);
+    check('expanded public filters do not add horizontal overflow at standard mobile width',
+      expandedListing.scroll <= expandedListing.client + 1,
+      `expanded=${expandedListing.scroll}/${expandedListing.client}`);
+    if (viewport.name === 'mobile') {
+      await page.setViewportSize({ width: 320, height: viewport.height });
+      await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+      const closedNarrow = await page.evaluate(() => ({
+        scroll: document.documentElement.scrollWidth,
+        client: document.documentElement.clientWidth,
+      }));
+      check('public listing has no full-page overflow at 320px',
+        closedNarrow.scroll <= closedNarrow.client + 1,
+        `closed=${closedNarrow.scroll}/${closedNarrow.client}`);
+      await page.getByRole('button', { name: 'Más filtros', exact: true }).click();
+      await page.getByText('Duración', { exact: true }).waitFor({ state: 'visible' });
+      const narrowFilters = await page.evaluate(() => {
+        const trigger = [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Más filtros');
+        const panel = trigger?.parentElement?.querySelector(':scope > div.absolute');
+        const rect = panel?.getBoundingClientRect();
+        return {
+          scroll: document.documentElement.scrollWidth,
+          client: document.documentElement.clientWidth,
+          panelLeft: rect?.left ?? null,
+          panelRight: rect?.right ?? null,
+        };
+      });
+      check('expanded public filter panel stays within a 320px viewport',
+        narrowFilters.panelLeft !== null && narrowFilters.panelLeft >= 0
+          && narrowFilters.panelRight !== null && narrowFilters.panelRight <= narrowFilters.client + 1,
+        `panel=${narrowFilters.panelLeft}-${narrowFilters.panelRight}; viewport=${narrowFilters.client}; page=${narrowFilters.scroll}/${narrowFilters.client}`);
+      check('narrow filter panel adds no page overflow beyond the closed baseline',
+        narrowFilters.scroll <= closedNarrow.scroll + 1,
+        `closed=${closedNarrow.scroll}/${closedNarrow.client}; expanded=${narrowFilters.scroll}/${narrowFilters.client}`);
+      check('expanded public listing has no full-page overflow at 320px',
+        narrowFilters.scroll <= narrowFilters.client + 1,
+        `expanded=${narrowFilters.scroll}/${narrowFilters.client}`);
+      await page.setViewportSize({ width: 320, height: viewport.height });
+      await page.goto(`${BASE_URL}/courses/ulima/${courseSlug}/`, { waitUntil: 'networkidle' });
+      const narrowDetail = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+      check('public detail and shared footer fit a 320px viewport',
+        narrowDetail.scroll <= narrowDetail.client + 1,
+        `detail=${narrowDetail.scroll}/${narrowDetail.client}`);
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    }
     await page.goto(`${BASE_URL}/courses/ulima/${courseSlug}/`, { waitUntil: 'networkidle' });
     const detail = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
     check('public detail has no horizontal overflow', detail.scroll <= detail.client + 1);
@@ -1797,12 +1858,33 @@ const ALL_CASES = Object.freeze([
   defineCase('H3-CA4.9', 'public filters apply independently and career goal matches eligible courses', 'anon', '/', 'category, institution, modality, type, duration, career goal and text search each constrain visible public results; empty state can be reset', async ({ page, check }) => {
     const publicName = process.env.H3_PIPELINE_PUBLIC_NAME || 'Analítica Aplicada';
     const candidateSlug = process.env.H3_PIPELINE_COURSE_SLUG || 'analitica-aplicada-60000000';
+    const verifyUnfilteredReset = async (scenario) => {
+      await waitForPublicCatalog(page);
+      check(`${scenario} reset removes URL filters`, new URL(page.url()).search === '');
+      await page.getByText('1 / 2', { exact: true }).waitFor({ state: 'visible' });
+      check(`${scenario} reset returns to first page of the unfiltered catalog`,
+        await page.locator('article').count() === 12);
+
+      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+      await page.getByText('2 / 2', { exact: true }).waitFor({ state: 'visible' });
+      const candidateOnSecondPage = page.getByRole('heading', { name: publicName, exact: true });
+      await candidateOnSecondPage.waitFor({ state: 'visible' });
+      check(`${scenario} reset retains the unfiltered candidate on page two`,
+        await candidateOnSecondPage.count() === 1
+          && await page.locator('article').count() === 4
+          && await page.locator('article').filter({ has: candidateOnSecondPage }).count() === 1);
+
+      await page.getByRole('button', { name: 'Anterior', exact: true }).click();
+      await page.getByText('1 / 2', { exact: true }).waitFor({ state: 'visible' });
+      check(`${scenario} pagination returns to the first page`, await page.locator('article').count() === 12);
+    };
     const checks = [
       { query: '?area=Data', include: publicName, exclude: 'Programa local H3 11' },
       { query: '?inst=Universidad%20de%20Lima', include: publicName, exclude: null },
       { query: '?modalidad=Remoto', include: publicName, exclude: null },
       { query: '?tipo=Maestr%C3%ADa', include: 'Programa local H3 14', exclude: publicName },
       { query: '?duration=short', include: 'Programa local H3 13', exclude: publicName },
+      { query: '?duration=long', include: 'Programa local H3 16', exclude: 'Programa local H3 13' },
     ];
     for (const item of checks) {
       await page.goto(`${BASE_URL}/${item.query}`, { waitUntil: 'domcontentloaded' });
@@ -1823,9 +1905,7 @@ const ALL_CASES = Object.freeze([
     check('clear-all is available for a duration-only filter', await page.getByRole('button', { name: 'Limpiar todo' }).count() === 1);
     await page.getByRole('button', { name: 'Limpiar todo' }).click();
     await page.waitForFunction(() => !new URL(location.href).searchParams.has('duration'), undefined, { timeout: 10000 });
-    await waitForPublicCatalog(page);
-    await page.getByRole('heading', { name: publicName, exact: true }).waitFor({ state: 'visible' });
-    check('duration-only reset restores the unfiltered candidate', await page.getByRole('heading', { name: publicName, exact: true }).count() === 1);
+    await verifyUnfilteredReset('duration-only');
 
     await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
     await waitForPublicCatalog(page);
@@ -1837,9 +1917,17 @@ const ALL_CASES = Object.freeze([
     check('postgraduate goal excludes the pipeline course', await page.getByRole('heading', { name: publicName, exact: true }).count() === 0);
     check('clear-all is available for a goal-only filter', await page.getByRole('button', { name: 'Limpiar todo' }).count() === 1);
     await page.getByRole('button', { name: 'Limpiar todo' }).click();
+    await verifyUnfilteredReset('goal-only');
+
+    await page.getByRole('button', { name: 'Personalizar' }).click();
+    await page.getByRole('button', { name: 'Actualizarme', exact: true }).click();
     await waitForPublicCatalog(page);
-    await page.getByRole('heading', { name: publicName, exact: true }).waitFor({ state: 'visible' });
-    check('goal-only reset restores the unfiltered candidate', await page.getByRole('heading', { name: publicName, exact: true }).count() === 1);
+    await page.getByRole('heading', { name: 'Programa local H3 13', exact: true }).waitFor({ state: 'visible' });
+    check('update goal includes a short course with a mixed-unit duration', await page.getByRole('heading', { name: 'Programa local H3 13', exact: true }).count() === 1);
+    check('update goal excludes a seven-month course', await page.getByRole('heading', { name: 'Programa local H3 16', exact: true }).count() === 0);
+    check('clear-all is available for the update goal', await page.getByRole('button', { name: 'Limpiar todo' }).count() === 1);
+    await page.getByRole('button', { name: 'Limpiar todo' }).click();
+    await verifyUnfilteredReset('update-goal');
 
     await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
     await waitForPublicCatalog(page);
@@ -1857,9 +1945,7 @@ const ALL_CASES = Object.freeze([
     await page.getByText('Sin resultados', { exact: true }).waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'Limpiar todo' }).click();
     await page.waitForFunction(() => !new URL(location.href).searchParams.has('q'), undefined, { timeout: 10000 });
-    await waitForPublicCatalog(page);
-    await page.getByRole('heading', { name: publicName, exact: true }).waitFor({ state: 'visible' });
-    check('empty search resets and restores the public candidate', await page.getByRole('heading', { name: publicName, exact: true }).count() === 1);
+    await verifyUnfilteredReset('empty-search');
     return `independent category/institution/mode/type/duration/goal/search filters, empty state and reset verified at ${page.viewportSize()?.width}px`;
   }),
   defineCase('H3-CA4.9', 'price filter bands honor inclusive boundaries and exclude unknown prices', 'anon', '/', 'accessible, standard, premium and executive price bands apply their documented edges; zero and null values do not masquerade as priced programs', async ({ page, check }) => {

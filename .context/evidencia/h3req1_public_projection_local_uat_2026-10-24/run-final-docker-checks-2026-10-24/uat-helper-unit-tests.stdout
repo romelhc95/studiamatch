@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: expected HTTP failures require exact method, origin, path and status
+ok 1 - expected HTTP failures require exact method, origin, path and status
+  ---
+  duration_ms: 0.750929
+  type: 'test'
+  ...
+# Subtest: console resource messages require a unique method-aware response match
+ok 2 - console resource messages require a unique method-aware response match
+  ---
+  duration_ms: 0.656624
+  type: 'test'
+  ...
+# Subtest: local absolute URLs retain only their pathname
+ok 3 - local absolute URLs retain only their pathname
+  ---
+  duration_ms: 2.92761
+  type: 'test'
+  ...
+# Subtest: external absolute URLs are not serialized
+ok 4 - external absolute URLs are not serialized
+  ---
+  duration_ms: 1.462055
+  type: 'test'
+  ...
+# Subtest: relative query and fragment strings are omitted from diagnostics
+ok 5 - relative query and fragment strings are omitted from diagnostics
+  ---
+  duration_ms: 0.353413
+  type: 'test'
+  ...
+# Subtest: bearer and token values remain redacted
+ok 6 - bearer and token values remain redacted
+  ---
+  duration_ms: 0.120304
+  type: 'test'
+  ...
+# Subtest: local paths without query remain available for debugging
+ok 7 - local paths without query remain available for debugging
+  ---
+  duration_ms: 0.596322
+  type: 'test'
+  ...
+# Subtest: relative opaque path segments are redacted even without a query string
+ok 8 - relative opaque path segments are redacted even without a query string
+  ---
+  duration_ms: 0.26571
+  type: 'test'
+  ...
+# Subtest: standard base64 path tokens containing an encoded slash are redacted
+ok 9 - standard base64 path tokens containing an encoded slash are redacted
+  ---
+  duration_ms: 0.197008
+  type: 'test'
+  ...
+# Subtest: standard base64 path tokens with slash and no digits are redacted
+ok 10 - standard base64 path tokens with slash and no digits are redacted
+  ---
+  duration_ms: 0.139506
+  type: 'test'
+  ...
+# Subtest: short opaque tokens remain redacted when percent encoding expands their path segment
+ok 11 - short opaque tokens remain redacted when percent encoding expands their path segment
+  ---
+  duration_ms: 0.328013
+  type: 'test'
+  ...
+# Subtest: the opaque path redaction boundary keeps shorter readable segments
+ok 12 - the opaque path redaction boundary keeps shorter readable segments
+  ---
+  duration_ms: 0.408616
+  type: 'test'
+  ...
+# Subtest: admin auth callback path values redact regardless of token length
+ok 13 - admin auth callback path values redact regardless of token length
+  ---
+  duration_ms: 0.204708
+  type: 'test'
+  ...
+# Subtest: 32-character mixed alphanumeric path tokens outside hex are redacted
+ok 14 - 32-character mixed alphanumeric path tokens outside hex are redacted
+  ---
+  duration_ms: 0.118605
+  type: 'test'
+  ...
+# Subtest: 32-character lowercase alphanumeric path tokens are redacted
+ok 15 - 32-character lowercase alphanumeric path tokens are redacted
+  ---
+  duration_ms: 0.103204
+  type: 'test'
+  ...
+# Subtest: long lowercase hyphenated path values are redacted like opaque tokens
+ok 16 - long lowercase hyphenated path values are redacted like opaque tokens
+  ---
+  duration_ms: 0.113105
+  type: 'test'
+  ...
+# Subtest: malformed percent escapes in opaque path values are redacted
+ok 17 - malformed percent escapes in opaque path values are redacted
+  ---
+  duration_ms: 0.099704
+  type: 'test'
+  ...
+# Subtest: opaque path values fail closed beyond the percent-decoding safety bound
+ok 18 - opaque path values fail closed beyond the percent-decoding safety bound
+  ---
+  duration_ms: 0.177107
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 79.969819

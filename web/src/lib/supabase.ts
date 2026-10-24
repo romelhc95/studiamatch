@@ -143,12 +143,23 @@ export function cleanSlug(slugOrUrl: string, url?: string): string {
 
 export function parseDurationToMonths(duration: string): number {
   if (!duration) return 0;
-  const match = duration.match(/(\d+)/);
-  if (!match) return 0;
-  const value = parseInt(match[1]);
-  const unit = duration.toLowerCase();
-  if (unit.includes('mes') || unit.includes('month')) return value;
-  if (unit.includes('semana') || unit.includes('week')) return value / 4.33;
-  if (unit.includes('año') || unit.includes('year')) return value * 12;
-  return 0;
+  const normalized = duration
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const unitPattern = '(anos?|years?|mes(?:es)?|months?|semanas?|weeks?)';
+  const range = normalized.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(?:a|hasta|[-–])\\s*\\d+(?:[.,]\\d+)?\\s*${unitPattern}`));
+  const matches = range
+    ? [range]
+    : [...normalized.matchAll(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*${unitPattern}`, 'g'))];
+
+  return matches.reduce((total, match) => {
+    const value = Number(match[1].replace(',', '.'));
+    const unit = match[2];
+    if (!Number.isFinite(value)) return total;
+    if (unit.startsWith('ano') || unit.startsWith('year')) return total + value * 12;
+    if (unit.startsWith('semana') || unit.startsWith('week')) return total + value / 4.33;
+    if (unit.startsWith('mes') || unit.startsWith('month')) return total + value;
+    return total;
+  }, 0);
 }

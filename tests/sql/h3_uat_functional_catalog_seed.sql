@@ -134,7 +134,7 @@ SET
   price_status = CASE WHEN substring(course.id::TEXT FROM '[0-9]+$')::INTEGER IN (16, 17) THEN 'consultar' ELSE 'publicado' END,
   duration = CASE substring(course.id::TEXT FROM '[0-9]+$')::INTEGER
     WHEN 12 THEN '18 meses'
-    WHEN 13 THEN '2 meses'
+    WHEN 13 THEN '32 horas académicas 1 mes aproximadamente.'
     WHEN 14 THEN '3 meses'
     WHEN 15 THEN '6 meses'
     WHEN 16 THEN '7 meses'
@@ -143,6 +143,7 @@ SET
     WHEN 19 THEN '4 meses'
     ELSE '3 meses'
   END,
+  mode = CASE WHEN substring(course.id::TEXT FROM '[0-9]+$')::INTEGER = 13 THEN 'Híbrido' ELSE course.mode END,
   start_date = CASE WHEN substring(course.id::TEXT FROM '[0-9]+$')::INTEGER = 14 THEN DATE '2025-01-15' ELSE DATE '2027-04-01' END,
   certification = CASE WHEN substring(course.id::TEXT FROM '[0-9]+$')::INTEGER = 19 THEN 'Constancia sintética local' ELSE 'Certificación sintética' END,
   seniority_level = CASE WHEN substring(course.id::TEXT FROM '[0-9]+$')::INTEGER IN (12, 16, 18) THEN 'Junior' WHEN substring(course.id::TEXT FROM '[0-9]+$')::INTEGER IN (14, 19) THEN 'Senior' ELSE 'Mid' END,
@@ -175,6 +176,28 @@ SET
 WHERE state.course_id::TEXT LIKE '20000000-0000-0000-0000-%'
   AND substring(state.course_id::TEXT FROM '[0-9]+$')::INTEGER BETWEEN 12 AND 25;
 
+-- Publish the synthetic pipeline output for public listing/detail UAT only.
+-- The base pipeline seed intentionally starts unpublished with unknown availability.
+UPDATE public.course_editorial_state AS state
+SET
+  editorial_status = 'published',
+  quality_status = 'complete',
+  missing_fields = ARRAY[]::TEXT[],
+  availability_status = 'unknown',
+  availability_override_status = 'available',
+  availability_evidence_url = 'https://synthetic.h3.example/availability/' || state.course_id::TEXT,
+  availability_observed_at = now() - INTERVAL '1 day',
+  availability_valid_until = now() - INTERVAL '1 day' + INTERVAL '90 days',
+  availability_override_by = '30000000-0000-0000-0000-000000000001',
+  published_at = COALESCE(state.published_at, now()),
+  manual_updated_at = now(),
+  manual_updated_by = '30000000-0000-0000-0000-000000000001',
+  archived_at = NULL,
+  manual_overrides = '{}'::JSONB,
+  field_sources = jsonb_build_object('name', 'pipeline', 'price_pen', 'pipeline', 'mode', 'pipeline', 'duration', 'pipeline'),
+  updated_at = now()
+WHERE state.course_id = '70000000-0000-0000-0000-000000000091';
+
 DO $$
 BEGIN
   IF (SELECT count(*) FROM public.courses_public_effective) < 13 THEN
@@ -192,7 +215,8 @@ BEGIN
        WHERE course_id = '70000000-0000-0000-0000-000000000091'
          AND editorial_status = 'published'
          AND availability_override_status = 'available'
-         AND availability_valid_until > now()) <> 1 THEN
+       AND availability_valid_until > now()
+       AND availability_valid_until <= availability_observed_at + INTERVAL '90 days') <> 1 THEN
     RAISE EXCEPTION 'pipeline Admin fixture is not currently eligible for its local static route';
   END IF;
 END;
