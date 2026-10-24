@@ -10,6 +10,7 @@
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-body-2026-10-24.md",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-scope-2026-10-24.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/canonical-runner.stdout",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/functional-catalog-seed-corrected.stdout",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-desktop.png",
@@ -34,13 +35,17 @@
     ".context/indice.md",
     ".context/trazabilidad/registro_fuentes_componentes.json",
     ".context/trazabilidad/registro_fuentes_componentes.md",
+    ".github/workflows/security-audit.yml",
     "mock-server/server.js",
+    "scripts/security/protected_path_scope_guard.sh",
+    "tests/h3_duration_parser.test.mjs",
     "tests/h3_local_uat.mjs",
     "tests/h3_local_uat_http_diagnostics.test.mjs",
     "tests/h3_local_uat_sanitizer.test.mjs",
     "tests/h3_uat_http_diagnostics.mjs",
     "tests/h3_uat_sanitizer.mjs",
     "tests/sql/h3_uat_functional_catalog_seed.sql",
+    "tests/test_protected_path_scope_guard.sh",
     "web/src/app/HomeContent.tsx",
     "web/src/components/Footer.tsx",
     "web/src/lib/supabase.ts"
@@ -48,18 +53,22 @@
   "excludedWorktreeArtifacts": [
     "candidate-local-validation.json (preserved historical attribution; superseded for current status)",
     "candidate-local-validation-reconciled-2026-10-24.json (preserved earlier checkpoint with stale canonical status)",
-    "candidate-scope-manifest.json (superseded by this exact path list)",
     "remote-public-comparison.json and remote-public-detail-2026-10-24.json (independent partial remote observations, unrelated to this fix)",
     "all *.bak directories, failed setup attempts, and intermediate canonical-runner captures (preserved locally as diagnostics)",
     "main/authority worktree Admin/MFA/BFF/FG3/Auth/executor changes (not present in this isolated candidate branch package)",
-    ".env* files, credentials, cookies, tokens, account screenshots or personally identifying evidence"
+    ".env* files, credentials, cookies, tokens, account screenshots or personally identifying evidence",
+    "run-canonical-058-059-footer-20261024/h3req1-playwright-browsers-1243-20261024/.links (partial metadata created by the single approved A2 install attempt; no browser binary; preserved outside PR scope)"
   ],
   "target": {
     "baseBranch": "desarrollo",
     "operationPendingAuthorization": [
-      "commit",
-      "push feature branch",
-      "open protected PR"
+      "merge",
+      "manual deploy",
+      "workflow_dispatch",
+      "branch protection change",
+      "Certification",
+      "main",
+      "Production"
     ],
     "notAuthorizedByThisPackage": [
       "merge",
@@ -69,26 +78,54 @@
       "Certification",
       "main",
       "Production"
+    ],
+    "operationApprovedPendingExecution": [
+      "commit the exact includedPaths package",
+      "push feat/h3req1-public-duration-mobile-20261024 non-force",
+      "update the existing protected PR #503 body from candidate-pr-body-2026-10-24.md"
     ]
   },
-  "previewImpact": "Pushing the feature branch may trigger an automatic Cloudflare Pages Preview according to the existing integration; no preview/deploy is requested by this package.",
+  "previewImpact": "Pushing an updated feature branch may create or replace its automatic Cloudflare Pages Preview; this package requests no manual deployment.",
   "localAcceptance": {
     "H3-UAT-058": {
       "criterion": "H3-CA4.11",
-      "result": "PASS",
-      "viewportExecutions": "3/3 plus 320px narrow assertions inside mobile scenario"
+      "result": "PASS_REUSED_FROM_PRIOR_CANONICAL_RUN",
+      "viewportExecutions": "3/3 plus 320px narrow assertions inside mobile scenario",
+      "reuseRationale": "This parser-only delta does not alter the H3-UAT-058 layout/footer path; preserve the prior canonical run instead of repeating an intact case."
     },
     "H3-UAT-059": {
       "criterion": "H3-CA4.9",
-      "result": "PASS",
-      "viewportExecutions": "3/3"
+      "result": "BLOCKED_BROWSER_INSTALL_DNS_BEFORE_RUNNER",
+      "attempt": "A2 one-time Playwright Chromium installation invocation failed; the runner was not invoked.",
+      "previousAttempt": {
+        "result": "FAILED_BEFORE_VIEWPORT_NEW_JIT_REQUIRED",
+        "attempt": "one authorized canonical runner invocation after exact approved SQL/setup",
+        "observed": "Playwright 1.63.0 requires Chromium revision 1243; runtime has Chromium revision 1228; launch also reported crashpad database requirement.",
+        "expectedViewportExecutions": "3",
+        "actualViewportExecutions": "0/3",
+        "screenshots": "0/3",
+        "mockResets": "0",
+        "retries": "0",
+        "databasePostflight": "read-only PASS: PostgreSQL 17.11, public relations 13, auth/private schemas present, pipeline rows 30, editorial rows 31, public effective rows 16; no cleanup.",
+        "evidence": "run-canonical-058-059-footer-20261024/h3-uat-059-canonical-20261024-run01/evidence/ (sanitized summary; logs excluded from PR)",
+        "next": "Obtain a new one-run JIT: install Playwright 1.63.0 Chromium revision 1243 in isolated /evidence path, then run the exact canonical runner once against the already-seeded DB; no SQL reapplication or cleanup."
+      },
+      "expectedViewportExecutions": "3",
+      "actualViewportExecutions": "0/3 in A2; runner not invoked",
+      "screenshots": "0/3 in A2",
+      "mockResets": "0 in A2; no POST /__test/reset was issued",
+      "retries": "0 runner retries; Playwright CLI install exhausted its automatic DNS attempts/fallbacks",
+      "observed": "Playwright 1.63.0 installer exited 1 with getaddrinfo EAI_AGAIN for cdn.playwright.dev. The isolated target contains only Playwright .links metadata; the Chromium 1243 executable was not installed.",
+      "databasePostflight": "Read-only after the failed install: PostgreSQL 17.11; 13 public relations; auth/private namespaces present; 30 synthetic pipeline courses; 31 editorial rows; 16 public effective rows; 26 admin queue rows. No DB writes or resets occurred in A2.",
+      "browserTarget": "/evidence/h3req1-playwright-browsers-1243-20261024; preserved, no Chromium executable present",
+      "evidence": "A2 installer result recorded in candidate-acceptance-cycle-2026-10-24.md; the failed runner was not invoked and produced no viewport artifacts.",
+      "next": "Stop. A different browser provisioning path requires a separate concrete JIT; do not repeat this install or runner under the consumed A2 permission."
     }
   },
-  "remoteAcceptance": "pending integration and a confirmed Development deployment; repeat both canonical cases and a public smoke on the exact deployed SHA/ID.",
+  "remoteAcceptance": "Pending a protected PR update with all required checks green, approved merge, and a confirmed Development deployment; then repeat only affected cases and a public smoke on the exact deployed SHA/ID.",
   "excludedPaths": [
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-local-validation-reconciled-2026-10-24.json",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-local-validation.json",
-    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/remote-public-comparison.json",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/remote-public-detail-2026-10-24.json",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-candidate-build/candidate-copy-eslint.stdout",
@@ -176,5 +213,107 @@
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/runtime-readiness-r2.stdout",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/runtime-readiness.stdout"
   ],
-  "exclusionRationale": "Every changed or untracked leaf not listed in includedPaths remains local preservation-only evidence: intermediate runs/backups, prior checkpoints, independent remote observations, or failed setup diagnostics. No source/test file is excluded."
+  "exclusionRationale": "Every changed or untracked leaf not listed in includedPaths remains local preservation-only evidence: intermediate runs/backups, prior checkpoints, independent remote observations, failed setup diagnostics, or the partial Playwright .links metadata created by A2. No source/test file is excluded.",
+  "protectedPathRemediation": {
+    "status": "LOCAL_DOCKER_VALIDATION_PASS",
+    "currentPrChangedPathCount": 37,
+    "currentlyRejectedByGuardCount": 27,
+    "exactAdditionalAllowlistPathCount": 29,
+    "exactAdditionalAllowlistPathComposition": "27 paths already present in the open PR and rejected by the current guard, plus the R20 candidate documentation manifest and parser regression test added to the proposed update.",
+    "exactAdditionalAllowedH3LocalPaths": [
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-body-2026-10-24.md",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-scope-2026-10-24.json",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/canonical-runner.stdout",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/functional-catalog-seed-corrected.stdout",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-desktop.png",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-mobile.png",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-tablet.png",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-059-desktop.png",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-059-mobile.png",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-059-tablet.png",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-artifact-hashes.json",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-executions.json",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-manifest.json",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-matrix.json",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-duration-parser-green/output.jsonl",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-duration-parser-red/actual-result.jsonl",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-duration-parser-red/output.jsonl",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-filter-overflow-red/observed.json",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/eslint.stdout",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/static-build-artifact.sha256",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/static-build.stdout",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/typescript.stdout",
+      ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/uat-helper-unit-tests.stdout",
+      "tests/h3_uat_http_diagnostics.mjs",
+      "tests/h3_uat_sanitizer.mjs",
+      "tests/h3_duration_parser.test.mjs",
+      "web/src/components/Footer.tsx"
+    ],
+    "guardRegressionPath": "tests/test_protected_path_scope_guard.sh",
+    "guardRegressionPathStatus": "already explicitly present in allowed_h3_local; no new allowlist record is needed for this test file",
+    "pathCountIncludingGuardRegressionAfterApproval": 29,
+    "guardFilesAlreadyRecognize": [
+      "scripts/security/protected_path_scope_guard.sh",
+      ".github/workflows/security-audit.yml"
+    ],
+    "guardPolicy": "Add exact path records only to allowed_h3_local; preserve regexes and negative sibling-path assertions. Keep R19 immutable.",
+    "validation": {
+      "guardRegression": "PASS in Docker; exact 29-entry list equality, manifest integration and negative path cases",
+      "actionlint": "PASS 1.7.12",
+      "shellcheck": "PASS 0.11.0 for protected path guard and regression",
+      "diffCheck": "PASS git diff --check",
+      "historicalR19": "preserved unchanged"
+    }
+  },
+  "workflowRemediation": {
+    "status": "LOCAL_DOCKER_VALIDATION_PASS",
+    "exactChanges": [
+      "Change only --candidate-manifest from the immutable R19 path to .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json.",
+      "Add node ../tests/h3_duration_parser.test.mjs to the Static Build job immediately after npm ci."
+    ],
+    "verification": [
+      "Docker protected-path guard test",
+      "Docker documentation integrity self-test using R20 manifest",
+      "actionlint",
+      "ShellCheck",
+      "credential scan"
+    ],
+    "excluded": [
+      "no control disabling",
+      "no wildcard allowlist",
+      "no branch-protection change",
+      "no R19 edits"
+    ],
+    "validation": {
+      "actionlint": "PASS 1.7.12",
+      "shellcheck": "PASS 0.11.0",
+      "documentationIntegrityR20": "PASS DOC_SELF_TEST_PASS/DOC_GATE_PASS; 735/735 sources, 725/735 all dimensions, 115/115 active docs, 433/433 historical linked, 9270 links, 4630 anchors",
+      "credentialScan": "PASS exit 0 over all 44 includedPaths; no .env opened",
+      "parserTest": "PASS 11/11 in Docker with candidate source and dependencies mounted read-only",
+      "diffCheck": "PASS git diff --check",
+      "workflowDelta": "only R19-to-R20 candidate manifest selection and parser test in static-build after npm ci"
+    }
+  },
+  "canonicalParserTest": {
+    "testPath": "tests/h3_duration_parser.test.mjs",
+    "testSha256": "def54be05d24d71551fb64b7150ebd3f4088d78c586a14de9775dc57f997fef9",
+    "sourcePath": "web/src/lib/supabase.ts",
+    "sourceSha256": "c9b32000d20695c6368dc72b3c45b1227d380ed103510976c632a21f37759ab8",
+    "dockerResult": "PASS 11/11 in exact candidate bind-mounted container",
+    "canonicalUat": "H3-UAT-059 pending new JIT; H3-UAT-058 prior canonical result remains reusable for this parser-only change."
+  },
+  "latestLocalExecution": {
+    "packageA": "Initial runner attempt remains failed before viewport due Chromium revision mismatch. A2 provisioning invocation then failed on CDN DNS EAI_AGAIN; H3-UAT-059 runner was not invoked, no resets, fixture DB preserved.",
+    "packageB": "Applied locally and validated in Docker; after A2 record, R20 DOC_SELF_TEST/DOC_GATE pass (735/735 structural, 725/735 dimensions, 115/115 active, 433/433 historical, 9270 links, 4630 anchors), credential scan pass on 44/44 includedPaths, PR template 10/10 matching headings with no placeholders/empty cells, and diff-check pass. Guard/actionlint/ShellCheck/parser validations remain valid because their code inputs are unchanged.",
+    "publication": "Human authorization to commit/push/update existing PR #503 is current; not yet executed. Merge, deploy, workflow_dispatch and branch protection remain excluded."
+  },
+  "nextJitRequired": {
+    "status": "A2_CONSUMED_INSTALL_FAILED",
+    "purpose": "Do not rerun the Playwright installer or H3-UAT-059 runner using the consumed A2 approval.",
+    "observed": "One installer invocation failed with repeated DNS EAI_AGAIN resolving cdn.playwright.dev; the isolated browser target has metadata only, no Chromium executable.",
+    "allowedUnderCurrentA2": "No further install, runner invocation, SQL, reset, cleanup or remote operation.",
+    "next": "If Chromium cannot be sourced from an already-installed, independently verified local artifact, prepare one new JIT for a different provisioning path. Preserve the PG17 fixture and partial browser target."
+  }
 }

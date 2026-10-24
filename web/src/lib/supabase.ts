@@ -148,12 +148,13 @@ export function parseDurationToMonths(duration: string): number {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
   const unitPattern = '(anos?|years?|mes(?:es)?|months?|semanas?|weeks?)';
-  const range = normalized.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(?:a|hasta|[-–])\\s*\\d+(?:[.,]\\d+)?\\s*${unitPattern}`));
-  const matches = range
-    ? [range]
-    : [...normalized.matchAll(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*${unitPattern}`, 'g'))];
-
-  return matches.reduce((total, match) => {
+  const matchesIn = (text: string) => {
+    const range = text.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(?:a|hasta|[-–])\\s*\\d+(?:[.,]\\d+)?\\s*${unitPattern}`));
+    return range
+      ? [range]
+      : [...text.matchAll(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*${unitPattern}`, 'g'))];
+  };
+  const toMonths = (matches: RegExpMatchArray[]) => matches.reduce((total, match) => {
     const value = Number(match[1].replace(',', '.'));
     const unit = match[2];
     if (!Number.isFinite(value)) return total;
@@ -162,4 +163,89 @@ export function parseDurationToMonths(duration: string): number {
     if (unit.startsWith('mes') || unit.startsWith('month')) return total + value;
     return total;
   }, 0);
+  const relativeTolerance = 0.1;
+  const logBucketWidth = Math.log(1.01);
+  const bucketNeighbors = 12;
+  const periodBuckets = new Map<number, { minimum: number; maximum: number }>();
+  let hasFinitePositiveReference = false;
+  let hasInfiniteReference = false;
+
+  // A 1% log bucket is narrower than the 10% equivalence window; +/-12 covers
+  // its maximum log-distance. Within a bucket, its extrema preserve nearest
+  // reference checks for values inside or outside that bucket.
+  const isDuplicatePeriod = (months: number) => {
+    if (hasInfiniteReference && Number.isFinite(months)) return true;
+    if (months === Number.POSITIVE_INFINITY) return hasFinitePositiveReference;
+    if (!Number.isFinite(months) || months <= 0) return false;
+
+    const bucket = Math.floor(Math.log(months) / logBucketWidth);
+    for (let offset = -bucketNeighbors; offset <= bucketNeighbors; offset += 1) {
+      const references = periodBuckets.get(bucket + offset);
+      if (!references) continue;
+      const matchesReference = (referenceMonths: number) =>
+        Math.abs(months - referenceMonths) <= Math.max(referenceMonths, months) * relativeTolerance;
+      if (matchesReference(references.minimum) || matchesReference(references.maximum)) return true;
+    }
+    return false;
+  };
+
+  const addReferencePeriod = (months: number) => {
+    if (months === Number.POSITIVE_INFINITY) {
+      hasInfiniteReference = true;
+      return;
+    }
+    if (!Number.isFinite(months) || months <= 0) return;
+
+    hasFinitePositiveReference = true;
+    const bucket = Math.floor(Math.log(months) / logBucketWidth);
+    const references = periodBuckets.get(bucket);
+    if (!references) {
+      periodBuckets.set(bucket, { minimum: months, maximum: months });
+      return;
+    }
+    references.minimum = Math.min(references.minimum, months);
+    references.maximum = Math.max(references.maximum, months);
+  };
+
+  const addDistinctPeriods = (matches: RegExpMatchArray[], startingTotal: number) => {
+    let total = startingTotal;
+    for (const match of matches) {
+      const months = toMonths([match]);
+      if (isDuplicatePeriod(months)) continue;
+      total += months;
+      addReferencePeriod(months);
+    }
+    return total;
+  };
+
+  const outsideParentheses: string[] = [];
+  const parentheticalGroups: string[] = [];
+  let depth = 0;
+  let currentGroup = '';
+  for (const character of normalized) {
+    if (character === '(') {
+      if (depth === 0) currentGroup = '';
+      else currentGroup += character;
+      depth += 1;
+      continue;
+    }
+    if (character === ')' && depth > 0) {
+      depth -= 1;
+      if (depth === 0) parentheticalGroups.push(currentGroup);
+      else currentGroup += character;
+      continue;
+    }
+    if (depth === 0) outsideParentheses.push(character);
+    else currentGroup += character;
+  }
+  if (depth > 0) parentheticalGroups.push(currentGroup);
+
+  const primaryMatches = matchesIn(outsideParentheses.join(''));
+  if (primaryMatches.length === 0) return addDistinctPeriods(matchesIn(normalized), 0);
+
+  const primaryPeriods = primaryMatches.map((match) => toMonths([match]));
+  const primaryMonths = toMonths(primaryMatches);
+  primaryPeriods.forEach(addReferencePeriod);
+  addReferencePeriod(primaryMonths);
+  return parentheticalGroups.reduce((total, group) => addDistinctPeriods(matchesIn(group), total), primaryMonths);
 }

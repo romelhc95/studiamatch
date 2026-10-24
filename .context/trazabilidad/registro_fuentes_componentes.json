@@ -16358,6 +16358,73 @@
       "candidate_only_paths": []
     },
     {
+      "id": "public-duration-parser-test",
+      "component": "pruebas-evidencia",
+      "purpose": "Regresión unitaria del parser de duración del catálogo público.",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "contracts": {
+        "state": "verified",
+        "note": "Once tests sintéticos cubren equivalencia de unidades en aclaraciones parentéticas, suma de periodos distintos, fallback parentético, paréntesis incompleto, límites de tolerancia, overflow numérico y complejidad de aclaraciones cero repetidas. No reemplaza H3-UAT-059.",
+        "evidence": [
+          "path:tests/h3_duration_parser.test.mjs",
+          "path:web/src/lib/supabase.ts",
+          "path:.context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "`parseDurationToMonths` en `web/src/lib/supabase.ts` es importado por `HomeContent.tsx` para filtros/facetas y ambas rutas de “Actualizarme”; el test transpila el módulo con mocks locales y no hace llamadas Auth/Data API.",
+        "evidence": [
+          "path:web/src/lib/supabase.ts",
+          "path:web/src/app/HomeContent.tsx",
+          "path:tests/h3_duration_parser.test.mjs"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Solo cadenas de duración sintéticas; no usa cuentas, datos personales, DB ni servicios remotos.",
+        "evidence": [
+          "path:tests/h3_duration_parser.test.mjs"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "En Docker, `node --test tests/h3_duration_parser.test.mjs` pasó 11/11 tras el fix de complejidad, incluida la prueba de 2.000 aclaraciones cero con cero slots de Array.some recorridos. La salida histórica 7/7 permanece preservada; el reporte del ciclo registra SHA de fuente/test y la comparación determinista de 10.000 inputs sin diferencias. No es ejecución canónica de H3-UAT-059 ni aceptación Development.",
+        "evidence": [
+          "path:tests/h3_duration_parser.test.mjs",
+          "path:.context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-duration-parser-green-r2/output.jsonl",
+          "path:.context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Runner Node local y aislado en Docker; carga TypeScript con `typescript.transpileModule` y mocks de las dependencias del módulo. No hace writes, requests de red, navegación ni seed SQL.",
+        "evidence": [
+          "path:tests/h3_duration_parser.test.mjs",
+          "path:.context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "La fuente es un archivo nuevo del delta local: `git status` lo identifica untracked y no existe en el HEAD publicado `953f03084d6b62899badc806867c6acac6731aa7`; permanece WIP y fuera del PR hasta reconciliar alcance y permiso de actualización.",
+        "evidence": [
+          "path:.context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md"
+        ]
+      },
+      "paths": [
+        "tests/h3_duration_parser.test.mjs"
+      ],
+      "candidate_only_paths": [
+        "tests/h3_duration_parser.test.mjs"
+      ],
+      "source_document": {
+        "path": ".context/componentes/pruebas_evidencia.md",
+        "anchor": "contrato-unitario-del-catalogo-publico"
+      }
+    },
+    {
       "id": "pipeline-tests",
       "component": "pruebas-evidencia",
       "purpose": "Suites y harnesses focales del recorrido FG1/FG2; se separan de los workers de runtime.",

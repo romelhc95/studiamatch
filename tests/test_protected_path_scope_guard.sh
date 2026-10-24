@@ -125,6 +125,77 @@ for unmanifested_h3 in (
             "protected path integration test: unmanifested H3 markdown is accepted: "
             f"{unmanifested_h3}"
         )
+
+# The duration/mobile successor PR adds only the exact local paths rejected
+# by the current guard, plus the parser test and R20 selection manifest. R19
+# remains the immutable historical manifest validated below.
+candidate_scope_path = root / ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-scope-2026-10-24.json"
+candidate_scope = json.loads(candidate_scope_path.read_text(encoding="utf-8"))
+remediation = candidate_scope.get("protectedPathRemediation", {})
+exact_additions = remediation.get("exactAdditionalAllowedH3LocalPaths")
+expected_exact_additions = {
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-body-2026-10-24.md",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-scope-2026-10-24.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/canonical-runner.stdout",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/functional-catalog-seed-corrected.stdout",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-desktop.png",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-mobile.png",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-tablet.png",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-059-desktop.png",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-059-mobile.png",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-059-tablet.png",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-artifact-hashes.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-executions.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-manifest.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/h3-expanded-uat-matrix.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-duration-parser-green/output.jsonl",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-duration-parser-red/actual-result.jsonl",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-duration-parser-red/output.jsonl",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-filter-overflow-red/observed.json",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/eslint.stdout",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/static-build-artifact.sha256",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/static-build.stdout",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/typescript.stdout",
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-final-docker-checks-2026-10-24/uat-helper-unit-tests.stdout",
+    "tests/h3_uat_http_diagnostics.mjs",
+    "tests/h3_uat_sanitizer.mjs",
+    "tests/h3_duration_parser.test.mjs",
+    "web/src/components/Footer.tsx",
+}
+if (
+    candidate_scope.get("target", {}).get("baseBranch") != "desarrollo"
+    or remediation.get("currentPrChangedPathCount") != 37
+    or remediation.get("currentlyRejectedByGuardCount") != 27
+    or remediation.get("exactAdditionalAllowlistPathCount") != 29
+    or not isinstance(exact_additions, list)
+    or len(exact_additions) != 29
+    or len(exact_additions) != len(set(exact_additions))
+    or set(exact_additions) != expected_exact_additions
+):
+    raise SystemExit("protected path integration test: candidate remediation manifest differs from the reviewed exact scope")
+included_candidate_paths = set(candidate_scope.get("includedPaths", []))
+if not set(exact_additions).issubset(included_candidate_paths):
+    raise SystemExit("protected path integration test: exact allowlist additions are not all selected in the candidate package")
+if not set(exact_additions).issubset(local_paths):
+    raise SystemExit("protected path integration test: a reviewed exact candidate path is not allowlisted")
+if "web/src/components/Footer.tsx" not in exact_additions:
+    raise SystemExit("protected path integration test: responsive footer correction is absent from the exact candidate scope")
+if "tests/test_protected_path_scope_guard.sh" not in local_paths:
+    raise SystemExit("protected path integration test: the guard regression itself is not allowlisted")
+for unreviewed_candidate in (
+    ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/unlisted-output.json",
+    "tests/h3_duration_parser_extra.test.mjs",
+    "web/src/components/FooterExtra.tsx",
+):
+    if unreviewed_candidate in local_paths or any(
+        re.search(pattern, unreviewed_candidate) for pattern in patterns
+    ):
+        raise SystemExit(
+            "protected path integration test: unreviewed candidate sibling is accepted: "
+            f"{unreviewed_candidate}"
+        )
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 entries = manifest.get("scope", {}).get("entries")
 if not isinstance(entries, list):

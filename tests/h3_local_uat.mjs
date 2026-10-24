@@ -1923,7 +1923,7 @@ const ALL_CASES = Object.freeze([
     await page.getByRole('button', { name: 'Actualizarme', exact: true }).click();
     await waitForPublicCatalog(page);
     await page.getByRole('heading', { name: 'Programa local H3 13', exact: true }).waitFor({ state: 'visible' });
-    check('update goal includes a short course with a mixed-unit duration', await page.getByRole('heading', { name: 'Programa local H3 13', exact: true }).count() === 1);
+    check('update goal includes the six-month course with equivalent duration units', await page.getByRole('heading', { name: 'Programa local H3 13', exact: true }).count() === 1);
     check('update goal excludes a seven-month course', await page.getByRole('heading', { name: 'Programa local H3 16', exact: true }).count() === 0);
     check('clear-all is available for the update goal', await page.getByRole('button', { name: 'Limpiar todo' }).count() === 1);
     await page.getByRole('button', { name: 'Limpiar todo' }).click();

@@ -134,7 +134,7 @@ SET
   price_status = CASE WHEN substring(course.id::TEXT FROM '[0-9]+$')::INTEGER IN (16, 17) THEN 'consultar' ELSE 'publicado' END,
   duration = CASE substring(course.id::TEXT FROM '[0-9]+$')::INTEGER
     WHEN 12 THEN '18 meses'
-    WHEN 13 THEN '32 horas académicas 1 mes aproximadamente.'
+    WHEN 13 THEN '6 meses (24 semanas)'
     WHEN 14 THEN '3 meses'
     WHEN 15 THEN '6 meses'
     WHEN 16 THEN '7 meses'
