@@ -62,6 +62,7 @@
   "target": {
     "baseBranch": "desarrollo",
     "operationPendingAuthorization": [
+      "human review/approval",
       "merge",
       "manual deploy",
       "workflow_dispatch",
@@ -71,58 +72,121 @@
       "Production"
     ],
     "notAuthorizedByThisPackage": [
+      "PR approval",
       "merge",
       "manual deploy",
       "workflow_dispatch",
       "branch protection change",
+      "secrets",
+      "real accounts",
+      "remote Supabase operational SQL/data",
       "Certification",
       "main",
       "Production"
     ],
     "operationApprovedPendingExecution": [
-      "commit the exact includedPaths package",
-      "push feat/h3req1-public-duration-mobile-20261024 non-force",
-      "update the existing protected PR #503 body from candidate-pr-body-2026-10-24.md"
+      "create an additive commit containing only authorized public duration/filter/responsive tests and selected documentation paths",
+      "push feat/h3req1-public-duration-mobile-20261024 non-force and update existing PR #503",
+      "read final PR description and check runs for the resulting SHA"
     ]
   },
-  "previewImpact": "Pushing an updated feature branch may create or replace its automatic Cloudflare Pages Preview; this package requests no manual deployment.",
+  "previewImpact": "Pushing the authorized updated feature branch can create/replace its automatic Cloudflare Pages Preview; no manual deployment is authorized.",
   "localAcceptance": {
     "H3-UAT-058": {
       "criterion": "H3-CA4.11",
-      "result": "PASS_REUSED_FROM_PRIOR_CANONICAL_RUN",
-      "viewportExecutions": "3/3 plus 320px narrow assertions inside mobile scenario",
-      "reuseRationale": "This parser-only delta does not alter the H3-UAT-058 layout/footer path; preserve the prior canonical run instead of repeating an intact case."
+      "title": "public listing and detail fit the active viewport",
+      "result": "PASS_LOCAL_DOCKER_MOCK_R12",
+      "sourceBaseSha": "6e1bd8f5ad623a44524b11391c1385c59b9a4b70",
+      "runnerSha256": "e9c2ed3a660d2c4982c7443fd4ffed0da4ab174d2e357284d5dac0026a5719bd",
+      "productFileSha256": "84af11d225b18fd52e95fb54625c7014a06e6a1a31bb413d29a6a980f516ffd7",
+      "viewports": {
+        "desktop": "PASS",
+        "tablet": "PASS",
+        "mobile": "PASS"
+      },
+      "screenshots": 3,
+      "fixtureResetCases": [],
+      "resets": 0,
+      "retries": 0,
+      "execution": "run12-duration-label-20261025/evidence/attempt-08/runner-public-058-059-revalidation/h3-expanded-uat-matrix.json",
+      "executionSha256": "78bc654ef9a96259e9f001d22e9f2801af6d5190f90429edf8810376521973820c",
+      "executionsSha256": "da58a6eac3deac22e9f84508b89870c5ffba017f21230055d3161513f5af5961",
+      "staticIndexSha256": "0583dfde47aadd01e09267188693fa26bf970db20ac42b83da4b90a2737ba7b7",
+      "staticDetailSha256": "9a0e19b2e15e6a464d6ef30e029aee548114efa886957c5be6e0177f85198b53",
+      "fixture": "PG17.11 h3_final_uat_20261024_058059; read-only pre/post counts unchanged; no SQL/reset/cleanup",
+      "limits": "Local Docker mock/static export only; not GitHub Preview or Development acceptance.",
+      "assertionsByViewport": {
+        "desktop": "4/4",
+        "tablet": "4/4",
+        "mobile": "9/9 including the 320px filter panel, listing, detail and footer"
+      },
+      "totalAssertions": 17,
+      "narrow320pxAssertions": "PASS in the mobile scenario"
     },
     "H3-UAT-059": {
       "criterion": "H3-CA4.9",
-      "result": "BLOCKED_BROWSER_INSTALL_DNS_BEFORE_RUNNER",
-      "attempt": "A2 one-time Playwright Chromium installation invocation failed; the runner was not invoked.",
-      "previousAttempt": {
-        "result": "FAILED_BEFORE_VIEWPORT_NEW_JIT_REQUIRED",
-        "attempt": "one authorized canonical runner invocation after exact approved SQL/setup",
-        "observed": "Playwright 1.63.0 requires Chromium revision 1243; runtime has Chromium revision 1228; launch also reported crashpad database requirement.",
-        "expectedViewportExecutions": "3",
-        "actualViewportExecutions": "0/3",
-        "screenshots": "0/3",
-        "mockResets": "0",
-        "retries": "0",
-        "databasePostflight": "read-only PASS: PostgreSQL 17.11, public relations 13, auth/private schemas present, pipeline rows 30, editorial rows 31, public effective rows 16; no cleanup.",
-        "evidence": "run-canonical-058-059-footer-20261024/h3-uat-059-canonical-20261024-run01/evidence/ (sanitized summary; logs excluded from PR)",
-        "next": "Obtain a new one-run JIT: install Playwright 1.63.0 Chromium revision 1243 in isolated /evidence path, then run the exact canonical runner once against the already-seeded DB; no SQL reapplication or cleanup."
+      "title": "public filters apply independently and career goal matches eligible courses",
+      "result": "PASS_LOCAL_DOCKER_MOCK_R12",
+      "sourceBaseSha": "6e1bd8f5ad623a44524b11391c1385c59b9a4b70",
+      "runnerSha256": "e9c2ed3a660d2c4982c7443fd4ffed0da4ab174d2e357284d5dac0026a5719bd",
+      "productFileSha256": "84af11d225b18fd52e95fb54625c7014a06e6a1a31bb413d29a6a980f516ffd7",
+      "viewports": {
+        "desktop": "PASS",
+        "tablet": "PASS",
+        "mobile": "PASS"
       },
-      "expectedViewportExecutions": "3",
-      "actualViewportExecutions": "0/3 in A2; runner not invoked",
-      "screenshots": "0/3 in A2",
-      "mockResets": "0 in A2; no POST /__test/reset was issued",
-      "retries": "0 runner retries; Playwright CLI install exhausted its automatic DNS attempts/fallbacks",
-      "observed": "Playwright 1.63.0 installer exited 1 with getaddrinfo EAI_AGAIN for cdn.playwright.dev. The isolated target contains only Playwright .links metadata; the Chromium 1243 executable was not installed.",
-      "databasePostflight": "Read-only after the failed install: PostgreSQL 17.11; 13 public relations; auth/private namespaces present; 30 synthetic pipeline courses; 31 editorial rows; 16 public effective rows; 26 admin queue rows. No DB writes or resets occurred in A2.",
-      "browserTarget": "/evidence/h3req1-playwright-browsers-1243-20261024; preserved, no Chromium executable present",
-      "evidence": "A2 installer result recorded in candidate-acceptance-cycle-2026-10-24.md; the failed runner was not invoked and produced no viewport artifacts.",
-      "next": "Stop. A different browser provisioning path requires a separate concrete JIT; do not repeat this install or runner under the consumed A2 permission."
+      "screenshots": 3,
+      "fixtureResetCases": [],
+      "resets": 0,
+      "retries": 0,
+      "execution": "run12-duration-label-20261025/evidence/attempt-08/runner-public-058-059-revalidation/h3-expanded-uat-matrix.json",
+      "executionSha256": "78bc654ef9a96259e9f001d22e9f2801af6d5190f90429edf8810376521973820c",
+      "executionsSha256": "da58a6eac3deac22e9f84508b89870c5ffba017f21230055d3161513f5af5961",
+      "staticIndexSha256": "0583dfde47aadd01e09267188693fa26bf970db20ac42b83da4b90a2737ba7b7",
+      "staticDetailSha256": "9a0e19b2e15e6a464d6ef30e029aee548114efa886957c5be6e0177f85198b53",
+      "fixture": "PG17.11 h3_final_uat_20261024_058059; read-only pre/post counts unchanged; no SQL/reset/cleanup",
+      "limits": "Local Docker mock/static export only; not GitHub Preview or Development acceptance.",
+      "assertionsByViewport": {
+        "desktop": "39/39",
+        "tablet": "39/39",
+        "mobile": "39/39"
+      },
+      "totalAssertions": 117,
+      "coverage": [
+        "category",
+        "institution",
+        "modality",
+        "type",
+        "duration",
+        "career goal",
+        "text search",
+        "empty state",
+        "clear/reset",
+        "pagination",
+        "Actualizarme",
+        "long-duration accessible label with result count"
+      ]
+    },
+    "combinedRunHistory": {
+      "result": "058 PASS 3/3; 059 FAIL 0/3 before its correction",
+      "cause": "A stale test expectation classified a six-month course under the less-than-three-month short bucket; fixture and product behavior placed it in medium.",
+      "correction": "Updated only the H3-UAT-059 assertion: short expects empty state; medium expects the three-to-six-month courses. The targeted canonical 059 rerun then passed all three viewports.",
+      "preserved": "run11-canonical-058-059-20261025/runner-final/"
+    },
+    "latestCombinedRun": {
+      "result": "PASS",
+      "logicalCases": "2/2",
+      "viewportExecutions": "6/6",
+      "screenshots": "6/6",
+      "retries": 0,
+      "resets": 0,
+      "sourceBaseSha": "6e1bd8f5ad623a44524b11391c1385c59b9a4b70",
+      "runnerSha256": "e9c2ed3a660d2c4982c7443fd4ffed0da4ab174d2e357284d5dac0026a5719bd",
+      "evidencePath": "run12-duration-label-20261025/evidence/attempt-08/runner-public-058-059-revalidation/",
+      "fixture": "Exact complete synthetic PG17 fixture reused; read-only postflight unchanged."
     }
   },
-  "remoteAcceptance": "Pending a protected PR update with all required checks green, approved merge, and a confirmed Development deployment; then repeat only affected cases and a public smoke on the exact deployed SHA/ID.",
+  "remoteAcceptance": "R12 local candidate tests/build pass; PR #503 remote head must be re-read before authorized additive publication. Then read back PR body, new SHA, all check runs and any automatic Pages Preview. No remote acceptance is claimed. Human review/approval and merge are separate; merge is not authorized.",
   "excludedPaths": [
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-local-validation-reconciled-2026-10-24.json",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-local-validation.json",
@@ -302,18 +366,181 @@
     "sourcePath": "web/src/lib/supabase.ts",
     "sourceSha256": "c9b32000d20695c6368dc72b3c45b1227d380ed103510976c632a21f37759ab8",
     "dockerResult": "PASS 11/11 in exact candidate bind-mounted container",
-    "canonicalUat": "H3-UAT-059 pending new JIT; H3-UAT-058 prior canonical result remains reusable for this parser-only change."
+    "canonicalUat": "R11: H3-UAT-058 PASS 3/3 viewports; H3-UAT-059 PASS 3/3 after correcting stale duration expectation; local Docker mock only."
   },
   "latestLocalExecution": {
-    "packageA": "Initial runner attempt remains failed before viewport due Chromium revision mismatch. A2 provisioning invocation then failed on CDN DNS EAI_AGAIN; H3-UAT-059 runner was not invoked, no resets, fixture DB preserved.",
-    "packageB": "Applied locally and validated in Docker; after A2 record, R20 DOC_SELF_TEST/DOC_GATE pass (735/735 structural, 725/735 dimensions, 115/115 active, 433/433 historical, 9270 links, 4630 anchors), credential scan pass on 44/44 includedPaths, PR template 10/10 matching headings with no placeholders/empty cells, and diff-check pass. Guard/actionlint/ShellCheck/parser validations remain valid because their code inputs are unchanged.",
-    "publication": "Human authorization to commit/push/update existing PR #503 is current; not yet executed. Merge, deploy, workflow_dispatch and branch protection remain excluded."
+    "R11": {
+      "status": "completed",
+      "sourceProductSha": "6e1bd8f5ad623a44524b11391c1385c59b9a4b70",
+      "runnerSha256": "5246b6473bc78dae70595668530a05545b811e7fce9d6e54df08a42716b95f32",
+      "catalog": [
+        {
+          "id": "H3-UAT-058",
+          "criterion": "H3-CA4.11",
+          "title": "public listing and detail fit the active viewport",
+          "fixtureReset": true,
+          "expectedRoute": "/ and /courses/ulima/analitica-aplicada-60000000/"
+        },
+        {
+          "id": "H3-UAT-059",
+          "criterion": "H3-CA4.9",
+          "title": "public filters apply independently and career goal matches eligible courses",
+          "fixtureReset": false,
+          "expectedRoute": "/"
+        }
+      ],
+      "combined": "058 PASS at desktop/tablet/mobile; 059 failed at desktop/tablet/mobile because its short-duration test expectation was stale. This was a test assertion defect, not evidence of a product defect.",
+      "focusedRerun": "After correcting the assertion, H3-UAT-059 passed 3/3 viewports with 38/38 assertions each, 3 screenshots, 0 fixture resets and 0 retries.",
+      "database": "Exact local disposable PG17 database h3_final_uat_20261024_058059; complete expected synthetic fixture reused. Read-only postflight: PG17.11, 13 public relations, auth/private schemas present; courses 31, editorial 31, public effective 16, admin queue 26, Analítica fixture 1. No SQL, reseed, reset, cleanup or remote write during R11.",
+      "buildAndRoutes": "Static build:mock from product SHA 6e1bd8f; root and public detail route smoke returned HTTP 200.",
+      "evidence": "Sanitized summary in this addendum; detailed local artifacts under run11-canonical-058-059-20261025/ in the candidate evidence worktree and excluded from the PR."
+    },
+    "publication": "Before this additive delta, PR #503 was open at head 6e1bd8f5ad623a44524b11391c1385c59b9a4b70. Its previous check snapshot was 16 success, 2 expected skips, 0 failures; those checks are not attributed to the next SHA. Final PR metadata and check runs must be read after the authorized push.",
+    "R12": {
+      "status": "completed",
+      "sourceBaseSha": "6e1bd8f5ad623a44524b11391c1385c59b9a4b70",
+      "sourceFiles": {
+        "tests/h3_local_uat.mjs": "e9c2ed3a660d2c4982c7443fd4ffed0da4ab174d2e357284d5dac0026a5719bd",
+        "web/src/app/HomeContent.tsx": "84af11d225b18fd52e95fb54625c7014a06e6a1a31bb413d29a6a980f516ffd7"
+      },
+      "catalog": [
+        {
+          "id": "H3-UAT-058",
+          "criterion": "H3-CA4.11",
+          "title": "public listing and detail fit the active viewport",
+          "fixtureReset": false,
+          "expectedRoute": "/ and /courses/ulima/analitica-aplicada-60000000/"
+        },
+        {
+          "id": "H3-UAT-059",
+          "criterion": "H3-CA4.9",
+          "title": "public filters apply independently and career goal matches eligible courses",
+          "fixtureReset": false,
+          "expectedRoute": "/"
+        }
+      ],
+      "catalogPreflight": "PASS; actual runner maps 058→CA4.11 and 059→CA4.9; six viewport executions; zero fixture reset cases.",
+      "build": {
+        "result": "PASS Docker static export",
+        "routes": {
+          "home": "HTTP 200",
+          "detail": "HTTP 200"
+        },
+        "indexSha256": "0583dfde47aadd01e09267188693fa26bf970db20ac42b83da4b90a2737ba7b7",
+        "detailSha256": "9a0e19b2e15e6a464d6ef30e029aee548114efa886957c5be6e0177f85198b53",
+        "builderImage": "node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d"
+      },
+      "combinedRun": {
+        "result": "PASS",
+        "logicalCases": "2/2",
+        "viewportExecutions": "6/6",
+        "screenshots": "6/6",
+        "assertions": {
+          "H3-UAT-058": "17 total (4 desktop, 4 tablet, 9 mobile including 320px)",
+          "H3-UAT-059": "117 total (39 per viewport)"
+        },
+        "retries": 0,
+        "resets": 0,
+        "matrixSha256": "78bc654ef9a96259e9f001d22e9f2801af6d5190f90429edf8810376521973820c",
+        "executionsSha256": "da58a6eac3deac22e9f84508b89870c5ffba017f21230055d3161513f5af5961"
+      },
+      "fixture": {
+        "database": "h3_final_uat_20261024_058059",
+        "version": "PostgreSQL 17.11",
+        "prePostflight": "13 public relations; auth/private schemas; courses 31; editorial 31; effective projection 16; queue 26; target synthetic course 1; unchanged",
+        "writes": "No SQL, DDL/DML, resets, reseed, cleanup or remote writes."
+      },
+      "visibleBrowser": {
+        "transport": "Chrome DevTools MCP, Windows, page 9 via local GET/HEAD forwarder",
+        "url": "http://127.0.0.1:3342/",
+        "emulatedViewport": "390px; DOM showed Largos (>6m) with result count, document scroll/client 390/390, filter panel within viewport",
+        "limits": "DevTools resize_page retained 390px emulation; 320px assertions are from H3-UAT-058 Playwright execution."
+      },
+      "attempts": {
+        "04": "build:mock failed during Next Google Fonts fetch; preserved; corrected to local mock transport.",
+        "05": "preflight queried non-consumer /rest/v1/courses and got 404; corrected to courses_public_effective.",
+        "06": "058 PASS; 059 failed on label assertion before opening filters.",
+        "07": "058 PASS; 059 assertion still queried wrong “Personalizar” control; DOM showed “Más filtros” owns duration panel.",
+        "08": "PASS after opening Más filtros and matching the label prefix while allowing its count suffix."
+      },
+      "finalValidation": {
+        "eslint": "PASS Docker exit 0, 0 errors and 9 pre-existing warnings on unchanged lines.",
+        "typescript": "PASS Docker npx tsc --noEmit --incremental false, exit 0.",
+        "documentation": "PASS Docker DOC_SELF_TEST_PASS and DOC_GATE_PASS after correcting the exact R12 heading anchor; 735/735 structurally linked, 725/735 all dimensions complete, 115/115 active reachable, 433/433 historical linked, 9267 links, 4632 anchors.",
+        "credentialScan": "PASS Docker over all 44 exact includedPaths; no .env opened.",
+        "scope": "PASS: 10 modified paths, all 10 in includedPaths; all 44 included paths exist; 0 modified paths outside scope.",
+        "diffCheck": "PASS git diff --check.",
+        "focusedSecurityReview": "Manual review of all changed product/test paths: only public catalogue label/filter assertions and no auth, authorization, credential, remote transport, or personal-data changes. Fresh CodeQL/security checks required on the pushed SHA.",
+        "documentationGateInvocation": "PASS in Docker read-only/network none with candidate-scope-manifest.json: DOC_SELF_TEST_PASS, DOC_GATE_PASS; 735/735 structural, 725/735 all dimensions, 115/115 active, 433/433 historical, 9267 links, 4632 anchors. A wrong PR-path manifest and an unscoped scratch invocation failed and are not counted as PASS.",
+        "infrastructureDiagnostics": "Corrected Docker dependency mount and validation helpers after preserving pre-execution failures; helper git ENOENT, PR-body runner-hash typo, wrong checker manifest invocation and localized-count assertion were reconciled without product/UAT source changes. Detailed sanitized record is run12-duration-label-20261025/evidence/attempt-08/final-validation-infrastructure.log, SHA256 cf20839087284deb74bc6f6ba0b6b41835ea8439ad36011efec781c6887abbad. The wrong manifest invocation printed DOC_GATE_FAIL but returned 0 due an error-path exit-code defect in the unmodified checker; the exact candidate-selection manifest invocation passed. The corrected PR-body verifier passed."
+      },
+      "evidencePath": "run12-duration-label-20261025/evidence/attempt-08/; complete raw outputs and screenshots preserved in local evidence checkout, sanitized summary included in selected docs."
+    }
   },
   "nextJitRequired": {
-    "status": "A2_CONSUMED_INSTALL_FAILED",
-    "purpose": "Do not rerun the Playwright installer or H3-UAT-059 runner using the consumed A2 approval.",
-    "observed": "One installer invocation failed with repeated DNS EAI_AGAIN resolving cdn.playwright.dev; the isolated browser target has metadata only, no Chromium executable.",
-    "allowedUnderCurrentA2": "No further install, runner invocation, SQL, reset, cleanup or remote operation.",
-    "next": "If Chromium cannot be sourced from an already-installed, independently verified local artifact, prepare one new JIT for a different provisioning path. Preserve the PG17 fixture and partial browser target."
+    "status": "NONE_FOR_R12_LOCAL_PUBLIC_UAT",
+    "completed": "R12 passed with the exact complete local synthetic fixture; no SQL/reset or remote write was necessary.",
+    "next": "Complete final diff/security/documentation checks, then use the current human authorization for additive commit, non-force push and existing PR #503 update. Read fresh checks for resulting SHA; human approval/merge and Development deployment remain separate."
+  },
+  "history": {
+    "beforeR11": {
+      "localAcceptance": {
+        "H3-UAT-058": {
+          "criterion": "H3-CA4.11",
+          "result": "PASS_REUSED_FROM_PRIOR_CANONICAL_RUN",
+          "viewportExecutions": "3/3 plus 320px narrow assertions inside mobile scenario",
+          "reuseRationale": "This parser-only delta does not alter the H3-UAT-058 layout/footer path; preserve the prior canonical run instead of repeating an intact case."
+        },
+        "H3-UAT-059": {
+          "criterion": "H3-CA4.9",
+          "result": "BLOCKED_BROWSER_INSTALL_DNS_BEFORE_RUNNER",
+          "attempt": "A2 one-time Playwright Chromium installation invocation failed; the runner was not invoked.",
+          "previousAttempt": {
+            "result": "FAILED_BEFORE_VIEWPORT_NEW_JIT_REQUIRED",
+            "attempt": "one authorized canonical runner invocation after exact approved SQL/setup",
+            "observed": "Playwright 1.63.0 requires Chromium revision 1243; runtime has Chromium revision 1228; launch also reported crashpad database requirement.",
+            "expectedViewportExecutions": "3",
+            "actualViewportExecutions": "0/3",
+            "screenshots": "0/3",
+            "mockResets": "0",
+            "retries": "0",
+            "databasePostflight": "read-only PASS: PostgreSQL 17.11, public relations 13, auth/private schemas present, pipeline rows 30, editorial rows 31, public effective rows 16; no cleanup.",
+            "evidence": "run-canonical-058-059-footer-20261024/h3-uat-059-canonical-20261024-run01/evidence/ (sanitized summary; logs excluded from PR)",
+            "next": "Obtain a new one-run JIT: install Playwright 1.63.0 Chromium revision 1243 in isolated /evidence path, then run the exact canonical runner once against the already-seeded DB; no SQL reapplication or cleanup."
+          },
+          "expectedViewportExecutions": "3",
+          "actualViewportExecutions": "0/3 in A2; runner not invoked",
+          "screenshots": "0/3 in A2",
+          "mockResets": "0 in A2; no POST /__test/reset was issued",
+          "retries": "0 runner retries; Playwright CLI install exhausted its automatic DNS attempts/fallbacks",
+          "observed": "Playwright 1.63.0 installer exited 1 with getaddrinfo EAI_AGAIN for cdn.playwright.dev. The isolated target contains only Playwright .links metadata; the Chromium 1243 executable was not installed.",
+          "databasePostflight": "Read-only after the failed install: PostgreSQL 17.11; 13 public relations; auth/private namespaces present; 30 synthetic pipeline courses; 31 editorial rows; 16 public effective rows; 26 admin queue rows. No DB writes or resets occurred in A2.",
+          "browserTarget": "/evidence/h3req1-playwright-browsers-1243-20261024; preserved, no Chromium executable present",
+          "evidence": "A2 installer result recorded in candidate-acceptance-cycle-2026-10-24.md; the failed runner was not invoked and produced no viewport artifacts.",
+          "next": "Stop. A different browser provisioning path requires a separate concrete JIT; do not repeat this install or runner under the consumed A2 permission."
+        }
+      },
+      "latestLocalExecution": {
+        "packageA": "Initial runner attempt remains failed before viewport due Chromium revision mismatch. A2 provisioning invocation then failed on CDN DNS EAI_AGAIN; H3-UAT-059 runner was not invoked, no resets, fixture DB preserved.",
+        "packageB": "Applied locally and validated in Docker; after A2 record, R20 DOC_SELF_TEST/DOC_GATE pass (735/735 structural, 725/735 dimensions, 115/115 active, 433/433 historical, 9270 links, 4630 anchors), credential scan pass on 44/44 includedPaths, PR template 10/10 matching headings with no placeholders/empty cells, and diff-check pass. Guard/actionlint/ShellCheck/parser validations remain valid because their code inputs are unchanged.",
+        "publication": "Human authorization to commit/push/update existing PR #503 is current; not yet executed. Merge, deploy, workflow_dispatch and branch protection remain excluded."
+      },
+      "canonicalParserTest": {
+        "testPath": "tests/h3_duration_parser.test.mjs",
+        "testSha256": "def54be05d24d71551fb64b7150ebd3f4088d78c586a14de9775dc57f997fef9",
+        "sourcePath": "web/src/lib/supabase.ts",
+        "sourceSha256": "c9b32000d20695c6368dc72b3c45b1227d380ed103510976c632a21f37759ab8",
+        "dockerResult": "PASS 11/11 in exact candidate bind-mounted container",
+        "canonicalUat": "H3-UAT-059 pending new JIT; H3-UAT-058 prior canonical result remains reusable for this parser-only change."
+      },
+      "remoteAcceptance": "Pending a protected PR update with all required checks green, approved merge, and a confirmed Development deployment; then repeat only affected cases and a public smoke on the exact deployed SHA/ID.",
+      "nextJitRequired": {
+        "status": "A2_CONSUMED_INSTALL_FAILED",
+        "purpose": "Do not rerun the Playwright installer or H3-UAT-059 runner using the consumed A2 approval.",
+        "observed": "One installer invocation failed with repeated DNS EAI_AGAIN resolving cdn.playwright.dev; the isolated browser target has metadata only, no Chromium executable.",
+        "allowedUnderCurrentA2": "No further install, runner invocation, SQL, reset, cleanup or remote operation.",
+        "next": "If Chromium cannot be sourced from an already-installed, independently verified local artifact, prepare one new JIT for a different provisioning path. Preserve the PG17 fixture and partial browser target."
+      }
+    }
   }
 }

@@ -1883,7 +1883,8 @@ const ALL_CASES = Object.freeze([
       { query: '?inst=Universidad%20de%20Lima', include: publicName, exclude: null },
       { query: '?modalidad=Remoto', include: publicName, exclude: null },
       { query: '?tipo=Maestr%C3%ADa', include: 'Programa local H3 14', exclude: publicName },
-      { query: '?duration=short', include: 'Programa local H3 13', exclude: publicName },
+      { query: '?duration=short', expectEmpty: true, exclude: 'Programa local H3 14' },
+      { query: '?duration=medium', include: ['Programa local H3 13', 'Programa local H3 14'], exclude: 'Programa local H3 16' },
       { query: '?duration=long', include: 'Programa local H3 16', exclude: 'Programa local H3 13' },
     ];
     for (const item of checks) {
@@ -1894,7 +1895,16 @@ const ALL_CASES = Object.freeze([
       await page.waitForFunction((search) => location.search === `?${search}`, canonicalSearch, { timeout: 10000 });
       await page.waitForLoadState('networkidle');
       const body = await page.locator('main').innerText();
-      check(`${item.query} includes expected result`, body.includes(item.include));
+      if (item.expectEmpty) {
+        check(`${item.query} returns empty state when no fixture course is under three months`,
+          await page.getByRole('heading', { name: 'Sin resultados', exact: true }).count() === 1
+            && await page.locator('article').count() === 0);
+      } else {
+        const expectedCourses = Array.isArray(item.include) ? item.include : [item.include];
+        for (const expectedCourse of expectedCourses) {
+          check(`${item.query} includes expected result ${expectedCourse}`, body.includes(expectedCourse));
+        }
+      }
       if (item.exclude) check(`${item.query} excludes nonmatching result`, !body.includes(item.exclude));
       if (item.query.includes('modalidad=Remoto')) {
         const cards = await page.locator('article').allInnerTexts();
@@ -1909,6 +1919,10 @@ const ALL_CASES = Object.freeze([
 
     await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
     await waitForPublicCatalog(page);
+    await page.getByRole('button', { name: 'Más filtros', exact: true }).click();
+    check('long duration label matches the implemented greater-than-six-month boundary',
+      await page.getByRole('button', { name: /^Largos \(>6m\)/ }).count() === 1);
+    await page.getByRole('button', { name: 'Más filtros', exact: true }).click();
     await page.getByRole('button', { name: 'Personalizar' }).click();
     await page.getByRole('button', { name: 'Posgrado', exact: true }).click();
     await waitForPublicCatalog(page);
@@ -1947,7 +1961,7 @@ const ALL_CASES = Object.freeze([
     await page.waitForFunction(() => !new URL(location.href).searchParams.has('q'), undefined, { timeout: 10000 });
     await verifyUnfilteredReset('empty-search');
     return `independent category/institution/mode/type/duration/goal/search filters, empty state and reset verified at ${page.viewportSize()?.width}px`;
-  }),
+  }, { requiresFixtureReset: false }),
   defineCase('H3-CA4.9', 'price filter bands honor inclusive boundaries and exclude unknown prices', 'anon', '/', 'accessible, standard, premium and executive price bands apply their documented edges; zero and null values do not masquerade as priced programs', async ({ page, check }) => {
     const publicName = process.env.H3_PIPELINE_PUBLIC_NAME || 'Analítica Aplicada';
     const bands = [
@@ -2917,7 +2931,10 @@ function validateStructure() {
   for (const { id } of CASES) for (const { name } of VIEWPORTS) safeArtifactPath(`${id}-${name}.png`);
   const integratedJourney = CASES.find(({ title }) => title === 'pipeline course completes Admin provenance availability publication and public journey');
   if (integratedJourney) safeArtifactPath(`${integratedJourney.id}-desktop.webm`);
-  return { logicalCases: CASES.length, viewportExecutions: executionKeys.length, distribution };
+  const fixtureResetCases = CASES
+    .filter(({ requiresFixtureReset }) => requiresFixtureReset !== false)
+    .map(({ id }) => id);
+  return { logicalCases: CASES.length, viewportExecutions: executionKeys.length, distribution, fixtureResetCases };
 }
 
 async function restoreFixture(viewportName) {

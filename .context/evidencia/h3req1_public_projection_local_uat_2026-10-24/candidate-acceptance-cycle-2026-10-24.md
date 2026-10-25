@@ -268,3 +268,111 @@ La causa quedó demostrada al comparar blobs: la herramienta que leyó los archi
 En el worktree se conservan los archivos íntegros: `registro_fuentes_componentes.json` SHA-256 `915b92c0995284cdf4d86119bc0d951bd59cf57948ffac5f1993475b13b4adc5`, 3.038.204 bytes; vista Markdown SHA-256 `b86208c7f1b172be60ac8a50cdfa097c9f6e9d74baf4b274ce101575fbe3081a`, 1.451.570 bytes. La vista se regeneró desde el JSON. R20 Docker pasó con el manifiesto `candidate-scope-manifest.json`: 735/735 fuentes estructurales, 725/735 dimensiones completas, 115/115 documentos activos, 433/433 históricos, 9.270 enlaces, 4.630 anchors; credential scan 44/44 y diff-check Docker pasan. Estos son resultados locales y no corrigen aún el head remoto.
 
 Pages generó automáticamente el Preview `d20bca12-83c4-488b-8854-d4df7a189b76`, en estado success. No es Development ni se usó para aceptación funcional. El body remoto de #503 no cambió y permanece desactualizado; el borrador local se actualizará con los resultados del SHA correctivo antes de crear una solicitud visible nueva.
+
+## R11 — conciliación del runner, H3-UAT-058/059 y cierre de candidato — 2026-10-25
+
+### Tareas y gates
+
+- Catálogo real del runner y asignación caso→criterio: confirmado antes de elegir el caso.
+- Entrega del script y preflight conjunto de browser, fuentes, dependencias, scratch, server, DB, fixture, rutas y evidencia: confirmado.
+- H3-UAT-059 corregido y ejecutado una vez después de diagnosticar su expectativa obsoleta; retries automáticos en cero.
+- Documentación del candidato y revisión del delta pendiente de validación Docker final.
+- Commit aditivo, push no forzado y actualización de #503 autorizados por la instrucción humana actual; no incluyen aprobación, merge ni deploy manual.
+
+### Catálogo canónico
+
+Los archivos runner-catalog.json, reconciled-runner-catalog.json y runner-059-catalog-after-fix.json coinciden con la fuente tests/h3_local_uat.mjs:
+
+| ID | Criterio | Título | Viewports | Fixture/reset | Ruta |
+|---|---|---|---|---|---|
+| H3-UAT-058 | H3-CA4.11 | public listing and detail fit the active viewport | desktop, tablet y mobile; incluye medición a 320 px | Datos sintéticos públicos; no se atribuye a la semántica de filtros | / y /courses/ulima/analitica-aplicada-60000000/ |
+| H3-UAT-059 | H3-CA4.9 | public filters apply independently and career goal matches eligible courses | desktop, tablet y mobile | requiresFixtureReset:false; su ejecución focal no necesita reset | / |
+
+R6, R7 y cualquier documentación histórica que asociaba 059 con CA4.11 o declaraba tres resets permanece intacta como evidencia histórica; esta tabla refleja el código vigente. El test corregido conserva los criterios, corrige solo el expected de duración y mantiene las bandas: corta menor a 3 meses, media de 3 a 6 meses inclusiva, larga mayor a 6 meses.
+
+### Entrega, build y fixture
+
+La entrega del ejecutor R11 dejó el marcador inocuo R11_EXPLICIT_SCRIPT_DELIVERY_OK. El entrypoint y sus helpers se montaron como archivos explícitos de solo lectura; SHA-256 del entrypoint 3871f6cac7cdafaef75dafafb7f5c09683a9f5d1f3f6d0a30c7c9b714d6785f2, del helper proxy 6c5ebc2d5600e3dcd58657c027f7d7fdf641e22d17088d7053fb7dc686cfef86 y del smoke helper 1298fd9c1b6f480cd441664be9f4790976619b03eec1001933fa3f4c3ebc562f. El marcador prueba que el script llegó al contenedor y se ejecutó; no se aceptó exit 0 como sustituto del resultado funcional.
+
+El producto probado proviene del candidato público SHA 6e1bd8f5ad623a44524b11391c1385c59b9a4b70; el cambio de fuente del runner tiene SHA-256 5246b6473bc78dae70595668530a05545b811e7fce9d6e54df08a42716b95f32 y coincide byte a byte con runner-source-after-fix/tests/h3_local_uat.mjs. No contiene el WIP Admin/MFA/FG3 del worktree de autoridad. La salida de build conserva site/index.html SHA-256 d77dae482c001a5a118a876786a941aee20522a4199107b9bea2c3bd8bdebd6e y el detalle de Analítica Aplicada 9a0e19b2e15e6a464d6ef30e029aee548114efa886957c5be6e0177f85198b53. El smoke de rutas respondió HTTP 200 con contenido requerido en / y en ese detalle estático.
+
+Se reutilizó sin cambios el fixture completo de PostgreSQL 17.11 del contenedor h3req1-duration-pg-20261024 (ID a742e6d4be82be33afa19c12e1ba4996e5749ce547173836e1c966ad1baa5b46), DB h3_final_uat_20261024_058059; no se reaplicó SQL ni payload. Una consulta de postflight en transacción READ ONLY confirmó PG 170011, schemas auth/private/public, 13 relaciones públicas, 31 cursos, 31 filas editoriales, 16 filas efectivas, 26 filas de cola y una fila sintética Analítica Aplicada. No hubo resets, DDL/DML, cleanup ni llamadas remotas durante el caso 059.
+
+### Resultado funcional y causa corregida
+
+La corrida combinada runner-final preservada fue FAIL: 058 pasó 3/3 viewports; 059 llegó a sus asserts, pero falló en los tres viewports porque la expectativa anterior decía que el fixture de seis meses pertenecía a la banda corta. La fuente del parser, el fixture y el contrato de rangos demostraron que la expectativa era obsoleta. No se modificó la lógica del producto ni se relajaron assertions.
+
+El delta público actual de tests/h3_local_uat.mjs afirma el estado vacío para duration=short, inclusión de los fixtures de 3 y 6 meses en duration=medium, exclusión del curso de 7 meses y la ruta de objetivo Actualizarme. La ejecución focal posterior de H3-UAT-059 fue PASS: 1/1 caso lógico, 3/3 viewports, 38/38 assertions por viewport (114/114), 3 capturas, 0 retries y 0 resets. Criterio probado: H3-CA4.9. Se preservan la corrida roja y su matriz anterior; no se reemplazan ni borran.
+
+Hashes de las capturas focales, conservadas en la evidencia local R11 y excluidas del paquete PR: desktop 8e394d191fe9647e4bb8ab6e1640dec713de70412eb9bc1b881a2c3bf7b0d00a, tablet e3327f507b5fabe9585c8a50e28f0f66bc36f70a413fb494689285a91c1c36c7, mobile c74b7d934563c02dc657c39cfe01dbae8123d608b48f63d2c60cfd4ee98d957e. Matriz PASS: run11-canonical-058-059-20261025/runner-059-rerun/h3-expanded-uat-matrix.json (SHA-256 963f52342bc1c81979a12d359bda621d52f1bcff43a0f035e5ea1862dab62b96); ejecución: h3-expanded-uat-executions.json (SHA-256 8e5df95e36fa714ce3b79fd0bce3db4273aa895eb1dcf3e8cd52b99f154ff07e). El resumen sanitizado queda en este documento; las capturas y outputs completos no se copian al PR.
+
+### Revisión y gates del PR
+
+Al inicio de R11, GitHub confirmó que #503 estaba abierto, base desarrollo en 1c69b94606795e33c9fee82e8a8e803f3104c566, y su head 6e1bd8f5ad623a44524b11391c1385c59b9a4b70 coincidía con git ls-remote. Ese SHA tenía 18 check-runs: 16 success, 2 skipped, 0 failure. Los skips observados eran H2 Main Production Expand Gate y Supabase Preview; PWI Worker Contract es un check de GitHub Actions y no acredita el webhook/check independiente de GitHub App. La descripción remota seguía conteniendo resultados antiguos de R6; la nueva versión debe reflejar R11 y los checks del SHA que resulte del push.
+
+El delta entre el head público y este candidato está limitado a la expectativa canónica de filtros y a la evidencia, relaciones y descripción del paquete público. No se copia al PR el WIP de Admin/MFA/BFF/FG3/C/Auth del otro worktree. R19 permanece histórico e inmutable; el manifiesto candidate-aware es R20. El último pase de CI corresponde a 6e1bd y no se transfiere al SHA nuevo: los checks se deben consultar nuevamente después del push.
+
+### Estado al cierre de R11
+
+- Cerrado localmente: catálogo reconciliado; H3-UAT-059/H3-CA4.9 PASS 3/3; H3-UAT-058/H3-CA4.11 PASS 3/3; fixture PG17 reutilizado con postflight read-only; entrega del script demostrada con marcador.
+- En curso: validación final de documentación, credential scan, diff exacto y actualización del cuerpo de #503 con los resultados de R11 y del SHA final.
+- Pendiente: revisión humana y aprobación; merge autorizado por separado; despliegue Development posterior y repetición de los casos afectados/smoke sobre el SHA/deployment integrado.
+- Límite global H3REQ1: esto no cierra la aceptación completa ni cambia los D fuera de este candidato. Development antiguo continúa sin el código de este PR.
+
+## R12 — build local, filtros, responsive y verificación visible — 2026-10-25
+
+### Catálogo real y alcance
+
+La fuente canónica `tests/h3_local_uat.mjs` y su salida `H3_VALIDATE_ONLY=1` confirman la asignación efectiva:
+
+| ID | Criterio | Título | Resets | Ruta/resultado |
+|---|---|---|---:|---|
+| H3-UAT-058 | H3-CA4.11 | public listing and detail fit the active viewport | 0 | `/` y `/courses/ulima/analitica-aplicada-60000000/`; desktop, tablet y mobile, con assertions adicionales a 320 px. |
+| H3-UAT-059 | H3-CA4.9 | public filters apply independently and career goal matches eligible courses | 0 | `/`; filtros independientes, duración, estado vacío/limpiar, paginación, búsqueda y “Actualizarme”. |
+
+El pedido de ejecución mencionaba 059 como CA4.11; esa asociación no coincide con el runner real. Se conserva la matriz del código: 058→CA4.11 y 059→CA4.9. Ambos casos declaran `requiresFixtureReset:false`; el preflight enumeró cero casos con reset. No se alteraron identificadores ni criterios para hacerlos coincidir con el texto del pedido.
+
+### Fixture, build y transporte local
+
+- Se cotejó el fixture exacto de PostgreSQL 17.11 en `h3_final_uat_20261024_058059`: 13 relaciones públicas, schemas `auth`/`private`, 31 cursos, 31 filas `course_editorial_state`, 16 `courses_public_effective`, 26 filas de cola y exactamente un curso sintético `Analítica Aplicada` en la proyección. Antes y después del runner se usaron lecturas read-only en transacción. Los conteos no cambiaron; no se ejecutó SQL, reset, reseed, cleanup ni escritura remota.
+- El builder Docker aislado `h3req1-duration-label-r12-build-a06-20261025` usó la imagen cacheada `node:22-bookworm-slim` por digest `sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d`, source/dependencies read-only y scratch `/tmp` propio. La entrega del helper produjo y verificó `R12_BUILD_SCRIPT_DELIVERY_OK`; el build estático consumió `courses_public_effective`, y exportó la ruta de detalle de Analítica Aplicada.
+- El smoke de las rutas `/` y `/courses/ulima/analitica-aplicada-60000000/` devolvió `200/200`; la respuesta del detalle contiene el curso esperado. SHA-256: `index.html` `0583dfde47aadd01e09267188693fa26bf970db20ac42b83da4b90a2737ba7b7`; detalle `9a0e19b2e15e6a464d6ef30e029aee548114efa886957c5be6e0177f85198b53`.
+- El servidor del candidato vivía en la red Docker interna. Como esa red no publica el puerto a Windows, se creó el forwarder local `h3req1-r12-preview-forwarder-20261025`: solo GET/HEAD hacia ese servidor; no reenvía `Cookie` ni `Set-Cookie`. La pestaña 9 de Chrome Windows se reutilizó en `http://127.0.0.1:3342/`; DevTools mostró el botón accesible `Largos (>6m) (9)`, la vista emulada de 390 px sin overflow (`390/390`) y el panel dentro del viewport. Chrome DevTools no cambió su emulación a 320 px; la verificación exacta a 320 px corresponde al runner local, no a esa lectura MCP.
+
+### Ejecución canónica y evidencia
+
+Tras el diagnóstico y la corrección del selector, el runner canónico ejecutó juntos 058 y 059 contra el mismo build y fixture. Resultado: **PASS 2/2 casos, 6/6 viewport executions, 6/6 capturas, cero retries y cero resets**. Para 058: desktop 4/4, tablet 4/4, mobile 9/9; las nueve de mobile incluyen ancho de 320 px, panel de filtros, detalle y footer. Para 059: 39/39 assertions en cada viewport (117/117); el selector valida el nombre accesible por prefijo porque el control añade el conteo de resultados.
+
+El resultado y sus límites están preservados en `run12-duration-label-20261025/evidence/attempt-08/runner-public-058-059-revalidation/`: matriz SHA-256 `78bc654ef9a96259e9f001d22e9f2801af6d5190f90429edf8810376521973820c`; ejecuciones `da58a6eac3deac22e9f84508b89870c5ffba017f21230055d3161513f5af5961`; manifest `d4738c965f2c61fe4115aff233f823749ca154698a19cea07a5fd4fd16a8ce5f`. Las seis capturas están selladas por `h3-expanded-uat-artifact-hashes.json`. Los outputs completos y capturas se preservan en el checkout de evidencia local y no se agregan al PR; este resumen sanitizado sí forma parte de la documentación seleccionada.
+
+SHA-256 de los inputs efectivos del candidato: `tests/h3_local_uat.mjs` `e9c2ed3a660d2c4982c7443fd4ffed0da4ab174d2e357284d5dac0026a5719bd`; `web/src/app/HomeContent.tsx` `84af11d225b18fd52e95fb54625c7014a06e6a1a31bb413d29a6a980f516ffd7`. El build de R12 se ejecutó después de fijar el rótulo público `Largos (>6m)`; la modificación posterior al test solo afinó el momento/selector de esa assertion, no el producto exportado.
+
+### Diagnóstico y correcciones de R12
+
+| Intento | Resultado observado | Causa demostrada y disposición |
+|---|---|---|
+| `attempt-04` | El modo `build:mock` no completó Next build. | Next intentó descargar Google Fonts sin conectividad. Se preservó el log; el build siguiente usó el transporte mock local ya autorizado. |
+| `attempt-05` | El preflight recibió 404 al consultar `/rest/v1/courses`. | El consumidor actual lee `/rest/v1/courses_public_effective`; el preflight se corrigió para seguir el contrato observado en el código. No se ejecutó runner ni se escribió la DB. |
+| `attempt-06` | 058 pasó 3/3; 059 falló únicamente en la assertion nueva de rótulo, 0/3. | La assertion buscaba un botón dentro de un panel todavía cerrado. Se movió al escenario que abre filtros. |
+| `attempt-07` | 058 pasó 3/3; 059 volvió a fallar solo en esa assertion, 0/3. | El DOM mostró que “Personalizar” no abre la sección de duración; la abre “Más filtros”. Se cambió el control usado por la prueba y se comprobó el árbol accesible visible. |
+| `attempt-08` | 058/059 PASS conjunto, 6/6 viewports. | La UI expone `Largos (>6m) (9)` por el contador. La assertion ahora tolera el sufijo del contador sin debilitar el rótulo requerido. |
+
+Los resultados rojos, logs y capturas de intentos fallidos se conservan intactos. El endpoint inicial `127.0.0.1:3341` no era accesible desde Chrome Windows porque el runner está en una red `internal=true`; el forwarder GET/HEAD de 3342 resolvió esa ruta. Un primer comando auxiliar de parser omitió `NODE_PATH` y falló antes de ejecutar tests; la invocación corregida con dependencias read-only en Docker pasó 11/11. No se repitió un mismo comando fallido sin corrección.
+
+### Estado de aceptación y publicación
+
+- **VALIDADO LOCAL — PENDIENTE REMOTO:** H3-UAT-058/H3-CA4.11 y H3-UAT-059/H3-CA4.9 pasan contra el build estático local candidato. Esto no acredita Preview ni Development.
+- El preview de GitHub/Pages, el SHA posterior al push, los checks de ese SHA y la descripción remota de #503 todavía deben releerse después de la publicación autorizada. Los checks históricos de `6e1bd8f5ad623a44524b11391c1385c59b9a4b70` no se transfieren.
+- El ajuste local de UI no revalida catálogo en Development antiguo. Integración y deployment necesitan aprobación humana independiente; tras ello se repetirán los casos afectados y un smoke del deployment exacto.
+- H3REQ1 global no está cerrado: D03 solo acredita onboarding observado; D01/D02/D04/D06 continúan parciales; D05 y D07–D14 pendientes; grupos adicionales 0/11. Se mantienen los seis frentes 2/6 cerrados, 3/6 en curso y 1/6 pendiente (33,3% / 50% / 16,7%).
+
+### Gates locales finales de R12
+
+El código del candidato y los 10 paths modificados se revisaron completos. El diff funcional solo corrige la expectativa de rangos corto/medio de H3-UAT-059, comprueba el filtro largo dentro de “Más filtros”, clasifica 059 como caso sin reset y muestra `Largos (>6m)` para coincidir con la condición `> 6` del consumidor. No cambia consultas, datos, Auth, permisos, transportes ni configuración remota. Los otros ocho paths son evidencia/documentación seleccionada y la vista generada del registro; el manifiesto mantiene 44 incluidos, 88 excluidos y los 10 modificados están incluidos (cero fuera de alcance).
+
+- ESLint en Docker, Node image `node:22-bookworm-slim` digest `sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d`: exit 0, cero errores y nueve warnings heredados en `HomeContent.tsx` sin líneas modificadas. TypeScript `npx tsc --noEmit --incremental false`: exit 0.
+- Gate R20 en Docker, solo lectura, después del render del JSON canónico: `DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`; 735/735 fuentes asignadas y estructurales, 725/735 dimensiones relacionales completas, 115/115 documentos activos alcanzables, 433/433 históricos enlazados, 9.267 enlaces y 4.632 anchors. La primera pasada detectó el ancla incompleta en el enlace R12; se corrigió el slug completo, incluido `-2026-10-25`, y la pasada final quedó verde.
+- Escaneo de credenciales: PASS sobre los 44 `includedPaths` exactos; no se abrió `.env`. El escaneo del delta no encontró credenciales. `git diff --check` pasó. El cotejo del delta contra el manifiesto dio 10 modificados, 44 incluidos presentes, cero paths fuera del paquete.
+- Seguridad focal: revisión manual de todo el diff encontró únicamente código de catálogo/runner público; no cambian autenticación, autorización, destinos de red, secrets ni integración de usuarios. CodeQL y los checks de seguridad se volverán a leer en el nuevo SHA tras el push; los resultados del SHA anterior no se transfieren.
+- Los intentos de instalación/montaje y validación, incluidos fallos anteriores al proceso, se preservaron en `run12-duration-label-20261025/evidence/attempt-08/final-validation-infrastructure.log` (SHA-256 `cf20839087284deb74bc6f6ba0b6b41835ea8439ad36011efec781c6887abbad`). La ruta de dependencias corregida usó el volumen existente read-only en `web/node_modules`; no instaló ni modificó paquetes. Un helper inicial falló antes de validar porque la imagen Node no tiene `git`; se reemplazó por verificación de hash sin Git dentro del contenedor y cotejo de scope con Git en el host. El borrador del PR tenía un carácter incorrecto en el hash del runner; solo se corrigió la documentación, el fuente quedó intacto y el UAT no se repitió. El primer intento del gate documental usó por error el manifiesto de paths del PR; emitió `DOC_GATE_FAIL CANDIDATE_MANIFEST_INVALID` pero devolvió exit 0 porque el checker no asigna `process.exitCode` en esa rama. El intento sin manifiesto detectó rutas WIP omitidas por el checkout scratch y no se considera PASS. El gate se ejecutó finalmente con el `candidate-scope-manifest.json` correcto en Docker read-only/red deshabilitada: `DOC_SELF_TEST_PASS`, `DOC_GATE_PASS`, 735/735 estructurales, 725/735 dimensiones completas, 115/115 activos, 433/433 históricos, 9.267 enlaces y 4.632 anchors. No se cambió el checker: esa rama de error de argumento queda registrada como hallazgo de tooling fuera del diff público de este candidato; la invocación válida del candidato sí pasó. El primer helper de validación del cuerpo del PR esperaba conteos sin separador local y falló; el helper corregido verificó 10 encabezados, 44 paths, hashes de fuentes y cero celdas vacías.
+- El PR #503 abierto que se leyó antes del nuevo commit estaba en head `6e1bd8f5ad623a44524b11391c1385c59b9a4b70`, base `desarrollo` en `1c69b94606795e33c9fee82e8a8e803f3104c566`; sus 18 check-runs eran 16 success y 2 skipped. Son una línea base solamente; después del commit aditivo deben terminar los checks del SHA nuevo y la descripción remota debe leerse/escribirse con esos resultados.

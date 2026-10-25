@@ -676,7 +676,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                           {[
                             { id: 'short', label: 'Cortos (<3m)' },
                             { id: 'medium', label: 'Estándar (3-6m)' },
-                            { id: 'long', label: 'Largos (6+m)' },
+                            { id: 'long', label: 'Largos (>6m)' },
                           ].map((d) => (
                             <button
                               key={d.id}
