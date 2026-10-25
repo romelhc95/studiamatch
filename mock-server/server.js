@@ -53,6 +53,7 @@ const inboxMessages = new Map();
 const temporaryUserIds = new Set();
 const temporaryInvitationIds = new Set();
 let mockClockOffsetMs = 0;
+let fixtureResetEpoch = 0;
 
 const TEST_TOKEN = process.env.H3_TEST_RESET_TOKEN;
 const APP_ORIGIN = process.env.MOCK_APP_ORIGIN || 'http://localhost:3000';
@@ -533,6 +534,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/__test/reset' && req.method === 'POST') {
       if (!testRequestAllowed(req)) return notFound(res);
       await resetMockState();
+      fixtureResetEpoch += 1;
+      res.setHeader('x-h3-quota-fixture-epoch', String(fixtureResetEpoch));
       res.writeHead(204);
       return res.end();
     }

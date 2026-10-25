@@ -1,0 +1,28 @@
+{
+  "result": "FAIL",
+  "classification": "candidate-local browser reproduction before anchor correction",
+  "host": "http://localhost:3010/",
+  "worktree": "/home/romel/src/studiamatch-h3req1-callback-presentation-20261022",
+  "branch": "feat/h3req1-callback-presentation-mfa-20261022",
+  "sourceHead": "1c69b94606795e33c9fee82e8a8e803f3104c566",
+  "sourceState": "dirty WIP; no commit/deployment",
+  "browser": "Chrome Windows via DevTools MCP, existing public tab 2",
+  "viewportEmulation": {
+    "requestedWidth": 320,
+    "height": 844,
+    "documentClientWidth": 320,
+    "documentScrollWidth": 381,
+    "windowInnerWidth": 381,
+    "visualViewportWidth": 380.8,
+    "visualViewportScale": 0.840336
+  },
+  "filterPanel": {
+    "left": 63.36,
+    "right": 351.36,
+    "width": 288,
+    "result": "outside the 320px CSS viewport"
+  },
+  "diagnosis": "The panel used the wrapped trigger's relative box as its positioning context. At narrow width the trigger center is not the viewport center. The document also has a separate footer overflow to 381px; the filter assertion therefore checks panel bounds and overflow delta against the closed baseline.",
+  "expected": "Filter panel left >= 0 and right <= documentElement.clientWidth + 1 at 320px; opening it must not increase page scroll width beyond the closed baseline.",
+  "scope": "Synthetic local fixture only; not Development acceptance."
+}

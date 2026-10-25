@@ -86,7 +86,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
       } else if (careerGoal === 'update') {
         result = result.filter(c => {
-          const months = c.duration ? parseInt(c.duration.match(/\d+/)?.[0] || '12') : 12;
+          const months = parseDurationToMonths(c.duration || '') || 12;
           return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
         });
       } else if (careerGoal === 'postgrad') {
@@ -347,7 +347,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
     } else if (careerGoal === 'update') {
       result = result.filter(c => {
-        const months = c.duration ? parseInt(c.duration.match(/\d+/)?.[0] || '12') : 12;
+        const months = parseDurationToMonths(c.duration || '') || 12;
         return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
       });
     } else if (careerGoal === 'postgrad') {
@@ -540,7 +540,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
           {/* Filtros y búsqueda personalizada */}
           <div className="mt-5 space-y-3">
             {/* Filtros primarios (3 visibles) */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex flex-wrap items-center gap-2">
               {[
                 { id: 'area', label: 'Área', icon: LayoutGrid, current: selectedCategory, setter: setSelectedCategory, options: activeCategories },
                 { id: 'modalidad', label: 'Modalidad', icon: Globe, current: activeFilters.modes.length ? activeFilters.modes.join(", ") : "Todas", setter: (val: string) => setActiveFilters({ ...activeFilters, modes: val === "Todas" ? [] : [val] }), options: activeModes },
@@ -604,7 +604,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               ))}
 
               {/* Más filtros collapsible */}
-              <div className="relative">
+              <div className="relative max-sm:static">
                 <button
                   onClick={() => setShowMoreFilters(!showMoreFilters)}
                   className={cn(
@@ -619,7 +619,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </button>
 
                 {showMoreFilters && (
-                  <div className="absolute top-full left-0 mt-2 w-[320px] bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                  <div className="absolute top-full left-0 mt-2 w-[320px] max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:w-[min(320px,calc(100vw_-_2rem))] bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
                     <div className="p-3 space-y-3">
                       <div className="flex flex-wrap gap-2">
                         {[
@@ -676,7 +676,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                           {[
                             { id: 'short', label: 'Cortos (<3m)' },
                             { id: 'medium', label: 'Estándar (3-6m)' },
-                            { id: 'long', label: 'Largos (6+m)' },
+                            { id: 'long', label: 'Largos (>6m)' },
                           ].map((d) => (
                             <button
                               key={d.id}
