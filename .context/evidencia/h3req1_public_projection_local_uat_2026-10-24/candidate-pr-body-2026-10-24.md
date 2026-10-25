@@ -24,7 +24,7 @@ Rama `feat/h3req1-public-duration-mobile-20261024`, base `desarrollo` (`1c69b946
 
 El gate documental válido pasó con `candidate-scope-manifest.json`. Una invocación diagnóstica con el manifiesto de paths del PR imprimió `DOC_GATE_FAIL` pero devolvió exit 0 por la rama de argumentos inválidos del checker; no se contó como PASS y no se modificó ese checker, que queda fuera del diff público de este PR.
 
-Paths: 44 incluidos, 88 excluidos en `candidate-pr-scope-2026-10-24.json`. El cotejo actual del worktree encontró 10 paths modificados, todos incluidos y ninguno fuera del paquete. Quedan excluidos WIP Admin/MFA/BFF/FG3/C/Auth, capturas con información personal, artefactos intermedios y `.env*`.
+Paths: 44 incluidos, 88 excluidos en `candidate-pr-scope-2026-10-24.json`. El delta R12 tuvo 10 paths modificados; R13 actualiza dos documentos ya incluidos para registrar la recuperación de publicación. No hay paths fuera del paquete. Quedan excluidos WIP Admin/MFA/BFF/FG3/C/Auth, capturas con información personal, artefactos intermedios y `.env*`.
 
 ## Pilares Obligatorios
 
@@ -65,18 +65,18 @@ H3-CA4.9 se cubre localmente con H3-UAT-059; H3-CA4.11 con H3-UAT-058, según la
 | Static build | PASS `build:mock`; rutas públicas 200/200 | Docker, build local | `index.html` y detalle tienen hashes registrados en acta R12. |
 | actionlint / ShellCheck | No cambian en el delta R12; en head previo CI ambos PASS | GitHub Actions, head previo `6e1bd8f5…` | El workflow no cambia en este delta; los jobs se ejecutan nuevamente para el nuevo SHA. |
 | UAT/runtime/integración | PASS local, 2/2, 6/6 viewports, 134 assertions, 6 capturas, 0 retries, 0 resets | Docker + mock local | Fixtures sintéticos. No es Preview, Development ni aceptación total. |
-| security-audit / CI independiente | Head previo: 18 check-runs completados, 16 success y 2 skipped; nuevo SHA pendiente de ejecución | GitHub PR #503 | Se leerán todos los check-runs del head publicado; estado anterior no se transfiere. |
-| CodeQL si aplica | PASS en head previo; ejecución del nuevo SHA pendiente | GitHub PR #503 | No se atribuye al nuevo SHA hasta terminar su run. |
-| Cloudflare Pages / smoke preview | Head previo tenía check de Pages success; Preview nuevo pendiente de identificarse | GitHub / Cloudflare Pages | Push puede crear Preview automático; no es Development. |
+| security-audit / CI independiente | Leer el estado de la pestaña Checks para el HEAD exacto de #503 al revisar | GitHub PR #503 | Los resultados de SHAs anteriores no se transfieren. |
+| CodeQL si aplica | Leer el resultado del HEAD exacto de #503 antes de revisión | GitHub PR #503 | El resultado histórico de `213fb3b` está en R13, no sustituye el del HEAD vigente. |
+| Cloudflare Pages / smoke preview | Verificar el check/Preview del HEAD exacto de #503 | GitHub / Cloudflare Pages | Cada push puede crear Preview; no es Development. |
 | Browser snapshot si aplica | PASS local a 390 px; 320 px PASS en runner | Chrome Windows MCP + Playwright Docker | Chrome vio `http://127.0.0.1:3342/` por forwarder GET/HEAD, no una URL remota. |
-| security-auditor | Revisión manual focal PASS; escaneo de secretos PASS | Diff local de los 10 paths | Sin cambio a Auth, roles, API keys, transporte ni datos personales; CodeQL del nuevo SHA pendiente. |
+| security-auditor | Revisión manual focal PASS; escaneo de secretos PASS | Diff funcional R12 y dos documentos R13 | Sin cambio a Auth, roles, API keys, transporte ni datos personales; CodeQL se verifica contra el HEAD actual. |
 | Documentación / trazabilidad / fuente cliente | PASS R20: 735/735 fuentes asignadas; gate y autoprueba verdes | Docker, manifiesto R20 | 725/735 con dimensiones completas, 115/115 activos alcanzables, 433/433 históricos, 9.267 enlaces, 4.632 anchors. No prueba estado remoto. |
 
 ## Seguridad Y Datos
 
 - [x] Scanner de credenciales y revisión manual del delta sin credenciales/PII/firmas/JWT; `.env*` no se abrió.
 - [x] API keys, identidad, RLS, roles, MFA y membresías no cambiaron en este paquete.
-- [ ] Confirmación CodeQL/security-audit del nuevo SHA: pendiente de completar después del push; los resultados del head anterior no se heredan.
+- [x] Los checks se atribuyen por SHA y deben cotejarse contra el HEAD actual antes de revisión; no se heredan resultados de otros commits.
 - [x] Sin SQL remoto, cambios de secretos, datos operativos, Production, restores, schedules ni writers.
 
 ## Alcance Y Limites
@@ -85,6 +85,8 @@ H3-CA4.9 se cubre localmente con H3-UAT-059; H3-CA4.11 con H3-UAT-058, según la
 - [x] Rama `feat/h3req1-public-duration-mobile-20261024`, base `desarrollo`; paths cotejados contra el scope exacto de 44.
 - [x] Evidencia histórica y resultados RED preservados; raw R12 permanece en checkout local y el resumen sanitizado está seleccionado.
 - [x] WIP Admin/MFA/BFF/FG3/C/Auth fuera del paquete; no se autoriza merge, deploy manual ni cambio de protección.
+- El primer upload truncado `18c9586` se conserva como historia y sus checks no se aceptan. El commit correctivo aditivo `213fb3b` restauró únicamente los dos registros de trazabilidad; sus blob SHA remotos coinciden con los locales y el diff remoto quedó en 42 paths, 11.737 adiciones y 60 eliminaciones. Detalle: [R13](candidate-acceptance-cycle-2026-10-24.md#r13-recuperacion-de-publicacion-y-verificacion-del-pr-2026-10-25).
+- En el HEAD `213fb3b`, la última lectura terminó con 18 check-runs: 16 `success` y 2 `skipped`; H2 Main Production Expand Gate se omite porque el PR apunta a `desarrollo`, y Supabase Preview se reporta `skipped` con enlace al panel Pro. La siguiente publicación documental requiere releer el HEAD y checks nuevos. El PR sigue abierto, sin aprobación ni merge.
 
 ## Checklist Tecnico
 
@@ -92,6 +94,6 @@ H3-CA4.9 se cubre localmente con H3-UAT-059; H3-CA4.11 con H3-UAT-058, según la
 - [x] R20, credential scan, lint, TypeScript, build, scope y `git diff --check` validados localmente.
 - [x] Ficha, índice, relaciones, acta y esta descripción reconciliados con R12.
 - [x] Expand/compatibilidad/rollback documentados; Development permanece pendiente.
-- [ ] Push/Preview y checks frescos del SHA final: esperar resultado antes de recomendar revisión.
+- [x] Autorización vigente cubre los commits/push aditivos del paquete y el Preview automático; no incluye merge, deploy manual ni cambios de protección.
 - [ ] Revisión/aprobación humana e integración: decisión humana independiente; merge no autorizado por este ciclo.
 - [ ] Aceptación Development: pendiente de merge autorizado, deployment identificado y revalidación remota.
