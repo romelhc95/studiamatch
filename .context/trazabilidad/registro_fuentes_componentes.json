@@ -16213,10 +16213,12 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "La tabla R11 distingue los contratos por suite: invitación Edge; cálculo editorial/backfill; atestación cliente; compatibilidad/migración H2; UX de cola Admin; callback/invitación/recovery; MFA/password; y estado Obsidian.",
+        "note": "La tabla R11 distingue los contratos por suite: invitación Edge; cálculo editorial/backfill; atestación cliente; compatibilidad/migración H2; UX de cola Admin; callback/invitación/recovery; MFA/password; y estado Obsidian. New candidate suite test_h3_admin_onboarding_denial_contract.py checks the bounded SQLSTATE mapping, harness assertions, and sanitized BFF response.",
         "evidence": [
           "path:.context/componentes/pruebas_evidencia.md",
-          "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md"
+          "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
+          "path:tests/test_h3_admin_onboarding_denial_contract.py",
+          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql"
         ]
       },
       "consumers": {
@@ -16242,11 +16244,13 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "R178 G03 es una salida agregada 337 passed/4 skipped/1 warning; no se atribuye a cada path ni a los bytes actuales sin hash de input coincidente. La ficha documenta casos/assertions por archivo y la evidencia R11 mantiene separadas las ausencias de resultado individual.",
+        "note": "R178 G03 es una salida agregada 337 passed/4 skipped/1 warning; no se atribuye a cada path ni a los bytes actuales sin hash de input coincidente. El contrato D04 tiene tres casos; el contrato D04 y el test afectado de test_security_flow.py pasaron juntos con pytest en Docker (4 passed). El workflow security-audit incluye el contrato D04 en su pytest offline. El harness SQL se validó en PG17 desechable bajo el JIT D04/D05; nada de esto acredita PostgREST o Development remoto.",
         "evidence": [
           "path:.context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
           "path:.context/componentes/pruebas_evidencia.md",
-          "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md"
+          "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
+          "path:tests/test_h3_admin_onboarding_denial_contract.py",
+          "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md"
         ]
       },
       "operations": {
@@ -16279,13 +16283,16 @@
         "tests/test_mfa_compatibility_contract.py",
         "tests/test_obsidian_context_state.py",
         "tests/test_password_policy_contract.py",
-        "tests/test_requirement_client_source_validation.py"
+        "tests/test_requirement_client_source_validation.py",
+        "tests/test_h3_admin_onboarding_denial_contract.py"
       ],
       "source_document": {
         "path": ".context/componentes/pruebas_evidencia.md",
         "anchor": "suites-python-de-contrato"
       },
-      "candidate_only_paths": []
+      "candidate_only_paths": [
+        "tests/test_h3_admin_onboarding_denial_contract.py"
+      ]
     },
     {
       "id": "functional-browser-tests",
@@ -20370,6 +20377,74 @@
         "anchor": "contrato-api-key-y-sesion"
       },
       "candidate_only_paths": []
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261025-h3-admin-members-onboarding-forbidden-status",
+      "purpose": "Bounded local delta: make the inactive-admin onboarding reader emit SQLSTATE 42501 so the existing quota wrapper can return HTTP 403; preserve signature, quota, grants and rows.",
+      "paths": [
+        "db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "database-migration-20261025-h3-admin-members-onboarding-forbidden-status"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Local migration checks the exact private base/public wrapper signatures and wrapper marker, then changes only the exact legacy active-admin guard from default P0001 to 42501. It was applied only to the approved disposable PG17 test bases; it has not been applied to Free/Development or another remote environment.",
+        "evidence": [
+          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+          "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "The existing quota wrapper maps 42501 to 403; the Admin BFF consumes the RPC response and maps known HTTP 403 to a sanitized forbidden payload. No remote consumer has been validated against this candidate.",
+        "evidence": [
+          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+          "path:web/functions/_lib/admin-bff.ts",
+          "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Definition-only DDL for fixed function signatures; no rows, memberships, grants, quota configuration or audit are touched by the migration.",
+        "evidence": [
+          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Docker mock/contract tests passed, and the approved one-time PG17 package passed the SQL quota harness plus both PG17 roots on synthetic bases. No PostgREST HTTP or remote runtime is claimed.",
+        "evidence": [
+          "path:tests/h3_admin_bff_mock_uat.mjs",
+          "path:tests/test_h3_admin_onboarding_denial_contract.py",
+          "path:tests/sql/h3_admin_quota_harness.sql",
+          "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "This local disposable PG17 application was covered by the consumed JIT. Any Free/Development application or deployment remains separately gated. Rollback requires exact source preflight and a separately reviewed inverse; no remote rollback or SQL was run.",
+        "evidence": [
+          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Git worktree shows this migration as a new uncommitted candidate file created in this cycle; no commit or remote deployment exists. This records local provenance only, not adoption.",
+        "evidence": [
+          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+          "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md"
+        ]
+      }
     }
   ],
   "active_documents": [
@@ -20417,6 +20492,7 @@
     ".context/decisiones/ADR-0028_target_release_governance.md",
     ".context/decisiones/README.md",
     ".context/estado_del_proyecto.md",
+    ".context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md",
     ".context/evidencia/h3req1_development_integration_package_2026-10-13_r15.md",
     ".context/evidencia/h3req1_development_integration_package_2026-10-14_r16.md",
     ".context/evidencia/h3req1_development_integration_package_2026-10-14_r17_public_sanitized_r18.md",

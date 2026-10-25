@@ -118,6 +118,7 @@
 - [20261004_h3_admin_rpc_signed_gateway_expand.sql](../../db/migrations/20261004_h3_admin_rpc_signed_gateway_expand.sql)
 - [20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql](../../db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql)
 - [20261010_h3_admin_members_service_select.sql](../../db/migrations/20261010_h3_admin_members_service_select.sql)
+- [20261025_h3_admin_members_onboarding_forbidden_status.sql](../../db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql)
 
 ## Fichas exactas y relaciones por migration
 
@@ -1438,6 +1439,18 @@ Las fichas siguientes asignan cada migration a su propio anchor. El objeto/ident
 **Operación y recuperación:** DDL/schema/functión. No ejecutar sin JIT y un plan expand → compatibilidad → deploy → contract; el rollback genérico no se infiere. Consultar el procedimiento por cambio y validar contra Pro en etapa separada.
 
 **Historia y cambio seguro:** [fila de historia por path](../evidencia/h3req1_historia_paths_local_2026-10-12.md), [mapa de objetos/tests](../evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md). Antes de editar, revisar todas las migrations posteriores que redefinen el mismo objeto, su consumidor SQL/RPC, harnesses citados y rollback; actualizar diccionario, fixtures y registro.
+
+### database-migration-20261025-h3-admin-members-onboarding-forbidden-status
+
+**Path:** [`20261025_h3_admin_members_onboarding_forbidden_status.sql`](../../db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql)
+
+**Propósito/por qué:** delta local acotado para que el guard de Admin activo del lector de onboarding emita SQLSTATE `42501`, ya traducido por el wrapper de cuota a HTTP 403. Busca distinguir una denegación de rol de una falla del servicio; no atribuye ni resuelve por sí solo el 502 histórico observado sin correlación.
+
+**Contrato y datos:** inspecciona las firmas fijas `private.h3_quota_base_admin_list_members_onboarding()` y `public.admin_list_members_onboarding()`, confirma el marcador y el mapeo existente `42501 -> 403`, y reemplaza solo el texto exacto del guard legacy. No toca filas, grants, firma pública, cuota ni auditoría. El preflight estricto pasó en la base PG17 desechable autorizada; la migration se aplicó allí únicamente para el harness sintético. No se aplicó en Free/Development ni otro servicio remoto.
+
+**Consumidores y pruebas relacionadas:** `web/functions/_lib/admin-bff.ts` preserva el estado 403 y entrega código/mensaje sanitizados; `tests/h3_admin_bff_mock_uat.mjs` verifica rechazo user/Admin y errores desconocidos; `tests/test_h3_admin_onboarding_denial_contract.py` revisa el contrato; `tests/sql/h3_admin_quota_harness.sql` comprueba sintéticamente Admin permitido y user denegado. El mock BFF, el contrato Python y el harness/SQL corrieron en Docker; la ejecución PG17 se limita a dos bases sintéticas del paquete JIT registrado. No acredita PostgREST remoto.
+
+**Operación y recuperación:** cambio de definición de función (DDL). Requiere autorización separada y prueba previa en PG17 desechable antes de cualquier despliegue remoto. Rollback: restaurar la definición anterior solo si la huella exacta/guard sigue coincidiendo, mediante una migration inversa revisada y autorización propia; no ejecutar durante este ciclo. Expand conserva wrapper y contrato; compatibilidad conserva firma/grants/cuota y deja fallos no clasificados sanitizados; deploy pendiente; contract no elimina rutas ni controles hasta observar estabilidad. Ver [evidencia D04](../evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md).
 
 ### migration-20261004-h3-admin-queue-first-null-guard
 

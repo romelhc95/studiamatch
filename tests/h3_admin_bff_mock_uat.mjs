@@ -41,6 +41,7 @@ const inviteCalls = [];
 let inviteFailure = false;
 let inviteFailureCode = 'reconciliation_required';
 let rpcFailure = null;
+let rpcFailureStatus;
 let currentSession = null;
 let mockFactors = [{ id: '00000000-0000-4000-8000-000000000001', factor_type: 'totp', status: 'verified' }];
 let malformedFactorList = false;
@@ -161,7 +162,7 @@ function createServerClient(_url, _key, options) {
     },
     rpc: async (name, params) => {
       rpcCalls.push({ name, params });
-      if (rpcFailure) return { data: null, error: rpcFailure };
+      if (rpcFailure) return { data: null, error: rpcFailure, status: rpcFailureStatus };
       return { data: [{ success: true }], error: null };
     },
     functions: {
@@ -675,7 +676,23 @@ assert.equal(failedRpcPayload.error.message, 'No se pudo completar la operación
 assert.equal(JSON.stringify(failedRpcPayload).includes('PGRST116'), false);
 assert.equal(JSON.stringify(failedRpcPayload).includes('internal database detail'), false);
 
+rpcFailure = { code: '42501', message: 'User is not an active admin; internal detail stays private' };
+rpcFailureStatus = 403;
+const deniedRpc = await route(request('/api/admin/rpc', {
+  method: 'POST',
+  headers: { Origin: 'https://admin.preview.local' },
+  cookie: csrfCookie,
+  body: { function: 'admin_list_members_onboarding', params: {} },
+}));
+const deniedRpcPayload = await deniedRpc.json();
+assert.equal(deniedRpc.status, 403, 'a server-side authorization denial keeps its forbidden HTTP status');
+assert.equal(deniedRpcPayload.error.code, 'forbidden', 'a known HTTP 403 is represented as a safe permission denial');
+assert.equal(deniedRpcPayload.error.message, 'No tienes permisos para esta operación.');
+assert.equal(JSON.stringify(deniedRpcPayload).includes('42501'), false);
+assert.equal(JSON.stringify(deniedRpcPayload).includes('internal detail'), false);
+
 rpcFailure = { code: 'P0001', message: 'AAL2 required by the RPC' };
+rpcFailureStatus = 500;
 const mfaRpc = await route(request('/api/admin/rpc', {
   method: 'POST',
   headers: { Origin: 'https://admin.preview.local' },
@@ -687,6 +704,7 @@ assert.equal(mfaRpc.status, 403, 'MFA-required RPC failures retain their safe st
 assert.equal(mfaRpcPayload.error.code, 'mfa_required', 'MFA-required RPC failures retain their safe code');
 assert.equal(mfaRpcPayload.error.message, 'Se requiere MFA para esta operación.');
 rpcFailure = null;
+rpcFailureStatus = undefined;
 
 const inviteCallbackPage = await route(request('/admin/auth/callback/?token_hash=fixture-one-time-hash&type=invite&next=https%3A%2F%2Fevil.example'));
 assert.equal(inviteCallbackPage.status, 200);

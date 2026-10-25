@@ -86,6 +86,9 @@ README.md
 .context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-13_r10.md
 .context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-13_r11.md
 .context/evidencia/h3req1_sem_admin_validacion_local_2026-10-13_r10.md
+.context/evidencia/h3req1_d04_candidate_docs_scope_2026-10-25.json
+.context/evidencia/h3req1_d04_candidate_pr_scope_2026-10-25.json
+.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md
 .context/componentes/web_publico.md
 .context/componentes/admin_portal.md
 .context/componentes/admin_runtime.md
@@ -153,6 +156,7 @@ scripts/security/run_documentation_integrity.sh
 db/rollback/h3req1_safe_resume.sql
 db/rollback/h3req1_safe_suspend.sql
 db/migrations/20261010_h3_admin_members_service_select.sql
+db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql
 scripts/core/universal_harvester.py
 scripts/security/scan_credentials.sh
 scripts/security/scan_worktree_file.py
@@ -162,6 +166,7 @@ tests/test_h2_pro_migration_controls.py
 .githooks/pre-push
 scripts/security/protected_workflow_review.py
 tests/test_protected_workflow_review.py
+tests/test_h3_admin_onboarding_denial_contract.py
 web/src/app/HomeContent.tsx
 web/src/app/compare/CompareContent.tsx
 web/src/app/page.tsx
