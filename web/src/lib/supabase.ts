@@ -249,3 +249,14 @@ export function parseDurationToMonths(duration: string): number {
   addReferencePeriod(primaryMonths);
   return parentheticalGroups.reduce((total, group) => addDistinctPeriods(matchesIn(group), total), primaryMonths);
 }
+
+export function isUpdateCareerGoalCourse(duration: string | null | undefined, mode: string | null | undefined): boolean {
+  const months = parseDurationToMonths(duration || '') || 12;
+  const normalizedMode = (mode || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  return months <= 6 && (normalizedMode === 'remoto' || normalizedMode === 'hibrido');
+}

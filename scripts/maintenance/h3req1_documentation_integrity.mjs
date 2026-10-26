@@ -48,6 +48,11 @@ function candidateManifestOmissionAllowed(relative, exactAllowedPaths, candidate
   return Boolean(candidateScope && exactAllowedPaths.has(relative) && !candidateScope.selectedPaths.has(relative));
 }
 
+function candidateOnlySourceCountForScope(discovered, candidateOnlyPaths, candidateScope) {
+  return discovered.filter((relative) => candidateOnlyPaths.has(relative)
+    && (!candidateScope || candidateScope.selectedPaths.has(relative))).length;
+}
+
 function isAsciiLetter(char) {
   return (char >= "A" && char <= "Z") || (char >= "a" && char <= "z");
 }
@@ -760,6 +765,22 @@ function runSelfTest(registry, discovered, assigned, candidateScope, candidateOn
     process.stderr.write("DOC_SELF_TEST_FAIL candidate omissions must be exact, registered, unselected, and manifest-scoped\n");
     return false;
   }
+  const syntheticSelectedCandidateOnly = "tests/__h3req1_selected_candidate_only_self_test__.mjs";
+  const syntheticUnselectedCandidateOnly = "tests/__h3req1_unselected_candidate_only_self_test__.mjs";
+  const syntheticCandidateOnlyPaths = new Set([syntheticSelectedCandidateOnly, syntheticUnselectedCandidateOnly]);
+  if (candidateOnlySourceCountForScope(
+    [syntheticSelectedCandidateOnly, syntheticUnselectedCandidateOnly],
+    syntheticCandidateOnlyPaths,
+    { selectedPaths: new Set([syntheticSelectedCandidateOnly]) },
+  ) !== 1
+    || candidateOnlySourceCountForScope(
+      [syntheticSelectedCandidateOnly, syntheticUnselectedCandidateOnly],
+      syntheticCandidateOnlyPaths,
+      null,
+    ) !== 2) {
+    process.stderr.write("DOC_SELF_TEST_FAIL candidate-only counts must match the manifest selection when scoped and the checkout when unscoped\n");
+    return false;
+  }
   const synthetic = "scripts/core/__h3req1_undocumented_source_self_test__.mjs";
   const simulatedDiscovery = [...discovered, synthetic];
   const assignmentFailures = unassignedSourceFailures(simulatedDiscovery, assigned);
@@ -1442,7 +1463,7 @@ function main() {
   if (requestedMode.includes("--self-test") && !runSelfTest(registry, discovered, assigned, candidateScope, candidateOnlyPaths)) failures.push("DOC_SELF_TEST_FAILED");
   const assignedCount = discovered.filter((relative) => assigned.has(relative)).length;
   const projectedSourceCount = discovered.filter((relative) => !candidateOnlyPaths.has(relative)).length;
-  const candidateOnlySourceCount = discovered.filter((relative) => candidateOnlyPaths.has(relative)).length;
+  const candidateOnlySourceCount = candidateOnlySourceCountForScope(discovered, candidateOnlyPaths, candidateScope);
   const expectedCandidateOnlySourceCount = candidateScope
     ? [...candidateScope.selectedPaths].filter((relative) => candidateOnlyPaths.has(relative) && discovered.includes(relative)).length
     : registry.discovery.integration_projection?.candidate_only_path_count_at_cut;

@@ -50,12 +50,12 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-brand-slate">
       <header className="border-b border-brand-blue/10 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <h1 className="text-lg font-bold text-brand-blue">StudIAMatch Admin</h1>
             <p className="text-xs text-brand-slate/70">Panel editorial</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
             <span
               className="max-w-[30vw] truncate rounded-full bg-brand-mint px-3 py-1 text-xs font-semibold text-brand-blue sm:max-w-64"
               title={userEmail || undefined}

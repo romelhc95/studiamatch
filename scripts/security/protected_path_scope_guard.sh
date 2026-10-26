@@ -1189,6 +1189,12 @@ web/src/lib/utils.ts
 .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-body-2026-10-24.md
 .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-scope-2026-10-24.json
 .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json
+.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md
+.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-scope-2026-10-26.json
+.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json
+tests/admin_header_responsive.test.mjs
+tests/admin_queue_request_guard.test.mjs
+web/src/lib/admin-queue-request-guard.mjs
 .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/canonical-runner.stdout
 .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/functional-catalog-seed-corrected.stdout
 .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/run-canonical-058-059-footer-20261024/h3-expanded/H3-UAT-058-desktop.png
