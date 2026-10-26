@@ -742,10 +742,15 @@ async function routeMutation(
         const rowError = Array.isArray(error) && error[0] && typeof error[0] === 'object'
           ? (error[0] as { error?: unknown; error_code?: unknown }).error || (error[0] as { error_code?: unknown }).error_code : '';
         const mfaRequired = rowError === 'mfa_required' || /mfa_required|insufficient_aal|aal2 required/i.test(`${error.code || ''} ${error.message || ''}`);
+        const forbidden = rpcStatus === 403;
         return jsonResponse(state, {
           error: {
-            code: mfaRequired ? 'mfa_required' : 'rpc_failed',
-            message: mfaRequired ? 'Se requiere MFA para esta operación.' : 'No se pudo completar la operación administrativa.',
+            code: mfaRequired ? 'mfa_required' : forbidden ? 'forbidden' : 'rpc_failed',
+            message: mfaRequired
+              ? 'Se requiere MFA para esta operación.'
+              : forbidden
+                ? 'No tienes permisos para esta operación.'
+                : 'No se pudo completar la operación administrativa.',
           },
         }, mfaRequired ? 403 : rpcStatus === 403 ? 403 : rpcStatus === 400 ? 400 : rpcStatus === 503 ? 503 : 502);
       }

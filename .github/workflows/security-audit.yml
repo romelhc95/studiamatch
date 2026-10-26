@@ -76,7 +76,7 @@ jobs:
         with:
           node-version: '20'
       - name: Check source registry, links and undocumented-source rejection
-        run: node scripts/maintenance/h3req1_documentation_integrity.mjs --self-test --candidate-manifest .context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json
+        run: node scripts/maintenance/h3req1_documentation_integrity.mjs --self-test --candidate-manifest .context/evidencia/h3req1_d04_candidate_docs_scope_2026-10-25.json
 
   python-check:
     name: Python Compile And Tests
@@ -116,6 +116,7 @@ jobs:
              tests/test_h3_invitation_callback_contract.py \
               tests/test_h3_mock_invitation_contract.py \
               tests/test_h3_admin_queue_ux_contract.py \
+              tests/test_h3_admin_onboarding_denial_contract.py \
               tests/test_admin_invite_edge_contract.py \
               tests/test_protected_workflow_review.py \
               tests/test_h3req1_c03_docker_daemon_identity_f2d.py \

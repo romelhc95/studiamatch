@@ -56,6 +56,7 @@ Sigue los [recorridos de transferencia](transferencia.md) para cambiar: una regl
 
 ## Historia y evidencia
 
+- [D04: distinguir denegación de rol de fallo RPC](evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md) conserva el diagnóstico acotado del 502 histórico, el cambio local de SQLSTATE/BFF, pruebas focales Docker y los límites de SQL/runtime sin ejecutar.
 - [Ciclo de aceptación local del candidato de duración compuesta y filtros móviles](evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md) conserva R11 y añade R12: H3-UAT-058/H3-CA4.11 y H3-UAT-059/H3-CA4.9 pasan juntos en 6/6 viewports; 058 incluye la comprobación de footer/filtros a 320 px y 059 pasa 39/39 aserciones por viewport. Son resultados locales sintéticos; Preview, integración, deployment y aceptación remota siguen pendientes.
 - [Registro verificable de fuentes y componentes](trazabilidad/registro_fuentes_componentes.md) muestra las asignaciones generadas desde el JSON canónico; los resultados y pendientes del corte solo viven en el estado operativo.
 - [Consolidación de trazabilidad R11](evidencia/h3req1_documentacion_consolidacion_trazabilidad_2026-10-13_r11.md) registra los mapas sustituidos, destinos, consumidores y backups verificados.

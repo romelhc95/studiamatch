@@ -196,6 +196,53 @@ for unreviewed_candidate in (
             "protected path integration test: unreviewed candidate sibling is accepted: "
             f"{unreviewed_candidate}"
         )
+
+# D04 is a separate candidate. R20/#503 remains unchanged and is checked above.
+d04_scope_path = root / ".context/evidencia/h3req1_d04_candidate_pr_scope_2026-10-25.json"
+d04_scope = json.loads(d04_scope_path.read_text(encoding="utf-8"))
+d04_expected_paths = {
+    ".context/componentes/admin_runtime.md",
+    ".context/componentes/database_migrations.md",
+    ".context/componentes/pruebas_evidencia.md",
+    ".context/componentes/seguridad_tooling.md",
+    ".context/evidencia/h3req1_d04_candidate_docs_scope_2026-10-25.json",
+    ".context/evidencia/h3req1_d04_candidate_pr_scope_2026-10-25.json",
+    ".context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md",
+    ".context/indice.md",
+    ".context/trazabilidad/registro_fuentes_componentes.json",
+    ".context/trazabilidad/registro_fuentes_componentes.md",
+    ".github/workflows/security-audit.yml",
+    "db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+    "scripts/security/protected_path_scope_guard.sh",
+    "tests/h3_admin_bff_mock_uat.mjs",
+    "tests/sql/h3_admin_quota_harness.sql",
+    "tests/test_h3_admin_onboarding_denial_contract.py",
+    "tests/test_protected_path_scope_guard.sh",
+    "tests/test_security_flow.py",
+    "web/functions/_lib/admin-bff.ts",
+}
+d04_included = d04_scope.get("includedPaths")
+if not isinstance(d04_included, list) or len(d04_included) != len(set(d04_included)) or set(d04_included) != d04_expected_paths:
+    raise SystemExit("protected path integration test: D04 exact candidate path manifest differs from reviewed scope")
+d04_excluded = {entry.get("path") for entry in d04_scope.get("excludedPaths", []) if isinstance(entry, dict)}
+if d04_excluded != {
+    "tests/h3_admin_quota_postgrest.mjs",
+    "tests/sql/h3_quota_postgrest_fixture.sql",
+}:
+    raise SystemExit("protected path integration test: D04 preserved WIP exclusions differ from reviewed scope")
+if not d04_expected_paths.issubset(local_paths | {path for path in d04_expected_paths if any(re.search(pattern, path) for pattern in patterns)}):
+    raise SystemExit("protected path integration test: D04 exact candidate contains a path outside the guarded allowlist")
+for unreviewed_d04 in (
+    ".context/evidencia/h3req1_d04_candidate_pr_scope_2026-10-25-extra.json",
+    "db/migrations/20261025_h3_admin_members_onboarding_forbidden_status_extra.sql",
+    "tests/test_h3_admin_onboarding_denial_contract_extra.py",
+):
+    if unreviewed_d04 in local_paths or any(re.search(pattern, unreviewed_d04) for pattern in patterns):
+        raise SystemExit(
+            "protected path integration test: unreviewed D04 sibling is accepted: "
+            f"{unreviewed_d04}"
+        )
+
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 entries = manifest.get("scope", {}).get("entries")
 if not isinstance(entries, list):

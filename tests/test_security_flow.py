@@ -137,7 +137,8 @@ def test_admin_invitation_bff_sanitizes_internal_edge_business_codes():
     assert "? requestedEdgeCode" in bff
     assert ": 'invitation_failed'" in bff
     assert "edgeResponse.status" not in bff
-    assert "code: mfaRequired ? 'mfa_required' : 'rpc_failed'" in bff
+    assert "const forbidden = rpcStatus === 403;" in bff
+    assert "code: mfaRequired ? 'mfa_required' : forbidden ? 'forbidden' : 'rpc_failed'" in bff
     assert "mfaRequired ? 403 : rpcStatus === 403 ? 403 : rpcStatus === 400 ? 400 : rpcStatus === 503 ? 503 : 502" in bff
     assert "error.code || 'rpc_failed'" not in bff
 
