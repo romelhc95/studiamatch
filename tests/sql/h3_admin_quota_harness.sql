@@ -82,39 +82,6 @@ SELECT set_config('request.jwt.claim.aal','aal2',false);
 SELECT set_config('response.status','200',false);
 SET ROLE authenticated;
 DO $$
-DECLARE allowed_rows INTEGER;
-BEGIN
-  SELECT count(*) INTO allowed_rows
-  FROM public.admin_list_members_onboarding()
-  WHERE user_id IN (
-    '71000000-0000-0000-0000-000000000001'::UUID,
-    '71000000-0000-0000-0000-000000000002'::UUID
-  );
-  IF current_setting('response.status', true) = '403' OR allowed_rows <> 2 THEN
-    RAISE EXCEPTION 'admin onboarding reader lost its authorized rows';
-  END IF;
-END;
-$$;
-RESET ROLE;
-SELECT set_config('request.jwt.claim.sub','71000000-0000-0000-0000-000000000002',false);
-SELECT set_config('response.status','200',false);
-SET ROLE authenticated;
-DO $$
-DECLARE denied RECORD;
-BEGIN
-  SELECT * INTO denied FROM public.admin_list_members_onboarding();
-  IF current_setting('response.status', true) IS DISTINCT FROM '403'
-     OR denied.user_id IS NOT NULL OR denied.email IS NOT NULL
-     OR denied.role IS NOT NULL THEN
-    RAISE EXCEPTION 'User role unexpectedly read onboarding members';
-  END IF;
-END;
-$$;
-RESET ROLE;
-SELECT set_config('request.jwt.claim.sub','71000000-0000-0000-0000-000000000001',false);
-SELECT set_config('response.status','200',false);
-SET ROLE authenticated;
-DO $$
 DECLARE i INTEGER; details TEXT; message TEXT; queue_result RECORD;
 BEGIN
   SELECT * INTO queue_result
@@ -123,7 +90,7 @@ BEGIN
      OR queue_result.courses IS NOT NULL OR queue_result.page_info IS NOT NULL THEN
     RAISE EXCEPTION 'quota-wrapped queue RPC admitted a NULL page size';
   END IF;
-  FOR i IN 1..118 LOOP PERFORM public.admin_current_user_role(); END LOOP;
+  FOR i IN 1..119 LOOP PERFORM public.admin_current_user_role(); END LOOP;
   BEGIN
     PERFORM public.admin_current_user_role();
     RAISE EXCEPTION 'Direct authenticated RPC bypassed read quota';
@@ -182,6 +149,40 @@ BEGIN
   END IF;
 END;
 $$;
+SELECT set_config('request.jwt.claim.sub','71000000-0000-0000-0000-000000000001',false);
+SELECT set_config('request.jwt.claim.aal','aal2',false);
+SELECT set_config('response.status','200',false);
+SET ROLE authenticated;
+DO $$
+DECLARE allowed_rows INTEGER;
+BEGIN
+  SELECT count(*) INTO allowed_rows
+  FROM public.admin_list_members_onboarding()
+  WHERE user_id IN (
+    '71000000-0000-0000-0000-000000000001'::UUID,
+    '71000000-0000-0000-0000-000000000002'::UUID
+  );
+  IF current_setting('response.status', true) = '403' OR allowed_rows <> 2 THEN
+    RAISE EXCEPTION 'admin onboarding reader lost its authorized rows';
+  END IF;
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','71000000-0000-0000-0000-000000000002',false);
+SELECT set_config('response.status','200',false);
+SET ROLE authenticated;
+DO $$
+DECLARE denied RECORD;
+BEGIN
+  SELECT * INTO denied FROM public.admin_list_members_onboarding();
+  IF current_setting('response.status', true) IS DISTINCT FROM '403'
+     OR denied.user_id IS NOT NULL OR denied.email IS NOT NULL
+     OR denied.role IS NOT NULL THEN
+    RAISE EXCEPTION 'User role unexpectedly read onboarding members';
+  END IF;
+END;
+$$;
+RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','',false);
 SELECT set_config('request.jwt.claim.aal','aal2',false);
 
