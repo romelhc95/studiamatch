@@ -437,8 +437,11 @@ python3 - "$ROOT/.context/evidencia/h3req1_public_admin_corrections_2026-10-26/c
   "$ROOT/.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json" \
   "$ROOT/scripts/security/protected_path_scope_guard.sh" "$ROOT/.github/workflows/security-audit.yml" "$ROOT" <<'PY'
 import json
+import os
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 scope_path, manifest_path, guard_path, workflow_path, root = map(Path, sys.argv[1:])
@@ -513,15 +516,24 @@ if manifest.get("manifest_id") != "R21-public-admin-corrections-2026-10-26":
     raise SystemExit("R21 scope regression: manifest identity changed")
 if manifest.get("successor_of", {}).get("manifest") != ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json":
     raise SystemExit("R21 scope regression: R20 predecessor is not preserved")
+historical_r20 = json.loads((root / ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json").read_text(encoding="utf-8"))
+historical_r19_path = ".context/evidencia/h3req1_pr_scope_manifest_2026-10-19_r19_pwi_r3_reconciled.json"
+if (
+    historical_r20.get("successor_of", {}).get("manifest") != historical_r19_path
+    or not (root / historical_r19_path).is_file()
+):
+    raise SystemExit("R21 scope regression: historical R19/R20 manifest chain is not preserved")
 if not expected_paths.issubset(manifest_paths):
     raise SystemExit("R21 scope regression: PR paths are not selected by the candidate-aware manifest")
+documentation_job = workflow.split("  documentation-integrity:", 1)[1].split("\n  python-check:", 1)[0]
 if (
     "candidate-scope-manifest-2026-10-26.json" not in workflow
     or "h3req1_d04_candidate_docs_scope_2026-10-25.json" not in workflow
-    or 'if [[ -f "$R21_MANIFEST" ]]' not in workflow
-    or 'elif [[ -f "$D04_MANIFEST" ]]' not in workflow
+    or "fetch-depth: 0" not in documentation_job
+    or "# h3req1-manifest-selector:start" not in documentation_job
+    or "# h3req1-manifest-selector:end" not in documentation_job
 ):
-    raise SystemExit("R21 scope regression: workflow does not preserve D04 and select R21 candidate-aware manifests")
+    raise SystemExit("R21 scope regression: workflow must retain the trusted history and expose the tested manifest selector")
 for test_path in ("admin_header_responsive.test.mjs", "admin_queue_request_guard.test.mjs"):
     if f"node ../tests/{test_path}" not in workflow:
         raise SystemExit(f"R21 scope regression: workflow omits {test_path}")
@@ -543,4 +555,176 @@ for forbidden in (
         raise SystemExit(f"R21 scope regression: unrelated fixture/Admin WIP inclusion or exclusion drift: {forbidden}")
 
 print("protected-path-R21-manifest-integration=PASS|candidate_paths=22|exact_additions=6|selected_candidate_only_source_and_test_paths=5|R20_preserved=1")
+
+selector_lines = documentation_job.splitlines()
+selector_start = selector_lines.index("          # h3req1-manifest-selector:start")
+selector_end = selector_lines.index("          # h3req1-manifest-selector:end")
+selector_script = "\n".join(
+    line[10:] if line.startswith("          ") else line
+    for line in selector_lines[selector_start + 1:selector_end]
+)
+if not selector_script.strip():
+    raise SystemExit("R21 scope regression: tested selector block is empty")
+
+def git(repo, *args):
+    return subprocess.run(
+        ["git", *args], cwd=repo, check=True, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout.strip()
+
+def write_manifest(repo, relative, manifest_id):
+    path = repo / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "manifest_id": manifest_id,
+        "manifest_role": "candidate-aware documentation integrity selection",
+        "scope": {"entries": []},
+        "package_artifacts": {},
+    }), encoding="utf-8")
+
+def create_repo(root, name, include_r21=True):
+    repo = root / name
+    repo.mkdir()
+    git(repo, "init", "-q")
+    git(repo, "config", "user.name", "Manifest selector regression")
+    git(repo, "config", "user.email", "selector-regression@example.invalid")
+    if include_r21:
+        write_manifest(repo, ".context/evidencia/r21.json", "R21")
+        write_manifest(repo, ".context/evidencia/r20.json", "R20")
+        write_manifest(repo, ".context/evidencia/r19.json", "R19")
+    write_manifest(repo, ".context/evidencia/d04.json", "D04")
+    (repo / "README.md").write_text("baseline\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "baseline")
+    return repo, git(repo, "rev-parse", "HEAD")
+
+def commit(repo, message):
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", message)
+
+def run_selector(repo, base_sha, r21_path, d04_path):
+    output = repo / "github-output.txt"
+    output.unlink(missing_ok=True)
+    env = os.environ.copy()
+    env.update({
+        "PROTECTED_BASELINE_SHA": base_sha,
+        "R21_MANIFEST": r21_path,
+        "D04_MANIFEST": d04_path,
+        "GITHUB_OUTPUT": str(output),
+    })
+    result = subprocess.run(
+        ["bash", "-e", "-c", selector_script], cwd=repo, env=env,
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    selected = None
+    if output.exists():
+        for line in output.read_text(encoding="utf-8").splitlines():
+            if line.startswith("path="):
+                selected = line.removeprefix("path=")
+    return result, selected
+
+with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir:
+    temp_root = Path(temp_dir)
+    r21_path = ".context/evidencia/r21.json"
+    d04_path = ".context/evidencia/d04.json"
+
+    repo, base = create_repo(temp_root, "successor")
+    write_manifest(repo, ".context/evidencia/r22.json", "R22")
+    commit(repo, "add successor manifest")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode != 0 or selected != ".context/evidencia/r22.json":
+        raise SystemExit("R21 selector regression: successor manifest was not preferred over persistent R21")
+
+    repo, base = create_repo(temp_root, "d04")
+    write_manifest(repo, d04_path, "D04-successor")
+    commit(repo, "update D04 candidate manifest")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode != 0 or selected != d04_path:
+        raise SystemExit("R21 selector regression: changed D04 candidate manifest was not selected")
+
+    repo, base = create_repo(temp_root, "fallback")
+    (repo / "README.md").write_text("ordinary code change\n", encoding="utf-8")
+    commit(repo, "ordinary change")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode != 0 or selected != r21_path:
+        raise SystemExit("R21 selector regression: R21 fallback changed when no candidate manifest changed")
+
+    repo, base = create_repo(temp_root, "d04-fallback", include_r21=False)
+    (repo / "README.md").write_text("ordinary change\n", encoding="utf-8")
+    commit(repo, "ordinary change")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode != 0 or selected != d04_path:
+        raise SystemExit("R21 selector regression: D04 fallback was not preserved without R21")
+
+    repo, base = create_repo(temp_root, "ambiguous")
+    write_manifest(repo, ".context/evidencia/r22.json", "R22")
+    write_manifest(repo, d04_path, "D04-successor")
+    commit(repo, "change two candidate manifests")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("R21 selector regression: ambiguous candidate manifests did not fail closed")
+
+    repo, base = create_repo(temp_root, "deleted-successor")
+    (repo / r21_path).unlink()
+    commit(repo, "delete persistent R21 manifest")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("R21 selector regression: deleting a historical candidate manifest did not fail closed")
+
+    repo, base = create_repo(temp_root, "renamed-successor")
+    renamed = repo / ".context/archive/r21.json"
+    renamed.parent.mkdir(parents=True, exist_ok=True)
+    (repo / r21_path).rename(renamed)
+    commit(repo, "move persistent candidate manifest out of evidence")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("R21 selector regression: moving a historical candidate manifest out of evidence did not fail closed")
+
+    repo, base = create_repo(temp_root, "invalid")
+    invalid = repo / ".context/evidencia/candidate-scope-manifest-r22.json"
+    invalid.write_text("{invalid json", encoding="utf-8")
+    commit(repo, "add invalid successor manifest")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("R21 selector regression: invalid candidate manifest did not fail closed")
+
+    repo, base = create_repo(temp_root, "invalid-structure")
+    invalid = repo / ".context/evidencia/candidate-scope-manifest-r22.json"
+    invalid.write_text(json.dumps({
+        "manifest_id": "R22",
+        "manifest_role": "candidate-aware documentation integrity selection",
+        "scope": {"entries": "not-an-array"},
+        "package_artifacts": {},
+    }), encoding="utf-8")
+    commit(repo, "add malformed successor manifest")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("R21 selector regression: structurally invalid candidate did not fail closed")
+
+    repo, base = create_repo(temp_root, "wrong-role")
+    wrong_role = repo / ".context/evidencia/candidate-scope-manifest-r22.json"
+    wrong_role.write_text(json.dumps({
+        "manifest_id": "R22",
+        "manifest_role": "unrelated documentation manifest",
+        "scope": {"entries": []},
+        "package_artifacts": {},
+    }), encoding="utf-8")
+    commit(repo, "add candidate manifest with unexpected role")
+    result, selected = run_selector(repo, base, r21_path, d04_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("R21 selector regression: candidate manifest with unexpected role fell back instead of failing closed")
+
+    repo, base = create_repo(temp_root, "no-baseline")
+    env = os.environ.copy()
+    output = repo / "github-output.txt"
+    env.update({"PROTECTED_BASELINE_SHA": "", "R21_MANIFEST": r21_path,
+                "D04_MANIFEST": d04_path, "GITHUB_OUTPUT": str(output)})
+    result = subprocess.run(
+        ["bash", "-e", "-c", selector_script], cwd=repo, env=env,
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if result.returncode == 0 or output.exists():
+        raise SystemExit("R21 selector regression: missing trusted baseline did not fail closed")
+
+print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|baseline_missing=fail_closed")
 PY

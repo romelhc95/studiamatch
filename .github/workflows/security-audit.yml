@@ -69,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -81,16 +81,59 @@ jobs:
           R21_MANIFEST: .context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json
           D04_MANIFEST: .context/evidencia/h3req1_d04_candidate_docs_scope_2026-10-25.json
         run: |
+          # h3req1-manifest-selector:start
           set -euo pipefail
-          if [[ -f "$R21_MANIFEST" ]]; then
-            manifest="$R21_MANIFEST"
-          elif [[ -f "$D04_MANIFEST" ]]; then
-            manifest="$D04_MANIFEST"
-          else
-            echo "::error::candidate-aware documentation manifest is missing"
-            exit 1
-          fi
-          printf 'path=%s\n' "$manifest" >> "$GITHUB_OUTPUT"
+          node --input-type=module - "$PROTECTED_BASELINE_SHA" "$R21_MANIFEST" "$D04_MANIFEST" <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import fs from "node:fs";
+
+          const [baseSha, r21Manifest, d04Manifest] = process.argv.slice(2);
+          const fail = (message) => { console.error(`::error::${message}`); process.exit(1); };
+          const isCandidateManifestPath = (path) => {
+            const name = path.split("/").pop().toLowerCase();
+            return name.includes("candidate") && (name.includes("scope") || name.includes("manifest"));
+          };
+          const isCandidateRole = (value) => typeof value?.manifest_role === "string"
+            && value.manifest_role.includes("candidate-aware documentation integrity selection");
+          const isCandidate = (value) => isCandidateRole(value)
+            && Array.isArray(value.scope?.entries)
+            && value.package_artifacts && typeof value.package_artifacts === "object"
+            && !Array.isArray(value.package_artifacts);
+          const parse = (text) => { try { return JSON.parse(text); } catch { fail("candidate manifest JSON is invalid"); } };
+          const names = (filter) => {
+            try {
+              return execFileSync("git", ["diff", "--name-only", "--no-renames", filter, "-z", `${baseSha}...HEAD`, "--", ".context/evidencia"], { encoding: "utf8" }).split("\0").filter(Boolean);
+            } catch { fail("candidate manifest comparison against the trusted baseline failed"); }
+          };
+
+          if (!/^[a-f0-9]{40}$/i.test(baseSha) || /^0{40}$/.test(baseSha)) {
+            fail("candidate-aware documentation selection requires a trusted baseline SHA");
+          }
+
+          for (const path of names("--diff-filter=D")) {
+            if (!path.endsWith(".json")) continue;
+            const previous = parse(execFileSync("git", ["show", `${baseSha}:${path}`], { encoding: "utf8" }));
+            if (isCandidateRole(previous)) fail("candidate-aware documentation manifest deletion is not allowed");
+          }
+
+          const changedCandidates = [];
+          for (const path of names("--diff-filter=ACMR")) {
+            if (!path.endsWith(".json")) continue;
+            const value = parse(fs.readFileSync(path, "utf8"));
+            if (isCandidateManifestPath(path) || isCandidateRole(value)) {
+              if (!isCandidate(value)) fail("changed candidate-aware documentation manifest has an invalid structure");
+              changedCandidates.push(path);
+            }
+          }
+
+          if (changedCandidates.length > 1) fail("multiple candidate-aware documentation manifests changed; selection is ambiguous");
+          const selected = changedCandidates[0] || [r21Manifest, d04Manifest].find(fs.existsSync);
+          if (!selected || !isCandidate(parse(fs.readFileSync(selected, "utf8")))) {
+            fail("candidate-aware documentation manifest is missing or invalid");
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `path=${selected}\n`);
+          NODE
+          # h3req1-manifest-selector:end
       - name: Check source registry, links and undocumented-source rejection
         env:
           CANDIDATE_MANIFEST: ${{ steps.doc-manifest.outputs.path }}
