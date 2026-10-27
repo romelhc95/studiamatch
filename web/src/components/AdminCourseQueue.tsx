@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, Building2, ChevronLeft, ChevronRight, CircleHelp, Filter, Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MfaRequiredCard } from '@/components/admin/MfaRequiredCard';
 import { EDITORIAL_STATUS_META, QUALITY_STATUS_META, StatusBadge, type EditorialStatus, type QualityStatus } from '@/components/admin/editorial-ui';
 import { adminRpc, getAuthenticatorAssuranceLevel, isMfaRequiredError } from '@/lib/admin-auth';
+import {
+  canCommitAdminQueueResponse,
+  nextAdminQueueRequestId,
+} from '@/lib/admin-queue-request-guard.mjs';
 
 interface Course {
   course_id: string;
@@ -113,6 +117,7 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
     editorial_status: role === 'admin' ? 'pending_review' : 'draft',
     quality_status: role === 'admin' ? 'complete' : 'pending',
   });
+  const latestQueueRequestId = useRef(0);
 
   const fetchFacets = useCallback(async () => {
     setFacetsLoading(true);
@@ -135,6 +140,8 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
   }, [error]);
 
   const fetchQueue = useCallback(async (cursor: Record<string, string> | null = null) => {
+    const requestId = nextAdminQueueRequestId(latestQueueRequestId.current);
+    latestQueueRequestId.current = requestId;
     setLoading(true);
     setError(null);
     setMfaRequired(false);
@@ -160,6 +167,7 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
       const count = countRows[0];
       if (!queue || queue.error) throw new Error(queue?.error || 'Respuesta inválida de la cola.');
       if (!count || count.error) throw new Error(count?.error || 'Respuesta inválida del contador.');
+      if (!canCommitAdminQueueResponse(requestId, latestQueueRequestId.current)) return;
 
       setCourses(Array.isArray(queue.courses) ? queue.courses : []);
       setCurrentCursor(cursor);
@@ -167,13 +175,14 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
       setEndCursor(queue.page_info?.endCursor || null);
       setTotalCount(count.total || 0);
     } catch (reason) {
+      if (!canCommitAdminQueueResponse(requestId, latestQueueRequestId.current)) return;
       if (isMfaRequiredError(reason)) {
         setMfaRequired(true);
         return;
       }
       setError(reason instanceof Error ? reason.message : 'Error al cargar la cola.');
     } finally {
-      setLoading(false);
+      if (canCommitAdminQueueResponse(requestId, latestQueueRequestId.current)) setLoading(false);
     }
   }, [filters.editorial_status, filters.quality_status, institutionSlug]);
 
@@ -226,11 +235,18 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
   }, [courses, searchTerm]);
 
   const updateFilter = (key: 'editorial_status' | 'quality_status', value: string) => {
+    const nextValue = value === '__all__' ? '' : value;
+    if (filters[key] !== nextValue) {
+      latestQueueRequestId.current = nextAdminQueueRequestId(latestQueueRequestId.current);
+    }
     setCursorHistory([]);
-    setFilters((current) => ({ ...current, [key]: value === '__all__' ? '' : value }));
+    setFilters((current) => ({ ...current, [key]: nextValue }));
   };
 
   const updateInstitution = (value: string) => {
+    if (institutionSlug !== value) {
+      latestQueueRequestId.current = nextAdminQueueRequestId(latestQueueRequestId.current);
+    }
     setCursorHistory([]);
     setInstitutionSlug(value);
   };

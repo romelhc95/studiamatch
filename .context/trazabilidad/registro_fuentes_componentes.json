@@ -1217,9 +1217,10 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Cada path tiene referencias de suite o ausencia de referencia literal dentro del scope `tests/` y extensiones descrito en .context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md. Una arista de test prueba que el test lee/asserta fuente, no que el test haya pasado ni que cubra todo el contrato.",
+        "note": "Cada path tiene referencias de suite o ausencia de referencia literal dentro del scope `tests/` y extensiones descrito en .context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md. Una arista de test prueba que el test lee/asserta fuente, no que el test haya pasado ni que cubra todo el contrato. El test candidate-only tests/admin_header_responsive.test.mjs verifica las clases flex responsivas de web/src/app/admin/page.tsx; es una assertion source-level y no sustituye la medición real en viewport móvil.",
         "evidence": [
-          "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md"
+          "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
+          "path:tests/admin_header_responsive.test.mjs"
         ],
         "resolution": "Map the exact runner, case/assertion, fixture/input and dated result. Re-run only tests affected by changed inputs in Docker; historical results remain scoped to their recorded cut."
       },
@@ -1256,13 +1257,16 @@
         "web/src/components/admin/PasswordInput.tsx",
         "web/src/components/admin/PasswordRequirements.tsx",
         "web/src/components/admin/editorial-ui.tsx",
-        "web/src/lib/admin-auth.ts"
+        "web/src/lib/admin-auth.ts",
+        "tests/admin_header_responsive.test.mjs"
       ],
       "source_document": {
         "path": ".context/componentes/admin_portal.md",
         "anchor": "fuentes-y-relaciones"
       },
-      "candidate_only_paths": []
+      "candidate_only_paths": [
+        "tests/admin_header_responsive.test.mjs"
+      ]
     },
     {
       "id": "admin-bff-middleware",
@@ -19962,12 +19966,14 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La matriz de relación identifica assertions en los dos contratos focales; R178 conserva el corte funcional y sus resultados/limitaciones. Este registro enlaza los casos, no afirma que toda suite haya pasado en este corte documental.",
+        "note": "La matriz de relación identifica assertions en los dos contratos focales; R178 conserva el corte funcional y sus resultados/limitaciones. Este registro enlaza los casos, no afirma que toda suite haya pasado en este corte documental. Los tests candidate-only tests/admin_queue_request_guard.test.mjs cubren una respuesta diferida fuera de orden y que éxito/error/finally requieren la generación actual; la simulación no es una ejecución de PostgREST.",
         "evidence": [
           "path:tests/test_h3_admin_queue_ux_contract.py",
           "path:tests/test_mfa_compatibility_contract.py",
           "path:.context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
-          "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md"
+          "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
+          "path:tests/admin_queue_request_guard.test.mjs",
+          "path:web/src/lib/admin-queue-request-guard.mjs"
         ]
       },
       "operations": {
@@ -19988,13 +19994,18 @@
         ]
       },
       "paths": [
-        "web/src/components/AdminCourseQueue.tsx"
+        "web/src/components/AdminCourseQueue.tsx",
+        "web/src/lib/admin-queue-request-guard.mjs",
+        "tests/admin_queue_request_guard.test.mjs"
       ],
       "source_document": {
         "path": ".context/componentes/admin_portal.md",
         "anchor": "cola-editorial"
       },
-      "candidate_only_paths": []
+      "candidate_only_paths": [
+        "web/src/lib/admin-queue-request-guard.mjs",
+        "tests/admin_queue_request_guard.test.mjs"
+      ]
     },
     {
       "id": "admin-password-policy",
@@ -20563,7 +20574,8 @@
     ".context/transferencia.md",
     ".context/trazabilidad/protocolo_constructor.md",
     ".context/trazabilidad/registro_fuentes_componentes.md",
-    ".context/waivers/waiver_h3_static_export.md"
+    ".context/waivers/waiver_h3_static_export.md",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md"
   ],
   "document_exclusions": [
     {

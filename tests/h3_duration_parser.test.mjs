@@ -10,6 +10,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const requireFromWeb = createRequire(resolve(repoRoot, 'web/package.json'));
 const ts = requireFromWeb('typescript');
 const source = await readFile(resolve(repoRoot, 'web/src/lib/supabase.ts'), 'utf8');
+const homeSource = await readFile(resolve(repoRoot, 'web/src/app/HomeContent.tsx'), 'utf8');
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 });
@@ -44,7 +45,30 @@ vm.runInNewContext(`
   };
 `, sandbox);
 vm.runInNewContext(compiled.outputText, sandbox, { filename: 'supabase.ts' });
-const { parseDurationToMonths } = moduleRecord.exports;
+const { parseDurationToMonths, isUpdateCareerGoalCourse } = moduleRecord.exports;
+
+test('update goal accepts accented and unaccented hybrid labels for short courses', () => {
+  assert.equal(isUpdateCareerGoalCourse('32 horas académicas 1 mes aproximadamente.', 'Hibrido'), true);
+  assert.equal(isUpdateCareerGoalCourse('32 horas académicas 1 mes aproximadamente.', 'Híbrido'), true);
+  assert.equal(isUpdateCareerGoalCourse('32 horas académicas 1 mes aproximadamente.', ' remoto '), true);
+  assert.equal(isUpdateCareerGoalCourse('8 meses', 'Hibrido'), false);
+  assert.equal(isUpdateCareerGoalCourse('1 mes', 'Presencial'), false);
+});
+
+test('both update-goal consumers use the shared eligibility contract', () => {
+  assert.equal((homeSource.match(/isUpdateCareerGoalCourse\(c\.duration,\s*c\.mode\)/g) || []).length, 2);
+  assert.doesNotMatch(homeSource, /c\.mode\s*===\s*['"]Híbrido['"]/);
+});
+
+test('filter summary wraps the clear-all control instead of forcing a narrow row overflow', () => {
+  const labelPosition = homeSource.indexOf('Limpiar todo');
+  const buttonStart = homeSource.lastIndexOf('<button', labelPosition);
+  const rowStart = homeSource.lastIndexOf('<div', buttonStart);
+  const buttonMarkup = homeSource.slice(buttonStart, labelPosition);
+  const rowOpeningTag = homeSource.slice(rowStart, homeSource.indexOf('>', rowStart));
+  assert.match(rowOpeningTag, /flex-wrap/);
+  assert.match(buttonMarkup, /shrink-0/);
+});
 
 test('parenthetical equivalent duration is not added twice', () => {
   assert.equal(parseDurationToMonths('6 meses (24 semanas)'), 6);

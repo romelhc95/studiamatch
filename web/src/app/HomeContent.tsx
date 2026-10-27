@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, normalizeCourseNumbers, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, normalizeCourseNumbers, parseDurationToMonths, isUpdateCareerGoalCourse, type Course, type Institution } from "@/lib/supabase";
 
 export default function HomeContent({ initialCourses = [] }: { initialCourses: Course[] }) {
   const searchParams = useSearchParams();
@@ -85,10 +85,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       if (careerGoal === 'tech') {
         result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
       } else if (careerGoal === 'update') {
-        result = result.filter(c => {
-          const months = parseDurationToMonths(c.duration || '') || 12;
-          return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
-        });
+        result = result.filter(c => isUpdateCareerGoalCourse(c.duration, c.mode));
       } else if (careerGoal === 'postgrad') {
         result = result.filter(c => c.course_type === 'Maestría' || c.course_type === 'Doctorado' || c.course_type === 'Especialización');
       } else if (careerGoal === 'fast-job') {
@@ -346,10 +343,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     if (careerGoal === 'tech') {
       result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
     } else if (careerGoal === 'update') {
-      result = result.filter(c => {
-        const months = parseDurationToMonths(c.duration || '') || 12;
-        return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
-      });
+      result = result.filter(c => isUpdateCareerGoalCourse(c.duration, c.mode));
     } else if (careerGoal === 'postgrad') {
       result = result.filter(c => c.course_type === 'Maestría' || c.course_type === 'Doctorado' || c.course_type === 'Especialización');
     } else if (careerGoal === 'fast-job') {
@@ -811,7 +805,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-brand-slate">Catálogo de Programas</h2>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 min-w-0">
               <p className="text-[13px] text-slate-400 font-medium">{filteredCourses.length} resultados encontrados</p>
               <span className="text-slate-300 mx-0.5">·</span>
               <p className="text-[13px] text-slate-400 font-medium tabular-nums">
@@ -824,29 +818,31 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               )}
               {(searchTerm || selectedCategory !== "Todos" || selectedType !== "Todos" || activeFilters.selectedInstitution !== "Todas" || activeFilters.modes.length > 0 || activeFilters.priceMin || activeFilters.priceMax || sortOrder || careerGoal || durationFilter || priceRange) && (
                 <>
-                  <span className="text-slate-300">·</span>
-                  <button 
-                    onClick={() => {
-                      setSearchInput("");
-                      setSearchTerm("");
-                      setSelectedCategory("Todos");
-                      setSelectedType("Todos");
-                      setSortOrder(null);
-                      setCareerGoal(null);
-                      setDurationFilter(null);
-                      setPriceRange(null);
-                      setActiveFilters({
-                        priceMin: "",
-                        priceMax: "",
-                        modes: [],
-                        selectedInstitution: "Todas",
-                      });
-                    }}
-                    className="text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 uppercase tracking-wider flex items-center gap-1 transition-colors group"
-                  >
-                    <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
-                    Limpiar todo
-                  </button>
+                  <span className="inline-flex shrink-0 items-center gap-2">
+                    <span className="text-slate-300">·</span>
+                    <button
+                      onClick={() => {
+                        setSearchInput("");
+                        setSearchTerm("");
+                        setSelectedCategory("Todos");
+                        setSelectedType("Todos");
+                        setSortOrder(null);
+                        setCareerGoal(null);
+                        setDurationFilter(null);
+                        setPriceRange(null);
+                        setActiveFilters({
+                          priceMin: "",
+                          priceMax: "",
+                          modes: [],
+                          selectedInstitution: "Todas",
+                        });
+                      }}
+                      className="shrink-0 whitespace-nowrap text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 uppercase tracking-wider flex items-center gap-1 transition-colors group"
+                    >
+                      <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
+                      Limpiar todo
+                    </button>
+                  </span>
                 </>
               )}
             </div>

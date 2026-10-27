@@ -1913,6 +1913,27 @@ const ALL_CASES = Object.freeze([
     }
 
     check('clear-all is available for a duration-only filter', await page.getByRole('button', { name: 'Limpiar todo' }).count() === 1);
+    const mobileViewport = page.viewportSize();
+    if (mobileViewport?.width === 390) {
+      await page.setViewportSize({ width: 320, height: mobileViewport.height });
+      await page.goto(`${BASE_URL}/?duration=long`, { waitUntil: 'domcontentloaded' });
+      await waitForPublicCatalog(page);
+      const clearAllGeometry = await page.getByRole('button', { name: 'Limpiar todo' }).evaluate((button) => {
+        const bounds = button.getBoundingClientRect();
+        return {
+          buttonRight: bounds.right,
+          clientWidth: document.documentElement.clientWidth,
+          documentWidth: document.documentElement.scrollWidth,
+        };
+      });
+      check('clear-all stays within the 320px viewport with a duration filter active',
+        clearAllGeometry.buttonRight <= clearAllGeometry.clientWidth + 1
+          && clearAllGeometry.documentWidth <= clearAllGeometry.clientWidth + 1,
+        `buttonRight=${clearAllGeometry.buttonRight}; document=${clearAllGeometry.documentWidth}/${clearAllGeometry.clientWidth}`);
+      await page.setViewportSize(mobileViewport);
+      await page.goto(`${BASE_URL}/?duration=long`, { waitUntil: 'domcontentloaded' });
+      await waitForPublicCatalog(page);
+    }
     await page.getByRole('button', { name: 'Limpiar todo' }).click();
     await page.waitForFunction(() => !new URL(location.href).searchParams.has('duration'), undefined, { timeout: 10000 });
     await verifyUnfilteredReset('duration-only');

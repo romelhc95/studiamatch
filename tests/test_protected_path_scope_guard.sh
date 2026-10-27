@@ -432,3 +432,115 @@ print(
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'
+
+python3 - "$ROOT/.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-scope-2026-10-26.json" \
+  "$ROOT/.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json" \
+  "$ROOT/scripts/security/protected_path_scope_guard.sh" "$ROOT/.github/workflows/security-audit.yml" "$ROOT" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+scope_path, manifest_path, guard_path, workflow_path, root = map(Path, sys.argv[1:])
+scope = json.loads(scope_path.read_text(encoding="utf-8"))
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+guard = guard_path.read_text(encoding="utf-8")
+workflow = workflow_path.read_text(encoding="utf-8")
+
+expected_paths = {
+    ".github/workflows/security-audit.yml",
+    "scripts/security/protected_path_scope_guard.sh",
+    "tests/test_protected_path_scope_guard.sh",
+    "scripts/maintenance/h3req1_documentation_integrity.mjs",
+    "tests/h3_duration_parser.test.mjs",
+    "tests/h3_local_uat.mjs",
+    "web/src/app/HomeContent.tsx",
+    "web/src/app/admin/page.tsx",
+    "web/src/components/AdminCourseQueue.tsx",
+    "web/src/lib/supabase.ts",
+    "tests/admin_header_responsive.test.mjs",
+    "tests/admin_queue_request_guard.test.mjs",
+    "web/src/lib/admin-queue-request-guard.mjs",
+    ".context/componentes/web_publico.md",
+    ".context/componentes/admin_portal.md",
+    ".context/componentes/pruebas_evidencia.md",
+    ".context/indice.md",
+    ".context/trazabilidad/registro_fuentes_componentes.json",
+    ".context/trazabilidad/registro_fuentes_componentes.md",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-scope-2026-10-26.json",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md",
+}
+expected_additions = {
+    "tests/admin_header_responsive.test.mjs",
+    "tests/admin_queue_request_guard.test.mjs",
+    "web/src/lib/admin-queue-request-guard.mjs",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-scope-2026-10-26.json",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md",
+}
+included = scope.get("includedPaths")
+remediation = scope.get("protectedPathRemediation", {})
+if (
+    scope.get("target", {}).get("baseBranch") != "desarrollo"
+    or not isinstance(included, list)
+    or len(included) != 22
+    or len(included) != len(set(included))
+    or set(included) != expected_paths
+    or remediation.get("currentPrChangedPathCount") != 22
+    or remediation.get("currentlyRejectedByGuardCount") != 6
+    or remediation.get("exactAdditionalAllowlistPathCount") != 6
+    or set(remediation.get("exactAdditionalAllowedH3LocalPaths", [])) != expected_additions
+):
+    raise SystemExit("R21 scope regression: exact 22-path package or six-path guard delta changed")
+
+local_match = re.search(r"<<'H3_LOCAL_PATHS'\s*\n(?P<body>.*?)\n\s*H3_LOCAL_PATHS", guard, re.DOTALL)
+if not local_match:
+    raise SystemExit("R21 scope regression: exact local allowlist missing")
+local_paths = {line.strip() for line in local_match.group("body").splitlines() if line.strip()}
+if not expected_additions.issubset(local_paths):
+    raise SystemExit("R21 scope regression: an exact path is missing from the reviewed local allowlist")
+
+manifest_paths = {
+    entry["path"] for entry in manifest.get("scope", {}).get("entries", [])
+    if isinstance(entry, dict) and entry.get("status") != "deleted" and isinstance(entry.get("path"), str)
+}
+manifest_paths.update(
+    artifact["path"] for artifact in manifest.get("package_artifacts", {}).values()
+    if isinstance(artifact, dict) and artifact.get("included") is True and isinstance(artifact.get("path"), str)
+)
+if manifest.get("manifest_id") != "R21-public-admin-corrections-2026-10-26":
+    raise SystemExit("R21 scope regression: manifest identity changed")
+if manifest.get("successor_of", {}).get("manifest") != ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-scope-manifest.json":
+    raise SystemExit("R21 scope regression: R20 predecessor is not preserved")
+if not expected_paths.issubset(manifest_paths):
+    raise SystemExit("R21 scope regression: PR paths are not selected by the candidate-aware manifest")
+if (
+    "candidate-scope-manifest-2026-10-26.json" not in workflow
+    or "h3req1_d04_candidate_docs_scope_2026-10-25.json" not in workflow
+    or 'if [[ -f "$R21_MANIFEST" ]]' not in workflow
+    or 'elif [[ -f "$D04_MANIFEST" ]]' not in workflow
+):
+    raise SystemExit("R21 scope regression: workflow does not preserve D04 and select R21 candidate-aware manifests")
+for test_path in ("admin_header_responsive.test.mjs", "admin_queue_request_guard.test.mjs"):
+    if f"node ../tests/{test_path}" not in workflow:
+        raise SystemExit(f"R21 scope regression: workflow omits {test_path}")
+
+registry = json.loads((root / ".context/trazabilidad/registro_fuentes_componentes.json").read_text(encoding="utf-8"))
+candidate_only = {path for group in registry["groups"] for path in group.get("candidate_only_paths", [])}
+selected_candidate_only = manifest_paths & candidate_only & expected_paths
+if len(selected_candidate_only) != 5:
+    raise SystemExit(f"R21 scope regression: expected five candidate-only source/test paths in this exact PR, found {len(selected_candidate_only)}")
+
+excluded = set(scope.get("excludedPaths", []))
+for forbidden in (
+    "db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+    "tests/sql/h3_quota_postgrest_fixture.sql",
+    ".context/evidencia/h3req1_editorial_fixtures_2026-10-26/seed_d07_d11_free.sql",
+    "web/functions/_lib/admin-bff.ts",
+):
+    if forbidden in included or forbidden not in excluded:
+        raise SystemExit(f"R21 scope regression: unrelated fixture/Admin WIP inclusion or exclusion drift: {forbidden}")
+
+print("protected-path-R21-manifest-integration=PASS|candidate_paths=22|exact_additions=6|selected_candidate_only_source_and_test_paths=5|R20_preserved=1")
+PY
