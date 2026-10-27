@@ -42,7 +42,7 @@ cleanup() {
         "$fakebin/grep" "$test_root/tmp/studiamatch-credential-scan."*
     rm -rf -- "$test_root/newline-repo" "$test_root/root-repo" "$test_root/merge-repo" \
         "$test_root/external-parent" \
-        "$test_root/hook-repo" 2>/dev/null || true
+        "$test_root/hook-repo" "$test_root/upstream-hook-repo" "$test_root/published-remote.git" 2>/dev/null || true
     rmdir -- "$fakebin" "$test_root/tmp" "$test_root" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -353,11 +353,127 @@ git -C "$hook_repo" commit -qm 'remove transient hook credential fixture'
 hook_head_sha=$(git -C "$hook_repo" rev-parse HEAD)
 set +e
 printf 'refs/heads/test %s refs/heads/test %040d\n' "$hook_head_sha" 0 \
-    | (cd "$hook_repo" && .githooks/pre-push) \
+    | (cd "$hook_repo" && .githooks/pre-push origin https://example.invalid/repo.git) \
         >"$test_root/history-diff-output" 2>"$test_root/history-diff-error"
 hook_status=$?
 set -e
 [ "$hook_status" -ne 0 ] || fail 'pre-push accepted a transient credential on a new branch'
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-output"
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-error"
+
+# A first push of a feature branch must scan only commits after its configured
+# remote-tracking base. Existing, already-published history still contains a
+# synthetic match; the feature's new commits must be scanned, including values
+# removed by a later commit.
+upstream_hook_repo="$test_root/upstream-hook-repo"
+published_remote="$test_root/published-remote.git"
+mkdir -p "$upstream_hook_repo/.githooks" "$upstream_hook_repo/scripts/security"
+cp "$ROOT/.githooks/pre-push" "$upstream_hook_repo/.githooks/pre-push"
+cp "$SCANNER" "$upstream_hook_repo/scripts/security/scan_credentials.sh"
+git -C "$upstream_hook_repo" init -q
+git init -q --bare "$published_remote"
+git -C "$upstream_hook_repo" config user.email scanner-test@example.invalid
+git -C "$upstream_hook_repo" config user.name scanner-test
+git -C "$upstream_hook_repo" remote add origin "$published_remote"
+git -C "$upstream_hook_repo" add -- .githooks/pre-push scripts/security/scan_credentials.sh
+git -C "$upstream_hook_repo" commit -qm 'scanner upstream hook fixture baseline'
+printf '%s\n' "$credential_like" >"$upstream_hook_repo/already-published.txt"
+git -C "$upstream_hook_repo" add -- already-published.txt
+git -C "$upstream_hook_repo" commit -qm 'published baseline contains historical match'
+upstream_base_sha=$(git -C "$upstream_hook_repo" rev-parse HEAD)
+git -C "$upstream_hook_repo" push -q origin "$upstream_base_sha:refs/heads/desarrollo"
+git -C "$upstream_hook_repo" update-ref refs/remotes/origin/desarrollo "$upstream_base_sha"
+git -C "$upstream_hook_repo" checkout -qb feat/test
+git -C "$upstream_hook_repo" config branch.feat/test.remote origin
+git -C "$upstream_hook_repo" config branch.feat/test.merge refs/heads/desarrollo
+printf '%s\n' 'clean feature change' >"$upstream_hook_repo/feature.txt"
+git -C "$upstream_hook_repo" add -- feature.txt
+git -C "$upstream_hook_repo" commit -qm 'clean feature change'
+upstream_clean_sha=$(git -C "$upstream_hook_repo" rev-parse HEAD)
+set +e
+printf 'refs/heads/feat/test %s refs/heads/feat/test %040d\n' "$upstream_clean_sha" 0 \
+    | (cd "$upstream_hook_repo" && .githooks/pre-push origin "$published_remote") \
+        >"$test_root/history-diff-output" 2>"$test_root/history-diff-error"
+upstream_clean_status=$?
+set -e
+if [ "$upstream_clean_status" -ne 0 ]; then
+    cat "$test_root/history-diff-error" >&2
+    fail 'pre-push rejected a clean first push because of a match in its configured published base'
+fi
+
+set +e
+printf 'refs/heads/feat/test %s refs/heads/feat/test %040d\n' "$upstream_clean_sha" 0 \
+    | (cd "$upstream_hook_repo" && .githooks/pre-push origin https://example.invalid/repo.git) \
+        >"$test_root/history-diff-output" 2>"$test_root/history-diff-error"
+upstream_wrong_url_status=$?
+set -e
+[ "$upstream_wrong_url_status" -ne 0 ] \
+    || fail 'pre-push trusted a tracking base when the push URL did not match its configured remote'
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-output"
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-error"
+
+# A local remote-tracking ref can be manually advanced to an unpublished
+# ancestor. It must not hide a credential-bearing commit from the scan.
+printf '%s\n' "$credential_like" >"$upstream_hook_repo/unpublished-base.txt"
+git -C "$upstream_hook_repo" add -- unpublished-base.txt
+git -C "$upstream_hook_repo" commit -qm 'unpublished tracking base contains transient match'
+unpublished_base_sha=$(git -C "$upstream_hook_repo" rev-parse HEAD)
+git -C "$upstream_hook_repo" rm -q -- unpublished-base.txt
+git -C "$upstream_hook_repo" commit -qm 'remove match after unpublished tracking base'
+unpublished_head_sha=$(git -C "$upstream_hook_repo" rev-parse HEAD)
+git -C "$upstream_hook_repo" update-ref refs/remotes/origin/desarrollo "$unpublished_base_sha"
+set +e
+printf 'refs/heads/feat/test %s refs/heads/feat/test %040d\n' "$unpublished_head_sha" 0 \
+    | (cd "$upstream_hook_repo" && .githooks/pre-push origin "$published_remote") \
+        >"$test_root/history-diff-output" 2>"$test_root/history-diff-error"
+unpublished_base_status=$?
+set -e
+[ "$unpublished_base_status" -ne 0 ] \
+    || fail 'pre-push trusted an unpublished tracking ref and skipped its earlier credential-like commit'
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-output"
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-error"
+git -C "$upstream_hook_repo" update-ref refs/remotes/origin/desarrollo "$upstream_base_sha"
+
+set +e
+printf 'refs/heads/feat/test %s refs/heads/feat/test %040d\n' "$upstream_clean_sha" 0 \
+    | (cd "$upstream_hook_repo" && .githooks/pre-push other https://example.invalid/other.git) \
+        >"$test_root/history-diff-output" 2>"$test_root/history-diff-error"
+upstream_mismatch_status=$?
+set -e
+[ "$upstream_mismatch_status" -ne 0 ] \
+    || fail 'pre-push trusted an upstream from a different remote'
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-output"
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-error"
+
+unrelated_tree=$(git -C "$upstream_hook_repo" rev-parse "$upstream_base_sha^{tree}")
+unrelated_base_sha=$(git -C "$upstream_hook_repo" commit-tree "$unrelated_tree" -m 'unrelated tracking base')
+git -C "$upstream_hook_repo" update-ref refs/remotes/origin/desarrollo "$unrelated_base_sha"
+set +e
+printf 'refs/heads/feat/test %s refs/heads/feat/test %040d\n' "$upstream_clean_sha" 0 \
+    | (cd "$upstream_hook_repo" && .githooks/pre-push origin https://example.invalid/repo.git) \
+        >"$test_root/history-diff-output" 2>"$test_root/history-diff-error"
+upstream_non_ancestor_status=$?
+set -e
+[ "$upstream_non_ancestor_status" -ne 0 ] \
+    || fail 'pre-push trusted a configured base that is not an ancestor of the pushed commit'
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-output"
+assert_no_sensitive_output "$credential_like" "$test_root/history-diff-error"
+git -C "$upstream_hook_repo" update-ref refs/remotes/origin/desarrollo "$upstream_base_sha"
+
+printf '%s\n' "$credential_like" >"$upstream_hook_repo/transient.txt"
+git -C "$upstream_hook_repo" add -- transient.txt
+git -C "$upstream_hook_repo" commit -qm 'add unpublished credential fixture'
+git -C "$upstream_hook_repo" rm -q -- transient.txt
+git -C "$upstream_hook_repo" commit -qm 'remove unpublished credential fixture'
+upstream_bad_sha=$(git -C "$upstream_hook_repo" rev-parse HEAD)
+set +e
+printf 'refs/heads/feat/test %s refs/heads/feat/test %040d\n' "$upstream_bad_sha" 0 \
+    | (cd "$upstream_hook_repo" && .githooks/pre-push origin https://example.invalid/repo.git) \
+        >"$test_root/history-diff-output" 2>"$test_root/history-diff-error"
+upstream_bad_status=$?
+set -e
+[ "$upstream_bad_status" -ne 0 ] \
+    || fail 'pre-push accepted a credential introduced after the configured base and removed before HEAD'
 assert_no_sensitive_output "$credential_like" "$test_root/history-diff-output"
 assert_no_sensitive_output "$credential_like" "$test_root/history-diff-error"
 

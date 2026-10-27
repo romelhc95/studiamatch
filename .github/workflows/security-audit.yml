@@ -118,6 +118,7 @@ jobs:
 
           const changedCandidates = [];
           for (const path of names("--diff-filter=ACMR")) {
+            if (/[\r\n\t]/.test(path)) fail("candidate manifest path contains an unsupported control character");
             if (!path.endsWith(".json")) continue;
             const value = parse(fs.readFileSync(path, "utf8"));
             if (isCandidateManifestPath(path) || isCandidateRole(value)) {

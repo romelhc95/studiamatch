@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# shellcheck source=scripts/security/protected_path_scope_guard.sh
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 source "$ROOT/scripts/security/protected_path_scope_guard.sh"
 
@@ -714,6 +715,15 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     if result.returncode == 0 or selected is not None:
         raise SystemExit("R21 selector regression: candidate manifest with unexpected role fell back instead of failing closed")
 
+    for label, control in (("lf", "\n"), ("cr", "\r"), ("tab", "\t")):
+        repo, base = create_repo(temp_root, f"control-{label}")
+        malformed_path = f".context/evidencia/candidate-scope-manifest{control}-r22.json"
+        write_manifest(repo, malformed_path, f"R22-{label}")
+        commit(repo, f"add candidate path containing {label}")
+        result, selected = run_selector(repo, base, r21_path, d04_path)
+        if result.returncode == 0 or selected is not None or (repo / "github-output.txt").exists():
+            raise SystemExit(f"R21 selector regression: {label.upper()} in candidate path did not fail before writing output")
+
     repo, base = create_repo(temp_root, "no-baseline")
     env = os.environ.copy()
     output = repo / "github-output.txt"
@@ -726,5 +736,5 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     if result.returncode == 0 or output.exists():
         raise SystemExit("R21 selector regression: missing trusted baseline did not fail closed")
 
-print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|baseline_missing=fail_closed")
+print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
 PY
