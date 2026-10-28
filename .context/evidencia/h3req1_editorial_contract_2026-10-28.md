@@ -130,6 +130,7 @@ Development `27d9ebfc` ni el proyecto Free `aqrldlmlszjtgpqiegaa`.
   `private.h2_public_courses_effective()`. Solo admite texto decimal con hasta 63
   dígitos enteros y 63 fraccionarios; vacío, formato no decimal y texto mayor se
   proyectan como `NULL`. Valida existencia y ocurrencia exacta; aborta ante drift.
+  SHA-256 del archivo integrado: `82b8eb0655779f0e82b979cb65a051f2b244b5c4bffb199c5e13c9473132987b`.
   Reafirma ACL actuales del lector. No toca cursos, snapshots, disponibilidad ni
   auditoría. Se aplicó dos veces únicamente en la base sintética PG17.
 - El baseline sintético reprodujo `22P02` antes del guard. La versión corregida pasó
@@ -158,7 +159,8 @@ Development `27d9ebfc` ni el proyecto Free `aqrldlmlszjtgpqiegaa`.
   asignadas, 119/119 docs activos alcanzables, 433/433 históricos enlazados, cero
   diagnósticos. El intento inicial de invocación ShellCheck omitía `-x` y dio
   únicamente SC1091; al seguir el source con `-x -P /src`, la validación pasó sin
-  modificar código.
+  modificar código. `python3 -m py_compile tests/test_h3_public_price_projection_migration.py`
+  también pasó en Docker con el bytecode fuera del checkout.
 
 ### Integridad documental
 
@@ -206,9 +208,14 @@ Development `27d9ebfc` ni el proyecto Free `aqrldlmlszjtgpqiegaa`.
   recibo `artifacts/manual-diff-review.md`. Delegación no disponible fue un warning
   de preflight, no un bloqueo: el agente revisó el diff completo. Reporte:
   `/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-public-price-projection-20261028/77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3_20261028T204548Z_rko0su6k/report.md`.
-- Pendiente: credential scan y compare-candidate del commit exacto, completar la
-  plantilla de PR, commit, push no forzado y PR separado a `desarrollo`. Después
-  del PR, detenerse; no mergear, desplegar, aplicar SQL remoto ni repetir R1–R4.
+- Commit local focal `3b1123dd110f445dd64c16684e257512f4c8e1dc` creado con hook
+  pre-commit: `credential scan passed`. Tras el commit, `scan_credentials.sh --diff
+  77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3 HEAD` pasó y el compare-candidate dio
+  `protected H3 candidate paths are allowlisted`. No se publicó el branch todavía.
+- Pendiente: actualizar el PR body desde `.github/pull_request_template.md`, verificar
+  la referencia remota de `desarrollo`, push no forzado y PR separado a `desarrollo`.
+  Después del PR se registrará URL/SHA y se leerán checks; detenerse antes de merge,
+  deploy, SQL remoto o repetir R1–R4.
 
 ## Registro histórico del candidato y sus gates locales — previo al merge
 

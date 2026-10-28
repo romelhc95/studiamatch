@@ -103,11 +103,13 @@ Las validaciones locales finales observadas en Docker pasan: harness PG17 con
 migración aplicada dos veces y 8 fixtures; test Python 1/1; ShellCheck 0.11.0 con
 resolución del `source`; `actionlint` 1.7.12; guard de paths con positivos y vecinos
 negativos; y gate candidate-aware R21/self-test (747/747 fuentes, 0 diagnósticos).
-El checker integral sigue FAIL y se mantiene separado. El credential scan del SHA
-exacto y el compare-candidate post-commit quedan para el cierre previo a push; después
-se completará la plantilla y se abrirá el PR autorizado a `desarrollo`. La migración
-y una nueva pasada remota de R1–R4 requieren JIT separados; la autorización consumida
-no se reutiliza.
+El checker integral sigue FAIL y se mantiene separado. En el commit local
+`3b1123dd110f445dd64c16684e257512f4c8e1dc` pasaron el credential scan pre-commit,
+el scan del diff exacto y `protected_path_scope_guard.sh --compare-candidate` contra
+`77b3f4e`; los paths protegidos quedan admitidos dentro del scope H3. El siguiente
+paso es verificar base y remoto, completar/adjuntar la plantilla y publicar el PR
+autorizado a `desarrollo`. La migración y una nueva pasada remota R1–R4 requieren JIT
+separados; la autorización consumida no se reutiliza.
 
 No declarar GO Development: R2 está FALLÓ y R3 sin ejecutar. El FAIL documental
 integral permanece visible y sin waiver; el PASS candidate-aware del paquete es un
