@@ -107,9 +107,32 @@ El checker integral sigue FAIL y se mantiene separado. En el commit local
 `3b1123dd110f445dd64c16684e257512f4c8e1dc` pasaron el credential scan pre-commit,
 el scan del diff exacto y `protected_path_scope_guard.sh --compare-candidate` contra
 `77b3f4e`; los paths protegidos quedan admitidos dentro del scope H3. El siguiente
-paso es verificar base y remoto, completar/adjuntar la plantilla y publicar el PR
-autorizado a `desarrollo`. La migración y una nueva pasada remota R1–R4 requieren JIT
-separados; la autorización consumida no se reutiliza.
+paso se completó: PR #509 está abierto a `desarrollo` desde
+`codex/h3req1-public-price-projection-20261028`, base
+`77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`, HEAD
+`7cc3280351b3806853e48fd8993315a33619c3f9` (2 commits, 15 paths). URL:
+`https://github.com/romelhc95/studiamatch/pull/509`. En ese HEAD, el check-run
+terminó 16 `success` y 2 `skipped`; `security-audit`, PostgreSQL DB Change Gate,
+Credential Scan, Protected Path Integrity, Documentation Source Registry, Python,
+TypeScript, ESLint, Static Build, actionlint/ShellCheck, PWI y CodeQL están en
+`success`; Cloudflare Pages informó `success` para el preview automático. Supabase
+Preview y H2 Main Production Expand Gate fueron `skipped`. No hubo smoke de negocio
+ni promoción. El PR no está aprobado ni mergeado. Este corte agrega un commit solo
+documental; el SHA resultante y sus checks más recientes se registrarán en la
+descripción del mismo PR tras completar esta actualización.
+
+En el primer intento de push, el hook pre-push escaneó el árbol entero porque la rama
+nueva aún no tenía upstream y notificó un patrón credential-like en
+`scripts/maintenance/debug_autocad.py`, path inalterado y fuera del diff. No se copió
+ni expuso el valor, ni se modificó el archivo. Se fetched `desarrollo`, se verificó
+que era exactamente el baseline y se configuró temporalmente como upstream para la
+rama nueva, mecanismo previsto por el propio hook; el hook escaneó el diff real y
+pasó, así como el credential scan de CI. Esto no cambia el riesgo/estado del archivo
+histórico, que no pertenece a este PR. El push fue no forzado.
+
+La migration correctiva y una nueva pasada remota R1–R4 requieren JIT separados;
+la autorización consumida no se reutiliza. Antes de integrar, owner TL/documentación
+debe disponer el FAIL integral histórico; PR/CI no equivalen a GO Development.
 
 No declarar GO Development: R2 está FALLÓ y R3 sin ejecutar. El FAIL documental
 integral permanece visible y sin waiver; el PASS candidate-aware del paquete es un

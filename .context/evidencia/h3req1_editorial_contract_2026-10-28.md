@@ -114,8 +114,9 @@ anterior no se cuentan en esta matriz.
 ## Addendum — corrección de proyección pública y gates locales
 
 **Continuación:** retomada desde el checkpoint a las 15:21:49 America/Lima;
-reanudada en este turno a las 15:45:48. La hora final se completará al cerrar el
-PR. El entorno es `codex/h3req1-public-price-projection-20261028`, basado
+reanudada para cerrar el PR a las 16:04 America/Lima; edición documental cerrada
+localmente a las 16:07 America/Lima. El entorno es
+`codex/h3req1-public-price-projection-20261028`, basado
 en el merge `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`. No se cambió el deployment
 Development `27d9ebfc` ni el proyecto Free `aqrldlmlszjtgpqiegaa`.
 
@@ -208,14 +209,25 @@ Development `27d9ebfc` ni el proyecto Free `aqrldlmlszjtgpqiegaa`.
   recibo `artifacts/manual-diff-review.md`. Delegación no disponible fue un warning
   de preflight, no un bloqueo: el agente revisó el diff completo. Reporte:
   `/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-public-price-projection-20261028/77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3_20261028T204548Z_rko0su6k/report.md`.
-- Commit local focal `3b1123dd110f445dd64c16684e257512f4c8e1dc` creado con hook
-  pre-commit: `credential scan passed`. Tras el commit, `scan_credentials.sh --diff
-  77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3 HEAD` pasó y el compare-candidate dio
-  `protected H3 candidate paths are allowlisted`. No se publicó el branch todavía.
-- Pendiente: actualizar el PR body desde `.github/pull_request_template.md`, verificar
-  la referencia remota de `desarrollo`, push no forzado y PR separado a `desarrollo`.
-  Después del PR se registrará URL/SHA y se leerán checks; detenerse antes de merge,
-  deploy, SQL remoto o repetir R1–R4.
+- El PR #509 está abierto hacia `desarrollo`: rama
+  `codex/h3req1-public-price-projection-20261028`, base
+  `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`, HEAD observado antes de este checkpoint
+  `7cc3280351b3806853e48fd8993315a33619c3f9` (2 commits, 15 paths), URL
+  `https://github.com/romelhc95/studiamatch/pull/509`. En ese SHA se leyeron 18
+  check runs: 16 `success`, 2 `skipped`, ninguno fallido o pendiente. Cloudflare
+  Pages informó `success` para el preview automático; no hubo smoke de negocio.
+  `Supabase Preview` y `H2 Main Production Expand Gate` fueron `skipped`. El PR no
+  está aprobado ni mergeado.
+- El primer intento de push fue detenido por el hook pre-push, que escaneó el árbol
+  completo al no existir upstream de la rama e indicó un patrón credential-like en
+  `scripts/maintenance/debug_autocad.py`, path sin cambios y fuera del diff. No se
+  copió ni modificó el valor. Tras verificar que `origin/desarrollo` coincidía con
+  el baseline, se usó temporalmente como upstream según el mecanismo del hook; el
+  escaneo del diff real pasó y el push fue no forzado.
+- Esta continuación añade solo documentación canónica al PR existente. El commit
+  documental genera otro SHA y checks nuevos; tras leerlos se actualizará la
+  descripción del PR con la identificación final y resultados efectivos. R1–R4 no
+  se repiten. No se hará SQL remoto, merge, deploy ni promoción.
 
 ## Registro histórico del candidato y sus gates locales — previo al merge
 
