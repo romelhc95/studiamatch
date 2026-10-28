@@ -46,7 +46,7 @@ else
 fi
 changed_path_file="$RUNNER_TEMP/protected-paths.nul"
 if ! git diff --name-only -z "$base" HEAD -- \
-  .context AGENTS.md README.md .env.example .github/pull_request_template.md web db supabase mock-server tests scripts/core scripts/shared scripts/maintenance scripts/security workers .githooks config .github/workflows public/_redirects \
+  .context AGENTS.md README.md .env.example .github/pull_request_template.md web db supabase mock-server tests scripts/core scripts/shared scripts/maintenance scripts/security workers .githooks config .github/workflows .github/scripts/production_control_preflight.sh public/_redirects \
   .gitattributes Dockerfile docker-compose.yml docker-compose.yaml package.json package-lock.json \
   requirements.txt requirements-*.txt web/package.json web/package-lock.json \
   >"$changed_path_file"; then
@@ -166,6 +166,8 @@ tests/test_h2_pro_migration_controls.py
 .githooks/pre-push
 scripts/security/protected_workflow_review.py
 tests/test_protected_workflow_review.py
+tests/test_fase09_10_pre_main_controls.py
+.github/scripts/production_control_preflight.sh
 tests/test_h3_admin_onboarding_denial_contract.py
 web/src/app/HomeContent.tsx
 web/src/app/compare/CompareContent.tsx

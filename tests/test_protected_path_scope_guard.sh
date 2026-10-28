@@ -92,6 +92,28 @@ if not local_match:
 
 patterns = [workflow_regex("allowed_h3"), workflow_regex("allowed_h3_extra")]
 local_paths = {line.strip() for line in local_match.group("body").splitlines() if line.strip()}
+writer_paths = {
+    ".github/scripts/production_control_preflight.sh",
+    "tests/test_fase09_10_pre_main_controls.py",
+}
+if not writer_paths.issubset(local_paths):
+    raise SystemExit("protected path integration test: exact writer paths are not admitted")
+writer_neighbors = {
+    ".github/scripts/production_control_preflight_extra.sh",
+    "tests/test_fase09_10_pre_main_controls_extra.py",
+}
+for neighbor in writer_neighbors:
+    if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+        raise SystemExit(
+            f"protected path integration test: neighboring writer path is admitted: {neighbor}"
+        )
+diff_scope = guard.split('git diff --name-only -z "$base" HEAD -- \\\n', 1)[1].split('>"$changed_path_file"', 1)[0]
+pathspecs = diff_scope.replace("\\\n", " ").split()
+preflight_path = ".github/scripts/production_control_preflight.sh"
+if pathspecs.count(preflight_path) != 1:
+    raise SystemExit("protected path integration test: exact preflight path is not enumerated")
+if any(path.startswith(".github/scripts") and path != preflight_path for path in pathspecs):
+    raise SystemExit("protected path integration test: preflight path scope was broadened to a directory")
 pwi_worker_paths = {
     "scripts/security/pwi_worker/README.md",
     "scripts/security/pwi_worker/github.mjs",
@@ -430,6 +452,117 @@ print(
     f"|catalog_targets={len(references)}|force_add_ignored={len(force_add_paths)}"
     f"|ignored_catalog_targets={len(ignored_catalog_targets)}"
 )
+PY
+
+python3 - "$ROOT/scripts/security/protected_path_scope_guard.sh" <<'PY'
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+guard_source = Path(sys.argv[1]).resolve()
+paths = (
+    ".github/scripts/production_control_preflight.sh",
+    "tests/test_fase09_10_pre_main_controls.py",
+)
+
+def git(repo, *args):
+    return subprocess.run(
+        ["git", *args], cwd=repo, check=True, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout.strip()
+
+def create_candidate(root, label, target):
+    repo = root / label
+    repo.mkdir()
+    git(repo, "init", "-q")
+    git(repo, "config", "user.name", "Protected path regression")
+    git(repo, "config", "user.email", "protected-path@example.invalid")
+    guard = repo / "scripts/security/protected_path_scope_guard.sh"
+    guard.parent.mkdir(parents=True)
+    shutil.copyfile(guard_source, guard)
+    guard.chmod(0o755)
+    changed_file = repo / target
+    changed_file.parent.mkdir(parents=True, exist_ok=True)
+    changed_file.write_text("baseline\n", encoding="utf-8")
+    git(repo, "add", "scripts/security/protected_path_scope_guard.sh", target)
+    git(repo, "commit", "-qm", "baseline")
+    baseline = git(repo, "rev-parse", "HEAD")
+    changed_file.write_text("candidate\n", encoding="utf-8")
+    git(repo, "add", target)
+    git(repo, "commit", "-qm", "candidate change")
+    runner_temp = repo / "runner-temp"
+    runner_temp.mkdir()
+    env = os.environ.copy()
+    env.update({"PROTECTED_BASELINE_SHA": baseline, "RUNNER_TEMP": str(runner_temp)})
+    result = subprocess.run(
+        ["bash", str(guard), "--compare-candidate"], cwd=repo, env=env,
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    return result
+
+def create_combined_candidate(root):
+    repo = root / "combined-five-path-candidate"
+    repo.mkdir()
+    git(repo, "init", "-q")
+    git(repo, "config", "user.name", "Protected path regression")
+    git(repo, "config", "user.email", "protected-path@example.invalid")
+    combined_paths = {
+        ".github/scripts/production_control_preflight.sh",
+        "tests/test_fase09_10_pre_main_controls.py",
+        ".context/componentes/infra_release.md",
+        "scripts/security/protected_path_scope_guard.sh",
+        "tests/test_protected_path_scope_guard.sh",
+    }
+    guard_relative = "scripts/security/protected_path_scope_guard.sh"
+    guard = repo / guard_relative
+    guard.parent.mkdir(parents=True)
+    guard.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    for path in combined_paths - {guard_relative}:
+        file_path = repo / path
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text("baseline\n", encoding="utf-8")
+    git(repo, "add", "--all")
+    git(repo, "commit", "-qm", "synthetic five-path baseline")
+    baseline = git(repo, "rev-parse", "HEAD")
+    shutil.copyfile(guard_source, guard)
+    guard.chmod(0o755)
+    for path in combined_paths - {guard_relative}:
+        (repo / path).write_text("candidate\n", encoding="utf-8")
+    git(repo, "add", "--all")
+    git(repo, "commit", "-qm", "synthetic five-path candidate")
+    changed = set(git(repo, "diff", "--name-only", f"{baseline}..HEAD").splitlines())
+    if changed != combined_paths:
+        raise SystemExit("protected path candidate regression: synthetic candidate does not contain exactly five paths")
+    runner_temp = repo / "runner-temp"
+    runner_temp.mkdir()
+    env = os.environ.copy()
+    env.update({"PROTECTED_BASELINE_SHA": baseline, "RUNNER_TEMP": str(runner_temp)})
+    result = subprocess.run(
+        ["bash", str(guard), "--compare-candidate"], cwd=repo, env=env,
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    return result
+
+with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
+    root = Path(temp)
+    for index, path in enumerate(paths):
+        result = create_candidate(root, f"allowed-{index}", path)
+        if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
+            raise SystemExit(f"protected path candidate regression: exact path was not detected and admitted: {path}")
+
+    result = create_combined_candidate(root)
+    if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
+        raise SystemExit("protected path candidate regression: exact five-path candidate was not admitted")
+
+    neighbor = "tests/test_fase09_10_pre_main_controls_extra.py"
+    result = create_candidate(root, "neighbor", neighbor)
+    if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+        raise SystemExit("protected path candidate regression: neighboring test path was not rejected")
+
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|combined_five_path_candidate=admitted|test_neighbor=rejected|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'
