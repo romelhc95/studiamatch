@@ -23,6 +23,10 @@ interface CourseData {
   manual_overrides: Record<string, string | null>;
   current_values: Record<string, string | number | null>;
   pipeline_values: Record<string, string | number | null>;
+  published_values: Record<string, string | number | null> | null;
+  has_unpublished_changes: boolean;
+  is_publicly_visible: boolean;
+  public_visibility_reason: string | null;
   field_sources: Record<string, string>;
   field_timestamps: Record<string, string>;
   missing_fields: string[];
@@ -130,8 +134,8 @@ function auditValue(value: unknown): string {
 }
 
 function auditChanges(event: AuditEvent): Array<{ field: string; before: unknown; after: unknown }> {
-  const before = asRecord(event.old_values?.manual_overrides) || event.old_values || {};
-  const after = asRecord(event.new_values?.manual_overrides) || event.new_values || {};
+  const before = asRecord(event.old_values?.editorial_fields) || asRecord(event.old_values?.manual_overrides) || event.old_values || {};
+  const after = asRecord(event.new_values?.editorial_fields) || asRecord(event.new_values?.manual_overrides) || event.new_values || {};
   return [...new Set([...Object.keys(before), ...Object.keys(after)])]
     .filter((key) => key !== 'version' && JSON.stringify(before[key]) !== JSON.stringify(after[key]))
     .map((field) => ({ field, before: before[field], after: after[field] }));
@@ -270,9 +274,9 @@ function AdminCourseEditor() {
     setSuccess(null);
     setConflict(false);
     try {
-      const allowedKeys = isAdmin
-        ? fieldDefinitions.map((field) => field.field_key)
-        : fieldDefinitions.filter((field) => course.missing_fields.includes(field.field_key)).map((field) => field.field_key);
+      const allowedKeys = fieldDefinitions
+        .filter((field) => field.is_editable !== false)
+        .map((field) => field.field_key);
       const payload: Record<string, string | null> = {};
       for (const key of allowedKeys) {
         if (resetOverrideFields.includes(key)) {
@@ -383,8 +387,7 @@ function AdminCourseEditor() {
       })) as StatusRow[];
       const result = rows[0];
       if (!result || !result.success || !result.new_status) throw new Error(result?.error || 'No se pudo cambiar el estado.');
-      setCourse((current) => current ? { ...current, editorial_status: result.new_status as string, version: current.version + 1 } : current);
-      await loadAuditPage(null, false);
+      await loadCourse();
       setSuccess(action === 'admin_publish_course' ? 'Curso publicado.' : 'Curso despublicado.');
     } catch (reason) {
       if (isMfaRequiredError(reason)) {
@@ -462,7 +465,6 @@ function AdminCourseEditor() {
   const qualityMeta = QUALITY_STATUS_META[qualityStatus as keyof typeof QUALITY_STATUS_META] || QUALITY_STATUS_META.pending;
   const canPublish = course.quality_status === 'complete'
     && course.missing_fields.length === 0
-    && course.availability_status === 'available'
     && course.is_active !== false
     && course.is_verified !== false
     && course.production_enabled !== false
@@ -490,6 +492,29 @@ function AdminCourseEditor() {
     roi_months: course.roi_months,
     seniority_level: course.seniority_level,
   };
+  const publishedPreviewCourse: CourseLivePreviewData | null = course.editorial_status === 'published' && course.published_values
+    ? {
+      name: String(course.published_values.name ?? ''),
+      institution_name: course.institution_name,
+      price_pen: course.published_values.price_pen ?? null,
+      price_status: String(course.published_values.price_status ?? 'consultar'),
+      mode: String(course.published_values.mode ?? ''),
+      duration: String(course.published_values.duration ?? ''),
+      description_long: String(course.published_values.description_long ?? ''),
+      syllabus: String(course.published_values.syllabus ?? ''),
+      target_audience: String(course.published_values.target_audience ?? ''),
+      requirements: String(course.published_values.requirements ?? ''),
+      certification: String(course.published_values.certification ?? ''),
+      benefits: String(course.published_values.benefits ?? ''),
+      objectives: String(course.published_values.objectives ?? ''),
+      start_date_text: String(course.published_values.start_date_text ?? ''),
+      category: course.category,
+      course_type: course.course_type,
+      expected_monthly_salary: course.expected_monthly_salary,
+      roi_months: course.roi_months,
+      seniority_level: course.seniority_level,
+    }
+    : null;
 
   const renderField = (field: FieldDefinition, readOnly = false) => {
     const copy = getFieldCopy(field.field_key);
@@ -596,9 +621,10 @@ function AdminCourseEditor() {
               <h1 className="mt-3 max-w-3xl text-3xl font-black tracking-tight sm:text-4xl">{course.course_name}</h1>
               <p className="mt-2 text-sm text-slate-300">{course.institution_name}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <StatusBadge kind="editorial" value={course.editorial_status} />
               <StatusBadge kind="quality" value={qualityStatus} />
+              <span data-testid="editorial-version" aria-label={`Versión editorial ${course.version}`} className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-white">v{course.version}</span>
             </div>
           </div>
         </div>
@@ -613,18 +639,11 @@ function AdminCourseEditor() {
             </div>
             <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Institución</p><p className="mt-1 text-sm font-bold text-slate-800">{course.institution_name}</p></div>
           </Card>
-          <Card className="border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand-blue">Sesión editorial</p>
-            <p className="mt-2 text-2xl font-black text-slate-900">v{course.version}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">Control de versión activo para evitar sobrescribir cambios de otra persona.</p>
-          </Card>
         </div>
-
-        {!isAdmin && readOnlyFields.length > 0 && <p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800" role="note">Solo puedes editar campos que el sistema marcó como faltantes.</p>}
 
         <Card className="border-slate-200/80 bg-white p-5 shadow-card sm:p-7">
           <div className="mb-6 flex flex-col gap-3 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue">Contenido público</p><h2 className="mt-2 text-2xl font-black tracking-tight text-brand-slate">Edita con contexto</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Cada campo explica su propósito y señala exactamente qué bloque cambiará en la previsualización.</p></div>
+            <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue">Contenido público</p><h2 className="mt-2 text-2xl font-black tracking-tight text-brand-slate">Edita con contexto</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Puedes corregir cualquiera de los 13 campos editoriales permitidos. Guardar crea un borrador; Admin publica su instantánea para el catálogo.</p></div>
             {hasDraftChanges && <span className="inline-flex items-center gap-2 self-start rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800"><span className="size-1.5 rounded-full bg-amber-500" /> Cambios sin guardar</span>}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -648,9 +667,12 @@ function AdminCourseEditor() {
               <Button className="bg-brand-blue text-white shadow-lg shadow-brand-blue/20 hover:bg-brand-blue/90" onClick={() => void handleSave()} disabled={saving || conflict || mfaRequired || !hasDraftChanges}><Save className="size-4" /> {saving ? 'Guardando...' : isAdmin ? 'Guardar cambios' : 'Actualizar información'}</Button>
               {isAdmin && (
                 <>
-                  {course.editorial_status === 'published'
-                    ? <Button variant="outline" className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => void updatePublication('admin_unpublish_course')} disabled={saving || mfaRequired}><ArrowDown className="size-4" /> Despublicar</Button>
-                    : <Button className="bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700" onClick={() => void updatePublication('admin_publish_course')} disabled={saving || mfaRequired || !canPublish}><Send className="size-4" /> Publicar</Button>}
+                  {course.editorial_status === 'published' ? (
+                    <>
+                      {course.has_unpublished_changes && <Button className="bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700" onClick={() => void updatePublication('admin_publish_course')} disabled={saving || mfaRequired || !canPublish || hasDraftChanges}><Send className="size-4" /> Publicar cambios</Button>}
+                      <Button variant="outline" className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => void updatePublication('admin_unpublish_course')} disabled={saving || mfaRequired}><ArrowDown className="size-4" /> Despublicar</Button>
+                    </>
+                  ) : <Button className="bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700" onClick={() => void updatePublication('admin_publish_course')} disabled={saving || mfaRequired || !canPublish || hasDraftChanges}><Send className="size-4" /> Publicar</Button>}
                   <Button variant="outline" className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100" onClick={() => void updateAdminStatus('admin_archive_course')} disabled={saving || mfaRequired || course.editorial_status === 'archived'}><Archive className="size-4" /> Archivar</Button>
                   <div className={`rounded-xl border p-1 ${qualityMeta.className}`}>
                     <Select value={qualityStatus} onValueChange={setQualityStatus} disabled={saving || mfaRequired}>
@@ -668,7 +690,7 @@ function AdminCourseEditor() {
           </div>
           {isAdmin && !canPublish && course.editorial_status !== 'published' && (
             <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900" role="status">
-              Publicación bloqueada: confirma calidad completa, campos sin faltantes, disponibilidad vigente, curso activo/verificado e institución habilitada.
+              Publicación bloqueada: confirma calidad completa, campos sin faltantes, curso activo/verificado e institución habilitada. La disponibilidad de inscripción se registra por separado.
             </p>
           )}
         </Card>
@@ -677,7 +699,7 @@ function AdminCourseEditor() {
           <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex items-center gap-2"><Clock3 className="size-5 text-brand-blue" aria-hidden="true" /><h2 className="text-xl font-black text-brand-slate">Disponibilidad y fuente oficial</h2></div>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">La disponibilidad no se infiere de que el enlace responda. Una comprobación manual requiere evidencia HTTPS del mismo dominio institucional y una fecha de vencimiento; al vencer, se vuelve al estado calculado.</p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">La disponibilidad de inscripción se mantiene separada del contenido editorial y de la existencia del curso. La evidencia HTTPS y su vencimiento solo describen una comprobación de inscripción; al vencer, el estado vuelve a desconocido o al valor calculado, sin retirar la publicación ni borrar correcciones.</p>
               {officialCourseUrl && <a href={officialCourseUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand-blue hover:underline">Abrir página oficial del curso <ExternalLink className="size-3.5" aria-hidden="true" /></a>}
             </div>
             <span className={`inline-flex shrink-0 rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-wide ${course.availability_status === 'available' ? 'bg-emerald-50 text-emerald-700' : course.availability_status === 'unavailable' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800'}`}>
@@ -714,7 +736,7 @@ function AdminCourseEditor() {
                 <Button onClick={() => void saveAvailabilityEvidence()} disabled={saving || conflict || mfaRequired}><CheckCircle2 className="size-4" /> Guardar verificación</Button>
                 {course.availability_override_status && <Button variant="outline" onClick={() => void saveAvailabilityEvidence(true)} disabled={saving || conflict || mfaRequired}><RotateCcw className="size-4" /> Retirar override</Button>}
               </div>
-              <p className="mt-3 text-xs leading-5 text-slate-500">No se modifica el estado calculado ni se confirma disponibilidad sin evidencia. La publicación valida también calidad, actividad, verificación e institución habilitada.</p>
+              <p className="mt-3 text-xs leading-5 text-slate-500">No se modifica el estado calculado ni se confirma disponibilidad sin evidencia. Esta comprobación no controla la publicación ni la vigencia del curso en el catálogo.</p>
             </div>
           )}
         </Card>
@@ -731,50 +753,48 @@ function AdminCourseEditor() {
 
         {isAdmin && (
           <Card className="border-slate-200/80 bg-white p-5 shadow-card sm:p-7">
-            <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2"><History className="size-5 text-brand-blue" aria-hidden="true" /><h2 className="text-xl font-black text-brand-slate">Historial de auditoría</h2></div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Registro de solo lectura con actor, fecha, motivo y valores modificados. La consulta está restringida a Admin con MFA.</p>
+            <details data-testid="editorial-audit-details" className="group">
+              <summary className="flex cursor-pointer list-none flex-col gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2"><History className="size-5 shrink-0 text-brand-blue" aria-hidden="true" /><span className="text-xl font-black text-brand-slate">Historial de auditoría</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold tabular-nums text-slate-600">{auditEvents.length}{auditHasNext ? '+' : ''}</span></span>
+                  <span className="mt-2 block text-sm leading-6 text-slate-600">Registro de solo lectura con actor, fecha, motivo y valores modificados. Acceso restringido a Admin con MFA.</span>
+                </span>
+                <span className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 group-open:bg-slate-100">Abrir o cerrar historial</span>
+              </summary>
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <div className="flex justify-end"><Button variant="outline" onClick={() => void loadAuditPage(null, false)} disabled={auditLoading}><History className="size-4" aria-hidden="true" /> {auditLoading ? 'Actualizando…' : 'Actualizar historial'}</Button></div>
+                {auditError && <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{auditError}</p>}
+                {!auditError && auditEvents.length === 0 && !auditLoading && <p className="mt-5 rounded-xl bg-slate-50 px-4 py-5 text-sm text-slate-600">Todavía no hay eventos registrados para este curso.</p>}
+                <ol className="mt-5 space-y-4">
+                  {auditEvents.map((event) => {
+                    const changes = auditChanges(event);
+                    return (
+                      <li key={event.id} className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+                        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0"><h3 className="break-words font-bold text-slate-900">{AUDIT_ACTION_LABELS[event.action] || event.action}</h3><p className="mt-1 break-words text-xs text-slate-600">{event.actor_label || 'Actor no disponible'} · {new Date(event.created_at).toLocaleString('es-PE')}</p></div>
+                          {event.reason && <p className="min-w-0 max-w-xl break-words rounded-lg bg-white px-3 py-2 text-xs leading-5 text-slate-700">{event.reason}</p>}
+                        </div>
+                        {changes.length > 0 && <dl className="mt-4 grid min-w-0 gap-2 sm:grid-cols-2">{changes.map(({ field, before, after }) => <div key={`${event.id}-${field}`} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3"><dt className="break-words text-[10px] font-black uppercase tracking-wider text-slate-500">{field}</dt><dd className="mt-1 break-words text-xs leading-5 text-slate-700"><span className="font-semibold">Antes:</span> {auditValue(before)}</dd><dd className="break-words text-xs leading-5 text-slate-700"><span className="font-semibold">Después:</span> {auditValue(after)}</dd></div>)}</dl>}
+                        {changes.length === 0 && <p className="mt-3 text-xs text-slate-500">Evento registrado; no contiene diferencias de campos visibles.</p>}
+                      </li>
+                    );
+                  })}
+                </ol>
+                {auditHasNext && <div className="mt-5 text-center"><Button variant="outline" onClick={() => void loadAuditPage(auditCursor, true)} disabled={auditLoading}>{auditLoading ? 'Cargando…' : 'Cargar eventos anteriores'}</Button></div>}
               </div>
-              <Button variant="outline" onClick={() => void loadAuditPage(null, false)} disabled={auditLoading}>
-                <History className="size-4" aria-hidden="true" /> {auditLoading ? 'Actualizando…' : 'Actualizar historial'}
-              </Button>
-            </div>
-            {auditError && <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{auditError}</p>}
-            {!auditError && auditEvents.length === 0 && !auditLoading && <p className="mt-5 rounded-xl bg-slate-50 px-4 py-5 text-sm text-slate-600">Todavía no hay eventos registrados para este curso.</p>}
-            <ol className="mt-5 space-y-4">
-              {auditEvents.map((event) => {
-                const changes = auditChanges(event);
-                return (
-                  <li key={event.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h3 className="font-bold text-slate-900">{AUDIT_ACTION_LABELS[event.action] || event.action}</h3>
-                        <p className="mt-1 text-xs text-slate-600">{event.actor_label || 'Actor no disponible'} · {new Date(event.created_at).toLocaleString('es-PE')}</p>
-                      </div>
-                      {event.reason && <p className="max-w-xl rounded-lg bg-white px-3 py-2 text-xs leading-5 text-slate-700">{event.reason}</p>}
-                    </div>
-                    {changes.length > 0 && (
-                      <dl className="mt-4 grid gap-2 sm:grid-cols-2">
-                        {changes.map(({ field, before, after }) => (
-                          <div key={`${event.id}-${field}`} className="rounded-xl border border-slate-100 bg-white p-3">
-                            <dt className="text-[10px] font-black uppercase tracking-wider text-slate-500">{field}</dt>
-                            <dd className="mt-1 break-words text-xs leading-5 text-slate-700"><span className="font-semibold">Antes:</span> {auditValue(before)}</dd>
-                            <dd className="break-words text-xs leading-5 text-slate-700"><span className="font-semibold">Después:</span> {auditValue(after)}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    )}
-                    {changes.length === 0 && <p className="mt-3 text-xs text-slate-500">Evento registrado; no contiene diferencias de campos visibles.</p>}
-                  </li>
-                );
-              })}
-            </ol>
-            {auditHasNext && <div className="mt-5 text-center"><Button variant="outline" onClick={() => void loadAuditPage(auditCursor, true)} disabled={auditLoading}>{auditLoading ? 'Cargando…' : 'Cargar eventos anteriores'}</Button></div>}
+            </details>
           </Card>
         )}
 
-        <CourseLivePreview course={previewCourse} activeField={activePreviewField} />
+        <CourseLivePreview
+          draftCourse={previewCourse}
+          publishedCourse={publishedPreviewCourse}
+          activeField={activePreviewField}
+          hasUnsavedChanges={hasDraftChanges}
+          hasUnpublishedChanges={course.has_unpublished_changes}
+          isPubliclyVisible={course.is_publicly_visible}
+          visibilityReason={course.public_visibility_reason}
+        />
       </main>
     </div>
   );

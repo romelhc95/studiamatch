@@ -4,6 +4,39 @@
 
 > Autoridad operativa única. Este documento contiene el corte vigente, sus resultados, pendientes y siguiente paso. La historia detallada vive en hitos, decisiones y evidencia enlazados desde el índice Obsidian.
 
+## Continuación vigente — contrato editorial H3REQ1, 2026-10-28
+
+El candidato aislado `codex/h3req1-editorial-contract-20261028` parte de
+`desarrollo@f39a688f75531d190745225f11524414181ed425`. El baseline Development
+observado antes de este ciclo es deployment `d6e7b158-b26f-4504-b445-1facac915269`
+en `desarrollo.studiamatch-aty.pages.dev`, SHA `f39a688`; no hay deployment del
+candidato. E1–E5 conservan la evidencia sintética local del checkpoint previo y E6
+ya pasó en Chrome Windows del puente con el fixture local sintético. La matriz nueva
+queda 6/6 local; esto no es aceptación remota ni cierre productivo.
+
+El gate candidate-aware del checker definido por `security-audit.yml` pasó en el
+checkout final con el manifiesto exacto
+`.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json`.
+El checker integral original se ejecutó también en baseline y candidato: ambos FAIL
+con 350 diagnósticos completos, 349 idénticos; el resultado histórico no se presenta
+como PASS ni se ocultó. Las 27 rutas del delta pasan el scanner de credenciales y el
+guard exacto/negativos. El scan Codex Security de diff
+`a39fcd65-8774-40dc-afdf-75ff8654cd52` quedó completo con 5 superficies y 0
+candidatos reportables; el cambio posterior exacto del manifiesto pasó revisión
+estática, ShellCheck y regresiones focales. Alcance, snapshots y límites constan en
+el checkpoint. La regla integral antes de integrar sigue pendiente de reconciliación
+histórica y bloquea la integración hasta resolverse; no bloquea la creación de este PR.
+
+La autorización humana previa permite commit, push no forzado y PR a `desarrollo`
+después de cerrar los gates aplicables al PR y completar la plantilla. No permite
+aprobar, mergear, aplicar SQL remoto, usar cuentas reales, ejecutar writers/FG3/
+schedules, configurar servicios, hacer deploy manual ni realizar smoke remoto. No se
+modificó otra rama ni se tocó Supabase.
+
+El detalle verificable, matriz antes/después, resultados integrales/acotados,
+transición, rollback, autorizaciones y siguiente acción constan en el
+[checkpoint local del contrato editorial](evidencia/h3req1_editorial_contract_2026-10-28.md).
+
 ## Corte vigente
 
 **Reconciliación H3REQ1 post-merge — 2026-10-21:** GitHub API confirma PR #501 cerrado y mergeado en `8ac174d81cf6ce23658bff132236a78935ace1ad` el 2026-10-21 03:12:35 UTC, desde el head aprobado `2144dddfb200e83d02b7a55b46db84098e2e78f4`; la aprobación de `romelhc95-approver` sobre ese head es del 03:11:47 UTC. El run `39537032896` terminó: 11/11 jobs ejecutados `success`, uno omitido (`H2 Main Production Expand Gate`). La vista de Checks compartida por el responsable muestra 16 verdes y 2 omitidos en el head, y 16 verdes y 1 omitido en el merge. La lectura del check `Supabase Preview` indica que la rama no está asociada con ninguna Supabase Branch; el detalle enlaza al proyecto Pro, sin que se haya efectuado una operación allí. Esto cierra el PR, no la aceptación H3REQ1.

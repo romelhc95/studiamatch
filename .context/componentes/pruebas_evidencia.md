@@ -1,5 +1,16 @@
 # Componente: pruebas y evidencia
 
+## Corte local H3REQ1 — contrato editorial CA4, 2026-10-28
+
+El [checkpoint del contrato editorial](../evidencia/h3req1_editorial_contract_2026-10-28.md)
+conserva baseline, evidencia separada, resultados E1–E6 y límites. En el candidato
+local E1–E5 pasan con harnesses PG17 sintéticos y prueba FG3 aislada. E6 tiene
+assertions añadidas al UAT y el build/TypeScript/contratos source-level pasan, pero
+queda pendiente la ejecución real en navegador para teclado, preview y medidas de
+overflow desktop/móvil; por eso el paquete aún no es publicable. No hubo CI porque
+no se abrió PR. Los resultados no acreditan ambiente remoto ni aceptación funcional
+remota.
+
 Esta ficha conecta suites con dominios; los conteos son locales y fechados, no una medición acumulativa de calidad.
 
 | Familia | Ruta/runner | Componentes | Evidencia principal | Límite |

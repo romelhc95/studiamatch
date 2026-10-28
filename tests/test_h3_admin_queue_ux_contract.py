@@ -194,7 +194,11 @@ def test_editorial_preview_uses_public_renderer_and_live_field_impact() -> None:
     assert "CoursePublicRenderer" in preview
     assert "CoursePublicRenderer" in public_detail
     assert "preview-impact-${activeField}" in renderer
-    assert "Actualización en vivo" in preview
+    assert "Contenido publicado" in preview
+    assert "Previsualización del borrador" in preview
+    assert "publishedCourse" in preview
+    assert "Estos cambios todavía no están guardados ni publicados." in preview
+    assert "Admin debe volver a publicar" in preview
     assert "Ver impacto" in editor
     assert "setActivePreviewField(fieldKey)" in editor
     assert "scrollIntoView({ behavior: 'smooth', block: 'center' })" in editor

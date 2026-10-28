@@ -174,8 +174,10 @@ CREATE TABLE private.h2_legacy_public_course_cohort (
 \endif
 
 \ir ../../db/migrations/20261001_h3_course_editorial_audit_availability.sql
+\ir ../../db/migrations/20261028_h3_editorial_publication_snapshot.sql
 -- Re-run to prove the forward-only delta is idempotent.
 \ir ../../db/migrations/20261001_h3_course_editorial_audit_availability.sql
+\ir ../../db/migrations/20261028_h3_editorial_publication_snapshot.sql
 
 DO $$
 BEGIN
@@ -295,7 +297,12 @@ DECLARE
     filtered_result RECORD;
     facets_result RECORD;
     publish_ok RECORD;
+    publish_update RECORD;
     publish_draft RECORD;
+    current_version INTEGER;
+    effective_name TEXT;
+    effective_description TEXT;
+    published_description TEXT;
     reset_result RECORD;
     restore_result RECORD;
     draft_course UUID := '20000000-0000-0000-0000-000000000001';
@@ -518,14 +525,87 @@ BEGIN
     IF (SELECT count(*) FROM public.course_editorial_audit WHERE course_id = first_course AND action = 'publish') <> 1 THEN
         RAISE EXCEPTION 'publish audit was not appended';
     END IF;
+
+    SELECT c.name INTO effective_name
+      FROM public.courses_public_effective c WHERE c.id = first_course;
+    IF effective_name <> 'Programa H3 editado' THEN
+        RAISE EXCEPTION 'public reader did not receive the Admin-published editorial value';
+    END IF;
+    IF (SELECT count(*)
+          FROM public.course_editorial_state s,
+               jsonb_object_keys(s.published_editorial_values) AS published_key
+         WHERE s.course_id = first_course) <> 14 THEN
+        RAISE EXCEPTION 'publication did not capture the complete 13-field editorial snapshot and public start date';
+    END IF;
+
+    -- Snapshotless legacy rows remain public with their existing overrides and
+    -- are upgraded lazily on the first editor correction (no mass backfill).
+    SELECT c.description_long INTO published_description
+      FROM public.courses c WHERE c.id = first_course;
+    UPDATE public.course_editorial_state
+       SET published_editorial_values = NULL
+     WHERE course_id = first_course;
+    SELECT c.name, c.description_long INTO effective_name, effective_description
+      FROM public.courses_public_effective c WHERE c.id = first_course;
+    IF effective_name <> 'Programa H3 editado'
+       OR effective_description IS DISTINCT FROM published_description THEN
+        RAISE EXCEPTION 'snapshotless legacy publication lost existing public content';
+    END IF;
+
+    SELECT version INTO current_version
+      FROM public.course_editorial_state WHERE course_id = first_course;
+    SELECT * INTO publish_update
+      FROM public.admin_update_course(
+        first_course, '{"name":"Borrador editorial H3"}'::jsonb,
+        current_version, 'Draft a corrected public title'
+      );
+    IF NOT publish_update.success THEN
+        RAISE EXCEPTION 'post-publication draft correction failed: %', publish_update.error;
+    END IF;
+    SELECT c.name INTO effective_name
+      FROM public.courses_public_effective c WHERE c.id = first_course;
+    IF effective_name <> 'Programa H3 editado' THEN
+        RAISE EXCEPTION 'saving a draft changed the published public value before Admin publication';
+    END IF;
+    SELECT * INTO eff_detail FROM public.admin_get_course_editorial(first_course);
+    IF eff_detail.course ->> 'has_unpublished_changes' <> 'true'
+       OR eff_detail.course -> 'published_values' ->> 'name' <> 'Programa H3 editado'
+       OR eff_detail.course -> 'current_values' ->> 'name' <> 'Borrador editorial H3' THEN
+        RAISE EXCEPTION 'editorial reader did not distinguish draft and approved values';
+    END IF;
+    IF (SELECT published_editorial_values IS NULL FROM public.course_editorial_state WHERE course_id = first_course) THEN
+        RAISE EXCEPTION 'first post-migration edit did not lazily snapshot the legacy published content';
+    END IF;
+    SELECT * INTO publish_update FROM public.admin_publish_course(first_course);
+    IF NOT publish_update.success THEN
+        RAISE EXCEPTION 'Admin could not publish the corrected snapshot: %', publish_update.error;
+    END IF;
+    SELECT c.name INTO effective_name
+      FROM public.courses_public_effective c WHERE c.id = first_course;
+    IF effective_name <> 'Borrador editorial H3' THEN
+        RAISE EXCEPTION 'public reader did not receive the republished editorial value';
+    END IF;
+    SELECT c.description_long INTO published_description
+      FROM public.courses_public_effective c WHERE c.id = first_course;
+    UPDATE public.courses
+       SET name = 'Harvester title after publication',
+           description_long = 'Harvester description after publication'
+     WHERE id = first_course;
+    SELECT c.name, c.description_long INTO effective_name, effective_description
+      FROM public.courses_public_effective c WHERE c.id = first_course;
+    IF effective_name <> 'Borrador editorial H3'
+       OR effective_description IS DISTINCT FROM published_description THEN
+        RAISE EXCEPTION 'harvester base changes replaced the last Admin-published snapshot';
+    END IF;
 END;
 $$;
 
--- Availability evidence is Admin-only, expires to the computed value, and
--- hides a confirmed-unavailable legacy record without contracting the cohort.
+-- Enrollment evidence stays independent from strict published snapshots while
+-- legacy rows retain their existing availability behavior during compatibility.
 DO $$
 DECLARE
     target_course UUID := '20000000-0000-0000-0000-000000000011';
+    legacy_course UUID := '20000000-0000-0000-0000-000000000013';
     legacy_cohort_present BOOLEAN := to_regclass('private.h2_legacy_public_course_cohort') IS NOT NULL;
     current_version INTEGER;
     write_result RECORD;
@@ -533,6 +613,7 @@ DECLARE
     audit_row RECORD;
     audit_page RECORD;
     effective_name TEXT;
+    legacy_effective_name TEXT;
     audit_started_at TIMESTAMPTZ;
     audit_count_before INTEGER;
     strict_unproven_course UUID := '20000000-0000-0000-0000-000000000012';
@@ -548,20 +629,18 @@ BEGIN
         RAISE EXCEPTION 'anon role must not execute the course audit reader';
     END IF;
 
-    -- A complete pending-review course cannot be published while availability
-    -- evidence is absent, even when the legacy cohort remains compatible.
+    -- Enrollment evidence does not determine whether Admin may approve content.
     UPDATE public.course_editorial_state
        SET availability_status = 'unknown'
      WHERE course_id = strict_unproven_course;
     SELECT * INTO publish_without_evidence
       FROM public.admin_publish_course(strict_unproven_course);
-    IF publish_without_evidence.success
-       OR publish_without_evidence.error <> 'Course is not publishable: availability is not confirmed'
-       OR EXISTS (
+    IF NOT publish_without_evidence.success OR publish_without_evidence.new_status <> 'published'
+       OR NOT EXISTS (
            SELECT 1 FROM public.course_editorial_audit
             WHERE course_id = strict_unproven_course AND action = 'publish'
        ) THEN
-        RAISE EXCEPTION 'publication without current availability evidence was not rejected';
+        RAISE EXCEPTION 'Admin publication was incorrectly coupled to enrollment evidence';
     END IF;
     UPDATE public.course_editorial_state
        SET availability_status = 'available'
@@ -578,12 +657,28 @@ BEGIN
 
     SELECT c.name INTO effective_name
       FROM public.courses_public_effective c WHERE c.id = target_course;
+    IF effective_name <> 'Borrador editorial H3' THEN
+        RAISE EXCEPTION 'unknown enrollment status replaced the last published editorial value';
+    END IF;
+
     IF legacy_cohort_present THEN
-        IF effective_name <> 'Programa local H3 11' THEN
-            RAISE EXCEPTION 'legacy compatibility must retain the pipeline value while availability is unknown';
+        EXECUTE 'INSERT INTO private.h2_legacy_public_course_cohort(course_id, reason)
+                 VALUES ($1, $2) ON CONFLICT (course_id) DO NOTHING'
+          USING legacy_course, 'PG17 legacy compatibility fixture';
+        UPDATE public.course_editorial_state
+           SET availability_status = 'unknown'
+         WHERE course_id = legacy_course;
+        SELECT c.name INTO legacy_effective_name
+          FROM public.courses_public_effective c WHERE c.id = legacy_course;
+        IF legacy_effective_name <> 'Programa local H3 13' THEN
+            RAISE EXCEPTION 'legacy cohort compatibility stopped exposing an unknown-availability row';
         END IF;
-    ELSIF EXISTS (SELECT 1 FROM public.courses_public_effective c WHERE c.id = target_course) THEN
-        RAISE EXCEPTION 'retired Pro compatibility cohort must not bypass the strict availability gate';
+        UPDATE public.course_editorial_state
+           SET availability_status = 'unavailable'
+         WHERE course_id = legacy_course;
+        IF EXISTS (SELECT 1 FROM public.courses_public_effective c WHERE c.id = legacy_course) THEN
+            RAISE EXCEPTION 'legacy cohort availability behavior changed during compatibility';
+        END IF;
     END IF;
 
     SELECT version INTO current_version
@@ -632,8 +727,10 @@ BEGIN
        OR audit_row.new_values ->> 'availability_evidence_url' IS DISTINCT FROM 'https://local.example.test/programas/11' THEN
         RAISE EXCEPTION 'availability audit lost actor, timestamp, before, or after values';
     END IF;
-    IF EXISTS (SELECT 1 FROM public.courses_public_effective c WHERE c.id = target_course) THEN
-        RAISE EXCEPTION 'confirmed-unavailable legacy course remained public';
+    SELECT c.name INTO effective_name
+      FROM public.courses_public_effective c WHERE c.id = target_course;
+    IF effective_name <> 'Borrador editorial H3' THEN
+        RAISE EXCEPTION 'closed enrollment hid or replaced a still-active published course';
     END IF;
 
     SELECT * INTO audit_page
@@ -650,12 +747,8 @@ BEGIN
      WHERE course_id = target_course;
     SELECT c.name INTO effective_name
       FROM public.courses_public_effective c WHERE c.id = target_course;
-    IF legacy_cohort_present THEN
-        IF effective_name <> 'Programa local H3 11' THEN
-            RAISE EXCEPTION 'expired evidence must return to legacy availability behavior';
-        END IF;
-    ELSIF EXISTS (SELECT 1 FROM public.courses_public_effective c WHERE c.id = target_course) THEN
-        RAISE EXCEPTION 'expired evidence must remain hidden without the retired Pro cohort';
+    IF effective_name <> 'Borrador editorial H3' THEN
+        RAISE EXCEPTION 'expired evidence reverted the published editorial snapshot';
     END IF;
     SELECT * INTO audit_page FROM public.admin_get_course_editorial(target_course);
     IF audit_page.course ->> 'availability_status' <> 'unknown'
@@ -673,12 +766,8 @@ BEGIN
     END IF;
     SELECT c.name INTO effective_name
       FROM public.courses_public_effective c WHERE c.id = target_course;
-    IF legacy_cohort_present THEN
-        IF effective_name <> 'Programa local H3 11' THEN
-            RAISE EXCEPTION 'legacy course did not return to compatibility after clearing evidence';
-        END IF;
-    ELSIF EXISTS (SELECT 1 FROM public.courses_public_effective c WHERE c.id = target_course) THEN
-        RAISE EXCEPTION 'course without the retired Pro cohort must remain hidden after evidence is cleared';
+    IF effective_name <> 'Borrador editorial H3' THEN
+        RAISE EXCEPTION 'clearing enrollment evidence changed the published editorial snapshot';
     END IF;
 
     SELECT * INTO write_result FROM public.admin_set_course_availability(
@@ -748,8 +837,8 @@ BEGIN
 
     UPDATE public.institution_site_profiles
        SET notes = 'DB_AS_CODE_RELEASE_CANARY'
-     WHERE institution_id = (SELECT institution_id FROM public.courses WHERE id = '20000000-0000-0000-0000-000000000012');
-    SELECT * INTO write_result FROM public.admin_publish_course('20000000-0000-0000-0000-000000000012');
+     WHERE institution_id = (SELECT institution_id FROM public.courses WHERE id = '20000000-0000-0000-0000-000000000014');
+    SELECT * INTO write_result FROM public.admin_publish_course('20000000-0000-0000-0000-000000000014');
     IF write_result.success OR write_result.error NOT LIKE 'Course is not publishable: source pipeline gates%' THEN
         RAISE EXCEPTION 'publication allowed a canary institution: %', write_result.error;
     END IF;
@@ -806,9 +895,13 @@ DECLARE
     pub_result RECORD;
     arch_result RECORD;
     quality_result RECORD;
+    audit_row RECORD;
     editable_count INTEGER;
     missing_field_editable BOOLEAN;
     complete_field_editable BOOLEAN;
+    audit_count_before INTEGER;
+    audit_started_at TIMESTAMPTZ;
+    original_populated_name TEXT;
 BEGIN
     PERFORM set_config('request.jwt.claim.sub', user_id::text, false);
 
@@ -847,21 +940,22 @@ BEGIN
         RAISE EXCEPTION 'user editorial detail reader failed: %', detail_result.error;
     END IF;
 
-    -- course 1 has missing_fields = ['description_long','requirements']
+    -- The 13-field allowlist is editable regardless of missing_fields.
     SELECT count(*) INTO editable_count
     FROM jsonb_array_elements(detail_result.field_definitions) d
     WHERE (d->>'is_editable')::boolean IS TRUE;
-    IF editable_count <> 2 THEN RAISE EXCEPTION 'expected 2 editable fields for user, got %', editable_count; END IF;
+    IF editable_count <> 13 THEN RAISE EXCEPTION 'expected all 13 editorial fields editable for user, got %', editable_count; END IF;
 
     SELECT (d->>'is_editable')::boolean INTO missing_field_editable
     FROM jsonb_array_elements(detail_result.field_definitions) d
     WHERE d->>'field_key' = 'description_long';
-    IF NOT missing_field_editable THEN RAISE EXCEPTION 'missing field should be editable'; END IF;
+    IF NOT missing_field_editable THEN RAISE EXCEPTION 'missing field should remain editable'; END IF;
 
     SELECT (d->>'is_editable')::boolean INTO complete_field_editable
     FROM jsonb_array_elements(detail_result.field_definitions) d
     WHERE d->>'field_key' = 'name';
-    IF complete_field_editable THEN RAISE EXCEPTION 'complete field must not be editable for user'; END IF;
+    IF NOT complete_field_editable THEN RAISE EXCEPTION 'populated field should be editable for user'; END IF;
+    original_populated_name := detail_result.course -> 'current_values' ->> 'name';
 
     -- user can edit a missing field
     SELECT * INTO upd_result
@@ -870,11 +964,59 @@ BEGIN
         RAISE EXCEPTION 'user update failed: %', upd_result.error;
     END IF;
 
-    -- user cannot edit a complete field
+    -- User corrects an already-populated field, reloads it, and corrects it again.
+    SELECT count(*) INTO audit_count_before
+      FROM public.course_editorial_audit
+     WHERE course_id = target_course AND action = 'update';
+    audit_started_at := transaction_timestamp();
     SELECT * INTO upd_result
-    FROM public.admin_update_course(target_course, '{"name":"No deberia"}'::jsonb, 2, 'user forbidden field');
-    IF upd_result.success OR upd_result.error NOT LIKE 'User is not allowed to edit field%' THEN
-        RAISE EXCEPTION 'user should not be able to edit complete field';
+    FROM public.admin_update_course(target_course, '{"name":"Curso corregido por user"}'::jsonb, 2, 'Correct populated editorial name');
+    IF NOT upd_result.success OR upd_result.new_version <> 3 THEN
+        RAISE EXCEPTION 'user could not correct a populated field: %', upd_result.error;
+    END IF;
+    SELECT * INTO detail_result FROM public.admin_get_course_editorial(target_course);
+    IF detail_result.error IS NOT NULL
+       OR detail_result.course -> 'current_values' ->> 'name' <> 'Curso corregido por user' THEN
+        RAISE EXCEPTION 'saved populated-field correction did not persist on reload';
+    END IF;
+    SELECT * INTO audit_row
+      FROM public.course_editorial_audit
+     WHERE course_id = target_course AND action = 'update'
+       AND new_values ->> 'version' = '3'
+     ORDER BY created_at DESC, id DESC LIMIT 1;
+    IF audit_row.actor_user_id IS DISTINCT FROM auth.uid()
+       OR audit_row.created_at IS NULL OR audit_row.created_at < audit_started_at
+       OR audit_row.old_values -> 'editorial_fields' ->> 'name' IS DISTINCT FROM original_populated_name
+       OR audit_row.new_values -> 'editorial_fields' ->> 'name' IS DISTINCT FROM 'Curso corregido por user'
+       OR audit_row.reason <> 'Correct populated editorial name' THEN
+        RAISE EXCEPTION 'populated-field correction audit lost actor, date, before or after';
+    END IF;
+
+    audit_started_at := transaction_timestamp();
+    SELECT * INTO upd_result
+    FROM public.admin_update_course(target_course, '{"name":"Curso corregido nuevamente"}'::jsonb, 3, 'Repeat editorial correction');
+    IF NOT upd_result.success OR upd_result.new_version <> 4 THEN
+        RAISE EXCEPTION 'user could not repeat a correction to the same field: %', upd_result.error;
+    END IF;
+    SELECT * INTO detail_result FROM public.admin_get_course_editorial(target_course);
+    SELECT * INTO audit_row
+      FROM public.course_editorial_audit
+     WHERE course_id = target_course AND action = 'update'
+       AND new_values ->> 'version' = '4'
+     ORDER BY created_at DESC, id DESC LIMIT 1;
+    IF detail_result.course -> 'current_values' ->> 'name' <> 'Curso corregido nuevamente'
+       OR audit_row.actor_user_id IS DISTINCT FROM auth.uid()
+       OR audit_row.created_at IS NULL OR audit_row.created_at < audit_started_at
+       OR audit_row.old_values -> 'editorial_fields' ->> 'name' IS DISTINCT FROM 'Curso corregido por user'
+       OR audit_row.new_values -> 'editorial_fields' ->> 'name' IS DISTINCT FROM 'Curso corregido nuevamente'
+       OR (SELECT count(*) FROM public.course_editorial_audit WHERE course_id = target_course AND action = 'update') <> audit_count_before + 2 THEN
+        RAISE EXCEPTION 'repeated correction did not persist with a complete audit';
+    END IF;
+
+    SELECT * INTO upd_result
+    FROM public.admin_update_course(target_course, '{"category":"No permitido"}'::jsonb, 4, 'Reject non-editorial field');
+    IF upd_result.success OR upd_result.error NOT LIKE 'Unknown field not allowed:%' THEN
+        RAISE EXCEPTION 'user was allowed to edit outside the editorial allowlist';
     END IF;
 
     -- user cannot publish

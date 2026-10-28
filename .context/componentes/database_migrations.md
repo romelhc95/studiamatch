@@ -119,6 +119,18 @@
 - [20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql](../../db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql)
 - [20261010_h3_admin_members_service_select.sql](../../db/migrations/20261010_h3_admin_members_service_select.sql)
 - [20261025_h3_admin_members_onboarding_forbidden_status.sql](../../db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql)
+- [20261028_h3_editorial_publication_snapshot.sql](../../db/migrations/20261028_h3_editorial_publication_snapshot.sql)
+
+### Migration 20261028 — H3 editorial publication snapshot
+
+`20261028_h3_editorial_publication_snapshot.sql` es un delta forward-only local:
+añade columnas nullable para la instantánea publicada, conserva firmas y gates de
+autorización, y no rellena masivamente cursos operativos. Los rows existentes sin
+snapshot mantienen fallback legacy; en la primera corrección se captura su valor
+público previo antes de cambiar el borrador. La edición `user` usa la allowlist
+completa; solo Admin actualiza la instantánea al publicar. Los grants de lectura
+pública se limitan a la vista efectiva. Ejecutada dos veces sobre PG17 sintético en
+Docker; ninguna base Supabase recibió DDL. Ver [checkpoint CA4](../evidencia/h3req1_editorial_contract_2026-10-28.md).
 
 ## Fichas exactas y relaciones por migration
 

@@ -1,5 +1,13 @@
 # Pruebas y evidencia
 
+## Corte local nuevo — 2026-10-28
+
+El [checkpoint editorial H3REQ1](evidencia/h3req1_editorial_contract_2026-10-28.md)
+separa el nuevo contrato E1–E6 de métricas históricas. E1–E4 se ejercitaron en
+PostgreSQL 17 desechable con fixtures sintéticos; E5 en pruebas unitarias Docker de
+FG3; E6 está pendiente de navegador. Los logs e intentos/fixes se resumen allí. No
+hubo PR, CI, pruebas de negocio remotas ni acceso a cuentas reales.
+
 ## Correspondencia suite → componente → entorno → resultado
 
 | Suite/caso | Componente/criterio | Entorno e input | Resultado vigente para el cierre | Evidencia y límites |
