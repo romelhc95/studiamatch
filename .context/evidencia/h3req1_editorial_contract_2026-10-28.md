@@ -1,5 +1,217 @@
 # Checkpoint local — contrato editorial H3REQ1
 
+## Addendum post-merge y aceptación remota R1–R4 — 2026-10-28
+
+**Continuación retomada:** 14:50:14 America/Lima. **Corte remoto R1–R4:**
+2026-10-28, desde 14:50 hasta 15:07 America/Lima. El arreglo posterior se prepara
+en el worktree separado `codex/h3req1-public-price-projection-20261028`; su gate
+local/documental y publicación se registrarán en un addendum final. Se conserva
+debajo la historia previa sin cambiar sus resultados.
+
+### Integración, deployment y schema verificados
+
+- PR #508: `https://github.com/romelhc95/studiamatch/pull/508`; aprobado sobre
+  `85e9d1b17ca2808ed320ba2c37d893fbf7619dad`, merge en `desarrollo`:
+  `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`, 2026-10-28 12:39:06
+  America/Lima. El head tuvo 16 checks `success` y 2 `skipped`.
+- Checkout de evidencia preservado: `/tmp/studiamatch-h3req1-editorial-contract-20261028`,
+  rama `codex/h3req1-editorial-contract-20261028`, HEAD local aprobado
+  `85e9d1b17ca2808ed320ba2c37d893fbf7619dad`. No se cambió a `desarrollo` ni se
+  modificó código; únicamente están modificadas localmente las tres fuentes
+  documentales de este corte, sin commit/push.
+- Deployment de rama Development: Pages `27d9ebfc-1ff4-4c43-b58f-117d98977cd0`,
+  rama `desarrollo`, SHA `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`, etapa
+  `success`, alias `https://desarrollo.studiamatch-aty.pages.dev`. No confundir
+  con el Preview de PR `920821c9-5fdb-4dbb-94d6-6dc1b9e840af`, que corresponde a
+  la rama feature y tiene alias propio. No se hizo deploy manual.
+- Supabase Free/Development `aqrldlmlszjtgpqiegaa` (instancia compartida con
+  Certification): preflight mostró 81 entradas
+  de ledger, sin la migration y con columnas/RPC/vista bajo el contrato anterior.
+  JIT exacto aprobado y consumido: una aplicación de
+  `db/migrations/20261028_h3_editorial_publication_snapshot.sql`, SHA-256
+  `2c2bd2238f03a1b5bec2d47fb4bc8a9f0fe1650501378a8ff2dde8746b2a0fef`.
+  Ledger posterior: 82 entradas; versión `20261028194353`,
+  2026-10-28 14:43:53 America/Lima. Postcheck: tres columnas snapshot nullable,
+  dos checks validados, firmas/RPC/helper esperados, `security_invoker` en la vista
+  pública y grants acordes; ejecución Admin negada a `anon` y permitida a
+  `authenticated`/`service_role`. Se comprobó la proyección/shape, sin leer datos de
+  otros cursos. Efecto persistente: solo schema, funciones, grants y ledger; sin
+  backfill ni escritura de filas de cursos. El schema queda compartido con
+  Certification por el proyecto Free; no hubo una operación separada contra un
+  ambiente Certification. No repetir la migración.
+- La discrepancia app/schema detectada antes de migrar quedó resuelta según el
+  contrato verificado; no fue necesario un redeploy. No se operó Pro, Certification
+  como destino, escritores, pipeline, FG3, schedules ni promoción.
+- Integridad documental: permanece el FAIL integral histórico de 350 diagnósticos
+  (349 comunes entre baseline/candidato) y, por separado, el PASS candidate-aware
+  exacto del paquete. El merge no dispone ni convierte el FAIL integral en PASS;
+  owner de reconciliación/disposición: TL/documentación. No se borraron relaciones
+  ni se fabricó evidencia.
+
+### R1–R4: matriz remota antes/después
+
+Denominador fijo: 4. Antes de la pasada había **0/4 criterios aceptados con
+evidencia remota del contrato corregido**. Después hay **2/4 = 50%**, delta
+**+50 puntos porcentuales**. Las evidencias E1–E6 locales y la pasada MIN-01..06
+anterior no se cuentan en esta matriz.
+
+| ID | Criterio | Antes de la pasada | Después de la pasada actual | Tipo y evidencia |
+|---|---|---|---|---|
+| R1 | Colaborador corrige campo poblado, guarda, recarga y persiste. | PENDIENTE; sin ejecución de este contrato en el deployment integrado. | ACEPTADO. | Ejecución remota 2026-10-28. En editor colaborador se cambió `benefits`, guardó (toast correcto), v6→v7 y recargó; marcador exacto persistió. |
+| R2 | Antes de publicar, visitante anónimo conserva el último snapshot aprobado. | PENDIENTE; sin ejecución de este contrato en el deployment integrado. | FALLÓ. | Ejecución remota 2026-10-28. Preview editorial conservó snapshot, pero ruta anónima dio HTTP 400/SQLSTATE `22P02` antes de renderizar. |
+| R3 | Admin publica y visitante sin sesión ve el valor exacto nuevo. | PENDIENTE; sin ejecución de este contrato en el deployment integrado. | PENDIENTE. | No se publicó el marcador porque R2 reveló que la proyección pública está fallando; la acción aprobada no se consumió para exponer un cambio no verificable. |
+| R4 | Historial/versión y preview distinguen borrador/publicado. | PENDIENTE; sin smoke remoto de este deployment. | ACEPTADO. | Ejecución remota 2026-10-28: diferencia draft/published visible, 8 eventos consultados, disclosure inicialmente cerrado y operable con teclado; insignia v8 32,6 × 26,1 px. |
+
+- El JIT de prueba cubrió un único curso IDAT, `benefits`, la membresía colaborador
+  existente, Admin existente y visitante aislado. La publicación de la marca solo
+  habría ocurrido tras verificar R2; como la lectura anónima falló, no se hizo. El
+  paquete cubrió la recuperación exacta, auditoría append-only y ningún otro campo,
+  disponibilidad, membresía/rol, SQL, pipeline, FG3, schedule, deploy o promoción.
+- Preflight UI sanitizado: `Python for Data Analyst`, ID
+  `fd47da34-4a65-4a71-bc49-aea6db713500`, publicado, completo, versión v6. El
+  campo `benefits` del snapshot y del preview publicado coincide con el original
+  aprobado (SHA-256 `0e0e139a5b59153b2fc219d618ae57d4f2903a3a7e0e516b6fe62dbb81a8741f`).
+  La página anónima aislada muestra esos mismos cuatro beneficios antes del cambio.
+  No se exponen datos de la cuenta colaboradora.
+- Páginas de Chrome Windows: Admin página 1; visitante anónimo página 5; colaborador
+  en página 6 de contexto aislado. La página 6 se enfocó con `bringToFront:true`; el
+  responsable completó login. El editor mostró rol colaborador y no ofreció
+  publicación ni administración de miembros. No se reinició onboarding/login.
+- R1: el marcador literal fue
+  `* [H3REQ1 CA4 — verificación temporal 2026-10-28]`; razón guardada
+  `Validación temporal CA4 H3REQ1; restauración inmediata conforme JIT aprobado 2026-10-28.`
+  El guardado desde DOM `fill` no habilitó el botón por el estado React; se repitió
+  el mismo valor con interacción de teclado. Una primera entrada de razón tampoco
+  habilitó el estado y no generó escritura; se completó con teclado y se verificó
+  antes de guardar. El valor del marcador persistió después de recargar.
+- R2: el lector público mostró el error funcional genérico de conexión. Network del
+  pageId anónimo registró request `82`, status 400, body saneado:
+  `{"code":"22P02","message":"invalid input syntax for type numeric: \"\""}`.
+  Después de la recuperación, una sola comprobación del mismo lector registró
+  request `116`, status 400 con el mismo error. No se consultó la fila operativa ni
+  otros cursos. La probable causa está en la migración integrada, que hace cast
+  directo de `published_editorial_values.price_pen` a NUMERIC cuando la propiedad
+  está presente; la fila exacta que lo dispara no se verificó y no se afirma.
+- Recuperación: el colaborador volvió a guardar exactamente el original de `benefits`
+  (SHA-256 `0e0e139a5b59153b2fc219d618ae57d4f2903a3a7e0e516b6fe62dbb81a8741f`),
+  con razón `Restauración del valor original aprobado; recuperación de la verificación H3REQ1 conforme al JIT 2026-10-28.`; v7→v8. Admin comprobó v8 publicado y preview igual al original. No se despublicó: UI no mostró botón publicar al no existir diferencia entre borrador y snapshot. El público no confirmó la recuperación por el error de lectura; no hubo marcador público.
+- R4: disclosure de `Historial de auditoría 8` inició cerrado. Al abrir se verificaron
+  los 8 eventos disponibles, incluidas las dos escrituras y la publicación histórica;
+  IDs de actor omitidos/sanitizados. Se cerró con Space y no quedaron eventos
+  desplegados. Preview mostró snapshot publicado y advirtió que un borrador posterior
+  requeriría publicación Admin. Insignia `Versión editorial 8`: 32,6 × 26,1 px.
+- Acciones persistentes: dos ediciones autorizadas en `benefits` (marcador y
+  restauración), dos eventos/aumentos de versión append-only; no se publicó el
+  marcador ni se alteró disponibilidad/estado de curso. El JIT de prueba queda
+  consumido. La migración inicial también queda consumida; no cubre la corrección.
+- No hubo corrección remota, nuevas consultas a la DB, deploy, ni promoción. GO
+  Development: **NO**. R1/R4 aceptados; R2 falló y R3 sigue pendiente. Las rutas
+  públicas continuaron fallando por el error de tipo tras restaurar el contenido.
+- El checkpoint siguiente documenta el paquete correctivo local y su contraste
+  documental. R1–R4 no se repiten con este arreglo; una nueva pasada remota necesita
+  un deployment compatible y JIT exacto independiente.
+
+## Addendum — corrección de proyección pública y gates locales
+
+**Continuación:** retomada desde el checkpoint a las 15:21:49 America/Lima;
+reanudada en este turno a las 15:45:48. La hora final se completará al cerrar el
+PR. El entorno es `codex/h3req1-public-price-projection-20261028`, basado
+en el merge `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`. No se cambió el deployment
+Development `27d9ebfc` ni el proyecto Free `aqrldlmlszjtgpqiegaa`.
+
+### Corrección implementada
+
+- La request anónima 82 del smoke R2 falló en la vista efectiva con SQLSTATE
+  `22P02` por convertir texto vacío de precio a `NUMERIC`. La fila real no se leyó;
+  el vínculo entre el error y el cast integrado está respaldado por el error y la
+  definición SQL, pero el contenido exacto de la fila sigue sin verificarse.
+- `db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql`
+  reemplaza un único fragmento dentro de
+  `private.h2_public_courses_effective()`. Solo admite texto decimal con hasta 63
+  dígitos enteros y 63 fraccionarios; vacío, formato no decimal y texto mayor se
+  proyectan como `NULL`. Valida existencia y ocurrencia exacta; aborta ante drift.
+  Reafirma ACL actuales del lector. No toca cursos, snapshots, disponibilidad ni
+  auditoría. Se aplicó dos veces únicamente en la base sintética PG17.
+- El baseline sintético reprodujo `22P02` antes del guard. La versión corregida pasó
+  con ocho filas: vacío, decimal normal, JSON null, texto inválido, decimal de
+  63 dígitos, 131073 dígitos que exceden el rango, precio editorial sin snapshot y
+  fallback de source legacy. También verificó grants anon/authenticated/service,
+  ausencia de `PUBLIC EXECUTE`, `SECURITY DEFINER` y `search_path`.
+- El test Python focal pasó `1 passed`; `bash -n` y ShellCheck `0.11.0` pasaron
+  sobre el runner final. El primer ShellCheck detectó `SC2034` en el contador de
+  readiness; el bucle se cambió a `_` y la revalidación pasó. El binario no existía
+  en la imagen de desarrollo; se usó la imagen `koalaman/shellcheck:v0.11.0` ya
+  presente localmente, sin red. Sin build frontend: el delta es exclusivamente SQL,
+  harnesses y documentación.
+- La migración correctiva no se aplicó a Supabase, y no se hizo deploy, publicación
+  de curso ni otra prueba funcional remota. No hay nuevos efectos persistentes fuera
+  de los commits/documentos locales. La migration requiere revisión y JIT remoto
+  nuevo; la pasada R1–R4 anterior quedó consumida.
+
+- Revalidación local de esta continuación: el harness PG17 volvió a pasar con ocho
+  fixtures y dos aplicaciones de la migration; `tests/test_h3_public_price_projection_migration.py`
+  pasó 1/1 en Docker; ShellCheck 0.11.0 pasó con `-x -P /src`; `actionlint` 1.7.12
+  pasó el workflow; la regresión `tests/test_protected_path_scope_guard.sh` pasó con
+  positivos y vecinos negativos; `git diff --check` pasó antes y después de este
+  update. El checker candidate-aware R21/self-test se ejecutó
+  otra vez en Docker después del último cambio documental y pasó: 747/747 fuentes
+  asignadas, 119/119 docs activos alcanzables, 433/433 históricos enlazados, cero
+  diagnósticos. El intento inicial de invocación ShellCheck omitía `-x` y dio
+  únicamente SC1091; al seguir el source con `-x -P /src`, la validación pasó sin
+  modificar código.
+
+### Integridad documental
+
+- El workflow `security-audit.yml` selecciona el manifiesto candidate-aware R21
+  (`h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json`)
+  si el diff no cambia un manifiesto candidato. El mismo checker/configuración pasa
+  en baseline merge (`742/742` fuentes, self-test PASS, 0 diagnósticos) y candidato
+  (`747/747`, self-test PASS, 0 diagnósticos). Las cinco fuentes nuevas están
+  asignadas al grupo de la migration correctiva.
+- El checker integral sin manifiesto falla en baseline y candidato. Se capturaron
+  todos los mensajes con el mismo checker/configuración y un ajuste de solo impresión
+  en memoria para superar su límite de 200; el estado del checker y el algoritmo de
+  validación no se modificaron. Cada árbol tiene 349 diagnósticos reales, 348
+  idénticos. El único cambia por las cinco fuentes candidate-only añadidas:
+  `299 != 367` en baseline frente a `304 != 367` en candidato. Por tanto el delta
+  conserva el FAIL histórico y no reclama PASS integral.
+- Logs íntegros:
+  `/tmp/studiamatch-h3req1-doc-results/integral-baseline-exact.log` (SHA-256
+  `0c2c76acfd4d1a0a549acdde24a470906df85e10ec7ee18ef383cc2d441c3398`) y
+  `integral-candidate-exact.log` (SHA-256
+  `6c995f7170899885e686bd13de837590d1f356f25fe1a9badad00d763acf7e5e`). Listas
+  exactas de 349 errores y diff:
+  `baseline-failures-exact.txt` (`dee27d01d01bc722ffa2db96c78e951ef7431bde4e121e41319e7a8ca4ea370c`),
+  `candidate-failures-exact.txt` (`51189e74ec28d64f4e22c34c2daeeebc7496702dbd76bb84269d5afc26790b85`),
+  `failure-delta-exact.diff` (`6b8aa40f4123df8e72dbf3bee61286bb05fee938bf9c39b038b08f73215a32cb`).
+- La primera corrida candidate-aware encontró dos anclas rotas hacia
+  `#corte-vigente`, por el cambio documental del título operativo. Se restauró el
+  heading canónico `## Corte vigente`; la repetición del mismo gate pasó en baseline
+  y candidato. No se borraron relaciones ni se inventaron archivos históricos.
+
+### Estado, autorización y siguiente acción
+
+- Baseline de código: merge real #508 `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`;
+  rama aislada `codex/h3req1-public-price-projection-20261028`. El host Development
+  mantiene el deployment previo `27d9ebfc` y continúa bloqueado por la lectura
+  pública fallida; R1/R4 siguen aceptados, R2 falló y R3 no se ejecutó (2/4).
+- Autorizaciones consumidas: solo harness sintético y validaciones Docker locales.
+  Ningún JIT remoto nuevo, SQL remoto, escritura Supabase, cuenta real, FG3, writer,
+  schedule, deploy o promoción se autorizó ni ejecutó en este delta.
+- El scan Codex Security focal quedó completado: ID
+  `b4f8c079-a0b5-489d-acae-d941bb1c31ec`, digest
+  `codex-security-snapshot/v1:sha256:018d8d187e42a5e75e676c2e63784469c11066fb5e102381de200f93ea681db4`,
+  cobertura completa de 15/15 paths, cero findings. El worklist del plugin enumeró
+  cuatro paths; los once restantes se inspeccionaron manualmente y quedaron en el
+  recibo `artifacts/manual-diff-review.md`. Delegación no disponible fue un warning
+  de preflight, no un bloqueo: el agente revisó el diff completo. Reporte:
+  `/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-public-price-projection-20261028/77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3_20261028T204548Z_rko0su6k/report.md`.
+- Pendiente: credential scan y compare-candidate del commit exacto, completar la
+  plantilla de PR, commit, push no forzado y PR separado a `desarrollo`. Después
+  del PR, detenerse; no mergear, desplegar, aplicar SQL remoto ni repetir R1–R4.
+
+## Registro histórico del candidato y sus gates locales — previo al merge
+
 **Corte:** 2026-10-28, America/Lima. Continuación iniciada a las 11:24:51 (-05:00);
 este corte se actualizó a las 11:50:04 (-05:00). El checkpoint anterior cerró a
 las 10:08:44 (-05:00). Todos los tiempos usan America/Lima.

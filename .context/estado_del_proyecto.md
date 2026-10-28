@@ -4,52 +4,126 @@
 
 > Autoridad operativa única. Este documento contiene el corte vigente, sus resultados, pendientes y siguiente paso. La historia detallada vive en hitos, decisiones y evidencia enlazados desde el índice Obsidian.
 
-## Continuación vigente — contrato editorial H3REQ1, 2026-10-28
-
-El candidato aislado `codex/h3req1-editorial-contract-20261028` parte de
-`desarrollo@f39a688f75531d190745225f11524414181ed425`. El baseline Development
-observado antes de este ciclo es deployment `d6e7b158-b26f-4504-b445-1facac915269`
-en `desarrollo.studiamatch-aty.pages.dev`, SHA `f39a688`; no hay deployment del
-candidato. E1–E5 conservan la evidencia sintética local del checkpoint previo y E6
-ya pasó en Chrome Windows del puente con el fixture local sintético. La matriz nueva
-queda 6/6 local; esto no es aceptación remota ni cierre productivo.
-
-PR #508 está abierto en `https://github.com/romelhc95/studiamatch/pull/508`. El primer
-head `475f3dce36dd798035661b2c9190527b7f4712e9` tuvo dos fallos CI atribuibles al
-delta: rutas UI ausentes del allowlist protegido e inventario Python sin el nuevo test
-FG3. Se añadieron rutas exactas con vecinos negativos y el test quedó clasificado
-`supabase-data-api-test`; compare-candidate pasó localmente y la suite focal pasó 45/45.
-La corrección de 28 rutas quedó comprometida localmente en
-`393d354303f0ee620b0199e89d2ed2d6f43cf634`. Pasaron en Docker sin red el guard y
-compare-candidate, 49/49 tests Python focales, scan de credenciales y gate documental
-candidate-aware sobre el manifiesto exacto. El commit espera push no forzado y nueva
-lectura de CI. No hubo aprobación ni merge.
-
-El gate candidate-aware del checker definido por `security-audit.yml` pasó en el
-checkout final con el manifiesto exacto
-`.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json`.
-El checker integral original se ejecutó también en baseline y candidato: ambos FAIL
-con 350 diagnósticos completos, 349 idénticos; el resultado histórico no se presenta
-como PASS ni se ocultó. El scanner de credenciales pasó para las 28 rutas del head
-corregido; el guard exacto/negativos y la suite focal Python también pasaron localmente.
-El scan Codex Security de diff
-`a39fcd65-8774-40dc-afdf-75ff8654cd52` quedó completo con 5 superficies y 0
-candidatos reportables; el cambio posterior exacto del manifiesto pasó revisión
-estática, ShellCheck y regresiones focales. Alcance, snapshots y límites constan en
-el checkpoint. La regla integral antes de integrar sigue pendiente de reconciliación
-histórica y bloquea la integración hasta resolverse; no bloquea la creación de este PR.
-
-La autorización humana previa permite commit, push no forzado y PR a `desarrollo`
-después de cerrar los gates aplicables al PR y completar la plantilla. No permite
-aprobar, mergear, aplicar SQL remoto, usar cuentas reales, ejecutar writers/FG3/
-schedules, configurar servicios, hacer deploy manual ni realizar smoke remoto. No se
-modificó otra rama ni se tocó Supabase.
-
-El detalle verificable, matriz antes/después, resultados integrales/acotados,
-transición, rollback, autorizaciones y siguiente acción constan en el
-[checkpoint local del contrato editorial](evidencia/h3req1_editorial_contract_2026-10-28.md).
-
 ## Corte vigente
+
+### Continuación vigente — contrato editorial H3REQ1, 2026-10-28
+
+PR #508 fue aprobado sobre `85e9d1b17ca2808ed320ba2c37d893fbf7619dad` y mergeado
+a `desarrollo` en `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3` el 2026-10-28
+12:39:06 America/Lima. El head del PR tuvo 16 checks `success` y 2 `skipped`;
+esto no acredita aceptación Development. La aprobación no dispone el FAIL integral
+documental heredado ni equivale a una disposición específica de ese gate.
+
+Pages ya sirve la rama Development en
+`https://desarrollo.studiamatch-aty.pages.dev`: deployment
+`27d9ebfc-1ff4-4c43-b58f-117d98977cd0`, rama `desarrollo`, SHA del merge, estado
+`success`. El Preview del PR es distinto: deployment
+`920821c9-5fdb-4dbb-94d6-6dc1b9e840af`, rama feature y alias propio; no se usa como
+deployment Development.
+
+En Free/Development (`aqrldlmlszjtgpqiegaa`, instancia compartida con Certification)
+el preflight previo mostró 81
+migraciones y ausencia de `20261028_h3_editorial_publication_snapshot`, con columnas
+y RPC/vista bajo contrato anterior. Tras el JIT exacto del responsable, la migración
+integrada se aplicó una vez y se verificó en ledger como versión `20261028194353`
+(2026-10-28 14:43:53 America/Lima). Existen las tres columnas nullable y ambos
+checks; las RPC reemplazadas y la vista `security_invoker` tienen las firmas/grants
+previstos. No hubo backfill ni escritura de cursos. El schema se comparte con
+Certification por proyecto, pero no hubo una operación separada allí. La incompatibilidad app/schema
+observada en preflight quedó resuelta por esta aplicación; no se repitió deploy.
+
+La aceptación remota usa exclusivamente R1–R4 (4 criterios). Baseline de esta
+pasada: **0/4**. Resultado al 2026-10-28 15:07 America/Lima: **2/4 aceptados
+(50%, delta +50 pp)**; R1 y R4 aceptados, R2 falló y R3 no se ejecutó. E1–E6
+locales siguen como evidencia separada y no se reutilizan como R1–R4. El
+responsable completó el acceso del colaborador en Chrome Windows; se verificó el
+editor con rol colaborador en la misma página aislada. Esto fue una espera de
+intervención humana resuelta, no un defecto ni bloqueo técnico.
+
+Durante el único pase autorizado, el colaborador guardó y recargó el marcador
+temporal en `benefits` (v6→v7); el preview de Admin siguió mostrando la publicación
+anterior y declaró que el borrador difería hasta publicar. Antes de una publicación
+Admin, la ruta anónima del mismo curso falló al consultar
+`courses_public_effective`: HTTP 400, código Postgres `22P02`, `invalid input syntax
+for type numeric: ""` (requests 82 y 116, antes y después de recuperar el valor).
+Por ello R2 **FALLÓ** y R3 quedó **PENDIENTE** sin publicarse el marcador. La fuente
+integrada contiene un cast sin guarda para `published_editorial_values.price_pen`;
+es la causa probable, respaldada por código y mensaje del error, pero no se leyó la
+fila operativa para afirmar el contenido exacto que lo disparó.
+
+La recuperación autorizada restauró el texto original de `benefits` (v7→v8), con
+auditoría append-only. Admin verificó que v8 está publicado y que el valor original
+coincide. No se ofrecía acción de publicar porque ya no había diferencia de borrador
+y snapshot; no se despublicó. El contexto anónimo siguió mostrando el error 400, así
+que no se afirma verificación pública de la recuperación.
+
+R4 **ACEPTADO**: historial cerrado inicialmente, abierto y cerrado con teclado; se
+consultaron los eventos de la pasada con identificadores de actor sanitizados. La
+insignia de versión v8 midió 32,6 × 26,1 px. Preview distinguió borrador y snapshot
+publicado. La captura remota de estado funcional terminó sin publicar el marcador.
+
+El fix forward-only está preparado en el worktree aislado
+`/tmp/studiamatch-h3req1-public-price-projection-20261028`, rama
+`codex/h3req1-public-price-projection-20261028`, desde el merge
+`77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3`. La migración transforma solo la
+definición del lector público: acepta precio decimal acotado a 63 dígitos enteros y
+63 fraccionarios; vacío, no numérico o sobredimensionado se vuelve `NULL`. Falla
+cerrada si la función o el único cast esperado cambiaron. No escribe filas. El
+harness PG17 sintético pasó después de aplicar la migración dos veces; ocho fixtures
+cubren vacío, decimal, JSON null, inválido, límites, overflow y fallbacks legacy.
+El test Python focal pasó 1/1 y ShellCheck 0.11.0 pasó sobre el runner final. La
+migración correctiva no está aplicada ni desplegada.
+
+El gate candidate-aware documental exacto seleccionado por `security-audit` pasó
+en baseline y candidato: 742/742 y 747/747 fuentes asignadas, sin diagnósticos; el
+self-test pasó. El checker integral sin manifiesto sigue FAIL en ambos: 349
+diagnósticos por árbol, 348 idénticos; el único delta es el contador heredado de
+rutas candidate-only (`299 != 367` en baseline y `304 != 367` en candidato), que
+sube por las cinco fuentes nuevas registradas. La captura completa está en
+`/tmp/studiamatch-h3req1-doc-results/`; listas exactas y diff:
+`baseline-failures-exact.txt`, `candidate-failures-exact.txt` y
+`failure-delta-exact.diff`. El diff estable baseline→candidato tiene SHA-256
+`6b8aa40f4123df8e72dbf3bee61286bb05fee938bf9c39b038b08f73215a32cb`. No se
+eliminaron ni inventaron referencias históricas. El primer gate candidate-aware del
+candidato reportó dos anchors rotos por el cambio del título operativo; se restauró
+`## Corte vigente` y el resultado posterior fue PASS.
+
+La revisión del diff encontró y corrigió un warning ShellCheck (`SC2034`) en el
+contador de readiness. El scan Codex Security focal `b4f8c079-a0b5-489d-acae-d941bb1c31ec`
+terminó con 0 findings/reportables y cobertura manual de los 15 paths cambiados
+(4 paths en el worklist del plugin y los 11 restantes revisados por el agente). Su
+snapshot es `codex-security-snapshot/v1:sha256:018d8d187e42a5e75e676c2e63784469c11066fb5e102381de200f93ea681db4`;
+reporte:
+`/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-public-price-projection-20261028/77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3_20261028T204548Z_rko0su6k/report.md`.
+El preflight registró que workers delegados no estaban disponibles; se inspeccionó
+el diff completo localmente. Es una revisión estática focal, no auditoría global ni
+comprobación remota.
+
+Las validaciones locales finales observadas en Docker pasan: harness PG17 con
+migración aplicada dos veces y 8 fixtures; test Python 1/1; ShellCheck 0.11.0 con
+resolución del `source`; `actionlint` 1.7.12; guard de paths con positivos y vecinos
+negativos; y gate candidate-aware R21/self-test (747/747 fuentes, 0 diagnósticos).
+El checker integral sigue FAIL y se mantiene separado. El credential scan del SHA
+exacto y el compare-candidate post-commit quedan para el cierre previo a push; después
+se completará la plantilla y se abrirá el PR autorizado a `desarrollo`. La migración
+y una nueva pasada remota de R1–R4 requieren JIT separados; la autorización consumida
+no se reutiliza.
+
+No declarar GO Development: R2 está FALLÓ y R3 sin ejecutar. El FAIL documental
+integral permanece visible y sin waiver; el PASS candidate-aware del paquete es un
+resultado distinto y acotado. La revisión semántica universal de páginas HTTP 200
+sigue trazada a H1. No se operaron writers, FG3, schedules, Pro, promoción ni deploy
+manual.
+
+La revisión semántica universal de páginas HTTP 200 sigue trazada a H1. No se
+ejecutaron pruebas con cursos fuera del paquete, writers, FG3, schedules, promoción,
+deploy manual ni pruebas sobre Pro.
+
+El corte, evidencia ejecutada/reutilizada, matriz remota antes/después, autorizaciones,
+efectos persistentes, límites y siguiente paso exacto están en el
+[checkpoint del contrato editorial](evidencia/h3req1_editorial_contract_2026-10-28.md).
+
+## Corte histórico — reconciliación H3REQ1 post-merge 2026-10-21
 
 **Reconciliación H3REQ1 post-merge — 2026-10-21:** GitHub API confirma PR #501 cerrado y mergeado en `8ac174d81cf6ce23658bff132236a78935ace1ad` el 2026-10-21 03:12:35 UTC, desde el head aprobado `2144dddfb200e83d02b7a55b46db84098e2e78f4`; la aprobación de `romelhc95-approver` sobre ese head es del 03:11:47 UTC. El run `39537032896` terminó: 11/11 jobs ejecutados `success`, uno omitido (`H2 Main Production Expand Gate`). La vista de Checks compartida por el responsable muestra 16 verdes y 2 omitidos en el head, y 16 verdes y 1 omitido en el merge. La lectura del check `Supabase Preview` indica que la rama no está asociada con ninguna Supabase Branch; el detalle enlaza al proyecto Pro, sin que se haya efectuado una operación allí. Esto cierra el PR, no la aceptación H3REQ1.
 
