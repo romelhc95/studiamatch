@@ -1,22 +1,24 @@
 # Checkpoint local — contrato editorial H3REQ1
 
 **Corte:** 2026-10-28, America/Lima. Continuación iniciada a las 11:24:51 (-05:00);
-este corte se actualizó a las 11:42:50 (-05:00). El checkpoint anterior cerró a
+este corte se actualizó a las 11:50:04 (-05:00). El checkpoint anterior cerró a
 las 10:08:44 (-05:00). Todos los tiempos usan America/Lima.
 
 ## Baseline y estado
 
 - Checkout aislado: `/tmp/studiamatch-h3req1-editorial-contract-20261028`.
 - Rama: `codex/h3req1-editorial-contract-20261028`.
-- Base y HEAD observados: `desarrollo@f39a688f75531d190745225f11524414181ed425`.
-- Primer commit enviado al PR: `475f3dce36dd798035661b2c9190527b7f4712e9`; el
-  follow-up local corrige solo los dos fallos del primer CI y aún no está publicado.
+- Base: `desarrollo@f39a688f75531d190745225f11524414181ed425`; el HEAD local incluye
+  la corrección `393d3543` y la actualización documental de este corte. El remoto
+  del PR aún no incluye ninguno de esos commits.
+- El primer commit del PR es `475f3dce36dd798035661b2c9190527b7f4712e9`. El
+  follow-up `393d354303f0ee620b0199e89d2ed2d6f43cf634` corrige los dos fallos del
+  primer CI; está comprometido localmente y espera push no forzado.
 - PR #508 abierto hacia `desarrollo`: `https://github.com/romelhc95/studiamatch/pull/508`.
-  Primer head `475f3dce36dd798035661b2c9190527b7f4712e9`; el primer run CI fue
-  `40727339670`. Sus dos fallos reproducibles se corrigieron en paths exactos;
-  no hubo aprobación ni merge.
+  El remoto aún muestra head `475f3dce36dd798035661b2c9190527b7f4712e9`; su primer
+  run CI fue `40727339670`. Los dos fallos reproducibles se corrigieron en paths y
+  clasificación de test exactos; no hubo aprobación ni merge.
 - Deployment Development de referencia observado previamente: `d6e7b158-b26f-4504-b445-1facac915269`, host `desarrollo.studiamatch-aty.pages.dev`, SHA `f39a688f75531d190745225f11524414181ed425`. No hay deployment del candidato.
-- Estado al abrir este checkpoint: cambios locales sin commit; no había PR, CI ni aceptación remota.
 - No se modificó el WIP de otros checkouts. No hubo Supabase, SQL remoto, cuentas,
   sesiones reales, writers, schedules, FG3 remoto ni configuración remota.
 
@@ -144,7 +146,11 @@ remotas. No se acreditan como aceptación nueva.
   bajo fixture y no estaba en `DIRECT_SUPABASE_CONSUMERS`; se clasificó como
   `supabase-data-api-test`. La suite focal local pasó 45/45 en imagen Docker con
   pytest; el compare-candidate y su regresión también pasaron con los nuevos exactos.
-  El commit correctivo aún debe publicarse y reevaluar CI.
+  El commit correctivo `393d354303f0ee620b0199e89d2ed2d6f43cf634` está comprometido
+  en el checkout local; los checks focales post-commit pasaron en Docker sin red:
+  guard/compare-candidate, 49/49 tests Python de los dos contratos afectados y scan
+  de credenciales. El gate candidate-aware documental también pasó para el manifiesto
+  exacto. El commit aún no se ha enviado y GitHub debe reevaluarlo.
 - El primer arranque de PG17 no tenía el modo de autenticación de test requerido;
   se corrigió solo el comando del contenedor. La siguiente ejecución encontró una
   función JSONB no disponible en PG17 y una colisión de fixtures; se corrigió el
@@ -160,10 +166,10 @@ remotas. No se acreditan como aceptación nueva.
 ## Seguridad, autorizaciones y límites
 
 - Autorización vigente: implementación/tests Docker/PG17 y commit, push no forzado
-  y PR a `desarrollo`, ya consumidos solo para esta feature. PR #508 está abierto y
-  espera la repetición de checks del siguiente head. El delta correctivo local tiene
-  28 rutas, scope/candidate-aware/credenciales/guard/Python focal están PASS. La acción
-  exacta pendiente es commit, push no forzado a la rama feature y lectura de CI nuevo.
+  y PR a `desarrollo`, ya consumidos solo para esta feature. PR #508 está abierto.
+  El delta correctivo local de 28 rutas pasó los gates focales indicados arriba. La
+  acción exacta pendiente es push no forzado del commit `393d3543` y lectura de CI
+  para el nuevo SHA.
   La rama protegida no se modificó.
 - No autorizados ni ejecutados: aprobación de review, merge, SQL/migración remota,
   Supabase writes, interacción de cuenta real, FG3/pipeline/schedule, deploy manual,
@@ -177,6 +183,13 @@ remotas. No se acreditan como aceptación nueva.
   de runtime: revisión estática focal, regresiones positivas/negativas y ShellCheck PASS.
   No es escaneo global ni validación remota. Reporte:
   `/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-editorial-contract-20261028/f39a688f75531d190745225f11524414181ed425_20261028T132753Z_9o66ixd8/report.md`.
+- Revisión focal del delta de seguimiento `475f3dce..393d3543`: los únicos cambios
+  de seguridad agregan tres rutas H3 exactas al allowlist, mantienen tres vecinos
+  negativos, clasifican el test FG3 como consumidor Data API y lo incluyen en el
+  manifiesto candidate-aware. No alteran permisos de runtime ni writers. La revisión
+  estática de ese diff se respalda con guard/compare-candidate, scan de credenciales,
+  ShellCheck y 49/49 pruebas focales PASS en Docker sin red; no se declara un segundo
+  scan formal para este ajuste acotado.
 - La vista usa `security_invoker`; la guía oficial de
   [Supabase Views](https://supabase.com/docs/guides/database/views) confirma que
   ese modo comprueba permisos/RLS del rol lector sobre las tablas subyacentes. La

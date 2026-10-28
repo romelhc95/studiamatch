@@ -19,9 +19,11 @@ head `475f3dce36dd798035661b2c9190527b7f4712e9` tuvo dos fallos CI atribuibles a
 delta: rutas UI ausentes del allowlist protegido e inventario Python sin el nuevo test
 FG3. Se añadieron rutas exactas con vecinos negativos y el test quedó clasificado
 `supabase-data-api-test`; compare-candidate pasó localmente y la suite focal pasó 45/45.
-La corrección de 28 rutas pasó localmente el compare-candidate, candidate-aware, scan
-de credenciales y pruebas focales; está pendiente de commit/push para reevaluar CI. No
-hubo aprobación ni merge.
+La corrección de 28 rutas quedó comprometida localmente en
+`393d354303f0ee620b0199e89d2ed2d6f43cf634`. Pasaron en Docker sin red el guard y
+compare-candidate, 49/49 tests Python focales, scan de credenciales y gate documental
+candidate-aware sobre el manifiesto exacto. El commit espera push no forzado y nueva
+lectura de CI. No hubo aprobación ni merge.
 
 El gate candidate-aware del checker definido por `security-audit.yml` pasó en el
 checkout final con el manifiesto exacto
