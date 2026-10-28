@@ -32,6 +32,17 @@ Validación focal en Docker: ESLint pasó con 0 errores y nueve warnings en `Hom
 
 La cola usa primitives visuales y el renderer público en la vista previa del editor. Sus responsabilidades compartidas están documentadas en [presentación web compartida](presentacion_web_compartida.md); no pertenecen exclusivamente a Admin. El transporte HTTP/API-key y JWT de sesión está en [Supabase transport](supabase_transport.md), y los límites server-side en [runtime Admin](admin_runtime.md).
 
+## Contrato editorial CA4 — candidato local 2026-10-28
+
+La membresía `user` activa puede corregir y volver a corregir los 13 campos de la
+allowlist aunque estén poblados; `missing_fields` informa calidad, no limita permisos.
+Guardar crea un borrador separado. Solo `admin` puede publicar, y esa acción copia
+los campos permitidos a la instantánea pública. Una edición posterior permanece en
+borrador hasta publicarse. La expiración o desconocimiento de inscripción no revierte
+la instantánea aprobada. La preview identifica por separado borrador y publicación;
+el historial usa un acordeón cerrado inicialmente y la versión es una insignia
+compacta. Evidencia local del candidato: [checkpoint CA4](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
 ## Fuentes, contratos y datos
 
 - Rutas: /admin/, login, auth/callback, accept-invite, setup-password, reset-password, edit y users; source en web/src/app/admin/.

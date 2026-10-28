@@ -149,6 +149,38 @@ for unmanifested_h3 in (
             f"{unmanifested_h3}"
         )
 
+editorial_snapshot_paths = {
+    ".context/evidencia/h3req1_editorial_contract_2026-10-28.md",
+    ".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
+    ".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md",
+    "db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+    "scripts/core/integrity_ping.py",
+    "tests/test_integrity_ping_retirement_contract.py",
+    "tests/test_supabase_credentials_contract.py",
+    "web/src/components/admin/CourseLivePreview.tsx",
+    "web/src/components/admin/editorial-ui.tsx",
+}
+if not editorial_snapshot_paths.issubset(local_paths):
+    raise SystemExit("protected path integration test: an exact H3 editorial-contract path is not allowlisted")
+for unreviewed_editorial_neighbor in (
+    ".context/evidencia/h3req1_editorial_contract_extra_2026-10-28.md",
+    ".context/evidencia/h3req1_editorial_contract_candidate_scope_extra_2026-10-28.json",
+    ".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_extra_2026-10-28.md",
+    "db/migrations/20261028_h3_editorial_publication_snapshot_extra.sql",
+    "scripts/core/integrity_ping_extra.py",
+    "tests/test_integrity_ping_retirement_contract_extra.py",
+    "tests/test_supabase_credentials_contract_extra.py",
+    "web/src/components/admin/CourseLivePreview_extra.tsx",
+    "web/src/components/admin/editorial-ui_extra.tsx",
+):
+    if unreviewed_editorial_neighbor in local_paths or any(
+        re.search(pattern, unreviewed_editorial_neighbor) for pattern in patterns
+    ):
+        raise SystemExit(
+            "protected path integration test: an unreviewed editorial-contract sibling is accepted: "
+            f"{unreviewed_editorial_neighbor}"
+        )
+
 # The duration/mobile successor PR adds only the exact local paths rejected
 # by the current guard, plus the parser test and R20 selection manifest. R19
 # remains the immutable historical manifest validated below.

@@ -1,5 +1,16 @@
 # HITO-003 - Admin Editorial
 
+## Corte local del contrato editorial — 2026-10-28
+
+La decisión humana sanitizada [H3-CA4-EDITORIAL-CONTRACT-2026-10-28](../evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md)
+actualiza edición User, borrador/publicación, prioridad persistente del último
+contenido aprobado, regla acotada FG3 y presentación de preview/historial/versión.
+E1–E5 están aceptados en fixtures Docker/PG17; E6 queda pendiente de interacción
+real de navegador y bloquea el PR. El detalle before/after y el siguiente paso están
+en el [checkpoint local](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+El resultado previo 6/6 MIN-01..06 se conserva como evidencia histórica y no cuenta
+para este contrato. No hubo escrituras Supabase, deploy, aceptación remota ni CI.
+
 > **Nota de vigencia, 2026-10-12:** los cortes NO-GO locales de 2026-10-08 que siguen abajo son historia preservada. El estado actual del alcance local es G01–G09 GO por R178 y G10 local R181/R182; G10 remoto y el cierre contractual siguen pendientes. Consultar [estado operativo](../estado_del_proyecto.md), [navegación de hitos](README.md) y [evidencia R178](../evidencia/h3req1_g09_local_close_r178_2026-10-11.md). No alterar la historia ni inferir despliegue.
 
 ## Estado actual tras r4/r5/r6/r7 — 2026-10-08
@@ -138,7 +149,7 @@ Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate previo al 
 como perímetro, autenticación administrativa existente para `admin` y `user`,
 membresía `admin_members`, invitación por correo mediante backend privilegiado,
 gestión de roles y activación, cola paginada, filtros, edición editorial completa
-para `admin`, edición de `missing_fields` para `user`, optimistic locking,
+para `admin` y `user` sobre la allowlist editorial completa, optimistic locking,
 publicar/despublicar/archivar, calidad, auditoría y compatibilidad con static export.
 
 `studiamatch.com/admin/` debe responder `404` y no servir el panel.
@@ -149,10 +160,20 @@ Los campos editoriales públicos de curso son: `name`, `price_pen`, `price_statu
 `mode`, `duration`, `description_long`, `syllabus`, `target_audience`,
 `requirements`, `certification`, `benefits`, `objectives` y `start_date_text`.
 
-`admin` puede corregirlos todos. `user` puede corregir únicamente los que aparezcan
-en `course_editorial_state.missing_fields`. Identidad, institución, URL, slug,
+`admin` y `user` con membresía editorial activa pueden corregir y volver a corregir
+los 13 campos de esta allowlist, aunque ya tengan valor y no estén en
+`course_editorial_state.missing_fields`. El editor conserva guardar, pero no obtiene
+publicación, archivo, calidad ni administración de miembros; esas acciones siguen
+siendo exclusivas de `admin`. Identidad, institución, URL, slug,
 categoría, fecha estructurada, tipo de curso, brochure, cálculos ROI, métricas,
 metadata y estados editoriales no son editables por `user`.
+
+Los valores de trabajo (`manual_overrides`) y los valores aprobados (`published_*`)
+son estados separados. Guardar deja un borrador; solo una publicación Admin cambia
+la instantánea que consulta el público. Una instantánea ya publicada mantiene
+precedencia sobre el pipeline hasta una nueva publicación, reversión explícita o
+desactivación. El estado/evidencia de inscripción no es vigencia del contenido:
+su vencimiento no sustituye la instantánea ni desactiva el curso.
 
 El pipeline debe transportar `benefits`, `certification`, `objectives` y
 `target_audience` con semántica independiente; no se acepta sustituirlos
@@ -161,13 +182,13 @@ silenciosamente por el mismo origen ni marcar `missing_fields` únicamente por
 
 ## Validacion Contra Fuente Cliente
 
-El alcance base de H3 (`/admin`, cola, edición manual y publicación) se valida contra la fuente privada cliente `SRC-REQ-002` mediante la atestación sanitizada versionada [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md). La ampliación está respaldada por la atestación sanitizada [H3-EXPANDED-PROMPT-2026-08-30](../evidencias_cliente/sprint_1/atestado_h3_ampliacion_prompt_humano_sanitizado.md), que autoriza únicamente ejecución local Docker hasta GO local. La fuente privada no se versiona ni se expone en PRs.
+El alcance base de H3 (`/admin`, cola, edición manual y publicación) se valida contra la fuente privada cliente `SRC-REQ-002` mediante la atestación sanitizada versionada [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md). La ampliación histórica está respaldada por [H3-EXPANDED-PROMPT-2026-08-30](../evidencias_cliente/sprint_1/atestado_h3_ampliacion_prompt_humano_sanitizado.md). La corrección vigente de este contrato y su autorización exclusivamente local constan en [H3-CA4-EDITORIAL-CONTRACT-2026-10-28](../evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md). La fuente privada no se versiona ni se expone en PRs.
 
 ## Contrato De Acceso
 
 - Usuario anonimo no accede.
 - Usuario autenticado sin membresia activa no accede.
-- Usuario con membresia activa `user` accede a `/admin/`, consulta la cola y completa unicamente campos incluidos en `missing_fields`.
+- Usuario con membresia activa `user` accede a `/admin/`, consulta la cola y corrige/reedita los 13 campos editoriales permitidos; `missing_fields` sigue informando calidad, no define su permiso de edición.
 - Usuario con membresia activa `admin` hereda las capacidades de `user` y ademas publica, despublica, archiva, actualiza `quality_status` y gestiona membresias.
 - Toda mutación exige identidad y rol válidos dentro de la RPC; las acciones administrativas exigen rol `admin` y dejan auditoría.
 - `admin` puede invitar por correo, cambiar el rol y activar/desactivar cualquier membresía `admin` o `user` desde el panel mediante botón o checkbox, sujeto únicamente a la invariante de conservar al menos un `admin` activo y evitar el auto-bloqueo accidental del último admin.
@@ -175,11 +196,13 @@ El alcance base de H3 (`/admin`, cola, edición manual y publicación) se valida
 ## Contrato Funcional
 
 - Cola paginada con filtros por estado editorial/calidad.
-- Edición admin de todos los campos editoriales públicos definidos; edición user solo de `missing_fields`.
+- Edición admin y user de todos los campos de la allowlist editorial; publicación y demás acciones administrativas siguen siendo solo Admin.
 - Optimistic locking por `version`.
+- Guardar crea/cambia un borrador; publicar como Admin actualiza la instantánea pública. Si el curso ya estaba publicado, el público conserva su última instantánea mientras haya una nueva edición en revisión.
 - Publicar/despublicar/archivar y cambiar `quality_status` solo para admin.
 - Publicar/despublicar/archivar sin que pipeline pueda saltar revisión.
 - Auditoría append-only por cada mutación editorial y de membresía.
+- Vencimiento de evidencia de inscripción no revierte contenido publicado ni desactiva el curso. FG3 retira solo tras 404/410 reiterado con gracia; fecha de inicio antigua y fallos transitorios no bastan. HTTP 200 no prueba que un curso siga listado en origen; la comprobación semántica queda limitada y trazada a H1 si requiere una capacidad inexistente.
 - MFA TOTP/`aal2` queda fuera del gate de aceptación H3REQ1 por decisión de alcance. La implementación existente se conserva como compatibilidad y mejora evolutiva; no se declara validación MFA como requisito de cierre.
 - Cloudflare Access protege `admin.studiamatch.com`; `studiamatch.com/admin/` responde HTTP 404 y no sirve el panel.
 - Invitación de usuarios por correo mediante Edge Function protegida con `verify_jwt=true`; `service_role` nunca llega al navegador.

@@ -26,7 +26,7 @@ export const EDITORIAL_STATUS_META: Record<EditorialStatus, StatusMeta> = {
   },
   published: {
     label: 'Publicado',
-    description: 'El curso puede aparecer en la experiencia pública si está disponible.',
+    description: 'El último contenido aprobado por Admin se proyecta al catálogo mientras el curso y su fuente sigan activos.',
     className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     icon: Send,
   },

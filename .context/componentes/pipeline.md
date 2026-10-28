@@ -25,6 +25,17 @@
 | `scripts/core/sync_vector_worker.py` | `SyncVectorWorker` valida datos normalizados/calidad/guards y persiste cursos, respetando ownership editorial. El nombre no prueba que embeddings estén activos. | Job separado de `production_pipeline.yml`; `roi_engine.py` calcula campos ROI. | `enriched_programs → courses`; writer normal final, requiere permisos de pipeline y preflight de modo. |
 | `scripts/core/integrity_ping.py` | `is_safe_public_url()`/`resolve_public_host()` validan IP pública; `request_pinned_public_url()` fija DNS para request HTTPS/HEAD; `patch_course_exact_one()` limita la mutación a una fila; `run_integrity_ping()` aplica ventana de gracia antes de desactivar. | `.github/workflows/fg3_integrity.yml` (comando desde `scripts/core`); `production_canary.yml` lo usa con límites canario. | Lee URLs de `courses`, requests externas y puede PATCH de un curso exacto; exige permiso writer y protección anti-SSRF. |
 
+### Contrato de retirada FG3 — candidato local 2026-10-28
+
+Una fecha de inicio antigua, disponibilidad vencida/desconocida o una falla
+transitoria no desactivan el curso. La regla local conserva la gracia de más de
+tres días desde `last_404_at` y requiere observaciones repetidas 404/410 para
+desactivar, dejando curso y auditoría existentes. HTTP 200 solo acredita respuesta
+del URL: no prueba que el programa siga listado en el catálogo institucional. La
+retirada semántica de páginas 200 queda limitada y trazada a H1; no se incorpora un
+crawler nuevo. Prueba sintética: `tests/test_integrity_ping_retirement_contract.py`;
+resultado por corte en el [checkpoint CA4](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
 Los YAML prueban wiring declarado. El workflow FG2 invoca `master_orchestrator.py --skip-cleansing` y mantiene jobs separados de cleansing, enrichment y sync; no asumir que el padre ejecutó todas las etapas. Horarios reales y ejecuciones quedan remotos.
 
 ## Gates y perfiles

@@ -56,6 +56,7 @@ Sigue los [recorridos de transferencia](transferencia.md) para cambiar: una regl
 
 ## Historia y evidencia
 
+- [Candidato local del contrato editorial H3REQ1 — E1–E6](evidencia/h3req1_editorial_contract_2026-10-28.md) registra el corte desde `desarrollo@f39a688`, resultados nuevos (E1–E5 PASS, E6 pendiente por navegador), migración no aplicada remotamente y siguiente gate. La autorización de PR está disponible, pero no se consume antes de completar E6.
 - [D04: distinguir denegación de rol de fallo RPC](evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md) conserva el diagnóstico acotado del 502 histórico, el cambio local de SQLSTATE/BFF, pruebas focales Docker y los límites de SQL/runtime sin ejecutar.
 - [Ciclo de aceptación local del candidato de duración compuesta y filtros móviles](evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md) conserva R11 y añade R12: H3-UAT-058/H3-CA4.11 y H3-UAT-059/H3-CA4.9 pasan juntos en 6/6 viewports; 058 incluye la comprobación de footer/filtros a 320 px y 059 pasa 39/39 aserciones por viewport. Son resultados locales sintéticos; Preview, integración, deployment y aceptación remota siguen pendientes.
 - [Revisión del candidato de correcciones públicas y Admin R21](evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md) agrupa el delta exacto, sus consumidores, validaciones Docker y escenarios remotos que deben renovarse. No autoriza publicación; no incorpora el WIP Admin/MFA/FG3 ajeno.

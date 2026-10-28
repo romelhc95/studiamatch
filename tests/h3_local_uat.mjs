@@ -456,9 +456,43 @@ const ALL_CASES = Object.freeze([
     await page.getByRole('alert').filter({ hasText: 'vigencia máxima global de 90 días' }).waitFor();
     check('over-90-day evidence rejected before RPC', rpcRequests === 0);
     page.off('request', countAdminRpc);
-    return `${editableInputs} editable inputs; availability UI rejects evidence over 90 days without an RPC`;
+    const versionBadge = page.getByTestId('editorial-version');
+    const versionBox = await versionBadge.boundingBox();
+    check('version is shown as a compact badge', /^v\d+$/.test((await versionBadge.innerText()).trim()) && (versionBox?.width || Infinity) < 100);
+    const history = page.getByTestId('editorial-audit-details');
+    const summary = history.locator('summary');
+    check('audit history starts collapsed', await history.evaluate((element) => element.open === false));
+    await summary.focus();
+    await page.keyboard.press('Enter');
+    check('history opens with keyboard Enter', await history.evaluate((element) => element.open === true));
+    const auditRows = await history.locator('ol > li').count();
+    const emptyAudit = await history.getByText('Todavía no hay eventos registrados para este curso.').count();
+    check('history content or empty state is available after opening', auditRows > 0 || emptyAudit > 0);
+    await page.keyboard.press('Space');
+    check('history closes with keyboard Space', await history.evaluate((element) => element.open === false));
+
+    const preview = page.getByRole('region', { name: 'Previsualización editorial' });
+    const publishedButton = preview.getByRole('button', { name: 'Publicado', exact: true });
+    const publicStateResponse = await rpc(page, 'admin_get_course_editorial', {
+      p_course_id: new URL(page.url()).searchParams.get('id'),
+    });
+    const publicState = publicStateResponse.body?.data?.[0]?.course;
+    check('public snapshot and draft views are distinct controls', await preview.getByRole('button', { name: 'Borrador', exact: true }).isVisible()
+      && await publishedButton.isVisible());
+    if (publicState?.editorial_status === 'published' && publicState?.published_values) {
+      await publishedButton.click();
+      const expectedPublishedName = String(publicState.published_values.name ?? '');
+      check('published preview uses Admin snapshot', await preview.getByText('Contenido publicado', { exact: true }).isVisible()
+        && (await preview.locator('[data-preview-field="name"]').first().innerText()).includes(expectedPublishedName));
+    } else {
+      check('unpublished course does not advertise draft as public', await publishedButton.isDisabled());
+    }
+    await preview.getByRole('button', { name: 'Borrador', exact: true }).click();
+    const layout = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+    check('editor fits the active desktop or mobile viewport', layout.scroll <= layout.client + 1);
+    return `${editableInputs} editable inputs; version badge, keyboard history, draft/public preview and ${layout.client}px layout checked`;
   }),
-  defineCase('H3-CA4.2', 'user editor limits ownership to missing fields', 'user', '/admin/edit/', 'user receives only missing fields as editable', async ({ page, check }) => {
+  defineCase('H3-CA4.2', 'active user can correct every allowlisted editorial field', 'user', '/admin/edit/', 'user receives the complete 13-field editorial allowlist while retaining Admin-only actions', async ({ page, check }) => {
     await login(page, 'user');
     await selectAllQueueStatuses(page);
     const queueResponse = await rpc(page, 'admin_get_course_queue_filtered', {
@@ -477,17 +511,18 @@ const ALL_CASES = Object.freeze([
     await page.getByRole('button', { name: 'Actualizar información' }).waitFor({ state: 'visible' });
     const editableKeys = await page.locator('main input:not([disabled]), main textarea:not([disabled]), main [role="combobox"]:not([aria-disabled="true"])').evaluateAll((nodes) => nodes.map((node) => node.id || node.getAttribute('name')).filter(Boolean));
     const readonly = await page.locator('main input[disabled], main textarea[disabled], main [role="combobox"][aria-disabled="true"]').count();
-    const missingKeys = new Set(candidate.missing_fields);
-    check('editable missing fields', editableKeys.length > 0 && editableKeys.every((key) => missingKeys.has(key)));
-    check('readonly existing fields', readonly > 0);
+    const editableSet = new Set(editableKeys);
+    check('all thirteen allowlisted fields editable', EDITORIAL_FIELDS.every((key) => editableSet.has(key)));
+    check('no editorial field is disabled for an active editor', readonly === 0);
     check('availability override stays admin-only', await page.getByRole('heading', { name: 'Registrar comprobación respaldada' }).count() === 0);
-    return `${editableKeys.length} enabled fields match the synthetic missing-field set; ${readonly} readonly; availability override hidden from user`;
+    check('publication and archive controls stay Admin-only', await page.getByRole('button', { name: /Publicar|Archivar/ }).count() === 0);
+    return `${editableSet.size} enabled fields include the 13-field allowlist; ${readonly} disabled; Admin actions remain hidden`;
   }),
   defineCase('H3-CA4.2', 'user read-only fields are disabled', 'user', '/admin/edit/', 'non-owned fields are disabled and read-only', async ({ page, check }) => {
     await openFirstEditor(page, 'user'); const invalid = await page.locator('main input[disabled]:not([readonly])').count(); check('disabled fields are readonly', invalid === 0); return 'all disabled fields are readonly';
   }),
-  defineCase('H3-CA4.2', 'user receives an ownership explanation', 'user', '/admin/edit/', 'editor explains that only missing information is editable', async ({ page, check }) => {
-    await openFirstEditor(page, 'user'); const note = page.getByRole('note'); check('ownership note visible', await note.isVisible()); return await note.innerText();
+  defineCase('H3-CA4.2', 'user sees the editorial allowlist explanation', 'user', '/admin/edit/', 'editor explains that all thirteen allowed editorial fields can be corrected', async ({ page, check }) => {
+    await openFirstEditor(page, 'user'); const note = page.getByText('Puedes corregir cualquiera de los 13 campos editoriales permitidos.', { exact: false }); check('allowlist explanation visible', await note.isVisible()); return await note.innerText();
   }),
   defineCase('H3-CA4.2', 'editor renders effective current values', 'admin', '/admin/edit/', 'editor fields are hydrated with current/effective values', async ({ page, check }) => {
     await openFirstEditor(page, 'admin'); const values = await page.locator('main input').evaluateAll((nodes) => nodes.map((node) => node.value)); check('hydrated values', values.some((value) => value.trim().length > 0)); return `${values.filter(Boolean).length} hydrated values`;

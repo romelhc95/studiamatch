@@ -20,13 +20,38 @@ Estado histórico preservado: `READY_FOR_PROMPT_CONTINUA` fue el gate de pre-arr
 
 ## Criterios de cierre ampliados
 
+### Enmienda vigente de CA4 — 2026-10-28
+
+La decisión humana sanitizada [H3-CA4-EDITORIAL-CONTRACT-2026-10-28](../evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md)
+actualiza CA4.2 y CA4.5: el rol editorial activo puede corregir los 13 campos de la
+allowlist; `missing_fields` deja de ser una restricción de autorización. Guardar
+produce un borrador y solo Admin publica; la última instantánea aprobada permanece
+pública durante nuevas ediciones y ante vencimiento/desconocimiento de disponibilidad.
+FG3 desactiva con 404/410 reiterado tras la gracia vigente. Fecha antigua y errores
+transitorios no desactivan. Una respuesta HTTP 200 no prueba pertenencia actual al
+catálogo; la retirada semántica con página 200 queda limitada y trazada a H1.
+
+Las métricas, ejecuciones y estados de septiembre que siguen son historia de esa
+matriz anterior; no validan esta enmienda ni se recalculan aquí.
+
+| Caso nuevo | Antes del cambio `f39a688` | Después, evidencia local | Resultado |
+|---|---|---|---|
+| E1 | No había evidencia del nuevo permiso sobre campos poblados. | PG17 aislado: editor corrige/relee/recorrige un campo; auditoría conserva actor, before/after y versión. | ACEPTADO local |
+| E2 | No había una ejecución nueva del contrato revisado. | PG17 con identidades sintéticas: colaborador denegado en publish/members; anónimo denegado en RPC editorial. | ACEPTADO local; no sustituye pruebas remotas |
+| E3 | No había snapshot separado ni prueba de persistencia frente a disponibilidad. | PG17: Admin publica; ediciones posteriores quedan draft; base/pipeline y disponibilidad vencida/unknown no reemplazan el snapshot; republicación lo actualiza. | ACEPTADO local |
+| E4 | Sin ejecución nueva para el delta. | PG17: versión obsoleta devuelve conflicto y preserva el valor ganador. | ACEPTADO local |
+| E5 | Regla previa podía retirar por fecha de inicio antigua. | `tests/test_integrity_ping_retirement_contract.py` en Docker, 4/4; fecha antigua, expiry y 503 no desactivan; 404/410 repetido tras gracia sí. | ACEPTADO local; HTTP 200 no prueba pertenencia semántica |
+| E6 | No había comprobación del preview separado y nuevo layout. | ESLint/TypeScript/build y contrato source-level pasan; navegación de teclado y medición visual desktop/móvil no se ejecutaron porque el Chrome bridge rechazó navegación autorizada y el runtime canónico no está instalado en la imagen Docker. | PENDIENTE; gate de PR abierto |
+
+Resultado del nuevo denominador fijo: 5/6 E aceptados localmente (83,3 %); E6 no aporta crédito. Este porcentaje describe solo esta matriz local, no aceptación remota ni avance global H3REQ1. Ver comandos y límites en el [checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
 | ID | Criterio | Evidencia GO requerida |
 |---|---|---|
 | H3-CA4.1 | Auth y RBAC | anon/auth sin membresía/inactivo bloqueados; user y admin autorizados según rol |
-| H3-CA4.2 | Ownership editorial | 13 campos clasificados; `admin` edita todos; `user` solo `missing_fields` |
+| H3-CA4.2 | Ownership editorial | `admin` y `user` activos editan/reeditan los 13 campos de la allowlist; `missing_fields` informa calidad; campos ajenos siguen denegados |
 | H3-CA4.3 | Transporte de datos | enrichment/sync preservan `benefits`, `certification`, `objectives` y `target_audience` con semántica independiente |
 | H3-CA4.4 | Cola editorial | filtros, contador, cursor, archivados excluidos y más de una página |
-| H3-CA4.5 | Mutaciones | allowlist, optimistic locking, publicar/despublicar/archivar/calidad según rol |
+| H3-CA4.5 | Mutaciones | allowlist, borrador separado de instantánea publicada, locking; solo Admin publica/despublica/archiva/cambia calidad; disponibilidad no revierte contenido ni desactiva |
 | H3-CA4.6 | Auditoría | cada mutación editorial/membresía auditada y append-only |
 | H3-CA4.7 | MFA (fuera del gate) | Retirado del criterio de aceptación por decisión de alcance; implementación existente se conserva como compatibilidad y mejora evolutiva |
 | H3-CA4.8 | Membresías e invitaciones | admin invita por correo, cambia rol y activa/desactiva cualquier membresía `admin`/`user` mediante botón o checkbox, sin exponer `service_role`; conserva al menos un admin activo y evita auto-bloqueo accidental. Edge 03A y DB onboarding 03B validados localmente; frontend/Auth real y UAT remota pendentes |

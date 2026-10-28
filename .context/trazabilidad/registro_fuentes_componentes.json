@@ -1191,7 +1191,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Auth UI, MFA, onboarding, queue/edit/publication contracts described in frontend/backend.",
+        "note": "Auth UI, MFA, onboarding, queue/edit/publication contracts described in frontend/backend. CA4 candidate: active editors can re-edit the full 13-field allowlist; save updates draft only; Admin publication updates the public snapshot, and the preview labels both states.",
         "evidence": [
           "path:web/src/app/admin/accept-invite/page.tsx",
           "path:web/src/app/admin/auth/callback/page.tsx",
@@ -1219,8 +1219,11 @@
         "state": "verified",
         "note": "Cada path tiene referencias de suite o ausencia de referencia literal dentro del scope `tests/` y extensiones descrito en .context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md. Una arista de test prueba que el test lee/asserta fuente, no que el test haya pasado ni que cubra todo el contrato. El test candidate-only tests/admin_header_responsive.test.mjs verifica las clases flex responsivas de web/src/app/admin/page.tsx; es una assertion source-level y no sustituye la medición real en viewport móvil.",
         "evidence": [
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
-          "path:tests/admin_header_responsive.test.mjs"
+          "path:tests/admin_header_responsive.test.mjs",
+          "path:tests/h3_local_uat.mjs",
+          "path:tests/test_h3_admin_queue_ux_contract.py"
         ],
         "resolution": "Map the exact runner, case/assertion, fixture/input and dated result. Re-run only tests affected by changed inputs in Docker; historical results remain scoped to their recorded cut."
       },
@@ -10373,7 +10376,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "master_orchestrator decide gates/cohorte/recencia, inicia subprocesos con time guard y circuit breaker; integrity_ping fija DNS/IP pública y limita patch a curso exacto con gracia para 404. Contratos concretos en la ficha pipeline.",
+        "note": "master_orchestrator decide gates/cohorte/recencia, inicia subprocesos con time guard y circuit breaker; integrity_ping fija DNS/IP pública y limita patch a curso exacto con gracia para 404. Contratos concretos en la ficha pipeline. CA4 candidate: old start dates, expired/unknown enrollment and transient failures do not deactivate; repeated 404/410 after grace does. HTTP 200 is reachability only; semantic catalog membership is outside H3 and traced to H1.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
           "path:scripts/core/integrity_ping.py",
@@ -10403,13 +10406,15 @@
         "state": "verified",
         "note": "test_fase09_9_certification_canary.py, test_fase10_production_canary.py y credential contract inspeccionan límites/wiring del orquestador; pipeline walk y R161 aportan casos sintéticos para validadores/patch de integrity. No se encontró una ejecución dedicada del runtime completo de master_orchestrator; R160 es agregado y R161 prueba las estaciones, no schedule.",
         "evidence": [
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
+          "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
+          "path:.context/evidencia/h3req1_g09_pipeline_postgrest_r161/run-r10.log",
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_fase09_9_certification_canary.py",
           "path:tests/test_fase10_production_canary.py",
-          "path:tests/test_supabase_credentials_contract.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
-          "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
-          "path:.context/evidencia/h3req1_g09_pipeline_postgrest_r161/run-r10.log"
+          "path:tests/test_integrity_ping_retirement_contract.py",
+          "path:tests/test_supabase_credentials_contract.py"
         ]
       },
       "operations": {
@@ -16111,7 +16116,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "El runner integrado incluye casos Admin con su criterio/fixture y los recorridos públicos H3-UAT-058→H3-CA4.11 (responsive) y H3-UAT-059→H3-CA4.9 (filtros/Actualizarme). El catálogo versionado del runner es la fuente de verdad para ID, criterio, título, reset y ruta; las actas separan ejecuciones y límites. La solicitud que asoció 059 a CA4.11 no coincide con el catálogo vigente y queda reconciliada por el código.",
+        "note": "El runner integrado incluye casos Admin con su criterio/fixture y los recorridos públicos H3-UAT-058→H3-CA4.11 (responsive) y H3-UAT-059→H3-CA4.9 (filtros/Actualizarme). El catálogo versionado del runner es la fuente de verdad para ID, criterio, título, reset y ruta; las actas separan ejecuciones y límites. La solicitud que asoció 059 a CA4.11 no coincide con el catálogo vigente y queda reconciliada por el código. E6 candidate assertions cover a compact version badge, draft/public preview and keyboard-operable collapsed history; actual viewport/browser execution remains pending.",
         "evidence": [
           "path:.context/componentes/pruebas_evidencia.md",
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md"
@@ -16211,18 +16216,19 @@
     {
       "id": "functional-contract-tests",
       "component": "pruebas-evidencia",
-      "purpose": "Casos pytest de UI/API/seguridad/DB y documentación; cada suite se enlaza a sus targets.",
+      "purpose": "Casos pytest de UI/API/seguridad/DB/documentación y regla de vigencia FG3; cada suite se enlaza a sus targets.",
       "status": "current",
       "inline_comment": "none",
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "La tabla R11 distingue los contratos por suite: invitación Edge; cálculo editorial/backfill; atestación cliente; compatibilidad/migración H2; UX de cola Admin; callback/invitación/recovery; MFA/password; y estado Obsidian. New candidate suite test_h3_admin_onboarding_denial_contract.py checks the bounded SQLSTATE mapping, harness assertions, and sanitized BFF response.",
+        "note": "La tabla R11 distingue los contratos por suite: invitación Edge; cálculo editorial/backfill; atestación cliente; compatibilidad/migración H2; UX de cola Admin; callback/invitación/recovery; MFA/password; y estado Obsidian. New candidate suite test_h3_admin_onboarding_denial_contract.py checks the bounded SQLSTATE mapping, harness assertions, and sanitized BFF response. La prueba candidata tests/test_integrity_ping_retirement_contract.py cubre fecha antigua, expiración, fallos transitorios y 404/410 reiterado con gracia; no declara pertenencia semántica de páginas HTTP 200.",
         "evidence": [
           "path:.context/componentes/pruebas_evidencia.md",
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
+          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
           "path:tests/test_h3_admin_onboarding_denial_contract.py",
-          "path:db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql"
+          "path:tests/test_integrity_ping_retirement_contract.py"
         ]
       },
       "consumers": {
@@ -16248,13 +16254,14 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "R178 G03 es una salida agregada 337 passed/4 skipped/1 warning; no se atribuye a cada path ni a los bytes actuales sin hash de input coincidente. El contrato D04 tiene tres casos; el contrato D04 y el test afectado de test_security_flow.py pasaron juntos con pytest en Docker (4 passed). El workflow security-audit incluye el contrato D04 en su pytest offline. El harness SQL se validó en PG17 desechable bajo el JIT D04/D05; nada de esto acredita PostgREST o Development remoto.",
+        "note": "R178 G03 es una salida agregada 337 passed/4 skipped/1 warning; no se atribuye a cada path ni a los bytes actuales sin hash de input coincidente. El contrato D04 tiene tres casos; el contrato D04 y el test afectado de test_security_flow.py pasaron juntos con pytest en Docker (4 passed). El workflow security-audit incluye el contrato D04 en su pytest offline. El harness SQL se validó en PG17 desechable bajo el JIT D04/D05; nada de esto acredita PostgREST o Development remoto. La prueba FG3 candidata se ejecutó en Docker con dobles de HTTP/DB: 4/4; no tocó base ni URL remota.",
         "evidence": [
-          "path:.context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
           "path:.context/componentes/pruebas_evidencia.md",
+          "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md",
+          "path:.context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h3_admin_onboarding_denial_contract.py",
-          "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md"
+          "path:tests/test_integrity_ping_retirement_contract.py"
         ]
       },
       "operations": {
@@ -16280,22 +16287,24 @@
         "tests/test_h2_client_evidence_docs.py",
         "tests/test_h2_development_legacy_compat.py",
         "tests/test_h2_editorial_migration.py",
+        "tests/test_h3_admin_onboarding_denial_contract.py",
         "tests/test_h3_admin_queue_ux_contract.py",
         "tests/test_h3_invitation_callback_contract.py",
         "tests/test_h3_mock_invitation_contract.py",
         "tests/test_h3_password_recovery_contract.py",
+        "tests/test_integrity_ping_retirement_contract.py",
         "tests/test_mfa_compatibility_contract.py",
         "tests/test_obsidian_context_state.py",
         "tests/test_password_policy_contract.py",
-        "tests/test_requirement_client_source_validation.py",
-        "tests/test_h3_admin_onboarding_denial_contract.py"
+        "tests/test_requirement_client_source_validation.py"
       ],
       "source_document": {
         "path": ".context/componentes/pruebas_evidencia.md",
         "anchor": "suites-python-de-contrato"
       },
       "candidate_only_paths": [
-        "tests/test_h3_admin_onboarding_denial_contract.py"
+        "tests/test_h3_admin_onboarding_denial_contract.py",
+        "tests/test_integrity_ping_retirement_contract.py"
       ]
     },
     {
@@ -20456,6 +20465,75 @@
           "path:.context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md"
         ]
       }
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261028-h3-editorial-publication-snapshot",
+      "purpose": "H3 editorial publication snapshot: active-editor allowlist edits, draft/public separation, and approved content independent of enrollment evidence. Local forward migration only; no remote apply or operational backfill.",
+      "paths": [
+        "db/migrations/20261028_h3_editorial_publication_snapshot.sql"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "migration-20261028-h3-editorial-publication-snapshot"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261028_h3_editorial_publication_snapshot.sql"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Adds nullable published snapshot columns and updates existing SECURITY DEFINER RPCs/public projection while preserving role, allowlist, version and audit controls. PG17 disposable synthetic harness applies the migration twice; no Supabase DDL was executed.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:tests/sql/h3_pg17_harness.sql",
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "Existing Admin edit/read/publish RPC callers and public courses_public_effective projection. Draft edits remain separate until Admin publish; pipeline base updates and availability expiry do not replace published snapshots. Compatibility fallback remains for rows without snapshots.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:web/src/app/admin/edit/page.tsx",
+          "path:web/src/components/admin/CourseLivePreview.tsx",
+          "path:tests/sql/h3_pg17_harness.sql"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Adds three nullable columns on course_editorial_state; migration performs no operational-row backfill. Existing audit remains append-only; RPC writes still capture actor, before/after and version.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:tests/sql/h3_pg17_harness.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Docker PostgreSQL 17 harness applies the migration twice and exercises legacy rows, editor role, audit/version, draft/public snapshot, republish, base changes and availability expiry/unknown. Synthetic/local only.",
+        "evidence": [
+          "path:tests/sql/h3_pg17_harness.sql",
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Migration was run only against disposable PG17 with network disabled, tmpfs data and read-only fixture mount. No remote DDL, app deploy or rollback was executed; remote apply needs separate JIT and ordered expand/compatibility/deploy/contract.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "New local candidate in the isolated feature worktree; uncommitted at this checkpoint. No remote migration state is implied.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
+        ]
+      }
     }
   ],
   "active_documents": [
@@ -20517,6 +20595,7 @@
     ".context/evidencia/h3req1_documentacion_navegacion_historica_2026-10-13_r13.md",
     ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-12.md",
     ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-13_r10.md",
+    ".context/evidencia/h3req1_editorial_contract_2026-10-28.md",
     ".context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
     ".context/evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md",
     ".context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md",
@@ -20531,6 +20610,7 @@
     ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r17_public_sanitized_r18.md",
     ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r18.md",
     ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-18_r19.md",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-body-2026-10-24.md",
     ".context/evidencia/h3req1_reclasificacion_componentes_web_2026-10-13_r11.md",
@@ -20547,6 +20627,7 @@
     ".context/evidencia/planes_historicos/h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06.md",
     ".context/evidencia/planes_historicos/plan_go_h3req1_local_development_2026-10-02.md",
     ".context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md",
+    ".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md",
     ".context/frontend.md",
     ".context/hitos/README.md",
     ".context/hitos/h3req1_closure_review_final_2026-09-23.md",
@@ -20574,8 +20655,7 @@
     ".context/transferencia.md",
     ".context/trazabilidad/protocolo_constructor.md",
     ".context/trazabilidad/registro_fuentes_componentes.md",
-    ".context/waivers/waiver_h3_static_export.md",
-    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md"
+    ".context/waivers/waiver_h3_static_export.md"
   ],
   "document_exclusions": [
     {

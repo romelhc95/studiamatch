@@ -89,6 +89,9 @@ README.md
 .context/evidencia/h3req1_d04_candidate_docs_scope_2026-10-25.json
 .context/evidencia/h3req1_d04_candidate_pr_scope_2026-10-25.json
 .context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md
+.context/evidencia/h3req1_editorial_contract_2026-10-28.md
+.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json
+.context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md
 .context/componentes/web_publico.md
 .context/componentes/admin_portal.md
 .context/componentes/admin_runtime.md
@@ -157,6 +160,8 @@ db/rollback/h3req1_safe_resume.sql
 db/rollback/h3req1_safe_suspend.sql
 db/migrations/20261010_h3_admin_members_service_select.sql
 db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql
+db/migrations/20261028_h3_editorial_publication_snapshot.sql
+scripts/core/integrity_ping.py
 scripts/core/universal_harvester.py
 scripts/security/scan_credentials.sh
 scripts/security/scan_worktree_file.py
@@ -169,6 +174,10 @@ tests/test_protected_workflow_review.py
 tests/test_fase09_10_pre_main_controls.py
 .github/scripts/production_control_preflight.sh
 tests/test_h3_admin_onboarding_denial_contract.py
+tests/test_integrity_ping_retirement_contract.py
+tests/test_supabase_credentials_contract.py
+web/src/components/admin/CourseLivePreview.tsx
+web/src/components/admin/editorial-ui.tsx
 web/src/app/HomeContent.tsx
 web/src/app/compare/CompareContent.tsx
 web/src/app/page.tsx
