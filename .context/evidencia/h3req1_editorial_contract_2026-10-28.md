@@ -1,7 +1,7 @@
 # Checkpoint local — contrato editorial H3REQ1
 
 **Corte:** 2026-10-28, America/Lima. Continuación iniciada a las 11:24:51 (-05:00);
-este corte se actualizó a las 11:31:43 (-05:00). El checkpoint anterior cerró a
+este corte se actualizó a las 11:42:50 (-05:00). El checkpoint anterior cerró a
 las 10:08:44 (-05:00). Todos los tiempos usan America/Lima.
 
 ## Baseline y estado
@@ -9,6 +9,12 @@ las 10:08:44 (-05:00). Todos los tiempos usan America/Lima.
 - Checkout aislado: `/tmp/studiamatch-h3req1-editorial-contract-20261028`.
 - Rama: `codex/h3req1-editorial-contract-20261028`.
 - Base y HEAD observados: `desarrollo@f39a688f75531d190745225f11524414181ed425`.
+- Primer commit enviado al PR: `475f3dce36dd798035661b2c9190527b7f4712e9`; el
+  follow-up local corrige solo los dos fallos del primer CI y aún no está publicado.
+- PR #508 abierto hacia `desarrollo`: `https://github.com/romelhc95/studiamatch/pull/508`.
+  Primer head `475f3dce36dd798035661b2c9190527b7f4712e9`; el primer run CI fue
+  `40727339670`. Sus dos fallos reproducibles se corrigieron en paths exactos;
+  no hubo aprobación ni merge.
 - Deployment Development de referencia observado previamente: `d6e7b158-b26f-4504-b445-1facac915269`, host `desarrollo.studiamatch-aty.pages.dev`, SHA `f39a688f75531d190745225f11524414181ed425`. No hay deployment del candidato.
 - Estado al abrir este checkpoint: cambios locales sin commit; no había PR, CI ni aceptación remota.
 - No se modificó el WIP de otros checkouts. No hubo Supabase, SQL remoto, cuentas,
@@ -91,10 +97,11 @@ total de H3REQ1. El antiguo 6/6 MIN-01..06 no se reutiliza.
 - El proyecto define `--candidate-manifest` como gate candidate-aware en
   `security-audit.yml`. El manifiesto exacto del paquete está en
   `.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json`,
-  SHA-256 `4ec60494b22154d8d1eb70956672332fd538431f4f9d7f42f30d482ba32f38b5`.
-  Corrida final sobre el checkout actual: exit 0; 742/742 fuentes asignadas,
-  119/119 documentos activos alcanzables, 433/433 históricos enlazados; self-test
-  y gate PASS. Es un resultado acotado al manifiesto, separado del FAIL integral.
+  SHA-256 `819bcc3d7f33883990e23af97b9863afe4cf9b5ca3e35d3672b78be1a4359bde`.
+  La corrida final con la nueva entrada del inventario Python pasó: 742/742 fuentes
+  asignadas, 119/119 documentos activos alcanzables, 433/433 históricos enlazados;
+  self-test y gate PASS. El manifiesto coincide exactamente con las 28 rutas del PR.
+  Este resultado acotado sigue separado del FAIL integral.
 - El gate integral del proyecto sigue FAIL (exit 1), tanto en baseline como en el
   candidato. No se oculta ni sustituye por el PASS candidate-aware. Ambos árboles
   tienen 350 diagnósticos completos; 349 son idénticos. El delta solo cambia el
@@ -111,11 +118,11 @@ total de H3REQ1. El antiguo 6/6 MIN-01..06 no se reutiliza.
   de 1.196 paths, 13 catálogos/1.173 referencias. ShellCheck 0.11.0 PASS sobre el
   conjunto completo del job `actionlint And shellcheck` (siete archivos) desde la
   imagen local en caché. `git diff --check` PASS.
-- Scanner versionado de credenciales del delta PASS para los 27 paths modificados o
-  nuevos, en Docker sin red; compilación Python focal de `integrity_ping.py` y su
-  prueba, 2/2 módulos PASS. JSON del manifiesto válido; candidate-aware consumió el
-  mismo manifiesto que selecciona el workflow CI. El gate integral obligatorio antes
-  de integrar sigue sin resolver por referencias históricas y no se declara PASS.
+- Scanner versionado de credenciales del delta pasó para las 28 rutas, en Docker sin
+  red. Compilación Python focal de `integrity_ping.py` y su prueba: 2/2 módulos PASS.
+  JSON válido; candidate-aware consumió el mismo manifiesto que selecciona el workflow
+  CI. El gate integral obligatorio antes de integrar sigue sin resolver por referencias
+  históricas y no se declara PASS.
 
 ### Evidencia reutilizada
 
@@ -129,6 +136,15 @@ remotas. No se acreditan como aceptación nueva.
 - El guard y su regresión admiten solo las rutas nuevas exactas del paquete. Se añadió
   el manifiesto candidate-aware como path exacto; su vecino negativo continúa rechazado.
   No se ampliaron patrones de carpeta, workflows, permisos ni controles remotos.
+- El primer CI del PR encontró dos omisiones atribuibles al delta. `Protected Path
+  Integrity` rechazó `web/src/components/admin/CourseLivePreview.tsx` y
+  `web/src/components/admin/editorial-ui.tsx`, ausentes del allowlist local de paths
+  protegidos. Se añadieron esos dos paths exactos y vecinos negativos. `Python Compile
+  And Tests` tuvo 251 PASS y un FAIL porque el test FG3 nuevo usa el cliente Supabase
+  bajo fixture y no estaba en `DIRECT_SUPABASE_CONSUMERS`; se clasificó como
+  `supabase-data-api-test`. La suite focal local pasó 45/45 en imagen Docker con
+  pytest; el compare-candidate y su regresión también pasaron con los nuevos exactos.
+  El commit correctivo aún debe publicarse y reevaluar CI.
 - El primer arranque de PG17 no tenía el modo de autenticación de test requerido;
   se corrigió solo el comando del contenedor. La siguiente ejecución encontró una
   función JSONB no disponible en PG17 y una colisión de fixtures; se corrigió el
@@ -143,9 +159,12 @@ remotas. No se acreditan como aceptación nueva.
 
 ## Seguridad, autorizaciones y límites
 
-- Autorización vigente: implementación/tests Docker/PG17 y, tras gates completos,
-  commit, push no forzado de esta feature y PR hacia `desarrollo`. Aún no se usó para
-  publicar; los gates locales aplicables y el scope del paquete ya se validaron.
+- Autorización vigente: implementación/tests Docker/PG17 y commit, push no forzado
+  y PR a `desarrollo`, ya consumidos solo para esta feature. PR #508 está abierto y
+  espera la repetición de checks del siguiente head. El delta correctivo local tiene
+  28 rutas, scope/candidate-aware/credenciales/guard/Python focal están PASS. La acción
+  exacta pendiente es commit, push no forzado a la rama feature y lectura de CI nuevo.
+  La rama protegida no se modificó.
 - No autorizados ni ejecutados: aprobación de review, merge, SQL/migración remota,
   Supabase writes, interacción de cuenta real, FG3/pipeline/schedule, deploy manual,
   promoción y pruebas de negocio remotas.
@@ -153,10 +172,10 @@ remotas. No se acreditan como aceptación nueva.
   `a39fcd65-8774-40dc-afdf-75ff8654cd52`, snapshot
   `codex-security-snapshot/v1:sha256:9b4506019b938300c6df6a540818c7fa253b01f6d1f9dea43731d12d9222b03b`,
   cinco superficies, cero candidatos/reportables. El resultado corresponde a ese
-  snapshot; la herramienta advierte que cambió el worktree mientras corría. El ajuste
-  posterior de allowlist exacta del manifiesto se revisó por separado: diff de rutas
-  literales, regresiones positivas/negativas y ShellCheck PASS. No es escaneo global
-  ni validación remota. Reporte:
+  snapshot; la herramienta advierte que cambió el worktree mientras corría. Los ajustes
+  posteriores de allowlist/inventario son paths/providers exactos, sin ampliar permisos
+  de runtime: revisión estática focal, regresiones positivas/negativas y ShellCheck PASS.
+  No es escaneo global ni validación remota. Reporte:
   `/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-editorial-contract-20261028/f39a688f75531d190745225f11524414181ed425_20261028T132753Z_9o66ixd8/report.md`.
 - La vista usa `security_invoker`; la guía oficial de
   [Supabase Views](https://supabase.com/docs/guides/database/views) confirma que

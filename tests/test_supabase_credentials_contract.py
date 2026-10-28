@@ -217,6 +217,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "tests/test_admin_invite_edge_contract.py": "supabase-pattern-test-only",
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
+    "tests/test_integrity_ping_retirement_contract.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/certification_canary_manifest.py": "supabase-data-api",
     "scripts/core/certification_canary_state.py": "supabase-data-api",

@@ -175,6 +175,9 @@ tests/test_fase09_10_pre_main_controls.py
 .github/scripts/production_control_preflight.sh
 tests/test_h3_admin_onboarding_denial_contract.py
 tests/test_integrity_ping_retirement_contract.py
+tests/test_supabase_credentials_contract.py
+web/src/components/admin/CourseLivePreview.tsx
+web/src/components/admin/editorial-ui.tsx
 web/src/app/HomeContent.tsx
 web/src/app/compare/CompareContent.tsx
 web/src/app/page.tsx

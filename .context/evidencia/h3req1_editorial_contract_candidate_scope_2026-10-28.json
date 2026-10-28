@@ -22,6 +22,7 @@
       {"path":"tests/sql/h3_pg17_harness.sql","status":"included"},
       {"path":"tests/test_h3_admin_queue_ux_contract.py","status":"included"},
       {"path":"tests/test_protected_path_scope_guard.sh","status":"included"},
+      {"path":"tests/test_supabase_credentials_contract.py","status":"included"},
       {"path":"web/src/app/admin/edit/page.tsx","status":"included"},
       {"path":"web/src/components/admin/CourseLivePreview.tsx","status":"included"},
       {"path":"web/src/components/admin/editorial-ui.tsx","status":"included"},

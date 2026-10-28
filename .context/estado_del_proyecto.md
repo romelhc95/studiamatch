@@ -14,13 +14,23 @@ candidato. E1–E5 conservan la evidencia sintética local del checkpoint previo
 ya pasó en Chrome Windows del puente con el fixture local sintético. La matriz nueva
 queda 6/6 local; esto no es aceptación remota ni cierre productivo.
 
+PR #508 está abierto en `https://github.com/romelhc95/studiamatch/pull/508`. El primer
+head `475f3dce36dd798035661b2c9190527b7f4712e9` tuvo dos fallos CI atribuibles al
+delta: rutas UI ausentes del allowlist protegido e inventario Python sin el nuevo test
+FG3. Se añadieron rutas exactas con vecinos negativos y el test quedó clasificado
+`supabase-data-api-test`; compare-candidate pasó localmente y la suite focal pasó 45/45.
+La corrección de 28 rutas pasó localmente el compare-candidate, candidate-aware, scan
+de credenciales y pruebas focales; está pendiente de commit/push para reevaluar CI. No
+hubo aprobación ni merge.
+
 El gate candidate-aware del checker definido por `security-audit.yml` pasó en el
 checkout final con el manifiesto exacto
 `.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json`.
 El checker integral original se ejecutó también en baseline y candidato: ambos FAIL
 con 350 diagnósticos completos, 349 idénticos; el resultado histórico no se presenta
-como PASS ni se ocultó. Las 27 rutas del delta pasan el scanner de credenciales y el
-guard exacto/negativos. El scan Codex Security de diff
+como PASS ni se ocultó. El scanner de credenciales pasó para las 28 rutas del head
+corregido; el guard exacto/negativos y la suite focal Python también pasaron localmente.
+El scan Codex Security de diff
 `a39fcd65-8774-40dc-afdf-75ff8654cd52` quedó completo con 5 superficies y 0
 candidatos reportables; el cambio posterior exacto del manifiesto pasó revisión
 estática, ShellCheck y regresiones focales. Alcance, snapshots y límites constan en
