@@ -20534,6 +20534,84 @@
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
         ]
       }
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261028-h3-public-price-projection-empty-price-guard",
+      "purpose": "H3REQ1 forward fix: prevent blank or invalid published price text from failing the public effective-course reader; validate with a synthetic PG17 regression harness.",
+      "paths": [
+        "db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+        "tests/h3_public_price_projection_pg17.sh",
+        "tests/sql/h3_public_price_projection_pg17_setup.sql",
+        "tests/sql/h3_public_price_projection_pg17_assert.sql",
+        "tests/test_h3_public_price_projection_migration.py"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "migration-20261028-h3-public-price-projection-empty-price-guard"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+        "tests/h3_public_price_projection_pg17.sh",
+        "tests/sql/h3_public_price_projection_pg17_setup.sql",
+        "tests/sql/h3_public_price_projection_pg17_assert.sql",
+        "tests/test_h3_public_price_projection_migration.py"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "The public SQL reader returns SQL NULL for blank, invalid, or oversized published price text; valid decimal values up to 63 integer and 63 fractional digits, JSON null, and no-snapshot fallbacks retain behavior. The forward migration replaces exactly one catalog function-body fragment and aborts on drift; focused PG17 fixtures verify replay and reader ACL/security attributes.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+          "path:tests/sql/h3_public_price_projection_pg17_assert.sql",
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "The existing public courses_public_effective view invokes private.h2_public_courses_effective(); frontend routes and query shape are unchanged. The remote public request failed with SQLSTATE 22P02 before this candidate fix; after the fix, Development must be revalidated under a new JIT and deployment.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Definition-only function replacement and grants. No course rows, snapshots, availability evidence, audit rows, or other operational data are inserted, updated, or deleted.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+          "path:tests/sql/h3_public_price_projection_pg17_setup.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "A disposable network-isolated PostgreSQL 17 harness reproduced the pre-fix 22P02, then passed with blank, invalid, JSON-null, 63-digit boundary, oversized numeric, strict-no-snapshot and legacy source fixtures; the migration was applied twice and reader ACL/SECURITY DEFINER/search_path assertions passed. The Python contract test passed in the development image.",
+        "evidence": [
+          "path:tests/h3_public_price_projection_pg17.sh",
+          "path:tests/sql/h3_public_price_projection_pg17_assert.sql",
+          "path:tests/test_h3_public_price_projection_migration.py",
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Local PG17 harness only. The corrective migration has not been applied to Free/Development or Certification and has not been deployed. Apply once only after a separate exact JIT; rollback is a separately reviewed forward fix, without deleting snapshots or audit history.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Candidate is isolated in branch codex/h3req1-public-price-projection-20261028 from merged Development SHA 77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3. Candidate-only paths do not imply remote schema adoption or deployment.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+          "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
+        ]
+      }
     }
   ],
   "active_documents": [

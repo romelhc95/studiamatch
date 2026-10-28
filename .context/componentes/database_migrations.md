@@ -120,6 +120,7 @@
 - [20261010_h3_admin_members_service_select.sql](../../db/migrations/20261010_h3_admin_members_service_select.sql)
 - [20261025_h3_admin_members_onboarding_forbidden_status.sql](../../db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql)
 - [20261028_h3_editorial_publication_snapshot.sql](../../db/migrations/20261028_h3_editorial_publication_snapshot.sql)
+- [20261028_h3_public_price_projection_empty_price_guard.sql](../../db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql)
 
 ### Migration 20261028 — H3 editorial publication snapshot
 
@@ -131,6 +132,26 @@ público previo antes de cambiar el borrador. La edición `user` usa la allowlis
 completa; solo Admin actualiza la instantánea al publicar. Los grants de lectura
 pública se limitan a la vista efectiva. Ejecutada dos veces sobre PG17 sintético en
 Docker; ninguna base Supabase recibió DDL. Ver [checkpoint CA4](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
+### Migration 20261028 — H3 public price projection empty-price guard
+
+`20261028_h3_public_price_projection_empty_price_guard.sql` es un fix
+forward-only de `private.h2_public_courses_effective()`: reemplaza el único cast
+conocido de `published_editorial_values.price_pen` por una conversión condicionada
+a un formato decimal acotado (hasta 63 dígitos enteros y 63 fraccionarios). Un valor
+vacío, inválido o sobredimensionado se proyecta como SQL `NULL`
+para que un dato de precio no invalide el catálogo público completo. Si la definición
+remota no contiene exactamente el fragmento esperado, la migración falla cerrada.
+Reafirma los grants de lectura existentes y no altera datos de cursos ni snapshots.
+
+El harness sintético PG17 ejecuta la migración dos veces y comprueba precios vacíos,
+inválidos, JSON null, decimal en el límite, overflow y fallback sin snapshot, además de ACL,
+`SECURITY DEFINER` y `search_path`. El SQL queda preparado para una JIT futura:
+no se aplicó a Supabase. Al no cambiar columnas ni callers, el fix puede aplicarse
+antes de revalidar el deployment compatible; no requiere rebuild ni deploy manual.
+Rollback: preparar y aprobar un fix forward que restaure la lectura previa solo tras
+confirmar que ya no hay snapshots incompatibles; no borrar datos ni auditoría. Ver
+[checkpoint R1–R4 y fix](../evidencia/h3req1_editorial_contract_2026-10-28.md).
 
 ## Fichas exactas y relaciones por migration
 

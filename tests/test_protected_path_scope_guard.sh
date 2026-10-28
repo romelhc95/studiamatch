@@ -162,6 +162,17 @@ editorial_snapshot_paths = {
 }
 if not editorial_snapshot_paths.issubset(local_paths):
     raise SystemExit("protected path integration test: an exact H3 editorial-contract path is not allowlisted")
+
+price_projection_paths = {
+    "db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql",
+    "tests/h3_public_price_projection_pg17.sh",
+    "tests/sql/h3_public_price_projection_pg17_setup.sql",
+    "tests/sql/h3_public_price_projection_pg17_assert.sql",
+    "tests/test_h3_public_price_projection_migration.py",
+}
+if not price_projection_paths.issubset(local_paths):
+    raise SystemExit("protected path integration test: an exact public-price projection path is not allowlisted")
+
 for unreviewed_editorial_neighbor in (
     ".context/evidencia/h3req1_editorial_contract_extra_2026-10-28.md",
     ".context/evidencia/h3req1_editorial_contract_candidate_scope_extra_2026-10-28.json",
@@ -172,6 +183,11 @@ for unreviewed_editorial_neighbor in (
     "tests/test_supabase_credentials_contract_extra.py",
     "web/src/components/admin/CourseLivePreview_extra.tsx",
     "web/src/components/admin/editorial-ui_extra.tsx",
+    "db/migrations/20261028_h3_public_price_projection_empty_price_guard_extra.sql",
+    "tests/h3_public_price_projection_pg17_extra.sh",
+    "tests/sql/h3_public_price_projection_pg17_setup_extra.sql",
+    "tests/sql/h3_public_price_projection_pg17_assert_extra.sql",
+    "tests/test_h3_public_price_projection_migration_extra.py",
 ):
     if unreviewed_editorial_neighbor in local_paths or any(
         re.search(pattern, unreviewed_editorial_neighbor) for pattern in patterns
