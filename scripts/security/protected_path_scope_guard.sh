@@ -31,6 +31,60 @@ protected_path_scope_capture() {
   done <"$paths_file"
 }
 
+# Validate additional promotion paths against immutable, separately pinned Git trees.
+protected_path_promotion_scope() {
+  python3 - "$@" <<'PY'
+import json
+import re
+import subprocess
+import sys
+
+manifest_path, actual_base, expected_base, expected_source = sys.argv[1:]
+
+def fail():
+    print("::error::promotion path pins are invalid or have drifted", file=sys.stderr)
+    raise SystemExit(1)
+
+def git(*args):
+    return subprocess.check_output(["git", *args], stderr=subprocess.DEVNULL)
+
+def tree(sha):
+    result = {}
+    for record in git("ls-tree", "-r", "-z", sha).split(b"\0"):
+        if record:
+            metadata, path = record.split(b"\t", 1)
+            result[path.decode("utf-8")] = tuple(part.decode("ascii") for part in metadata.split())
+    return result
+
+try:
+    value = json.load(open(manifest_path, encoding="utf-8"))
+    if (not re.fullmatch(r"[a-f0-9]{40}", expected_source)
+        or actual_base != expected_base or value.get("schema_version") != 1
+        or value.get("baseline_sha") != expected_base
+        or value.get("source_sha") != expected_source):
+        fail()
+    git("merge-base", "--is-ancestor", expected_source, "HEAD")
+    baseline, source, head = tree(expected_base), tree(expected_source), tree("HEAD")
+    entries = value.get("entries")
+    if not isinstance(entries, list) or not entries:
+        fail()
+    paths = set()
+    for entry in entries:
+        path = entry.get("path")
+        if (not isinstance(path, str) or not path or path.startswith("/")
+            or ".." in path.split("/") or any(ord(c) < 32 or ord(c) == 127 for c in path)
+            or path in paths or path not in source or source[path] == baseline.get(path)
+            or entry.get("baseline_blob") != baseline.get(path, (None, None, None))[2]
+            or entry.get("source_blob") != source[path][2] or head.get(path) != source[path]):
+            fail()
+        paths.add(path)
+    # No output until every pin validates; the caller never receives partial scope.
+    print("\n".join(sorted(paths)))
+except (OSError, ValueError, KeyError, AttributeError, TypeError, subprocess.SubprocessError):
+    fail()
+PY
+}
+
 # Run the protected-path candidate comparison without embedding its large allowlist in workflow YAML.
 protected_path_scope_compare_candidate() {
 set -euo pipefail
@@ -62,6 +116,7 @@ if [ -n "$changed" ]; then
    # R19's exact reconciled candidate and catalog-reference closure are checked against this list by
    # tests/test_protected_path_scope_guard.sh; keep deletions and ignored evidence explicit.
    allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'
+.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json
 README.md
 .env.example
 .github/pull_request_template.md
@@ -1238,6 +1293,17 @@ tests/h3_duration_parser.test.mjs
 web/src/components/Footer.tsx
 H3_LOCAL_PATHS
 )
+   if [[ ( "${GITHUB_BASE_REF:-}" == "certificacion" && "${GITHUB_HEAD_REF:-}" == "desarrollo" ) \
+     || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/certificacion" \
+       && "$base" == "c80f6504a3ea353bc2c222df1da09c4b5ba0ae58" ) ]]; then
+     # Human-approved review scope is the complete accumulated tree, not arbitrary successors.
+     promotion_paths=$(protected_path_promotion_scope \
+       .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json \
+       "$base" \
+       c80f6504a3ea353bc2c222df1da09c4b5ba0ae58 \
+       941eca496676bd11cd0e2796e6c0a34efd62082d) || exit 1
+     allowed_h3_local+=$'\n'"$promotion_paths"
+   fi
    filter_remaining() {
      local content="$1" expression="$2" matcher_status
      if [ -z "$content" ]; then

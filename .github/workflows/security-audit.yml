@@ -86,6 +86,7 @@ jobs:
           node --input-type=module - "$PROTECTED_BASELINE_SHA" "$R21_MANIFEST" "$D04_MANIFEST" <<'NODE'
           import { execFileSync } from "node:child_process";
           import fs from "node:fs";
+          import { createHash } from "node:crypto";
 
           const [baseSha, r21Manifest, d04Manifest] = process.argv.slice(2);
           const fail = (message) => { console.error(`::error::${message}`); process.exit(1); };
@@ -99,6 +100,15 @@ jobs:
             && Array.isArray(value.scope?.entries)
             && value.package_artifacts && typeof value.package_artifacts === "object"
             && !Array.isArray(value.package_artifacts);
+          const promotion = (process.env.GITHUB_BASE_REF === "certificacion"
+            && process.env.GITHUB_HEAD_REF === "desarrollo")
+            || (process.env.GITHUB_EVENT_NAME === "push"
+              && process.env.GITHUB_REF === "refs/heads/certificacion");
+          const isPrScope = (value) => value?.schemaVersion === 1
+            && /^[a-f0-9]{40}$/i.test(value.baseSha ?? "")
+            && Array.isArray(value.includedPaths)
+            && value.includedPaths.every((path) => typeof path === "string")
+            && typeof value.purpose === "string";
           const parse = (text) => { try { return JSON.parse(text); } catch { fail("candidate manifest JSON is invalid"); } };
           const names = (filter) => {
             try {
@@ -120,15 +130,58 @@ jobs:
           for (const path of names("--diff-filter=ACMR")) {
             if (/[\r\n\t]/.test(path)) fail("candidate manifest path contains an unsupported control character");
             if (!path.endsWith(".json")) continue;
-            const value = parse(fs.readFileSync(path, "utf8"));
+            let value;
+            try { value = JSON.parse(fs.readFileSync(path, "utf8")); }
+            catch {
+              if (isCandidateManifestPath(path)) fail("candidate manifest JSON is invalid");
+              let previous;
+              try { previous = JSON.parse(execFileSync("git", ["show", `${baseSha}:${path}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); }
+              catch { /* Newly added unrelated artifacts may have no baseline JSON. */ }
+              if (isCandidateRole(previous)) fail("existing candidate manifest JSON is invalid");
+              continue; // Unrelated historical JSON is not a documentation selection.
+            }
             if (isCandidateManifestPath(path) || isCandidateRole(value)) {
+              if (promotion && !isCandidateRole(value) && isPrScope(value)) continue;
               if (!isCandidate(value)) fail("changed candidate-aware documentation manifest has an invalid structure");
               changedCandidates.push(path);
             }
           }
 
-          if (changedCandidates.length > 1) fail("multiple candidate-aware documentation manifests changed; selection is ambiguous");
-          const selected = changedCandidates[0] || [r21Manifest, d04Manifest].find(fs.existsSync);
+          if (changedCandidates.length > 1 && !promotion) fail("multiple candidate-aware documentation manifests changed; selection is ambiguous");
+          let selected = changedCandidates[0] || [r21Manifest, d04Manifest].find(fs.existsSync);
+          if (promotion && selected) {
+            // Aggregate every changed package AND every surviving path in the real diff.
+            // Never select only the latest package or drop a missing selected input.
+            const entries = new Set();
+            const packages = [];
+            for (const path of changedCandidates.length ? changedCandidates : [selected]) {
+              const bytes = fs.readFileSync(path);
+              const value = parse(bytes.toString("utf8"));
+              for (const entry of value.scope.entries) {
+                if (!entry || typeof entry.path !== "string") fail("candidate scope entry is invalid");
+                if (entry.status !== "deleted") entries.add(entry.path);
+              }
+              for (const artifact of Object.values(value.package_artifacts)) {
+                if (artifact?.included === true) {
+                  if (typeof artifact.path !== "string") fail("candidate artifact path is invalid");
+                  entries.add(artifact.path);
+                }
+              }
+              packages.push({ path, sha256: createHash("sha256").update(bytes).digest("hex") });
+            }
+            const changed = execFileSync("git", ["diff", "--name-only", "--no-renames", "--diff-filter=ACMR", "-z", `${baseSha}...HEAD`], { encoding: "utf8" }).split("\0").filter(Boolean);
+            for (const path of changed) entries.add(path);
+            for (const path of entries) {
+              if (/[\r\n\t]/.test(path) || path.startsWith("/") || path.split("/").includes("..")) fail("promotion scope contains an unsafe path");
+              if (!fs.existsSync(path)) fail(`promotion scope input is missing: ${path}`);
+            }
+            const headSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+            // Actions checkout has a .git directory; keep generated scope out of sources.
+            selected = ".git/h3req1-promotion-documentation.json";
+            const aggregate = { manifest_role: "candidate-aware documentation integrity selection; full promotion union", baseline_sha: baseSha, head_sha: headSha, packages, scope: { entries: [...entries].sort().map((path) => ({ path, status: "included" })) }, package_artifacts: {} };
+            fs.writeFileSync(selected, JSON.stringify(aggregate, null, 2) + "\n");
+            console.log(`promotion-documentation-scope packages=${packages.length} paths=${entries.size} base=${baseSha} head=${headSha} sha256=${createHash("sha256").update(fs.readFileSync(selected)).digest("hex")}`);
+          }
           if (!selected || !isCandidate(parse(fs.readFileSync(selected, "utf8")))) {
             fail("candidate-aware documentation manifest is missing or invalid");
           }

@@ -6,7 +6,82 @@
 
 ## Corte vigente
 
-### Continuación vigente — contrato editorial H3REQ1, 2026-10-28
+### Remediación TL de selector y guard — local, promoción pendiente
+
+**Cierre local actualizado:** suite completa Docker PASS; guard y selección
+documental probados contra c80→941 y push de Certification PASS; agregado final
+4 paquetes/1.614 paths, checker/self-test 747/747 PASS. Revisión focal final sin
+HIGH/CRITICAL/MEDIUM. No hay CI remoto ni commit publicado de esta remediación.
+El responsable eligió preparar el acumulado completo. Pendientes inmediatos:
+integración protegida de la remediación, gate integral y JIT de configuración;
+después promoción y smoke mínimo por ambiente. No se repiten R1–R4 ni E1–E6.
+
+**NO-GO de promoción; bloqueos de selector/guard remediados localmente.** El
+responsable eligió preparar el acumulado completo. El guard rechazaba 239 rutas
+fuera de las listas H3 entre 1.484 paths protegidos cambiados; ahora solo admite
+esas rutas con pins de baseline/origen y metadata Git idéntica a origen, en la
+ruta `desarrollo -> certificacion`. Guard real PASS en primer corte y regresiones
+negativas PASS; se incluye endurecimiento modo/tipo en la revalidación final.
+No hay allowlist por carpeta. El integral `--self-test` conserva 350 entradas:
+349 heredadas más self-test fallido por fuente ausente. Scanner final de los 15
+archivos, documentación de cierre y `git diff --check` PASS. Ningún pendiente
+nuevo de producto acreditado.
+
+La continuación humana de remediación se ejecuta en un worktree aislado desde
+`desarrollo@941eca49`, rama `codex/h3req1-certification-remediation-20261028`.
+Ambos árboles Git ya se descargaron: el conteo exacto es **9 commits exclusivos
+de Certification / 97 de Development**, diff desde ancestro común **1.618 paths**.
+El selector local distingue los scopes PR de las selecciones documentales y, solo
+en `desarrollo -> certificacion`, construye su unión y la del diff completo con
+hashes, conservando el rechazo de ambigüedad en PRs normales. Regresiones Docker
+finales PASS, incluida guarda de JSON corrupto, y revisión estática de seguridad
+sin hallazgos reportables. Ensayo de promoción con unión de 4 paquetes y 1.613
+paths: gate candidate-aware/self-test PASS, 747/747 fuentes. No es CI remoto.
+Se copiaron aquí los siete documentos WIP de Luna preservando su worktree.
+
+La lectura Access confirma que ninguna de las cuatro apps inventariadas cubre el
+hostname Certification. El alias también falta de `ADMIN_ALLOWED_HOSTS` Preview.
+No se cambió configuración. El árbol `c80…` no contiene el checker actual: no se
+debe presentar su ausencia como baseline PASS ni como «349 idénticos». Se mantiene
+la disposición exclusiva #509 sin extenderla. La incidencia temporal de auto-review
+se superó tras aprobación de reintento; clon y ensayo Docker completados. No hubo
+commit/push/PR/merge ni operaciones DB.
+
+R1–R4 conserva **4/4** y E1–E6 **6/6**. La protección clásica Certification ya fue
+verificada en UI: PR, 1 aprobación, security-audit, rama actualizada y sin bypass.
+El paquete de integración y descripción PR están preparados; se solicitó la
+autorización específica de publicación y la de ruleset adicional por separado.
+El pendiente inmediato es publicar por el flujo autorizado; después configurar
+y promover Certification con autorización separada y smoke mínimo. Ver
+[evidencia y límites](evidencia/h3req1_editorial_contract_2026-10-28.md#remediacion-local-de-promocion-por-tl).
+
+### Corte anterior — preparación de promoción H3REQ1 a Certification — NO-GO — 2026-10-28 18:54 Lima
+
+La aceptación mínima del contrato editorial en Development sigue aceptada (R1–R4 4/4); este resultado no se extiende a Certification. El paquete de promoción no está listo para solicitar ejecución: la fuente `desarrollo` es `941eca496676bd11cd0e2796e6c0a34efd62082d`, Certification conserva `c80f6504a3ea353bc2c222df1da09c4b5ba0ae58`, y el flujo de promoción abarca 97 commits desde el ancestro común `a6e39b993b2609641d20e9e24c513f35fd711b96`, no solo H3REQ1.
+
+Bloqueos concretos: (1) el selector `Documentation Source Registry` del workflow no puede seleccionar la colección de manifiestos añadidos desde Certification: hay dos `candidate-pr-scope` con estructura no compatible y cuatro manifiestos candidate-aware válidos, lo que produce invalid structure y, después de corregirlo, selección ambigua. (2) El gate integral de la comparación local HEAD/candidato documental conserva 349 diagnósticos idénticos y el mismo contador 304 en ambos lados; el contraste histórico baseline/candidato de #509 también tuvo 349 por lado, 348 iguales y un cambio en el contador 299→304. La disposición de #509 vence antes de Certification y no se reutiliza. Aún falta el contraste integral exacto `c80… → 941…` en un checkout que contenga ambos árboles. El gate candidate-aware de los documentos locales modificados pasó. (3) Pages Certification sigue en el deployment `3b28949c-7dfe-4b54-bf7a-0db77339d6ab` del SHA `c80…`; el `ADMIN_ALLOWED_HOSTS` de Preview no incluye `certificacion.studiamatch-aty.pages.dev` y su configuración es compartida por los previews no productivos. (4) El detalle de branch protection y Cloudflare Access para el destino no quedó verificado.
+
+La DB es Free `aqrldlmlszjtgpqiegaa`, compartida por Development y Certification. Su ledger ya tiene 83 migraciones, incluidas las dos migrations H3 aplicadas; no corresponde otra aplicación SQL para Certification. No se ejecutaron cambios de configuración, PR de promoción, workflows, migraciones, deploys manuales ni pruebas de negocio en Certification.
+
+La matriz por criterio, evidencia, estado por ambiente, transición/rollback y autorizaciones pendientes está en el [paquete local de promoción y checkpoint](evidencia/h3req1_editorial_contract_2026-10-28.md#preparacion-de-promocion-a-certification). Próximo paso: obtener el árbol exacto `941…`, generar el contraste documental c80→941; preparar una corrección de selector/manifiesto de promoción sin relajar cobertura; después solicitar JIT de configuración Preview para el hostname de Certification y autorización separada para abrir el PR protegido `desarrollo → certificacion`. No hay GO de promoción ni cierre productivo.
+
+### Aceptación remota mínima R1–R4 completada en Development — 2026-10-28 18:34 Lima
+
+La aceptación remota del contrato editorial corregido queda en **4/4 = 100%** (antes de esta pasada: 2/4 = 50%; delta +50 pp). R2 confirmó que un borrador de colaborador no altera lo público; R3 confirmó que la publicación Admin sí expone exactamente el nuevo valor al visitante anónimo. Después se restauró y republicó el texto original autorizado; la última lectura anónima muestra el original y ya no muestra el marcador. R1/R4 se reutilizaron sin repetirlos.
+
+Ejecución en Free/Development `aqrldlmlszjtgpqiegaa`, host `desarrollo.studiamatch-aty.pages.dev`, deployment `27d9ebfc`, merge SHA `941eca496676bd11cd0e2796e6c0a34efd62082d`. La migración `20261028_h3_public_price_projection_empty_price_guard.sql` permanece aplicada una vez bajo JIT, ledger `20261028230928` (83 entradas). La proyección pública anónima terminó HTTP 200; no reapareció `22P02`. R2/R3, versiones v9–v12, recuperación y evidencia por página están en `.context/evidencia/h3req1_editorial_contract_2026-10-28.md`.
+
+GO de aceptación remota mínima Development: **SÍ**, solo R1–R4. No es GO de promoción ni cierre productivo/H3REQ1 total. El FAIL documental integral de 349 diagnósticos sigue visible y separado del resultado candidate-aware. La disposición aprobada cubre únicamente PR #509, owner Romel, vence el 04/11/2026 23:59 America/Lima o antes de promover a Certification; no debe extenderse ni interpretarse como waiver global. Antes de promoción se requiere resolver/disponer el gate documental según el proceso humano y autorización de promoción independiente. No se ejecutó promoción, otro deploy, FG3, writer ni schedule.
+
+### Corte histórico — guard de precio aplicado y lector público recuperado — 2026-10-28 18:19 Lima
+
+El PR #509 quedó integrado en `desarrollo` mediante merge `941eca496676bd11cd0e2796e6c0a34efd62082d`; su HEAD aprobado fue `2b1f533444dab19528d5cb3d912ef6332dc20c41`. El checkpoint del PR registra 16 checks `success`, 2 `skipped`, aprobación humana y la disposición documental acotada vigente; el FAIL integral de 349 diagnósticos permanece visible y no equivale a PASS. No se modificaron protecciones ni se volvió a ejecutar el merge.
+
+Con JIT separado del responsable, se aplicó una vez en Free `aqrldlmlszjtgpqiegaa` (compartido con Certification) `db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql`, SHA-256 `82b8eb0655779f0e82b979cb65a051f2b244b5c4bffb199c5e13c9473132987b`. La versión `20261028230928` aparece en ledger (83 entradas). Verificación read-only confirmó helper seguro, `SECURITY DEFINER`, `search_path=pg_catalog, pg_temp`, ACL sin `PUBLIC`, grants esperados y vista `security_invoker`. El contexto anónimo del curso IDAT vuelve a recibir HTTP 200 y muestra el valor `benefits` original; no reapareció 22P02. No hubo filas de curso modificadas por la migración.
+
+La aceptación remota R1–R4 sigue **2/4 = 50%**: R1 y R4 aceptados; R2 espera revalidación con un borrador nuevo, R3 espera publicación controlada. La lectura pública recuperada no basta para acreditarlos. El colaborador ya completó el acceso en Chrome Windows página 6; el editor confirma curso publicado v8 y `benefits` original. La página Admin 1 sigue en login; intervención solicitada. El JIT exacto de R2/R3 y recuperación está preparado/enviado y pendiente; no se ha usado para escribir. Una vez resueltos esos dos gates, ejecutar solo R2/R3, republicar el original y verificarlo anónimamente; no repetir R1/R4. `git diff --check` pasó. El self-test documental local terminó FAIL con referencias históricas faltantes: 747/747 fuentes asignadas, sin cambiar relaciones. Se conserva el FAIL integral y la disposición exclusiva a #509. Corte de esta continuación: 2026-10-28 18:19 Lima; las solicitudes de intervención Admin y aprobación JIT no estaban respondidas. Detalles y evidencia en `.context/evidencia/h3req1_editorial_contract_2026-10-28.md`.
+
+### Antecedente — primer corte remoto del contrato editorial H3REQ1, 2026-10-28
 
 PR #508 fue aprobado sobre `85e9d1b17ca2808ed320ba2c37d893fbf7619dad` y mergeado
 a `desarrollo` en `77b3f4ea27a8aaa6d1d0571ee5a9b5f1afd264a3` el 2026-10-28

@@ -3,6 +3,9 @@
   "manifest_role": "candidate-aware documentation integrity selection; H3REQ1 editorial contract 2026-10-28; exact local package scope, not a PR path manifest",
   "scope": {
     "entries": [
+      {"path":".github/workflows/security-audit.yml","status":"included"},
+      {"path":".context/hitos/README.md","status":"included"},
+      {"path":".context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json","status":"included"},
       {"path":".context/componentes/admin_portal.md","status":"included"},
       {"path":".context/componentes/database_migrations.md","status":"included"},
       {"path":".context/componentes/pipeline.md","status":"included"},
@@ -33,6 +36,7 @@
     ]
   },
   "package_artifacts": {
+    "promotion_path_pins": {"path":".context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json","included":true},
     "checkpoint": {"path":".context/evidencia/h3req1_editorial_contract_2026-10-28.md","included":true},
     "client_attestation": {"path":".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md","included":true},
     "migration": {"path":"db/migrations/20261028_h3_editorial_publication_snapshot.sql","included":true}

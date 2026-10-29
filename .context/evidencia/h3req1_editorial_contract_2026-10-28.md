@@ -1,5 +1,383 @@
 # Checkpoint local — contrato editorial H3REQ1
 
+## Remediación local de promoción por TL
+
+Revisión posterior de continuidad: la sesión Luna conserva como último mensaje
+el NO-GO del 2026-10-29 00:04:23 UTC; no hay continuación nueva acreditada allí.
+Lectura GitHub actual confirma Development `941eca49`, Certification `c80f6504`,
+main `70d0f4fe`; PR más reciente #509 integrado, sin PR posterior de remediación.
+Los 15 archivos de esta rama permanecen WIP local. Se reutilizan las validaciones
+anteriores porque no se cambió código ni configuración desde su cierre.
+
+La UI GitHub permitió leer la protección clásica Certification `76533723` después
+del 403 del conector: PR obligatorio, 1 aprobación, dismiss stale, aprobación del
+último push por otra persona, security-audit, rama actualizada y sin bypass; sin
+force pushes/deletions/lock. No se guardó ningún cambio. Se preparó descripción
+PR con plantilla completa (`/tmp/h3-certification-pr-body.md`) y propuesta de
+autorizaciones (`/tmp/h3-certification-remaining-jit.md`). Se solicitaron por
+separado commit/push/PR hacia Development y retirada exclusiva de Certification
+del ruleset adicional preservando main y protección clásica. No se presumen
+aprobadas; sin respuesta no se ejecutan ni implican merge/promoción.
+
+**Resultado final local:** selector y guard de rutas remediados para preparar el
+acumulado completo elegido por el responsable. Suite completa Docker **PASS**,
+incluido helper de pins con modo/tipo/objeto. Ensayos sobre refs reales en evento
+PR y push posterior a Certification **PASS**: guard de rutas, selección de cuatro
+manifiestos, unión de 1.614 paths (incluye el manifest nuevo) y checker/self-test
+747/747 fuentes. Scope agregado final SHA-256
+`8823ab542c34aea5bafa40afd1de442c132cd3e605a91ce31660b6315afee1d0`.
+Los ensayos usaron el clon con WIP superpuesto; no son CI de un commit publicado.
+Scanner final de los 15 archivos **PASS** (`credentials-final.log`); evidencia
+final revalidada **PASS** (`documentation-final-evidence.log`); `git diff --check`
+PASS. Los dos logs están en el mismo directorio de resultados indicado debajo.
+Logs finales: `regressions-final.log`, `protected-paths-remediated-final.log`,
+`protected-paths-push.log`, `selector-push.log` y `documentation-push.log` en
+`/tmp/h3-certification-final-results/`. La revisión focal independiente del último
+delta no encontró HIGH/CRITICAL/MEDIUM. No se repitieron pruebas de producto.
+
+Los controles normales conservan su comportamiento. Solo el primer push de
+Certification desde baseline `c80…` puede consumir los pins fuente `941…`; no se
+autoriza cualquier sucesor ni se cubre `main`. El FAIL integral permanece separado.
+Faltan integración protegida de esta remediación (con CI/approval de su HEAD),
+disposición o corrección del integral para promoción, hostname/Access/redirects,
+verificación de restricciones de rama y autorización/smoke Certification. Es GO
+local de los dos controles corregidos; **NO-GO de ejecución de promoción** aún.
+
+Continuación autorizada por el responsable: «Remedia bloqueos que luna tenga para
+promover a certificación». Rama aislada
+`codex/h3req1-certification-remediation-20261028`, worktree
+`/tmp/studiamatch-h3req1-certification-remediation-20261028`, base local integrada
+`941eca496676bd11cd0e2796e6c0a34efd62082d`. Se copiaron los siete documentos de
+Luna sin modificar su worktree ni convertir su WIP en commit. No hubo commit,
+push, PR, merge, writes remotos ni deploy.
+
+### Diagnóstico y corrección
+
+- Fetch de lectura completado: ambos árboles existen. `git rev-list --left-right
+  --count c80f6504a3ea353bc2c222df1da09c4b5ba0ae58...941eca496676bd11cd0e2796e6c0a34efd62082d`
+  da **9/97**, no 1/97. El diff desde el ancestro común abarca **1.618 archivos**.
+  Estos conteos corrigen el corte anterior; no autorizan una resolución automática
+  de conflictos ni prueban por sí solos la compatibilidad del merge.
+- Ensayo de lectura `git merge-tree <ancestro> c80… 941…`: sin secciones de
+  conflicto ni marcadores. Los 9 commits exclusivos de Certification son merges;
+  `git diff --name-status <ancestro> c80…` está vacío. Por tanto el árbol destino
+  no incorpora un delta de contenido independiente respecto de ese ancestro.
+  Esto reduce el riesgo de conflicto textual, sin acreditar runtime/CI.
+- Existen cuatro selecciones documentales y **tres** scopes de paths PR en el
+  diff de evidencia, no dos. El selector anterior confundía los tipos y rechazaba
+  la pluralidad. El cambio local distingue el schema de paths PR únicamente en
+  promoción y agrega las cuatro selecciones más el diff completo, con hashes.
+  En PRs normales conserva la selección única y el rechazo de ambigüedad.
+- Regresiones Docker sin red, candidato read-only:
+  `bash tests/test_protected_path_scope_guard.sh` **PASS**, incluidas regresiones
+  previas y nuevas de promoción: unión/cobertura, hashes, ausencia de input,
+  schema PR inválido y rechazo de ambigüedad normal. Log local:
+  `/tmp/h3-certification-selector-tests.log`. Hubo una primera corrida FAIL por
+  import ausente del test; se corrigió y revalidó. No se atribuye CI remoto.
+  Después se añadió un caso adicional y su guarda: corromper el JSON de un
+  manifiesto con rol ya presente en baseline debe fallar aunque su basename sea
+  genérico. Tras el reintento humano autorizado, la suite final completa **PASS**;
+  log `/tmp/h3-certification-selector-tests-final.log`. La revisión estática del
+  bloque final tampoco encontró hallazgos; no se ejecutó CI remoto.
+- Revisión focal independiente `security-auditor` de workflow/test: sin hallazgos
+  de seguridad reportables; lectura estática sin operaciones remotas. Confirmó
+  alcance de ruta, unión/cobertura, hashes, rutas seguras y controles negativos.
+  No sustituye el ensayo real ni los gates pendientes.
+- El árbol Certification `c80…` **no contiene el checker documental actual**.
+  Por ello no es válido afirmar «349 idénticos en baseline/candidato» para esa
+  promoción ejecutando comandos nativos equivalentes. Los 349 se refieren al
+  baseline Development/candidato de #509; la ausencia del gate antiguo debe
+  registrarse en la evaluación del delta real sin inventar un PASS del baseline.
+
+### Configuración remota verificada en lectura
+
+Proyecto Pages real: `studiamatch`, subdominio `studiamatch-aty.pages.dev`.
+`ADMIN_ALLOWED_HOSTS` de Preview contiene exclusivamente
+`feat-h3req1-sync-20261002.studiamatch-aty.pages.dev` y
+`desarrollo.studiamatch-aty.pages.dev`; falta el alias de Certification. El
+inventario Access completo de cuenta (4 apps, una página) contiene el host Admin
+productivo, un deployment Development antiguo y apps ajenas; **ninguno incluye
+certificacion.studiamatch-aty.pages.dev**. Esto reemplaza «Access no verificado»
+por «no hay aplicación Access que cubra ese host según inventario leído»; no se
+modificó ninguna policy ni se leen identidades/secretos.
+
+La lectura API de ruleset `21255108` confirma que sigue activa con regla `update`
+para `certificacion` y `main`. Development fue retirado en la remediación #509.
+La ruta normal de merge de Certification debe verificarse antes de abrir/promover
+el PR: esa restricción adicional puede reproducir el bloqueo de #509. No se usó
+bypass ni se cambió la regla; cualquier remediación de ramas protegidas requiere
+su instrucción humana específica, preservando PR/review/checks clásicos.
+
+Paquete remoto a aprobar separadamente: añadir únicamente el hostname
+Certification a la variable Preview preservando los dos valores; definir la
+cobertura Access del panel y BFF de Certification mediante una policy de cuentas
+de prueba autorizadas (sin ampliar a todo el catálogo público ni bypass). Debe
+comprobarse también el callback Auth del host y la compatibilidad del Free
+compartido antes del deploy. Ninguna autorización SQL se solicita: las dos
+migraciones ya están aplicadas. No copiar secretos ni provisionar nuevos por
+inferencia. Rollback de configuración: retirar exclusivamente la entrada/recursos
+añadidos mediante alcance JIT aprobado, conservando Development y producción.
+
+### Gates pendientes y límite de la ejecución
+
+Las pruebas E1–E6 y R1–R4 siguen 6/6 y 4/4; no se repitieron. No hay un defecto
+funcional nuevo acreditado contra CA4. La prueba del selector sobre el delta real
+pasó: **4 paquetes / 1.613 paths supervivientes**, baseline `c80…`, HEAD `941…`,
+scope SHA-256 `27953739f85650ded346ae2539e5b3e001a4edcda36f84030b516e8efb00eb09`.
+El clon contiene los cambios locales superpuestos, no un commit publicado nuevo.
+Primera corrida: FAIL `REGISTRY_MARKDOWN_DRIFT`; se regeneró la vista Markdown
+desde JSON, se copió al candidato y se revalidó: **PASS**, self-test PASS,
+747/747 fuentes, 119/119 documentos activos y 433/433 históricos enlazados.
+Log `/tmp/h3-certification-real-promotion-gate-rendered.log`. El agregado usa el
+diff de los refs exactos y añade los paquetes completos; los documentos locales
+se validan en el mismo árbol superpuesto. Se requiere CI del futuro HEAD para
+declarar integración. Queda preparar/publicar el PR con autorización separada y
+resolver configuración/promoción/smoke.
+El FAIL integral no se convierte en PASS ni se extiende la disposición #509.
+
+La preparación del clon desechable para el ensayo real fue detenida antes de
+ejecutarse: auto-review informó «application network permission was revoked» y no
+pudo completar la revisión. Es fallo del mecanismo de autorización, no un rechazo
+por inseguridad ni defecto del producto. El responsable autorizó reintentar y la
+aplicación aceptó los comandos; **incidencia de permiso superada**, sin intervención
+adicional necesaria ni elusión. Clon local y Docker se completaron después. No se
+declara GO de promoción por esos checks locales.
+
+Se intentó también pytest focal de workflow/security: no ejecutado porque esta
+imagen no tiene pytest. No se instalaron dependencias ni se etiquetó ese intento
+como PASS; la suite shell/Node/Python propia del selector sí se ejecutó completa.
+
+### Gate completo y decisión de alcance
+
+El wrapper obligatorio en el clon final terminó candidate-aware **exit 0 / PASS**
+y modo integral `--self-test` **exit 1 / FAIL**. El integral contiene los 349
+diagnósticos heredados más `DOC_SELF_TEST_FAILED` por una fuente diagnóstica
+registrada ausente: **350 entradas de fallo**, no una regresión funcional nueva.
+El comando previo de comparación sin `--self-test` reportaba 349. Se conservan
+ambos modos separados; logs y exits en `/tmp/h3-certification-final-results/`.
+El scanner de los 12 archivos modificados pasó en Docker; `git diff --check` PASS.
+
+El ensayo adicional del guard real con `RUNNER_TEMP=/tmp` y baseline `c80…`
+terminó **FAIL**: `protected path changed outside allowlists`. La primera corrida
+sin RUNNER_TEMP no reprodujo Actions y falló por variable ausente; el segundo
+ensayo sí incluyó esa variable y conserva el fallo genuino. Log:
+`/tmp/h3-certification-real-protected-paths.log`.
+
+Se enumeraron 1.484 paths del conjunto protegido en el delta real. La comparación
+con regex H3/H3-extra y lista exacta local identifica **239 paths fuera de esa
+lista H3**: 145 bajo evidencia `h3-expanded`, 23 migrations, más fuentes/config y
+documentos anteriores. Algunos tienen cobertura legacy independiente; el fallo
+del guard completo demuestra que ese fallback tampoco admite el conjunto.
+No se confunden «fuera de lista actual» con «nunca aprobados». Lista diagnóstica:
+`/tmp/h3-certification-unadmitted-paths.json`. No se amplió ninguna allowlist.
+
+Este hallazgo afecta al alcance acumulado, más amplio que el arreglo editorial.
+El responsable eligió explícitamente «Revisar y preparar el acumulado completo
+de Development hacia Certification». Esa decisión habilita su preparación local,
+sin merge/SQL/configuración remota. Se agregó el manifest exacto de 239 paths
+adicionales con blobs baseline/origen, consumido solo en la ruta de promoción.
+El caller fija separadamente baseline `c80…` y origen `941…`; exige ancestry y
+modo/tipo/objeto HEAD idénticos al origen en cada path adicional. No usa un patrón
+de carpeta ni acepta contenido nuevo por editar el manifest. La entrada del
+manifest se admite por nombre exacto para su integración a Development.
+
+Regresiones del primer corte PASS: pins correctos, vecino no seleccionado,
+baseline incorrecto, blob falso, duplicado y drift de contenido; log
+`/tmp/h3-certification-full-regressions.log`. Guard sobre delta real con ese
+manifest PASS: `/tmp/h3-certification-final-results/protected-paths-remediated.log`.
+Revisión independiente focal del guard/manifest/tests: sin HIGH/CRITICAL/MEDIUM,
+estática sin writes. El endurecimiento posterior de modo/tipo/objeto se incluye
+en la revalidación final, cuyos logs quedan en
+`/tmp/h3-certification-final-results/`. No se atribuye aprobación funcional de
+todo el acumulado ni CI remoto por admitir rutas.
+
+**NO-GO de promoción se mantiene** hasta integrar la remediación, resolver/disponer
+el FAIL integral para el candidato exacto y preparar hostname/Access/redirects y
+ruta protegida. No hay un nuevo desarrollo funcional de CA4 identificado; sus
+pruebas Development permanecen aceptadas. La validación por ambiente en
+Certification sigue pendiente. No repetir SQL ya consumido ni invitaciones.
+
+## Preparación de promoción a Certification
+
+**Resultado del corte:** NO-GO — 2026-10-28 18:54 America/Lima.
+
+### Tareas, gates y estado observado
+
+| Gate | Resultado | Evidencia / límite |
+|---|---|---|
+| Autoridad y WIP | Revisado; WIP conservado | Se leyó `AGENTS.md`, `.context/indice.md`, estado operativo y esta evidencia. Al retomar, el worktree era `/tmp/studiamatch-h3req1-public-price-projection-20261028`, rama `codex/h3req1-public-price-projection-20261028`, HEAD `2b1f533444dab19528d5cb3d912ef6332dc20c41`; estaban modificados localmente estado/evidencia. Ese SHA es HEAD feature de #509, no el merge de desarrollo. El diff documental final se acotó a estado, checkpoint, atestación sanitizada, índice, ficha, navegación de hitos y matriz HITO-003. No se hizo fetch, cambio de rama, reset, commit ni publicación. |
+| Promoción Git | NO-GO | Origen remoto confirmado: `desarrollo@941eca496676bd11cd0e2796e6c0a34efd62082d`. Destino: `certificacion@c80f6504a3ea353bc2c222df1da09c4b5ba0ae58`. Ancestro común `a6e39b993b2609641d20e9e24c513f35fd711b96`; Desarrollo tiene 97 commits desde ese ancestro y Certification conserva un commit. La promoción acumula cambios anteriores, no solo #508/#509. El objeto de merge `941…` no existe en este checkout, así que el candidato de promoción no fue reconstruido localmente. |
+| PR #509 / CI | Evidencia reutilizada, no CI de promoción | #509 está integrado. Su HEAD `2b1f533444dab19528d5cb3d912ef6332dc20c41` recibió aprobación humana; CI de ese HEAD: 16 `success`, 2 `skipped` (`Supabase Preview`, `H2 Main Production Expand Gate`). Esos checks pertenecen al PR #509 y no acreditan el futuro PR a Certification ni el merge SHA. Ambas ramas reportan protegidas; los requisitos detallados de Certification no estuvieron disponibles por la lectura actual. No se usará bypass. |
+| Pages | Deployment de Certification obsoleto frente al origen | Development sirve `https://desarrollo.studiamatch-aty.pages.dev`, deployment `87a65f76-b341-4e7c-9e50-ae5f3aa497f2`, `success`, SHA `941…`. Certification sirve `https://certificacion.studiamatch-aty.pages.dev`, deployment `3b28949c-7dfe-4b54-bf7a-0db77339d6ab`, `success`, SHA `c80…` (2026-08-28). El Preview de PR es distinto del deployment de rama. No se pidió ni hizo deploy manual. |
+| Free / schema | Compatible; sin SQL pendiente para Certification | Development y Certification comparten Free `aqrldlmlszjtgpqiegaa`; estado `ACTIVE_HEALTHY`, PostgreSQL 17.6.1.166, ledger 83. Incluye `20261028194353` (`20261028_h3_editorial_publication_snapshot`) y `20261028230928` (`20261028_h3_public_price_projection_empty_price_guard`). No reaplicar, backfill ni cambiar datos. Pro es separado y queda fuera de esta etapa. |
+| Configuración del hostname | BLOQUEANTE; JIT faltante | La configuración Preview de Cloudflare es compartida por las ramas no productivas. El `ADMIN_ALLOWED_HOSTS` observado contiene el alias feature y `desarrollo.studiamatch-aty.pages.dev`, pero no `certificacion.studiamatch-aty.pages.dev`. No se leyeron valores secretos ni se modificó configuración. El acceso Cloudflare Access para el host de Certification no quedó verificado. |
+| Evidencia Development | ACEPTADA, solo en ese ambiente | E1–E6 local: 6/6; R1–R4 remoto Development: antes 2/4, después 4/4 (+50 pp). No son porcentajes globales de H3REQ1 ni prueba de Certification. R2/R3 restauraron y republicaron el `benefits` original; el público quedó sin marcador. |
+| Gate documental | BLOQUEANTE sin resolución | El candidate-aware de #509 pasó 747/747 en su propio baseline/candidato. El checker integral de esa comparación falló con 349 diagnósticos en cada lado; 348 iguales, y el único delta reportado fue `INTEGRATION_PROJECTION_CANDIDATE_ONLY_COUNT` 299→304 frente al esperado 367. Ese contraste no es c80→941. La disposición humana cubre solo #509 y expira antes de Certification. |
+
+### Diagnóstico documental aplicado al alcance de promoción
+
+El workflow `.github/workflows/security-audit.yml` selecciona archivos JSON por el nombre basename que contiene `candidate` y `scope`/`manifest`, o por rol `candidate-aware documentation integrity selection`; exige una única selección válida contra `PROTECTED_BASELINE_SHA`. En el delta remoto observado c80→941 aparecen seis archivos: dos `candidate-pr-scope` no tienen el schema (`manifest_role`, `scope.entries`, `package_artifacts`) y detonan `changed candidate-aware documentation manifest has an invalid structure`; cuatro manifests documentales válidos detonan `multiple candidate-aware documentation manifests changed; selection is ambiguous`. Este es un fallo reproducible por la regla actual del selector, no una atribución a los 349 diagnósticos heredados.
+
+La corrección mínima no es eliminar manifests ni reducir alcance: construir un manifest agregador de promoción para el delta completo y adaptar el selector para elegirlo de forma explícita y validar que cubre la unión de los paquetes/manifests afectados, conservando todos los controles. Eso cambia el workflow/gate y requiere un PR focal a `desarrollo`, checks y aprobación propios. No está implementado ni autorizado por esta preparación. Hasta obtener los árboles c80 y 941 juntos tampoco se puede emitir una comparación integral exacta para Certification.
+
+La regla operativa exige PR protegido a la rama destino, aprobación y el check de seguridad requerido; `AGENTS.md` además exige el self-test documental antes de integrar. No se encontró una regla que convierta un candidate-aware PASS de #509 en disposición del FAIL integral. Por ello la disposición #509 no se extiende: para Certification se requiere reconciliar el integral o presentar una disposición humana nueva, limitada al candidato exacto, después de obtener sus logs baseline/candidato. Riesgo residual de la disposición: fuentes y referencias históricas continuarían sin reconciliarse; owner propuesto: Romel/TL de documentación; caducidad propuesta para decisión: antes de promoción a `main` y no después del 04/11/2026 23:59 America/Lima. Esto es una propuesta, no una aprobación ni un waiver vigente.
+
+**Validación Docker de esta actualización documental — 2026-10-28 18:58 America/Lima:** `git diff --check` PASS. Con `node:22-bookworm-slim`, red deshabilitada, mount read-only y el manifest `h3req1_editorial_contract_candidate_scope_2026-10-28.json`, `--self-test --candidate-manifest` PASS: 747/747 fuentes asignadas, 0 diagnósticos del gate; grafo 119/119 docs activos alcanzables, 433/433 históricos enlazados. El checker integral, mismo comando/configuración sin manifest, terminó exit 1 tanto en `git archive HEAD` (baseline local `2b1f533`) como en el worktree candidato: 349 diagnósticos cada uno, diff de líneas `DOC_GATE_FAIL` vacío; contador de proyección candidate-only 304 en ambos. El grafo subió de 9.334 a 9.339 enlaces y de 4.675 a 4.677 anchors por esta actualización; los anchors agregados se revalidaron. Logs reproducibles: `/tmp/h3req1-promotion-prep-20261028/logs/baseline.log` y `candidate.log`. Esto demuestra que los documentos locales no añaden diagnósticos sobre HEAD `2b1f`; no es el contraste de promoción `certificacion@c80… → desarrollo@941…` ni un PASS integral.
+
+Después se actualizaron los resúmenes subordinados de HITO-003 para que el 5/6 histórico de E1–E6 y el estado R178 no parezcan actuales. La pasada final en Docker volvió a validar esos cambios; el candidate-aware sigue PASS y el integral conserva los 349 diagnósticos sin delta frente al baseline local. El paquete conserva NO-GO para el gate integral y la comparación exacta de promoción sigue pendiente.
+
+**Conteos de la revalidación documental final:** candidate-aware PASS, 747/747 fuentes asignadas, 0 diagnósticos, 119/119 documentos activos alcanzables, 433/433 históricos enlazados; grafo 9.343 enlaces/4.679 anchors. Checker integral exit 1, 349 diagnósticos; diff `DOC_GATE_FAIL` baseline local/candidato vacío. Logs finales: `candidate-aware.log`, `baseline.log`, `candidate.log` en `/tmp/h3req1-promotion-prep-20261028/logs/`. Sigue sin ser un gate integral PASS ni una comparación c80→941.
+
+En una corrida intermedia después de resumir HITO-003, el candidate-aware detectó tres `DOC_ORPHAN` (reporte de implementación, revisión de cierre y waiver enlazado transitivamente) porque se habían retirado los enlaces del índice de hitos. Se restauraron los dos enlaces históricos existentes; la corrida final documentada arriba pasó con 119/119 activos alcanzables. No se borró ni alteró la evidencia histórica.
+
+### Matriz breve de CA vigentes y acción mínima
+
+El backlog vigente asigna HITO-003 al criterio cliente `H3-CA4`. Los subcriterios `.1–.11` de la ficha son su descomposición interna histórica; la tabla no crea criterios nuevos ni porcentajes globales.
+
+| CA | Evidencia reutilizable | Estado demostrado | Acción mínima para Certification |
+|---|---|---|---|
+| `H3-CA4` (panel editorial) | E1–E6 local 6/6; R1–R4 Development 4/4; atestación humana CA4 | ACEPTADO en Development; PENDIENTE en Certification | Destrabar gate documental y hostname; después verificar la ruta desplegada y ejecutar el smoke acotado del contrato. |
+| `H3-CA4.1` Auth/RBAC | D01/D02/D06 y aceptaciones humanas de límites; R1/R3 con roles existentes | ACEPTADO en el alcance mínimo de Development | Reutilizar; en Certification validar acceso por el host nuevo y límites de rol solo si el smoke lo toca. |
+| `H3-CA4.2` allowlist editorial | Implementación/E1 local; `benefits` poblado en R1–R3 Development | ACEPTADO para el contrato en Development; no es prueba remota exhaustiva de los 13 campos | Un campo poblado representativo; no repetir matriz de 13 campos. |
+| `H3-CA4.3` transporte/RPC y controles | Evidencia de seguridad/RPC/cuotas aceptada previamente; no hubo cambios de este contrato en la aceptación | ACEPTADO por evidencia reutilizada, con el alcance/límites históricos | No repetir si código e inputs del transporte permanecen iguales; comprobar solo el BFF en el host de Certification. |
+| `H3-CA4.4` cola | MIN-01 aceptado en la pasada mínima anterior | ACEPTADO para Development | Una consulta de pendientes por la sesión autorizada en el smoke de Certification; sin paginación/carga ampliada. |
+| `H3-CA4.5` mutaciones | E1–E5 local; R1 edición, R2 borrador aislado del público y R3 publicación efectiva | ACEPTADO en Development | Smoke representativo con JIT y recuperación exacta; no repetir E1–E5 localmente. |
+| `H3-CA4.6` auditoría | D09 aceptado; auditoría/versionado en E1/R1/R4 y eventos de la pasada remota | ACEPTADO en Development dentro del alcance verificado | Confirmar que el smoke de Certification deja evento visible a Admin; no repetir auditoría general. |
+| `H3-CA4.7` MFA/`aal2` | Decisión humana previa lo dejó fuera del gate | FUERA DE GATE; no pendiente | Ninguna prueba o cambio de factor. |
+| `H3-CA4.8` membresías | Aceptación humana del onboarding real y permisos básicos reutilizados | ACEPTADO en el recorrido aceptado; no se repite onboarding | Usar membresía existente; no enviar invitaciones ni cambiar roles. |
+| `H3-CA4.9` hostname/Access | Host Development desplegado; deployment Certification antiguo. Allowlist Preview sin alias Certification; Access no verificado | PENDIENTE | Lectura/policy preflight; JIT específico para añadir el alias preservando entries actuales; luego smoke del BFF y la protección. |
+| `H3-CA4.10` convergencia | Free compartido; ledger con ambas migraciones H3 | ACEPTADO para Development/Certification en el schema Free; Pro fuera de alcance | No aplicar SQL a Certification; cotejar Pro solo en una futura etapa de producción. |
+| `H3-CA4.11` UAT/artefactos | E1–E6 locales 6/6; R1–R4 Development 4/4 | ACEPTADO local y en Development; PENDIENTE por ambiente en Certification | Smoke mínimo tras el PR/deployment; evidence específica del alias y SHA efectivos. |
+
+### Paquete y secuencia sin ejecutar
+
+- **Origen/destino:** `desarrollo@941eca496676bd11cd0e2796e6c0a34efd62082d` → `certificacion@c80f6504a3ea353bc2c222df1da09c4b5ba0ae58`. El delta amplio de 97 commits requiere revisión del PR completo; no está aislado a H3REQ1.
+- **CI/protecciones:** #509 quedó aprobado y 16 checks success/2 skipped en su HEAD. Ambas ramas aparecen protegidas; detalle de reglas para Certification no verificado. No hubo CI/approval del futuro PR ni bypass.
+- **Expand:** schema editorial y guard de precio ya aplicados una vez a Free compartido, versiones `20261028194353` y `20261028230928`; no hay migración Certification separada.
+- **Compatibilidad:** mantener snapshots nullable, fallback para cursos sin snapshot, auditoría append-only y comportamiento legacy; no backfill ni contracción antes de estabilización.
+- **Deploy:** abrir el PR protegido y dejar que el despliegue normal de rama genere el deployment Certification. No hacer build/deploy manual. Antes se necesita corregir el selector documental y resolver el host allowlist.
+- **Contract:** solo tras estabilidad y aceptación autorizada; retirar el fallback legacy mediante delta revisado aparte. No contraer en esta preparación.
+- **Rollback:** detener/retirar el código de app mediante PR revert protegido; conservar columnas, snapshots, cursos y auditoría. Si el cambio de allowlist se autoriza y falla, restaurar el valor anterior de `ADMIN_ALLOWED_HOSTS` según su JIT; no borrar datos ni revertir la migración aplicada.
+- **Smoke mínimo propuesto:** comprobar deployment/SHA del alias; Admin existente consulta pendientes; colaborador con membresía existente corrige un campo poblado y el público mantiene el snapshot hasta publish; Admin publica; visitante sin sesión ve el valor exacto; historial/version/preview siguen operativos; restaurar y republicar el original incluido en el JIT. No repetir invitación/onboarding, cuotas ni los 14 escenarios. Como Free es compartido, el paquete JIT debe declarar el efecto de cualquier escritura sobre lectores de Development y Certification.
+
+### Acciones no ejecutadas y autorizaciones necesarias
+
+No se hicieron cambios remotos, commit, push, PR, merge, SQL, Auth, Access, configuración Cloudflare, workflow, deploy ni prueba de negocio en Certification. La autorización previa de #509 se consumió y era para otro destino.
+
+1. **Autorización local de preparación de CI/manifiesto y documentación:** el selector necesita una corrección focal con PR a `desarrollo`; esta sesión solo deja diagnóstico. Se requiere instrucción para implementar y validar ese delta. La integración de los docs de aceptación que siguen sin commit también requiere autorización específica de commit/push/PR en una rama basada en SHA `941…`.
+2. **JIT Cloudflare Preview:** solo cambiar `ADMIN_ALLOWED_HOSTS` para conservar los valores actuales e incluir `certificacion.studiamatch-aty.pages.dev`; confirmar la aplicación a Preview compartido, efecto en previews y recuperación al valor anterior. Sin modificar secretos, Access policies u otros bindings.
+3. **Autorización de promoción:** abrir PR protegido `desarrollo → certificacion` tras resolver los gates, y posteriormente autorización separada de merge; no cubre SQL ni configuración.
+4. **JIT de smoke Certification:** un curso/campo/fixture existente y valor de prueba/recovery exactos, roles existentes, lectura anónima, efecto visible debido al Free compartido y republicación restauradora. No reutilizar el JIT Development.
+
+**Decisión de este corte:** NO-GO para solicitar/ejecutar la promoción; sí se completó el diagnóstico y el paquete local de preparación. No hay GO de Certification ni de producción. Hora inicial de esta continuación no quedó registrada al retomar el hilo; corte de verificación local: 2026-10-28 18:54 America/Lima.
+
+## Addendum final — R2/R3 aceptadas y recuperación verificada — 2026-10-28
+
+**Verificación de navegador terminada:** 18:33:18 America/Lima. **Checkpoint
+documental cerrado:** 18:34:31 America/Lima. Esta continuación retomó el
+checkpoint de las 18:19; la hora exacta de inicio de la sesión del navegador no
+quedó expuesta por el puente. Ambiente Free/Development `aqrldlmlszjtgpqiegaa`,
+host `desarrollo.studiamatch-aty.pages.dev`, deployment `27d9ebfc`, SHA integrado
+`941eca496676bd11cd0e2796e6c0a34efd62082d`. PR #509 permanece integrado. La
+migración correctiva de precio ya estaba aplicada una vez bajo su JIT separado:
+`20261028230928`, 83 entradas de ledger; no se reejecutó ni se hizo otro cambio
+de schema.
+
+### Matriz remota R1–R4
+
+Denominador fijo: 4. Antes de esta pasada: **2/4 = 50%** (R1/R4 aceptados;
+R2 había fallado por `22P02`; R3 pendiente). Después: **4/4 = 100%**, delta
+**+50 puntos porcentuales**. Se conservan separados los resultados históricos y
+el arreglo posterior.
+
+| ID | Resultado de esta pasada | Evidencia nueva / reutilizada |
+|---|---|---|
+| R1 | ACEPTADO, reutilizado | Edición de colaborador sobre campo poblado, persistencia tras recarga y auditoría de la pasada anterior; inputs/contrato no cambiaron. |
+| R2 | ACEPTADO | En page 6 (Chrome Windows, contexto aislado de colaborador), curso ID `fd47da34-4a65-4a71-bc49-aea6db713500`, publicado v8 y `benefits` original. Colaborador guardó el marcador en v9 y recargó. Antes de publicar, page 3 anónima mostró únicamente los cuatro elementos originales; el marcador no se filtró. La lectura `courses_public_effective` respondió 200. |
+| R3 | ACEPTADO | Admin publicó el borrador con marcador; tras recargar page 3 anónima, “Qué Incluye” mostró el texto exacto `* [H3REQ1 CA4 — verificación temporal 2026-10-28]` junto a los cuatro elementos originales. El preview Admin indicó “Curso publicado”; la versión avanzó a v10. |
+| R4 | ACEPTADO, reutilizado | Historial/versión compacta y preview borrador/publicado aceptados en la pasada previa; no se repitió ese criterio. En esta ejecución el contador de historial llegó a 12 después de guardar/publicar y restaurar/publicar, compatible con registro append-only. |
+
+### Restauración, efectos y recuperación del lector
+
+- El mismo JIT exacto de R2/R3 incluyó restauración. Colaborador guardó el
+  `benefits` original, SHA-256
+  `0e0e139a5b59153b2fc219d618ae57d4f2903a3a7e0e516b6fe62dbb81a8741f`, y recargó:
+  versión v11, borrador original, preview publicado todavía con el marcador y
+  aviso de diferencia. Admin republicó el original; versión v12, estado
+  Publicado y preview publicado sin marcador.
+- La última recarga anónima de page 3 mostró exactamente los cuatro beneficios
+  originales, sin el marcador. Network del mismo curso: GET a
+  `courses_public_effective` HTTP 200 (reqid 144 en la captura MCP final); la
+  lectura de recomendaciones también respondió 200. No volvió a aparecer
+  SQLSTATE `22P02`.
+- Efectos persistentes limitados al curso/campo autorizados: dos ediciones de
+  contenido y dos publicaciones, con versiones v9–v12 y eventos auditados. El
+  texto público final quedó restaurado a su valor previo. No se tocaron otros
+  campos, disponibilidad, membresías, cursos adicionales, pipeline, FG3,
+  schedules, deployments, Pro ni Certification como ambiente de promoción.
+- No hubo una nueva espera humana: la intervención Admin y el acceso previo del
+  colaborador se completaron en sus sesiones Chrome existentes. No se solicitaron
+  credenciales ni códigos.
+
+### Resultado y gates restantes
+
+GO de aceptación remota mínima del contrato corregido en Development: **SÍ**,
+limitado a R1–R4 (4/4). No equivale a GO de promoción, producción ni cierre total
+de H3REQ1. El FAIL integral del checker documental (349 diagnósticos heredados)
+permanece visible; el PASS candidate-aware y la disposición humana exclusiva
+para PR #509 siguen separados. Esa disposición es del owner Romel y vence el
+04/11/2026 23:59 America/Lima o antes de promover a Certification, lo que ocurra
+primero; no es un waiver global ni una aprobación de promoción.
+
+Siguiente acción exacta: antes de cualquier promoción a Certification, resolver
+o disponer el gate documental integral por el proceso humano aplicable y obtener
+las autorizaciones específicas de promoción. No aplicar otra migración, no probar
+remotamente en Certification/Pro y no ejecutar writers/schedules en este corte.
+
+## Addendum — corrección SQL aplicada y lector público recuperado; R2/R3 pendientes — 2026-10-28
+
+**Corte:** 18:19 America/Lima. En el Free compartido
+`aqrldlmlszjtgpqiegaa` se aplicó una vez, con JIT exacto, la migración integrada
+`db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql`
+(SHA-256 `82b8eb0655779f0e82b979cb65a051f2b244b5c4bffb199c5e13c9473132987b`).
+Ledger confirmado: versión `20261028230928`, 83 entradas; no se reejecutará.
+Verificación de solo lectura: `private.h2_public_courses_effective()` mantiene
+`SECURITY DEFINER`, `search_path=pg_catalog, pg_temp`, EXECUTE para
+`anon`/`authenticated`/`service_role`, sin EXECUTE para `PUBLIC`; la guarda segura
+está presente y el cast numérico directo ya no aparece. La vista
+`public.courses_public_effective` sigue como `security_invoker`, llama al helper y
+permite SELECT a `anon`/`authenticated`.
+
+En Chrome Windows, contexto anónimo aislado, la ruta del mismo curso IDAT ahora
+carga y la request a `courses_public_effective` devuelve HTTP 200. El catálogo
+detallado muestra “Python for Data Analyst” y el `benefits` aprobado original, con
+sus cuatro elementos; no se volvió a observar `22P02`. Esto prueba recuperación
+del lector público, pero no completa R2 sin la edición de borrador controlada.
+Estado R1–R4 se conserva en 2/4 (50%) en este corte: R1/R4 aceptados, R2 aún
+pendiente de revalidación tras el arreglo y R3 pendiente. La pasada anterior con
+2/4 queda como antecedente; no se convierte el error histórico en PASS ni se repiten
+R1/R4.
+
+No se escribieron cursos ni se cambió pipeline, cuenta, disponibilidad, despliegue
+o Pro. Tras completar el acceso en Chrome Windows, página 6, el editor confirma
+curso publicado/completo, versión v8, `benefits` igual al original y los mismos
+cuatro elementos en preview público. La página Admin 1 sigue en login; a las 18:14
+se pidió al responsable completar acceso Admin. Se preparó y envió JIT nuevo para
+R2/R3 y recuperación exacta; está pendiente y ninguna escritura de curso se ha
+realizado bajo ese paquete. Siguiente paso: verificar el estado Admin después de la
+intervención, esperar el JIT y luego ejecutar solo R2/R3 más la republicación del
+original. Este corte se detiene a las 18:19 sin tratar la espera de intervención ni
+la autorización pendiente como defecto técnico.
+
+Validación documental local: `git diff --check` pasó. El self-test del checker de
+integridad ejecutado en Docker efímero sin red y con worktree read-only terminó
+FAIL (código 1), con 747/747 fuentes asignadas y errores de rutas/referencias
+históricas; el FAIL integral de 349 diagnósticos y la disposición limitada a #509
+siguen visibles, no se alteraron relaciones ni se declaró PASS. El wrapper de imagen
+intentó inicializar `node_modules` y falló por volumen fuera de sincronía; el checker
+sin dependencias externas se ejecutó directamente en el mismo contenedor aislado.
+No se ejecutó un gate candidate-aware nuevo para este addendum documental.
+
 ## Addendum post-merge y aceptación remota R1–R4 — 2026-10-28
 
 **Continuación retomada:** 14:50:14 America/Lima. **Corte remoto R1–R4:**

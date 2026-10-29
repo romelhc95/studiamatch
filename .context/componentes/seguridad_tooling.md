@@ -46,6 +46,50 @@ El nombre fue comunicado como una GitHub App existente. La búsqueda de todo el 
 
 ## Registro de fuentes y gate
 
+### Selección documental de promoción — remediación local 28-oct-2026
+
+El responsable eligió revisar el acumulado completo hacia Certification. El guard
+conserva sus regex/listas normales y añade, solo para esa ruta, los 239 paths del
+[scope de promoción](../evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json).
+Cada entrada fija blobs del baseline `c80f6504…` y del origen `941eca49…`; ambos
+commits se fijan también independientemente en el caller del guard. El validador
+exige baseline exacto, origen ancestro de HEAD y contenido HEAD idéntico al origen
+para cada path adicional. No permite paths nuevos, duplicados, control/traversal,
+blobs falsos o drift de esos archivos. Solo emite la lista después de validar todos
+los pins. Un sucesor que cambie uno requiere revisión y actualización explícita;
+no hereda una excepción por carpeta. La entrada del propio manifest se admite
+por nombre exacto para su PR de remediación. Su scope no autoriza ejecución remota.
+Los tests usan Git desechable y comprueban baseline incorrecto, blobs falsos,
+duplicados, vecino no incluido y drift de contenido. El rollback retira el
+manifest y su consumo por PR protegido, restituyendo el rechazo de promoción.
+El `push` normal posterior al merge en Certification conserva la selección
+documental agregada; el guard admite los pins en ese evento únicamente si el
+baseline sigue siendo el `c80…` exacto de esta primera promoción. Así el check
+posterior al merge no pierde el contrato validado en el PR ni habilita sucesores
+arbitrarios. Los PRs de otras rutas siguen bajo selección única.
+
+El selector de `security-audit.yml` conserva una única selección y rechaza
+ambigüedad en PRs normales. Solo para la ruta GitHub `desarrollo -> certificacion`
+genera un agregado efímero en `.git/h3req1-promotion-documentation.json`: unión de
+todos los paquetes documentales cambiados, sus artifacts incluidos y todas las
+rutas supervivientes del diff Git real. Registra baseline, HEAD y SHA-256 de cada
+paquete. Los paths seleccionados ausentes o inseguros y los manifiestos
+documentales malformados siguen fallando. Los manifests de paths PR con schema
+propio no son selecciones documentales; se reconocen únicamente por su estructura
+válida, y sus archivos siguen incluidos en el diff agregado. JSON histórico que no
+puede ser una selección por nombre ni tiene rol JSON válido no se interpreta como
+selector. No se elimina ni altera ese artifact.
+
+`tests/test_protected_path_scope_guard.sh` prueba la unión y cobertura del diff,
+hashes, inputs ausentes, PR scope inválido y ambigüedad normal. PASS Docker local
+no acredita Actions ni promoción. Se conserva el checker integral y su FAIL
+histórico: esta remediación no concede waiver ni autorización remota. Se expande
+el selector manteniendo compatibilidad con una selección; el deploy será mediante
+PR protegido a Development y el cambio seguirá vigente en Certification. No hay
+legacy nuevo que retirar. Rollback: revertir el cambio por PR protegido; la
+promoción volvería a fallar cerrada, sin efectos DB. La revisión/evidencia de este
+ciclo se registra en el [checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md#remediacion-local-de-promocion-por-tl).
+
 [`registro_fuentes_componentes.json`](../trazabilidad/registro_fuentes_componentes.json) es la autoridad verificable de asignaciones. Cada ruta mantenida queda enlazada a un componente, una ficha/anchor de fuente y una página de dominio; el registro añade propósito, contrato, consumidores/dependencias, datos, pruebas/evidencia, operación/permisos y procedencia. Las relaciones se anotan por grupos con límites explícitos: `pending` y `unknown` no cuentan como verificadas ni se convierten en consumidores por similitud de nombre.
 
 El Markdown de [asignaciones y navegación](../trazabilidad/registro_fuentes_componentes.md#asignaciones-por-fuente) se genera con `bash scripts/security/run_documentation_integrity.sh --render`; no es una segunda autoridad. El checker local compara el inventario encontrado bajo raíces declaradas y la raíz no Markdown de `.context`, exige asignación/documento/ancla, detecta grupos huérfanos, rutas o anchors inexistentes, enlaces de retorno y marcadores `StudIAMatch-Docs:` discordantes en políticas `required`/`optional`.

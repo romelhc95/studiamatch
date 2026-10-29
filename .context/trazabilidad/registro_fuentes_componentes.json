@@ -15362,11 +15362,12 @@
       },
       "data": {
         "state": "verified",
-        "note": "Tracked source/diff and names of credential variables; secret stores are never read.",
+        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Additional promotion paths use exact baseline c80f6504 and source 941eca49, enforced independently by the caller and checked against source/HEAD Git blobs in h3req1_certification_promotion_path_scope_2026-10-28.json.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
-          "path:.github/scripts/production_control_preflight.sh"
+          "path:.github/scripts/production_control_preflight.sh",
+          "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json"
         ]
       },
       "tests_evidence": {
@@ -15510,7 +15511,7 @@
       "comment_target": ".context/componentes/seguridad_tooling.md#registro-de-fuentes-y-gate",
       "contracts": {
         "state": "verified",
-        "note": "Credential scan, protected path guard, source/documentation integrity and offline checks.",
+        "note": "Credential scan, protected path guard, source/documentation integrity and offline checks. Promotion selector generates the full package/diff union only for desarrollo -> certificacion; ordinary PR ambiguity remains fail-closed. Consumer/regression: tests/test_protected_path_scope_guard.sh; documentation: seguridad_tooling.md, selección documental de promoción.",
         "evidence": [
           "path:.github/workflows/security-audit.yml"
         ]
