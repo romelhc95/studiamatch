@@ -1,0 +1,4 @@
+{"input":"32 horas académicas 1 mes aproximadamente.","expected":1,"actual":32,"result":"FAIL"}
+{"input":"1 año y 6 meses","expected":18,"actual":1,"result":"FAIL"}
+{"input":"2 semanas","expected":0.4618937644341801,"actual":0.4618937644341801,"result":"PASS"}
+{"input":"sin unidad 2026","expected":0,"actual":0,"result":"PASS"}

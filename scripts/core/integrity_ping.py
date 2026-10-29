@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared.db_client import get_db_client
-from shared.utils import setup_lima_logging, TimeGuard, parse_start_date
+from shared.utils import setup_lima_logging, TimeGuard
 
 load_dotenv()
 logger = setup_lima_logging("IntegrityPing")
@@ -22,6 +22,23 @@ logger = setup_lima_logging("IntegrityPing")
 HTTP_GONE_STATUSES = {404, 410}
 HTTP_TRANSIENT_STATUSES = {408, 425, 429, 500, 502, 503, 504}
 HTTPS_PORT = 443
+SOURCE_REMOVAL_GRACE = timedelta(days=3)
+
+
+def is_confirmed_source_removal(status_code, last_404_at, now=None):
+    """Require a repeated 404/410 after the existing three-day grace period."""
+    if status_code not in HTTP_GONE_STATUSES or not last_404_at:
+        return False
+    try:
+        last_date = datetime.fromisoformat(str(last_404_at).replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        return False
+    observed_at = now or datetime.now(last_date.tzinfo)
+    if last_date.tzinfo is not None and observed_at.tzinfo is None:
+        observed_at = observed_at.replace(tzinfo=last_date.tzinfo)
+    if last_date.tzinfo is None and observed_at.tzinfo is not None:
+        last_date = last_date.replace(tzinfo=observed_at.tzinfo)
+    return observed_at > last_date + SOURCE_REMOVAL_GRACE
 
 
 class FixedIPHTTPSConnection(HTTPSConnection):
@@ -216,43 +233,12 @@ def run_integrity_ping(institution_id=None, limit=None):
     else:
         logger.info("[OK] Integridad de datos dentro de umbrales.")
 
-    # Fase 73: Expiration check — desactivar cursos con start_date expirado (>90d)
-    grace_cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
-    expired_filter = f"start_date=lt.{grace_cutoff}&is_active=eq.true"
-    if institution_filter:
-        expired_filter = _append_filter(expired_filter, institution_filter)
-    if limit is None:
-        expired = db.select_all_service(
-            'courses',
-            filters=expired_filter,
-            columns="id,name,start_date,start_date_text",
-            order="id.asc",
-        )
-    else:
-        expired = db.select_service_raise(
-            'courses',
-            filters=expired_filter,
-            columns="id,name,start_date,start_date_text",
-            limit=limit,
-            order="id.asc",
-        )
-    expired_count = len(expired)
     partial = False
-    if expired_count > 0:
-        logger.info(f"⏰ [EXPIRED] {expired_count} cursos con start_date < {grace_cutoff} (90d gracia)")
-        for course in expired:
-            if guard.should_exit:
-                partial = True
-                break
-            logger.info(f"  Desactivando: {course.get('name')} (start_date={course.get('start_date')}, text={course.get('start_date_text')})")
-            patch_course_exact_one(db, course['id'], {"is_active": False})
-    else:
-        logger.info("[OK] 0 cursos con fecha expirada")
 
     course_filter = "is_active=eq.true"
     if institution_filter:
         course_filter = _append_filter(course_filter, institution_filter)
-    active_limit = None if limit is None else max(limit - expired_count, 0)
+    active_limit = limit
     if active_limit == 0:
         courses = []
     elif active_limit is None:
@@ -308,13 +294,14 @@ def run_integrity_ping(institution_id=None, limit=None):
                 if not last_404:
                     patch_course_exact_one(db, course_id, {"last_404_at": datetime.now().isoformat()})
                     flagged += 1
-                    logger.info(f"[Flagged] {course['name']} ({response.status_code} detectado)")
+                    logger.info(f"[Flagged] {course['name']} ({response.status_code} observado; inicia la gracia de retirada)")
+                elif not is_confirmed_source_removal(response.status_code, last_404):
+                    flagged += 1
+                    logger.info(f"[Pending] {course['name']} ({response.status_code} repetido antes de confirmar la gracia de retirada)")
                 else:
-                    last_date = datetime.fromisoformat(last_404.replace('Z', '+00:00'))
-                    if datetime.now(last_date.tzinfo) > last_date + timedelta(days=3):
-                        patch_course_exact_one(db, course_id, {"is_active": False})
-                        deactivated += 1
-                        logger.info(f"[Deactivated] {course['name']} ({response.status_code} persistente > 3 días)")
+                    patch_course_exact_one(db, course_id, {"is_active": False})
+                    deactivated += 1
+                    logger.info(f"[Deactivated] {course['name']} ({response.status_code} repetido tras la gracia de retirada)")
             elif response.status_code in HTTP_TRANSIENT_STATUSES:
                 failed += 1
                 logger.warning(f"[Transient HTTP {response.status_code}] {course['name']}")

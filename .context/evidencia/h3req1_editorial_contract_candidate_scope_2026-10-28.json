@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "manifest_role": "candidate-aware documentation integrity selection; H3REQ1 editorial contract 2026-10-28; exact local package scope, not a PR path manifest",
+  "scope": {
+    "entries": [
+      {"path":".github/workflows/security-audit.yml","status":"included"},
+      {"path":".context/hitos/README.md","status":"included"},
+      {"path":".context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json","status":"included"},
+      {"path":".context/componentes/admin_portal.md","status":"included"},
+      {"path":".context/componentes/database_migrations.md","status":"included"},
+      {"path":".context/componentes/pipeline.md","status":"included"},
+      {"path":".context/componentes/pruebas_evidencia.md","status":"included"},
+      {"path":".context/componentes/seguridad_tooling.md","status":"included"},
+      {"path":".context/database.md","status":"included"},
+      {"path":".context/estado_del_proyecto.md","status":"included"},
+      {"path":".context/hitos/hito_003.md","status":"included"},
+      {"path":".context/indice.md","status":"included"},
+      {"path":".context/matrices/matriz_hito_003.md","status":"included"},
+      {"path":".context/pruebas.md","status":"included"},
+      {"path":".context/trazabilidad/registro_fuentes_componentes.json","status":"included"},
+      {"path":".context/trazabilidad/registro_fuentes_componentes.md","status":"included"},
+      {"path":"scripts/core/integrity_ping.py","status":"included"},
+      {"path":"scripts/security/protected_path_scope_guard.sh","status":"included"},
+      {"path":"tests/h3_local_uat.mjs","status":"included"},
+      {"path":"tests/sql/h3_pg17_harness.sql","status":"included"},
+      {"path":"tests/test_h3_admin_queue_ux_contract.py","status":"included"},
+      {"path":"tests/test_protected_path_scope_guard.sh","status":"included"},
+      {"path":"tests/test_supabase_credentials_contract.py","status":"included"},
+      {"path":"web/src/app/admin/edit/page.tsx","status":"included"},
+      {"path":"web/src/components/admin/CourseLivePreview.tsx","status":"included"},
+      {"path":"web/src/components/admin/editorial-ui.tsx","status":"included"},
+      {"path":".context/evidencia/h3req1_editorial_contract_2026-10-28.md","status":"included"},
+      {"path":".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md","status":"included"},
+      {"path":"db/migrations/20261028_h3_editorial_publication_snapshot.sql","status":"included"},
+      {"path":"tests/test_integrity_ping_retirement_contract.py","status":"included"}
+    ]
+  },
+  "package_artifacts": {
+    "promotion_path_pins": {"path":".context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json","included":true},
+    "checkpoint": {"path":".context/evidencia/h3req1_editorial_contract_2026-10-28.md","included":true},
+    "client_attestation": {"path":".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md","included":true},
+    "migration": {"path":"db/migrations/20261028_h3_editorial_publication_snapshot.sql","included":true}
+  }
+}

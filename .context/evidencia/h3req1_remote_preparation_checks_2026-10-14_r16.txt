@@ -1,0 +1,57 @@
+H3REQ1 R16 — registro de preparación remota y validación local
+Fecha: 2026-10-14 UTC
+Repositorio confirmado: https://github.com/romelhc95/studiamatch
+Candidato local: /home/romel/src/studiamatch-h3req1-sync-20261002
+Rama/base: feat/h3req1-sync-20261002 @ 4eb4d877a50b012bb630a129bd0c74482c33be9c; el HEAD por sí solo no identifica el WIP.
+Corte remoto: 2026-10-14T02:16:15Z.
+Contenedor: studiamatch-dev, /app montado desde el candidato.
+
+Preservación y alcance
+- El digest del manifest R14 padre permanece 7c9a6ba29c260231a02f11167d9093cd7241e9779ddabb28fee8f508f0391851.
+- El digest del overlay R15 preservado es 1bf4dd992ff7feaa04e5051de9478b7db8974776fe8d9cac8e4aa5f91aee09b8.
+- R16 propone el overlay documental de estado, índice, registro JSON/Markdown, un log R181 directamente citado por el estado y artefactos R16 de reporte, paquete, cuerpo, checks, revisión y manifest. El manifest R16 se distribuye, pero omite su propio hash. Todo WIP restante, secrets/env, outputs, caches, backups y respuestas remotas crudas queda excluido.
+- La comprobación de enlaces detectó que el estado R14 cita .context/evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt, fuera del paquete R14. Se añadió solo este log histórico al overlay R16; no se agregaron otros artefactos WIP.
+
+Integridad documental normal — Docker
+Comando: docker exec -w /app studiamatch-dev bash scripts/security/run_documentation_integrity.sh
+Resultado: PASS, exit 0.
+Cobertura: 801/801 fuentes asignadas; 14/14 componentes; 262 grupos; 4,715/4,715 relaciones locales verificadas; 91 N/A justificados; remote checks 5/13 verificados y 8 pendientes; proyección de integración 434 fuentes; WIP solo de candidato 367.
+Grafo: 9,500 links; 4,583 anchors; 103/103 documentos activos alcanzables; 433/433 documentos históricos enlazados individualmente desde 13 catálogos; 0 documentos Markdown excluidos; 28 familias de artefactos y 29 familias de exclusión.
+
+Integridad documental self-test — Docker
+Comando: docker exec -w /app studiamatch-dev bash scripts/security/run_documentation_integrity.sh --self-test
+Resultado: PASS, exit 0. El self-test confirma rechazo de fuentes sin asignación, relaciones remotas incompletas/desconocidas, historia sin enlazar, índice de catálogos obsoleto, raíces/extensiones no registradas, diferencias marker/registro, rutas/anchors faltantes, duplicados y documentos retirados reintroducidos.
+La cobertura y el grafo coinciden con el gate normal: 801/801, 14/14, 4,715 relaciones locales, 91 N/A, remoto 5/13, 9,500 links y 4,583 anchors.
+
+Disponibilidad de referencias en el paquete
+Se inspeccionaron cinco documentos de entrada: estado, índice, reporte R16, paquete R16 y cuerpo basado en la plantilla. El conjunto de destinos permitidos se compuso del HEAD/base, paths explícitos R14/R15 y el overlay R16; los links Markdown locales se resolvieron respecto de su archivo origen y se cotejaron contra esa unión y el sistema de archivos del contenedor.
+Resultado inicial: PASS, 5 documentos, 165 links locales, 130 referencias a Markdown, cero targets ausentes. Tras el enlace adicional al manifest en el cuerpo PR, el cierre final queda en 166 links locales, 130 referencias a Markdown y cero targets ausentes. El log R181 antes faltante ahora forma parte del overlay seleccionado y está disponible. Los catálogos históricos del paquete permanecen accesibles; no se incorporó el resto del WIP.
+
+Credential scan — archivos explícitos
+Comando: `docker exec -w /app studiamatch-dev bash scripts/security/scan_credentials.sh` seguido de diez archivos explícitos: nueve de las diez entradas del scope R16 más el propio manifest R16. El log de checks (una entrada del scope) se excluye para evitar autorreferencia; el archivo manifest se escanea aunque su hash propio esté excluido de `scope.entries`.
+Paths: .context/estado_del_proyecto.md; .context/indice.md; .context/trazabilidad/registro_fuentes_componentes.json; .context/trazabilidad/registro_fuentes_componentes.md; .context/evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt; .context/evidencia/h3req1_g10_remote_preparation_2026-10-14_r16.md; .context/evidencia/h3req1_development_integration_package_2026-10-14_r16.md; .context/evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r16.md; .context/evidencia/h3req1_remote_preparation_independent_review_2026-10-14_r16.txt; .context/evidencia/h3req1_remote_preparation_manifest_2026-10-14_r16.json.
+Última pasada: PASS, exit 0 contra diez archivos explícitos (nueve entradas del scope + el manifest), después de incorporar la revisión independiente final y regenerar el manifest. No operational env files, tokens, secret values or unrelated WIP were scanned; no values were printed.
+
+Scope guard y workflow allowlist
+La regresión versionada se ejecutó en Docker: docker exec -w /app studiamatch-dev bash tests/test_protected_path_scope_guard.sh
+Resultado: FAIL, exit 1 antes de cotejar el allowlist: referenced target hash differs: .context/componentes/admin_runtime.md. R14 fija 594a89e7bd07419cbbf366fddcc5bf0de5575e8ef3a284598887e0ec4d68501f; el archivo actual, actualizado en overlay R15, tiene SHA-256 4f38b51bedba2f306430edab0b3dbe1a14c7468962613478f030c799aaaebc6c. R14, el test y el workflow se preservan; no se enmascara la regresión.
+Comparación separada read-only en Docker: extraer allowed_h3, allowed_h3_extra y el heredoc H3_LOCAL_PATHS de .github/workflows/security-audit.yml; aceptar cuando hay pertenencia exacta al heredoc o re.search de uno de los dos patrones regex. Input: las 11 rutas del overlay R16, incluido su manifest distribuble.
+Resultado: 7/11 aceptadas. Rechazadas: .context/evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt; .context/evidencia/h3req1_remote_preparation_checks_2026-10-14_r16.txt; .context/evidencia/h3req1_remote_preparation_independent_review_2026-10-14_r16.txt; .context/evidencia/h3req1_remote_preparation_manifest_2026-10-14_r16.json. El R15 histórico aceptaba 17/20. No se editó workflow ni se ejecutó CI; filing permanece bloqueado.
+
+Tooling, formato y reutilización
+- actionlint v1.7.12 PASS en todos los workflows .yml/.yaml según suplemento final R14. No repetido: los workflows no cambiaron en R16.
+- ShellCheck 0.11.0 `-x` PASS en tests/test_protected_path_scope_guard.sh y scripts/security/protected_path_scope_guard.sh según suplemento final R14. No repetido: esos inputs no cambiaron en R16.
+- El barrido ShellCheck amplio R14 de 181 scripts tuvo diagnósticos en runners/evidencia históricos; no se repitió ni limpió en bloque.
+- Integridad documental normal y self-test: PASS en Docker. Cobertura 801/801 fuentes, 14/14 componentes, 4,715/4,715 relaciones locales, 91 N/A, checks remotos 5/13; grafo final 9,500 links y 4,583 anchors; 103/103 documentos activos y 433/433 históricos enlazados.
+- Cierre de referencias final: PASS, cinco documentos de entrada, 166 links locales, 130 referencias Markdown y cero targets ausentes. Se resolvió contra baseline GitHub local más los scopes explícitos R14/R15/R16 y se verificó disponibilidad local.
+- `git diff --check` PASS para el estado tracked editado. Revisión explícita de whitespace, CR y newline final en los 11 archivos propuestos: cero issues.
+- Los diez headings del cuerpo PR coinciden con la plantilla versionada `.github/pull_request_template.md`. `git diff --cached --quiet` PASS: no hay rutas staged.
+- Manifest R16 recalculado después de incorporar el dictamen independiente y los checks finales. Validación: diez entries del scope fijados, 10/10 bytes y SHA-256 concordantes; su propio hash se excluye del digest de entries. Los hashes padre R14/R15 se comprobaron sin cambios.
+- Credential scan final: PASS, exit 0, diez archivos explícitos (nueve entries del scope más el manifest final); el log de checks se excluye y el manifest se incluye. No hubo cambios a documentos fijados después de esa pasada.
+- No se ejecutaron pruebas funcionales/build/workflows: no hubo cambios a código, workflows ni inputs funcionales.
+
+Revisión independiente
+Lectura independiente inicial R16: sin HIGH/CRITICAL. Encontró tres observaciones: documentar resultados reales en la celda de documentación del cuerpo PR, registrar método/salida del cotejo del workflow y resumir la falla del scope guard en el estado; se corrigieron. Segunda lectura independiente: sin HIGH/CRITICAL; dos hallazgos medios y uno bajo: el cuerpo decía que scanner/revisión/pins eran finales mientras el registro y manifest seguían provisionales; el paso de congelación del paquete decía 7/10 en lugar de 7/11; y la fila de alcance omitía el log R181. Se corrigieron: cuerpo vuelve a declarar los gates finales pendientes, congelación muestra 7/11 y el alcance enumera el log R181. La lectura posterior dio GO documental acotado para su snapshot (10/10 pins, digest `9ada5164b19720352fa3d351ef46ce17871d5a2e099fa7c2d2da4d94c946491d`), detectó una inconsistencia en la cardinalidad del scanner y recomendó actualizar el resultado/manifest después del dictamen. Body, checks, estado y revisión se corrigieron; la relectura confirmó 10 entries de scope, 9 entries más el manifest escaneados, checks excluido y manifest incluido. No halló HIGH/CRITICAL. El dictamen final es GO documental local acotado; el resultado sigue NO-GO Development por el scope guard.
+
+No ejecutado / autoridad pendiente
+No se ejecutaron suites funcionales, build, workflows remotos, PR, commit, push, merge, deploy, configuración remota, RPC mutadora, DDL/DML, pruebas con efectos ni D01–D14. No hubo lectura de filas operativas, usuarios, buzones, tokens o valores secretos. No se declara GO Development; D01–D14 permanecen 0/14. El dictamen independiente local es GO documental acotado; scanner y repin finales se registran arriba.

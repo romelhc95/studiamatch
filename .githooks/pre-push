@@ -3,10 +3,58 @@
 
 set -eu
 
-while read -r _local_ref local_sha _remote_ref remote_sha; do
+if [ "$#" -ne 2 ]; then
+    printf '%s\n' 'pre-push credential scan failed: Git did not provide remote context' >&2
+    exit 2
+fi
+remote_name=$1
+remote_url=$2
+
+upstream_base_for_new_ref() {
+    local_ref=$1
+    local_sha=$2
+
+    upstream_ref=$(git for-each-ref --format='%(upstream)' "$local_ref" 2>/dev/null) || return 1
+    [ -n "$upstream_ref" ] || return 1
+    case "$upstream_ref" in
+        refs/remotes/*) ;;
+        *) return 1 ;;
+    esac
+
+    upstream_remote=${upstream_ref#refs/remotes/}
+    upstream_remote=${upstream_remote%%/*}
+    [ "$upstream_remote" = "$remote_name" ] || return 1
+
+    upstream_sha=$(git rev-parse --verify "$upstream_ref^{commit}" 2>/dev/null) || return 1
+    configured_fetch_url=$(git remote get-url "$remote_name" 2>/dev/null) || return 1
+    configured_push_url=$(git remote get-url --push "$remote_name" 2>/dev/null) || return 1
+    [ "$configured_fetch_url" = "$remote_url" ] || return 1
+    [ "$configured_push_url" = "$remote_url" ] || return 1
+
+    upstream_prefix="refs/remotes/$remote_name/"
+    case "$upstream_ref" in
+        "$upstream_prefix"*) upstream_branch=${upstream_ref#"$upstream_prefix"} ;;
+        *) return 1 ;;
+    esac
+    [ -n "$upstream_branch" ] || return 1
+    advertised_ref="refs/heads/$upstream_branch"
+    advertised_listing=$(git ls-remote --heads "$remote_name" "$advertised_ref" 2>/dev/null) || return 1
+    advertised_sha=$(printf '%s\n' "$advertised_listing" | awk -v expected="$advertised_ref" \
+        '$2 == expected { count++; sha=$1 } END { if (count != 1) exit 1; print sha }') || return 1
+    [ "$advertised_sha" = "$upstream_sha" ] || return 1
+
+    git merge-base --is-ancestor "$upstream_sha" "$local_sha" >/dev/null 2>&1 || return 1
+    printf '%s\n' "$upstream_sha"
+}
+
+while read -r local_ref local_sha _remote_ref remote_sha; do
     [ "$local_sha" != "0000000000000000000000000000000000000000" ] || continue
     if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
-        remote_sha=$(git hash-object -t tree /dev/null)
+        if tracking_base=$(upstream_base_for_new_ref "$local_ref" "$local_sha"); then
+            remote_sha=$tracking_base
+        else
+            remote_sha=$(git hash-object -t tree -w /dev/null)
+        fi
     fi
     scripts/security/scan_credentials.sh --diff "$remote_sha" "$local_sha"
 done

@@ -1,0 +1,519 @@
+[
+  {
+    "executionId": "H3-UAT-053:desktop",
+    "id": "H3-UAT-053",
+    "title": "public combined filters search sort and reset stay consistent",
+    "requirementId": "H3-CA4.9",
+    "role": "anon",
+    "assurance": "none",
+    "hostname": "127.0.0.1",
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    "route": "/",
+    "expected": "search, area, type, institution, mode, minimum/maximum, duration, price range and sort converge on the same public course",
+    "observed": "public filter intersection passed for analitica-aplicada-60000000; links=2",
+    "assertions": [
+      {
+        "name": "combined query is retained",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "combined filter returns one intended course card",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all candidate card detail links use the same slug",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/?q=Anal%C3%ADtica&area=Data&tipo=Curso&inst=Universidad+de+Lima&modalidad=Remoto&min=1250&max=1250&sort=asc&duration=medium&priceRange=accessible",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1c6eqp4pq30mu.css",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/3mc6dra1m0098.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/11jq0c2_zavac.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1rj7ns8rte9vc.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/2c8ke6w3dt0qk.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/turbopack-0xqaxx3i8dior.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1cj_etj8m2g97.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0xw9t4b0u2181.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1gln4skv1smvz.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/24y3uhr1t8c2q.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/427cqvbky5mn1.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/favicon.ico?favicon.2vob68tjqpejf.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next.__PAGE__.txt?_rsc=8nTjltbQWvg6NcbE",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next.compare.__PAGE__.txt?_rsc=d6gsQpXOX6Qck2s5",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1h20hpautnpbx.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0tcp2f1rpzwp2.js",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": null,
+    "startedAt": "2026-10-11T06:09:08.775Z",
+    "finishedAt": "2026-10-11T06:09:09.895Z",
+    "durationMs": 1120,
+    "retry": 0,
+    "result": "PASS",
+    "artifact": "uat-functional-win-access-r33/H3-UAT-053-desktop.png",
+    "artifactBytes": 297180,
+    "artifactSha256": "76f4e24d6ead8f2e5ce9754cb102f943cbd8e284988c8ac1c40c9ccb9fd28193",
+    "videoArtifact": null,
+    "videoErrorCode": null
+  },
+  {
+    "executionId": "H3-UAT-053:tablet",
+    "id": "H3-UAT-053",
+    "title": "public combined filters search sort and reset stay consistent",
+    "requirementId": "H3-CA4.9",
+    "role": "anon",
+    "assurance": "none",
+    "hostname": "127.0.0.1",
+    "viewport": {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    "route": "/",
+    "expected": "search, area, type, institution, mode, minimum/maximum, duration, price range and sort converge on the same public course",
+    "observed": "public filter intersection passed for analitica-aplicada-60000000; links=2",
+    "assertions": [
+      {
+        "name": "combined query is retained",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "combined filter returns one intended course card",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all candidate card detail links use the same slug",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/?q=Anal%C3%ADtica&area=Data&tipo=Curso&inst=Universidad+de+Lima&modalidad=Remoto&min=1250&max=1250&sort=asc&duration=medium&priceRange=accessible",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1c6eqp4pq30mu.css",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/3mc6dra1m0098.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/11jq0c2_zavac.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1rj7ns8rte9vc.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/2c8ke6w3dt0qk.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/turbopack-0xqaxx3i8dior.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1cj_etj8m2g97.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0xw9t4b0u2181.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1gln4skv1smvz.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/24y3uhr1t8c2q.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/427cqvbky5mn1.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/favicon.ico?favicon.2vob68tjqpejf.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next.__PAGE__.txt?_rsc=8nTjltbQWvg6NcbE",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next.compare.__PAGE__.txt?_rsc=d6gsQpXOX6Qck2s5",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0tcp2f1rpzwp2.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1h20hpautnpbx.js",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": null,
+    "startedAt": "2026-10-11T06:09:09.907Z",
+    "finishedAt": "2026-10-11T06:09:10.709Z",
+    "durationMs": 802,
+    "retry": 0,
+    "result": "PASS",
+    "artifact": "uat-functional-win-access-r33/H3-UAT-053-tablet.png",
+    "artifactBytes": 273548,
+    "artifactSha256": "ca8052b0a1aa7eac138e0ee2c8f35af1fc23dedbddcf8fada09585326e62c73d",
+    "videoArtifact": null,
+    "videoErrorCode": null
+  },
+  {
+    "executionId": "H3-UAT-053:mobile",
+    "id": "H3-UAT-053",
+    "title": "public combined filters search sort and reset stay consistent",
+    "requirementId": "H3-CA4.9",
+    "role": "anon",
+    "assurance": "none",
+    "hostname": "127.0.0.1",
+    "viewport": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    },
+    "route": "/",
+    "expected": "search, area, type, institution, mode, minimum/maximum, duration, price range and sort converge on the same public course",
+    "observed": "public filter intersection passed for analitica-aplicada-60000000; links=2",
+    "assertions": [
+      {
+        "name": "combined query is retained",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "combined filter returns one intended course card",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all candidate card detail links use the same slug",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/?q=Anal%C3%ADtica&area=Data&tipo=Curso&inst=Universidad+de+Lima&modalidad=Remoto&min=1250&max=1250&sort=asc&duration=medium&priceRange=accessible",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1c6eqp4pq30mu.css",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/3mc6dra1m0098.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/11jq0c2_zavac.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/turbopack-0xqaxx3i8dior.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/2c8ke6w3dt0qk.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1gln4skv1smvz.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0xw9t4b0u2181.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1cj_etj8m2g97.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1rj7ns8rte9vc.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/427cqvbky5mn1.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/24y3uhr1t8c2q.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/favicon.ico?favicon.2vob68tjqpejf.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next.__PAGE__.txt?_rsc=8nTjltbQWvg6NcbE",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0tcp2f1rpzwp2.js",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": null,
+    "startedAt": "2026-10-11T06:09:10.720Z",
+    "finishedAt": "2026-10-11T06:09:11.308Z",
+    "durationMs": 588,
+    "retry": 0,
+    "result": "PASS",
+    "artifact": "uat-functional-win-access-r33/H3-UAT-053-mobile.png",
+    "artifactBytes": 210176,
+    "artifactSha256": "50a9dc8e7069ceb3bc6c73e678cadac20a3c140a2fa12685b9b87708a9faa5c6",
+    "videoArtifact": null,
+    "videoErrorCode": null
+  }
+]

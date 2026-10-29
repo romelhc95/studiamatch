@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Exact R21 review package for the local public/Admin corrections. This manifest does not authorize publication.",
+  "worktree": "/home/romel/src/studiamatch-h3req1-public-admin-corrections-20261026",
+  "branch": "feat/h3req1-public-admin-corrections-20261026",
+  "baseSha": "4939e0d08422068f75618c51ec2d1344b9625a69",
+  "includedPaths": [
+    ".context/componentes/admin_portal.md",
+    ".context/componentes/pruebas_evidencia.md",
+    ".context/componentes/web_publico.md",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-scope-2026-10-26.json",
+    ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json",
+    ".context/indice.md",
+    ".context/trazabilidad/registro_fuentes_componentes.json",
+    ".context/trazabilidad/registro_fuentes_componentes.md",
+    ".github/workflows/security-audit.yml",
+    "scripts/maintenance/h3req1_documentation_integrity.mjs",
+    "scripts/security/protected_path_scope_guard.sh",
+    "tests/admin_header_responsive.test.mjs",
+    "tests/admin_queue_request_guard.test.mjs",
+    "tests/h3_duration_parser.test.mjs",
+    "tests/h3_local_uat.mjs",
+    "tests/test_protected_path_scope_guard.sh",
+    "web/src/app/HomeContent.tsx",
+    "web/src/app/admin/page.tsx",
+    "web/src/components/AdminCourseQueue.tsx",
+    "web/src/lib/admin-queue-request-guard.mjs",
+    "web/src/lib/supabase.ts"
+  ],
+  "excludedPaths": [
+    ".context/evidencia/h3req1_editorial_fixtures_2026-10-26/seed_d07_d11_free.sql",
+    ".context/evidencia/h3req1_editorial_fixtures_2026-10-26/enable_d11_synthetic_publication.sql",
+    ".context/evidencia/h3req1_editorial_fixtures_2026-10-26/recover_d07_d11_free.sql",
+    "tests/h3_admin_quota_postgrest.mjs",
+    "tests/sql/h3_quota_postgrest_fixture.sql",
+    "db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+    "web/functions/_lib/admin-bff.ts",
+    "web/functions/_lib/admin-bff.test.ts",
+    "web/functions/admin-invite/index.ts",
+    "Auth users, memberships, invitations, passwords, factors and account data",
+    "secret values, .env files, cookies, access tokens and personal screenshots",
+    "Certification, main, Production, branch protection, manual deployment, workflow_dispatch"
+  ],
+  "target": {
+    "baseBranch": "desarrollo",
+    "operationNotAuthorizedByThisPackage": [
+      "commit",
+      "push",
+      "PR create/update",
+      "PR approval",
+      "merge",
+      "manual deploy",
+      "workflow_dispatch",
+      "branch-protection changes",
+      "SQL or remote writes",
+      "Certification",
+      "main",
+      "Production"
+    ],
+    "previewImpact": "A future authorized push may create the normal automatic Cloudflare Pages Preview; this package makes no such push."
+  },
+  "protectedPathRemediation": {
+    "currentPrChangedPathCount": 22,
+    "currentlyRejectedByGuardCount": 6,
+    "exactAdditionalAllowlistPathCount": 6,
+    "exactAdditionalAllowedH3LocalPaths": [
+      ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md",
+      ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-scope-2026-10-26.json",
+      ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json",
+      "tests/admin_header_responsive.test.mjs",
+      "tests/admin_queue_request_guard.test.mjs",
+      "web/src/lib/admin-queue-request-guard.mjs"
+    ],
+    "preservesR20AndR19": true,
+    "selectedCandidateOnlySourceCount": 5
+  },
+  "candidateStatus": {
+    "productCode": "LOCAL_VALIDATED; remote confirmation required after the corresponding protected deployment.",
+    "testsAndBuild": "Docker focal tests 18/18 PASS; TypeScript PASS; ESLint 0 errors and 9 warnings on unchanged lines; Docker mock static smoke PASS. H3-UAT-059 reused only because its three source/runner hashes match exactly: 1/1 case, 3/3 viewports, 118/118 assertions.",
+    "securityAndDocumentation": "Candidate-aware documentation self-test/gate, exact scope guard, credential scan and source-backed Codex Security review of the 22-path rebase diff PASS; scan b3cfe192-3059-4610-8516-d4e08996f9f8 reports zero findings for 4939e0d08422068f75618c51ec2d1344b9625a69..f0573817a70ca45b885de9ecbb9188bac542cd64. The additional whole-repository Standard scan 40d903d1-dd41-4736-9b57-1f286acb2e70 remains incomplete (preflight 1/2, no inventory/review). The authority-wide documentation gate fails with 353 diagnostics; evidence is linked in the PR body. YAML parse, bash -n and manifest selector tests pass locally; actionlint and ShellCheck are unavailable in the pinned local images and are not claimed as PASS. GitHub provider checks and Preview remain pending publication.",
+    "pwiIndependentVerifier": "OPEN; Actions Worker Contract is not evidence that the independent GitHub App check is an effective required protection."
+  }
+}

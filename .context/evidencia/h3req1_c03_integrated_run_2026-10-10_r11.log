@@ -1,0 +1,88 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+candidate-wip-entry-count=4493
+Docker target PASS: context=default endpoint=unix:///var/run/docker.sock engine=fc2115b2-c3c4-440e-89c6-26899eb7cb04 server=29.8.2 memory_bytes=16664633344 cpu_count=12
+db/migrations/20260827_h2_pro_backfill_editorial_state.sql: OK
+db/migrations/20260827_h2_pro_capture_legacy_cohort.sql: OK
+db/migrations/20260827_h2_pro_contract_legacy_cohort.sql: OK
+db/migrations/20260827_h2_pro_contract_public_reader.sql: OK
+db/migrations/20260827_h2_pro_expand_schema_compat.sql: OK
+db/migrations/20260827_h2_pro_rollback_public_reader_contract.sql: OK
+db/migrations/20260827_h2_pro_seed_editorial_field_definitions.sql: OK
+db/migrations/20260828_h3_admin_auth.sql: OK
+db/migrations/20260828_h3_admin_course_queue_view.sql: OK
+db/migrations/20260828_h3_admin_editorial_reader_rpc.sql: OK
+db/migrations/20260828_h3_admin_editorial_rpc.sql: OK
+db/migrations/20260828_h3_admin_queue_rpc.sql: OK
+db/migrations/20260829_h3_rbac_users.sql: OK
+db/migrations/20260830_h3_expanded_contract.sql: OK
+db/migrations/20260902_h3_pr_contract.sql: OK
+db/migrations/20260903_h3_rbac_contract_fix.sql: OK
+db/migrations/20260918_h3_invitation_flow_persistence.sql: OK
+db/migrations/20260919_h3_invitation_auth_token_delta.sql: OK
+db/migrations/20260920_h3_invitation_edge_runtime.sql: OK
+db/migrations/20260921_h3_invitation_onboarding_rpc.sql: OK
+db/migrations/20260924_h3_onboarding_rbac_hardening.sql: OK
+db/migrations/20260924_h3_onboarding_rbac_hardening_fix.sql: OK
+db/migrations/20260925_h3_admin_members_onboarding_reader.sql: OK
+db/migrations/20260925_h3_legacy_member_creation_guard.sql: OK
+db/migrations/20260927_h3_admin_queue_facets_filter.sql: OK
+db/migrations/20260927_h3_publication_visibility_contract.sql: OK
+db/migrations/20260928_h3_invitation_accept_email_regex_fix.sql: OK
+db/migrations/20261001_h3_course_editorial_audit_availability.sql: OK
+db/migrations/20261001_h3_invitation_reservation_compensation.sql: OK
+db/migrations/20261002_h3_admin_quota_expand.sql: OK
+db/migrations/20261002_h3_admin_quotas.sql: OK
+db/migrations/20261004_h3_admin_queue_first_null_guard.sql: OK
+db/migrations/20261004_h3_admin_rpc_signed_gateway_expand.sql: OK
+db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql: OK
+db/rollback/h3req1_safe_resume.sql: OK
+db/rollback/h3req1_safe_suspend.sql: OK
+supabase/functions/admin-invite/index.ts: OK
+tests/h3req1-c03-bootstrap/package-lock.json: OK
+tests/h3req1-c03-bootstrap/package.json: OK
+tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock: OK
+tests/h3req1-c03-edge-lock-resolver/deno.json: OK
+tests/h3req1-c03-edge-main/index.ts: OK
+tests/h3req1_c03_cache_digest.mjs: OK
+tests/h3req1_c03_integrated_drill_r11.sh: OK
+tests/h3req1_c03_integrated_drill_r11_contract.test.mjs: OK
+tests/h3req1_c03_integrated_runtime.mjs: OK
+tests/h3req1_c03_login_result.mjs: OK
+tests/h3req1_c03_postgrest_probe.mjs: OK
+tests/sql/h2_pro_pg17_harness.sql: OK
+tests/sql/h3_from_h2_pro_pg17_harness.sql: OK
+tests/sql/h3req1_c03_integrated_assert_completed_suspended.sql: OK
+tests/sql/h3req1_c03_integrated_assert_final.sql: OK
+tests/sql/h3req1_c03_integrated_assert_inflight.sql: OK
+tests/sql/h3req1_c03_integrated_assert_recovered.sql: OK
+tests/sql/h3req1_c03_integrated_assert_suspended.sql: OK
+tests/sql/h3req1_c03_integrated_extension_setup_r11.sql: OK
+tests/sql/h3req1_c03_integrated_setup.sql: OK
+web/functions/_lib/admin-bff.ts: OK
+web/functions/_lib/admin-quota.ts: OK
+web/functions/_middleware.ts: OK
+web/package-lock.json: OK
+web/package.json: OK
+web/src/lib/supabase-transport.ts: OK
+web/vendor/braces-3.0.4-h3.1.tgz: OK
+workers/admin-quota/index.ts: OK
+PostgreSQL pinned image version PASS: 17.11
+container=h3req1-c03-source-snapshot-20261010-r11 metadata=1ef8208daa139f7caf7ac082fb41b97930fad09480258c98bcf5b6cbce91b1c8|sha256:dd5847a04b0deee391fa145f1f4c6d214196668b6bcc7988ebed67249f226844|exited|536870912|1000000000|128
+R11 runner safety contract tests PASS
+Locked dependency volume SHA-256: {"deno-cache":"0caf7782e6c39a383c41871d5d8bc62801c5ebd369ffd9400542fa9c9000c2ff","edge-node-modules":"00448e894ad63e0bc4d1f5a26cc92369a2d8cc9a882817a57d2a6c69ffe558c3","miniflare-node-modules":"637d7c16a194ec553e6cec3cd07efa1d06ba4a323a40f3ef72062f758e70088f","pages-node-modules":"cc440ac84152f8fcf22af29dd00d53d85a5edebf20e1f1ce20e7240a3ca0fc3d"}
+container=h3req1-c03-dependency-cache-verify-20261010-r11 metadata=b64bf67941e8bd60d3460d74214990c6c7854ab3970ac5baadbacf1111397b06|sha256:dd5847a04b0deee391fa145f1f4c6d214196668b6bcc7988ebed67249f226844|exited|536870912|1000000000|128
+network=h3req1-c03-integrated-edge-20261010-r11 id=d01a35be42eb05e0522bb523384301b5eca23d21975be63c1652f76ff1a4e192 internal=true
+network=h3req1-c03-integrated-data-20261010-r11 id=4d772eeb4bed94865fca2308e410fd77ab490656a8188f770193f9eae5a6a449 internal=true
+container=h3req1-c03-integrated-runtime-20261010-r11 metadata=055f26dfaae2185a3f2b327a210d3aef22b3f0a20b8e9573c8f41cacf04fa06a|sha256:dd5847a04b0deee391fa145f1f4c6d214196668b6bcc7988ebed67249f226844|running|4294967296|2000000000|512
+container=h3req1-c03-integrated-pg17-20261010-r11 metadata=e02a7246197cae32031adca0f7a3f59ea9fa0f1869b231030b9f784201314e62|sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f|running|2147483648|2000000000|512
+H2-Pro-to-H3 schema bootstrap PASS (psql exit=0)
+integrated-only quota and signed-dispatcher schema setup PASS (psql exit=0)
+synthetic in-flight/editorial fixture PASS (psql exit=0)
+container=h3req1-c03-integrated-postgrest-20261010-r11 metadata=1b4de0da7032b569b0178b82c4e85517275932ea243c9f6a5cab0bf5cada790f|sha256:0a46780309a604cdc8b56c776c6e5e15788ce58174d709e40459ab5a2d44d228|running|536870912|1000000000|256
+isolated PostgREST readiness PASS
+container=h3req1-c03-integrated-edge-active-20261010-r11 metadata=72e6d8190137711b390accfc712fa41a362652a82f52e48bcfc186cfd079e75e|sha256:cc355c3d0e9c063a351cad56d1c4c52a3c4d85aff4e1fad9d91688e75f9aad09|running|1073741824|1000000000|256
+{"error":"integrated_step_failed","step":"/control/login","type":"AssertionError","check":"LOGIN_HTTP_STATUS_NOT_200"}
+failure-stop=completed exact_run_containers=4
+Halted phase=real-edge-invite-held-after-reservation exit=1; matching run-owned services were stopped if still active; resources are preserved.
+failure-stop=no-matching-running-run-containers
+Halted phase=real-edge-invite-held-after-reservation exit=1; matching run-owned services were stopped if still active; resources are preserved.

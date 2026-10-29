@@ -1,0 +1,74 @@
+H3REQ1 R14 local reconciliation checks
+Date: 2026-10-13
+Candidate: feat/h3req1-sync-20261002 @ 4eb4d877a50b012bb630a129bd0c74482c33be9c (baseline; WIP separately inventoried)
+Remote reads/writes, commit, push, PR, merge, and deploy: NOT PERFORMED
+
+Package selection and reference closure
+Environment: Docker container studiamatch-dev, /app; local checkout only
+Observed git status: 20,566 path records; 7 deleted, 88 modified, 20,471 untracked; no staged paths
+Proposed package: 1,117 paths total; scope entries 1,116 plus manifest self path; 7 deletions, 85 modified, 1,024 untracked entries
+Ignored included paths: 35 exact `.log` files (13 selected R8 evidence files and 22 direct catalog targets)
+Excluded status paths: 19,484; the rest of the WIP was not selected by directory or file-family pattern
+Historical catalog closure: 13 catalogs, 1,173 unique direct targets; 903 supplied by candidate paths and 270 by tracked HEAD base; 0 missing
+New direct target closure: 737 paths; other tracked target deltas remain excluded and resolve from the HEAD base
+R13 evidence remains unchanged. R14 corrects three source links to unversioned generated output/cache paths in the canonical registry and rerenders the catalog.
+The 3 other modified status paths are `.github/agents/health-monitor.md`, `.github/agents/planner.md`, and `.github/agents/sdlc-chief.md`; they are outside R8/R13 selection and remain excluded.
+Historical integrity: SHA-256 comparison with prior manifests passed for 170 pinned R8/R9/R12/R13 evidence/artifact paths, including all 158 R8 selected-evidence files. Self-hashes are excluded where the prior manifest explicitly excludes them.
+
+Documentation integrity — normal
+Command: `bash scripts/security/run_documentation_integrity.sh`
+Result: PASS, exit 0
+Output: sources 801/801; components 14/14; groups 262; relation slots 4,806; local applicable relations 4,715/4,715; 91 N/A; remote checks 0/5 verified, 5 pending; active documents 97/97 reachable; historical documents 433/433 linked through 13 catalogs; 0 excluded documents; 9,349 links and 4,567 anchors.
+
+Documentation integrity — self-test
+Command: `bash scripts/security/run_documentation_integrity.sh --self-test`
+Result: PASS, exit 0; negative/source/navigation/marker fixtures were rejected as required; final gate repeated the same 801/801 and 97/97 coverage.
+
+Protected path and catalog integration
+Command: `bash tests/test_protected_path_scope_guard.sh`
+Result: PASS, exit 0; `protected-path-manifest-integration=PASS|candidate_paths=1117|catalogs=13|catalog_targets=1173`; path-separator/control regressions PASS.
+The test compares the actual target set parsed from all 13 catalogs with the manifest, verifies candidate hashes and baseline-tracked availability, and checks every proposed path against exact workflow allowlists.
+
+Credential scan
+Command: 14 batches of `bash scripts/security/scan_credentials.sh` over the manifest-selected regular files; deleted paths excluded from content scanning
+Result: PASS, exit 0, 1,110/1,110 files, 0 findings. No credential value was emitted.
+Final R14 pin-refresh run: after the review, report, body, and state were finalized, the manifest selector again produced 1,110 files and all 14 scanner batches passed with 0 findings.
+
+Focused contract and workflow validation
+Command: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app pytest -p no:cacheprovider -q tests/test_admin_invite_edge_contract.py tests/test_obsidian_context_state.py tests/test_security_flow.py tests/test_protected_workflow_review.py tests/test_fase10_main_boundary.py tests/test_fase09_10_pre_main_controls.py tests/test_fase09_9_certification_canary.py`
+Result: 78/78 tests PASS in Docker. AST syntax PASS for the two focal test modules without writing bytecode. The full repository pytest suite was not run.
+The invitation contract file has assertions added since the R8 snapshot; the state consumer was rerun after the R14 state change. An initial `test_security_flow.py` run found two stale assertions: one expected state markers replaced by R13 and one expected Stage 2 PWI to be aggregated in Stage 1. The tests now assert the current R13 authority and Stage 1/Stage 2 separation documented by R180. The unreachable `pull_request_review` branch was removed from the H2 gate and aggregate condition. The combined rerun above passed.
+
+Protected workflow review contracts
+The 13 workflow-review cases are included in the 78/78 combined run above. Stage 1 keeps the separately defined PWI workflow outside the `security-audit` aggregate pending protected installation and remote evidence. The first isolated collection attempt lacked `PYTHONPATH=/app` and exited 2 before test execution (`ModuleNotFoundError: scripts`); the corrected combined run passed.
+
+Frontend tooling
+Commands: `npm run lint`; selected candidate files `eslint --no-cache` (29 files); `npx tsc --noEmit --incremental false`
+Results: lint exit 0, 0 errors and 9 warnings; the same 9 warnings occur in `web/src/app/HomeContent.tsx`, which is in R8 scope. Selected-file lint exit 0. TypeScript exit 0 with no diagnostics.
+The typecheck disabled incremental output to avoid rewriting `web/tsconfig.tsbuildinfo`.
+
+Shell/workflow tooling
+`bash -n` PASS for 4 changed/consumed shell files: documentation wrapper, protected path helper, credential scanner and protected path regression test.
+Post-review tooling validation in Docker: official `actionlint` v1.7.12 and `ShellCheck` 0.11.0 archives downloaded to temporary paths and SHA-256 verified against the official release API metadata (actionlint `8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8`; ShellCheck `8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198`). No package/dependency files changed.
+`actionlint` PASS on all `.github/workflows/*.yml` and `*.yaml`; it parsed and validated workflow YAML and expressions. `ShellCheck -x` PASS on `tests/test_protected_path_scope_guard.sh` and `scripts/security/protected_path_scope_guard.sh`, the shell files changed/consumed by the R14 workflow-scope change.
+An additional broad ShellCheck run across 181 candidate `.sh` files returned diagnostics in historical/evidence runners (warnings and informational findings; exit 123). These files are not part of the functional shell delta and were not bulk-edited. If policy later requires a clean scan of all packaged historical scripts, triage them as a separate scoped task; this does not invalidate the focused workflow/script checks.
+The R14 protected-path integration regression and existing workflow-review tests also passed. No remote CI, branch-protection, or promotion evidence is claimed.
+
+Functional and DB evidence reuse
+R178 G01–G09 and R181/R182 remain historical local evidence. Runtime code, migrations and package/lock inputs are unchanged from R8 except for comment-only documentation markers; the invitation assertion file changed and was rerun. R178's PG17 disposable harness, C03/R51 128/128 and local Pages/workerd inputs are reused only within their original scope. No cloud DB, real Auth/email, runtime UAT or remote smoke was executed.
+
+Static build and remote gates
+Static build: NO-EJECUTADO in R14. The package build script removes `.next` and `out`; R178 build artifacts are reused for compatible unchanged runtime inputs. No generated output/cache was added to the package.
+GitHub security-audit/CI, CodeQL, Cloudflare Pages preview/deploy, branch protections, Supabase Pro and G10 remote checks: NO-EJECUTADO; no remote reads were authorized.
+
+Dependency decision
+`braces@3.0.4-h3.1` tarball and lock remain unchanged. No upstream/provenance read occurred. R14 carries the local pin with Romel review due 2026-11-03; see the R14 report for the three available options and G10 read scope.
+
+Independent review — final
+Artifact: `h3req1_reconciliation_independent_review_2026-10-13_r14.txt`
+Result: PASS for local reconciliation; 0 HIGH/CRITICAL and no code finding open. Review was read-only; no tests or remote reads were performed by the reviewer.
+The reviewer confirmed the R8+R13 scope, R9/R12/R13 supersession notes, catalog target availability, candidate/WIP exclusions, braces options, template structure, transition/rollback limits and G10 read boundary. The stale `security_flow` assertions and unreachable H2 review-event branch were corrected before this verdict.
+At review time, actionlint, ShellCheck and a YAML parser were absent in Docker. A post-review supplement in the checks record now shows all-workflow `actionlint` PASS and focused changed-script `ShellCheck -x` PASS; the broad 181-script scan reported diagnostics in historical/evidence runners and was not cleaned up. The reviewer verdict remains time-bounded to the evidence above. This review does not authorize PR, promotion, merge, deploy or Supabase writes.
+
+Final manifest and diff hygiene
+`git diff --check`: PASS. `git diff --cached --quiet`: PASS; no staged paths. The final porcelain stream contains 20,566 path records and its SHA-256 matches the R14 manifest; the manifest records 0 staged paths.

@@ -1,0 +1,50 @@
+psql:/fixture/20260505_add_provider_tracking.sql:7: NOTICE:  column "provider_used" of relation "courses" already exists, skipping
+psql:/fixture/20260505_add_provider_tracking.sql:8: NOTICE:  column "is_mock_data" of relation "courses" already exists, skipping
+psql:/fixture/20260825_h2_editorial_layer.sql:127: NOTICE:  policy "editorial_field_definitions_public_select" for relation "public.editorial_field_definitions" does not exist, skipping
+psql:/fixture/20260825_h2_editorial_layer.sql:135: NOTICE:  policy "editorial_field_definitions_service_all" for relation "public.editorial_field_definitions" does not exist, skipping
+psql:/fixture/20260825_h2_editorial_layer.sql:144: NOTICE:  policy "course_editorial_state_public_effective_select" for relation "public.course_editorial_state" does not exist, skipping
+psql:/fixture/20260825_h2_editorial_layer.sql:168: NOTICE:  policy "course_editorial_state_service_all" for relation "public.course_editorial_state" does not exist, skipping
+psql:/fixture/20260825_h2_editorial_layer.sql:177: NOTICE:  policy "course_editorial_audit_service_select" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/fixture/20260825_h2_editorial_layer.sql:185: NOTICE:  policy "course_editorial_audit_service_insert" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:85: NOTICE:  trigger "prevent_course_editorial_audit_update" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:91: NOTICE:  trigger "prevent_course_editorial_audit_delete" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:205: NOTICE:  policy "Anyone can insert leads" for relation "public.leads" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:206: NOTICE:  policy "leads_insert_public" for relation "public.leads" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:207: NOTICE:  policy "leads_insert_authenticated" for relation "public.leads" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:214: NOTICE:  policy "Public read for courses" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:215: NOTICE:  policy "courses_select_public" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260826_h2_editorial_layer_forward_fix.sql:216: NOTICE:  policy "courses_select_authenticated" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260826_h2_security_advisor_remediation.sql:351: NOTICE:  policy "courses_h2_public_effective_select" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260826_h2_security_advisor_remediation.sql:352: NOTICE:  policy "courses_exclude_release_canary" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260826_h2_security_advisor_remediation.sql:353: NOTICE:  policy "Public read for courses" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260826_h2_security_advisor_remediation.sql:354: NOTICE:  policy "courses_select_public" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260826_h2_security_advisor_remediation.sql:355: NOTICE:  policy "courses_select_authenticated" for relation "public.courses" does not exist, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:9: NOTICE:  schema "private" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:32: NOTICE:  relation "editorial_field_definitions" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:96: NOTICE:  relation "course_editorial_state" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:113: NOTICE:  relation "course_editorial_audit" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:129: NOTICE:  relation "idx_editorial_field_definitions_public" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:131: NOTICE:  relation "idx_course_editorial_state_status" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:133: NOTICE:  relation "idx_course_editorial_state_public_gate_h2" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:138: NOTICE:  relation "idx_course_editorial_state_sponsored_priority_h2" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:140: NOTICE:  relation "idx_course_editorial_audit_course_created" already exists, skipping
+psql:/fixture/20260827_h2_pro_expand_schema_compat.sql:143: NOTICE:  relation "idx_course_editorial_audit_request_id" already exists, skipping
+phase=pg17-bootstrap|result=PASS|postgres=17.11|network=internal
+phase=python-postgrest-pipeline|result=START|image=studiamatch-h3req1-v3|network=internal
+[init-container] Node dependency manifests match image staging.
+[init-container] node_modules volume verified: reusable, no npm ci.
+[init-container] Executing command: /opt/venv/bin/python /workspace/tests/h3req1_pipeline_postgrest_pg17_integration.py
+DB_CLIENT: Falling back to standard dotenv search
+DB_CLIENT: Falling back to standard dotenv search
+phase=dotenv-isolation|result=PASS|disabled=verified|workspace=allowlisted
+phase=postgrest-http|result=PASS
+phase=discovery-checkpoint-resume|result=PASS|rows=1
+phase=discovery-to-staging|result=PASS
+DB_CLIENT_API_ERROR (RPC atomic_cleansing_promote): 503 - {"code":"synthetic_upstream_failure","message":"fixture fault"}
+phase=cleansing-failure-recovery|result=PASS|rows=1
+DB_CLIENT_API_ERROR (RPC atomic_enrichment_promote): 503 - {"code":"synthetic_upstream_failure","message":"fixture fault"}
+phase=enrichment-failure-recovery|result=PASS|rows=1
+DB_CLIENT_API_ERROR (Upsert courses): 503 - {"code":"synthetic_upstream_failure","message":"fixture fault"}
+phase=sync-failure-manual-requeue-recovery|result=PASS|courses=1
+phase=pipeline-persistent-handoff|result=PASS|staging=1|cleansed=1|enriched=1|courses=1
+phase=pipeline-postgrest-pg17-r1|result=PASS

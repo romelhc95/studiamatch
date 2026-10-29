@@ -1,4 +1,4 @@
-﻿2026-04-16T20:51:57.5232455Z Current runner version: '2.333.1'
+2026-04-16T20:51:57.5232455Z Current runner version: '2.333.1'
 2026-04-16T20:51:57.5269386Z ##[group]Runner Image Provisioner
 2026-04-16T20:51:57.5270788Z Hosted Compute Agent
 2026-04-16T20:51:57.5271875Z Version: 20260213.493

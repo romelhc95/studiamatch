@@ -65,6 +65,17 @@ def _get(url: str, timeout: int = 10):
         return None, "", url
 
 
+def _is_hubspot_script_url(src: str) -> bool:
+    try:
+        host = urlparse(src.strip()).hostname
+    except ValueError:
+        return False
+    normalized_host = (host or "").rstrip(".").lower()
+    return normalized_host == "hs-scripts.com" or normalized_host.endswith(
+        ".hs-scripts.com"
+    )
+
+
 def detect_cms(html: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
     cms = "html_puro"
@@ -91,7 +102,12 @@ def detect_cms(html: str) -> dict:
         cms = "woocommerce"
         signals.append("woocommerce_markers")
 
-    if "hs-scripts.com" in html or "hubspot" in html.lower():
+    has_hubspot_script = any(
+        _is_hubspot_script_url(script.get("src", ""))
+        for script in soup.find_all("script", src=True)
+    )
+    visible_text_mentions_hubspot = "hubspot" in soup.get_text(" ", strip=True).lower()
+    if has_hubspot_script or visible_text_mentions_hubspot:
         if cms == "html_puro":
             cms = "hubspot"
         signals.append("hubspot_scripts")

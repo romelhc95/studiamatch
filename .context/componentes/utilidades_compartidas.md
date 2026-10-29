@@ -1,0 +1,43 @@
+# Utilidades compartidas y ROI
+
+## Responsabilidades y consumidores
+
+| Fuente | Contrato | Consumidores locales identificados | Datos/pruebas |
+|---|---|---|---|
+| `scripts/shared/db_client.py` | `DatabaseClient` implementa SELECT/COUNT/INSERT/PATCH/UPSERT/DELETE/RPC, paginación y retry de red; `get_db_client()` crea una instancia nueva por llamada, no un singleton. Al importar busca `.env.local`/`.env`; no se importó en esta investigación. | Workers, canarios, mantenimiento/deprecated y harnesses; callers exactos en la [nota semántica R11](../evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md). No todos son read-only. | PostgREST: cursos, catálogos, ETL y RPC. La key/método determinan permisos; secret puede bypass RLS. Reintenta conexión/timeout 3 veces, no HTTP 4xx/5xx. RPC recibe dict/list y serializa con `json=`. |
+| `scripts/shared/supabase_credentials.py` | Valida prefijos `sb_publishable_`/`sb_secret_`, URL HTTPS y pares explícitos FREE/PRO; crea headers con key solo en `apikey`. | `db_client.py`, maintenance/deprecated, harvesters legacy y suites; paths exactos en la [nota semántica R11](../evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md). | Lee nombres de variables; nunca documentar valores. No crea bearer, no hace request ni autoriza el permiso del caller. |
+| `scripts/shared/editorial_contract.py` | Función pura para valor efectivo manual→pipeline→display default, campos requeridos, `complete/pending`, fuentes/timestamps y hash canónico `h2-quality-v2`. | `sync_vector_worker.py`, `h2_backfill_editorial_state.py` y `tests/test_editorial_contract.py`. | Curso + overrides → valores, faltantes, estado y hash. El módulo no escribe DB; worker/backfill sí requieren permiso y RPC. |
+| `scripts/shared/site_diagnostics.py` | Detecta CMS, sitemap, JSON-LD, precios, fechas, catálogo/JS y arma propuesta con `diagnose_site()`/`assign_template()`. | `diagnose_institution.py` produce borrador; `universal_harvester.py::_auto_detect_profile` consume el resultado y puede persistir perfil con `pipeline_ready=false`. | Lee HTML por HTTP/redirects; timeout/ausencia de contenido deja diagnóstico parcial. El CLI no tiene allowlist SSRF propia: usar host institucional confiable. La escritura ocurre en el consumidor del harvester, no en esta utilidad. |
+| `scripts/shared/test_db_compatibility.py` | Helper manual antiguo; consulta `db.use_local`/`db.conn`, ausentes de `DatabaseClient` actual. Después intenta INSERT/PATCH y omite DELETE al usar API. | No se encontró caller de ejecución en `scripts/`, `tests/` o workflows; el contrato de credenciales solo registra la ruta estáticamente. | `legacy/manual`, conservado y no ejecutado. Si se reparara sin fixture podría escribir `institutions` y dejar el registro sin borrar vía API. |
+| `scripts/shared/utils.py` | Transformaciones de nombre/slug/modo/categoría/URL/fechas, `TimeGuard`, logger Lima, PDF y `LLMProvider`/`ProviderOrchestrator`. | Workers, maintenance y harvesters deprecated; enrichment consume el fallback y pipeline walk importa `normalize_url`. Callers exactos en la [nota semántica R11](../evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md). | Predominan funciones locales; PDF/callbacks requieren red y pueden tener costo. La utilidad no escribe DB; el worker sí persiste. |
+| `scripts/shared/roi_engine.py` | `infer_seniority`, `lookup_market_salary`, `adjust_salary_for_course_type` y `compute_roi`; normaliza curso, horas y sueldo de mercado y devuelve seniority/sueldo esperado/meses de retorno. | `scripts/core/sync_vector_worker.py` calcula valores para el flujo de curso; `scripts/maintenance/fix_taxonomy_roi.py` es un reparador writer; `scripts/maintenance/taxonomy_roi_audit.py` importa `adjust_salary_for_course_type` en modo auditoría/lectura. El último uso es un hallazgo corregido tras búsqueda de símbolos, no un writer adicional. | `market_salaries` y campos del curso (`course_type`, duración, precio, categoría, seniority, salario y ROI). La búsqueda local de `roi_engine`, `compute_roi`, `infer_seniority`, `lookup_market_salary` y `adjust_salary_for_course_type` en `scripts`, `tests`, `web`, `workers`, `supabase` y workflows no encontró una suite funcional dedicada; los tests del worker/mantenimiento no aíslan la matemática. No se atribuye PASS de ROI. La ausencia de caller UI no descarta integración externa. ROI persistido no describe la asesoría vigente. |
+
+`roi_engine.py` aplica factores por tipo y tramos de seniority; si no hay sueldo de mercado o precio válido, devuelve campos parciales/nulos según contrato. Es una función de cálculo local sin red; el consumidor que persiste desde el pipeline es `sync_vector_worker.py`. `taxonomy_roi_audit.py` calcula salidas para auditar, mientras `fix_taxonomy_roi.py` puede hacer PATCH y requiere autorización operativa separada. La búsqueda de tests bajo `tests/` no encontró caso que llame esos símbolos: la brecha es una suite matemática dedicada con entradas/salidas límite, y los tests existentes no demuestran su contrato por separado.
+
+## Casos, evidencia y compatibilidad
+
+`tests/test_editorial_contract.py` separa complete, override/timestamp, campos requeridos, placeholders, defaults, entradas inválidas y hash; el backfill prueba dry-run, batching/no-op y wrong ref. R160 es agregado para `tests/test_*.py` (337 passed, cuatro skips de `test_harvester.py`, un warning), no un resultado individual por módulo. `tests/test_supabase_credentials_contract.py` verifica prefijos, URLs/identidades FREE/PRO, `apikey`, bearer, paginación y errores; R159 registra 45 passed y R174 70 en suites agrupadas, pero los logs no vinculan SHA del test actual. R161 ejercita `db_client` con PostgREST/PG17 sintéticos, no Cloud.
+
+No se localizó suite de `site_diagnostics.py`; `test_fase121_extractors.py` prueba extracción de perfil del worker, no los detectores del sitio. `test_db_compatibility.py` no pertenece al selector `tests/test_*.py`, tiene una incompatibilidad estática y write effects; se conserva sin resultado. Pipeline walk relaciona una parte de `utils.py`; no demuestra cobertura de cada función.
+
+`get_db_client()` no cachea ni mantiene singleton; el comentario obsoleto en `AGENTS.md` se corrigió en este corte. La implementación actual no declara `use_local`/`conn`, por lo que el helper antiguo no acredita una DB local de producto. Supabase sigue como DB operativa; PG17 solo es fixture de pruebas.
+
+## Cómo modificar un contrato compartido
+
+Al alterar campos/estados en `editorial_contract.py`, comparar `admin_*`, `courses_public_effective`, workers, BFF y fixture PG17. Al cambiar serialización/identidad en `db_client.py` o `supabase_credentials.py`, revisar callers, API-key headers, RPC JSON, paginación, límites PostgREST y tests por impacto. Si cambia `site_diagnostics.py`, revisar CLI y autodetección del harvester, host/red y persistencia de perfil; validar con HTTP sintético. En `utils.py`, buscar por símbolo y revisar workers/harvesters legacy; no invocar proveedores reales para documentar. Para ROI, revisar pipeline/reparador/auditoría y añadir pruebas matemáticas focales si cambia el cálculo.
+
+## Fuentes y relaciones
+
+La relación path→componente→anchor y verificaciones están en el [registro](../trazabilidad/registro_fuentes_componentes.md#utilidades-compartidas); llamadas directas, límites de pruebas e historia bilateral están en la [nota semántica R11](../evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md) y su [resolución de relaciones](../evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md#denominadores-y-método). Para crear/mover/retirar una utilidad o cambiar un contrato, actualizar ficha, registro, tests/evidencia por impacto y changelog; ejecutar `bash scripts/security/run_documentation_integrity.sh --self-test` dentro de `studiamatch-dev`.
+
+[Pipeline](pipeline.md) · [Backend](../backend.md) · [Database](../database.md) · [Pruebas](../pruebas.md) · [ROI y catálogo](../database.md#diccionario)
+
+## Navegación histórica local
+
+Evidencia preservada por proceso; cada catálogo enlaza sus documentos históricos individualmente y no es una autoridad operativa.
+
+- [Frontend público y UAT](../catalogos_historicos/frontend_publico_uat.md#documentos-preservados)
+- [Pipeline, datos y base de datos](../catalogos_historicos/pipeline_base_datos.md#documentos-preservados)
+- [Infraestructura, seguridad y CI](../catalogos_historicos/infra_seguridad_ci.md#documentos-preservados)
+- [Documentación, trazabilidad y transferencia](../catalogos_historicos/documentacion_trazabilidad.md#documentos-preservados)
+- [Registros operativos históricos y JIT](../catalogos_historicos/operacion_jit.md#documentos-preservados)

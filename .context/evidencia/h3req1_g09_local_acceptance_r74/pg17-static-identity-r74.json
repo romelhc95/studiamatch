@@ -1,0 +1,33 @@
+{
+  "result": "PASS",
+  "read_only": true,
+  "db": "h3_final_uat_g09_20261010_r12",
+  "course_id": "70000000-0000-0000-0000-000000000091",
+  "database_projection": {
+    "id": "70000000-0000-0000-0000-000000000091",
+    "url": "https://synthetic.h3.example/programs/analitica-aplicada/",
+    "mode": "Remoto",
+    "name": "Analítica Aplicada",
+    "slug": "analitica-aplicada-60000000",
+    "provider": null,
+    "price_pen": "1250.0",
+    "is_mock_data": "false",
+    "institution_id": "00000000-0000-0000-0000-000000000001",
+    "duration_months": null
+  },
+  "database_checks": {
+    "id": true,
+    "name": true,
+    "slug": true,
+    "institution_id": true,
+    "url": true
+  },
+  "static_build_checks": {
+    "route_slug": true,
+    "course_title": true,
+    "institution_slug": true,
+    "canonical_url": true
+  },
+  "static_artifact_sha256": "feb1a795255cec5bfe286d37f9373d6513f106a522590ae73685b30078e47029",
+  "retries": 0
+}

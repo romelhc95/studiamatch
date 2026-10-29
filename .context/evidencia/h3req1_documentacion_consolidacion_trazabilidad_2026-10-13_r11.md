@@ -1,0 +1,67 @@
+# Consolidación de la navegación y trazabilidad documental — R11
+
+> Corte local: 2026-10-13 UTC. Candidato `feat/h3req1-sync-20261002` en HEAD `4eb4d877a50b012bb630a129bd0c74482c33be9c`, más el WIP inventariado. Original consultado solo lectura en HEAD `7650093b05a820e8e6faf9ec711e12fab8b50398`. Esta nota registra una consolidación local; no acredita adopción remota.
+
+## Autoridades vigentes
+
+- [README raíz](../../README.md) es una presentación breve y enlaza a `.context/indice.md`.
+- [Índice Obsidian](../indice.md) es la única entrada principal y conduce a dominios, módulos, requerimientos, decisiones, changelog y evidencia.
+- [Estado del proyecto](../estado_del_proyecto.md) es la única autoridad operativa del corte, sus resultados, pendientes y siguiente paso.
+- [Registro JSON de fuentes y componentes](../trazabilidad/registro_fuentes_componentes.json) es la fuente canónica de asignaciones. Su [vista Markdown](../trazabilidad/registro_fuentes_componentes.md) se regenera desde ese JSON y no crea definiciones ni estado adicional.
+- [Protocolo del constructor](../trazabilidad/protocolo_constructor.md) es la única guía de mantenimiento de relaciones e impacto. Las fichas de dominio explican comportamiento; esta nota conserva la decisión histórica de consolidación.
+
+## Rutas consolidadas
+
+| Ruta retirada | Destino vigente | Contenido útil integrado | Tratamiento histórico |
+|---|---|---|---|
+| `.context/trazabilidad/00_entrada_tecnica.md` | [Índice](../indice.md), [estado operativo](../estado_del_proyecto.md), [protocolo](../trazabilidad/protocolo_constructor.md) | Entrada por dominio, localización de contrato/consumidores, distinción entre estado local y remoto, evidencia y ficha de impacto previa. | Snapshot completo en el backup R10 verificado; el protocolo conserva la regla de mantenimiento y no duplica navegación. |
+| `.context/trazabilidad/mapa_componentes.md` | [Arquitectura](../arquitectura.md), [Frontend](../frontend.md), [Backend](../backend.md), [Base de datos](../database.md), fichas de [pipeline](../componentes/pipeline.md), [Admin](../componentes/admin_runtime.md) y [datos](../componentes/datos_pipeline.md) | Flujos, límites, módulos, consumidores, datos y fallos se trasladaron a las páginas de responsabilidad que los mantienen; las divergencias históricas quedan identificadas en su módulo. | Su corte del 2026-10-07 no gobierna el comportamiento actual. La copia exacta queda fuera de ambos checkouts. |
+| `.context/trazabilidad/contratos_dependencias.md` | [Registro canónico](../trazabilidad/registro_fuentes_componentes.md#asignaciones-por-fuente), fichas de módulo y [operación](../operacion.md) | Dependencias directas/inversas, nombres de configuración, permisos, transiciones y contratos se registran en la asignación exacta o en su módulo; no se conserva el catálogo K paralelo. | La numeración K queda solo en evidencia histórica que la cite; no se usa para nuevos cambios. |
+| `.context/trazabilidad/matriz_impacto.md` | [Protocolo](../trazabilidad/protocolo_constructor.md#despues-del-cambio), secciones “cómo modificar” por componente y [pruebas](../pruebas.md#revalidacion-por-impacto) | La decisión de revalidar sigue dependencias, tests y datos afectados. Los cuatro ejemplos viejos no son un plan de prueba vigente. | Conservada por hash en el backup; los resultados históricos asociados no se reescriben. |
+| `.context/trazabilidad/cobertura_evidencia.md` | [Pruebas](../pruebas.md), [componente de pruebas y evidencia](../componentes/pruebas_evidencia.md) y el estado operativo | Grados SOURCE/STATIC/UNIT/LOCAL/REMOTE, alcance de resultados, condiciones de reproducibilidad y límites entre existencia de tests y PASS. | Su taxonomía útil se integró al protocolo y a pruebas; los resultados fechados permanecen en evidencia original. |
+| `.context/h3req1_mapa_reorganizacion.md` | Esta nota, [índice](../indice.md), [estado](../estado_del_proyecto.md) y registros de retiro | Decisiones de README/planes, paths, consumidores, reemplazos y backup. La navegación actual vive en el índice y las asignaciones en el JSON. | Snapshot exacto externo; el informe R10 anterior conserva su corte. Esta nota sustituye el mapa como evidencia del cambio R11, no como índice. |
+| `.context/h3req1_inventario_cobertura.md` | [Vista del registro](../trazabilidad/registro_fuentes_componentes.md), [estado operativo](../estado_del_proyecto.md) y [pruebas](../pruebas.md) | Método de descubrimiento, límites de denominadores y la regla de que asignación estructural no equivale a relación semántica. Los path assignments no se mantienen en una segunda tabla manual. | El snapshot de cobertura con números previos se conserva en el backup. El JSON y su vista generada reemplazan la lista; el estado publicará los conteos del corte vigente. |
+
+Los destinos nombran documentos y anclas vigentes. Cada path de fuente sigue asignado en el registro canónico; esta tabla solo registra la sustitución de documentos de navegación y método.
+
+## Información migrada y regla de mantenimiento
+
+La guía técnica anterior aportaba el procedimiento previo al cambio; su regla vigente quedó en `protocolo_constructor.md`: localizar componente, símbolos, datos, consumidores y permisos; establecer la evidencia y los checks afectados; después de crear, mover, eliminar una fuente o cambiar un contrato, actualizar asignación, comentarios `StudIAMatch-Docs` aplicables, documento/anchor, consumidores, datos, pruebas/evidencia y operación. El gate queda pendiente hasta reconciliar todos esos enlaces. Las fuentes sin comentario apropiado, como SQL histórico, evidencia sellada y archivos generados, se relacionan desde el registro externo.
+
+La guía mantiene seis clases probatorias separadas: `SOURCE`/`STATIC` describen lo observado en archivos; `UNIT`/`LOCAL` describen resultados ejecutados solo si existe salida fechada e inputs identificados; `REMOTE` exige una lectura futura autorizada; una relación test→fuente puede estar verificada aunque el resultado conste `NO-EJECUTADO`. Un commit, hash o path no acredita que una prueba pasó, que una migration se aplicó ni que un servicio adoptó el cambio.
+
+Las fichas vigentes contienen contratos y pasos de modificación por responsabilidad. El registro conserva relaciones exactas por fuente. No se migran tablas completas de IDs, asignaciones ni conteos a esta evidencia.
+
+## Consumidores y referencias revisadas
+
+Se actualizaron los consumidores vigentes: `AGENTS.md`, `protocolo_constructor.md`, la plantilla de prompts, `indice.md`, `estado_del_proyecto.md`, dominios y fichas que enlazaban inventarios/mapas, `changelog.md`, `ci_cd.md`, `tecnologias.md`, el registro de retiradas y las notas actuales de revisión estructural. Los enlaces de continuidad ahora llegan al índice, a la ficha de dominio o a esta evidencia de sustitución. La plantilla PR conserva sus gates y remitirá al protocolo vigente.
+
+El workflow `security-audit.yml` y `tests/test_admin_invite_edge_contract.py` mantienen los paths antiguos en la allowlist de borrado para que una futura eliminación de estas rutas siga siendo revisada por el scope guard; son referencias de control deliberadas, no enlaces de navegación. Los manifiestos R8/R9 y snapshots históricos que contienen hashes o nombres anteriores no se reescribieron.
+
+## Preservación y reconstrucción histórica local
+
+La documentación vigente y el WIP inventariado se preservaron fuera de ambos checkouts mediante dos copias complementarias, verificadas path por path y byte por byte antes del retiro:
+
+1. Checkpoint completo de documentación: `/home/romel/backups/studiamatch-docs-2026-10-13/checkpoint_r11_current_before_semantic_reconciliation_20261013T065932Z`. El inventario incluye el árbol `.context` completo, `README.md`, `AGENTS.md`, `.github/agents`, `.github/commands`, `.github/pull_request_template.md` y `docs/`; excluye Git, código, dependencias/caches y `.env` operativos. README del backup registra 18,621 archivos y 1,750,337,040 bytes copiados. Los manifiestos `SOURCE.sha256` y `SNAPSHOT.sha256` coinciden byte por byte; SHA-256 de ambos: `e4920db23ae5bd53b28cc5829c96c42299ef2b5f4b19acb352fc06b8c792289f`. Es un checkpoint posterior a cambios documentales de este ciclo, no un estado previo a toda edición.
+2. Overlay posterior: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_after_authority_consumer_updates_20261013T061858Z`. Conserva las diez rutas editadas después del backup completo, también comparadas con sus hashes de origen. Hash del manifiesto: `1c9f68eda2a553ee116f78c7b016a8318202a1f9d7b3d7aab8e93093a4405ba3`.
+3. Checkpoint previo a la continuación semántica: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_r11_before_semantic_edits_20261013T064026Z`. Contiene 15 documentos de trabajo: estado, índice, changelog, fichas pipeline/utilidades/seguridad/pruebas, registro JSON y vista, notas R11, `AGENTS.md`, `README.md` y plantilla PR. Los hashes de SOURCE/SNAPSHOT coinciden y los 15 pares se verificaron byte por byte. Hash del manifiesto: `214181330297466fad0fa15d26d65e13971f48bc65e0bf97a00eec5aef4a290f`.
+
+4. Overlay de reconciliación final: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_final_transfer_reconcile_20261013T071357Z`, 16 documentos, manifiestos de origen/copia cotejados y comparación byte por byte; SHA-256 de `SNAPSHOT.sha256`: `cfc6ba5859a8c6c3b5fa18111fb8268183abdde1ce900383833d17e867e43768`.
+5. Overlay de evidencia/recorrido: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_R11_validation_reconcile_20261013T073520Z`, dos documentos (`h3req1_documentacion_consolidacion_trazabilidad_2026-10-13_r11.md` y `transferencia.md`), ambos comparados byte por byte; SHA-256 de `SNAPSHOT.sha256`: `800753b643c1852cd7e3f69861039b891cda71dcdec9447839737bfec9a31837`.
+6. Overlay de estado/reanudación/evidencia antes de esta corrección: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_after_state_reconcile_before_final_evidence_20261013T073001Z`, tres documentos copiados y comparados byte por byte; SHA-256 coincidente de `SOURCE.sha256` y `SNAPSHOT.sha256`: `4f394b3859ddc8ebeedc198ebb84d593f6d87f07934c2e075c3c75220527fa75`.
+
+El backup de documentos retirados `/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z` conserva las siete rutas de la tabla de sustitución. Su manifiesto `SNAPSHOT.sha256` tiene SHA-256 `c1b84c58f7aca2be98db5417bb616c537341c63708b3df6e4055f64e81adb590`; la fuente/copia se cotejó por path y bytes antes del retiro. Las rutas retiradas y la versión recuperable se identifican en ese inventario. Estos backups son locales de recuperación, no parte del paquete propuesto. El checkout original sigue en solo lectura. No se limpia ningún backup.
+
+`git log --all --follow` se consultó localmente para los documentos retirados en ambos checkouts; los resultados path por path y el alcance de búsqueda se fijan al cerrar el paquete. Los paths sin commit local recuperable son WIP documental, no se reconstruyeron versiones ficticias. No se consultaron remotos; los backups verificados son las copias recuperables exactas. Los resultados R178/R181/R182 y los manifiestos sellados permanecen como antecedentes con su alcance original.
+
+## Validación del corte
+
+El primer gate posterior al retiro encontró tres matrices de hito huérfanas porque su único camino de navegación era el inventario manual retirado. Se añadieron enlaces a cada matriz desde su ficha de hito correspondiente; no se volvió a crear un índice genérico.
+
+El corte vigente del checker Docker R11, después de resolver los grupos Admin y pipeline disponibles al momento de esta revisión, registra **PASS**: `--render`, `--self-test` y gate normal; 801/801 fuentes, 12/12 componentes, 77/77 documentos activos alcanzables, 256 grupos, 5,311 enlaces y 3,326 anchors. Hay 4,715/4,715 relaciones locales verified, 91 N/A justificadas y 0 `pending`, `unknown` o `invalid`; el registro marca 801/801 fuentes con dimensiones aplicables resueltas. Esta cuenta es por grupo ponderado por paths y no equivale a haber ejecutado 4,715 pruebas. Los 431 documentos históricos y 28 familias de artefactos permanecen clasificados.
+
+El credential scanner pasó en Docker sobre 878 paths documentales/registrados/raíces, sin imprimir valores; `tests/test_protected_path_scope_guard.sh` pasó sus regresiones y `git diff --check` pasó. No se repitieron suites funcionales. El comparador completo de workflow/scope no pudo ejecutarse dentro de `/app` porque el contenedor no incluye `.git`; el test del guard sí pasó, no se afirma un PASS del comparador global. `pytest` no está instalado en el contenedor y no se instaló. La revisión independiente R11 encontró una discrepancia real de asignación en `AdminCourseQueue` y elementos compartidos de UI; está en corrección, por lo que estos números son el corte previo a esa corrección y el gate debe regenerarse.
+
+Las relaciones locales actualmente registradas no contienen `pending`; el hallazgo independiente es de clasificación/semántica, no motivo para rebajar o reducir el denominador. Las cinco comprobaciones exclusivamente remotas siguen separadas. La documentación local no afirma despliegue, schema remoto aplicado, schedules reales ni adopción.
+
+[Índice único](../indice.md) · [Estado operativo](../estado_del_proyecto.md) · [Registro canónico](../trazabilidad/registro_fuentes_componentes.md) · [Protocolo de mantenimiento](../trazabilidad/protocolo_constructor.md)

@@ -1,0 +1,28 @@
+{
+  "status": "PRO_H2_AUTHORITATIVE_BASELINE",
+  "environment": "Supabase Pro read-only",
+  "project_ref": "xwhtiqmboljkshrtviyw",
+  "captured_at": "2026-08-30",
+  "scope": "metadata-only",
+  "tables": [
+    {"schema":"public","name":"courses","kind":"table"},
+    {"schema":"public","name":"editorial_field_definitions","kind":"table"},
+    {"schema":"public","name":"course_editorial_state","kind":"table"},
+    {"schema":"public","name":"course_editorial_audit","kind":"table"}
+  ],
+  "views": [{"schema":"public","name":"courses_public_effective","kind":"view"}],
+  "routines": [],
+  "policies": [
+    {"table":"courses","name":"courses_canary_runner_select","command":"SELECT","roles":["canary_runner"]},
+    {"table":"courses","name":"courses_exclude_release_canary","command":"SELECT","roles":["anon","authenticated"]},
+    {"table":"courses","name":"courses_select_authenticated","command":"SELECT","roles":["authenticated"]},
+    {"table":"courses","name":"courses_select_public","command":"SELECT","roles":["anon"]},
+    {"table":"courses","name":"courses_service_role","command":"ALL","roles":["service_role"]},
+    {"table":"editorial_field_definitions","name":"editorial_field_definitions_public_select","command":"SELECT","roles":["anon","authenticated"]},
+    {"table":"editorial_field_definitions","name":"editorial_field_definitions_service_all","command":"ALL","roles":["service_role"]},
+    {"table":"course_editorial_state","name":"course_editorial_state_service_all","command":"ALL","roles":["service_role"]},
+    {"table":"course_editorial_audit","name":"course_editorial_audit_service_select","command":"SELECT","roles":["service_role"]},
+    {"table":"course_editorial_audit","name":"course_editorial_audit_service_insert","command":"INSERT","roles":["service_role"]}
+  ],
+  "omissions": ["columns/types, constraints, indexes, grants and migrations were not exposed by the available read-only query; no PII, rows, credentials or operational data were included"]
+}

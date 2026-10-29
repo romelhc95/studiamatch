@@ -2,6 +2,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "romelhc95@gmail.com";
+
+function internalErrorResponse(corsHeaders: Record<string, string>): Response {
+  return new Response(JSON.stringify({ error: "Internal server error" }), {
+    status: 500,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 const ADMIN_EMAILS = ADMIN_EMAIL.split(",").map(e => e.trim()).filter(Boolean);
 
 const corsHeaders = {
@@ -152,9 +159,7 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: String(error) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch {
+    return internalErrorResponse(corsHeaders);
   }
 });

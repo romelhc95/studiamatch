@@ -1,4 +1,4 @@
-﻿# 📊 Reporte de Revisión Manual por Institución — StudIAMatch
+# 📊 Reporte de Revisión Manual por Institución — StudIAMatch
 
 **Base de datos:** Supabase Pro (`xwhtiqmboljkshrtviyw`)  
 **Fecha de generación:** 31 de mayo de 2026  

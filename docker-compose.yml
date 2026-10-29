@@ -1,16 +1,77 @@
 services:
-  app:
-    build: .
-    container_name: studiamatch-dev
+  node-deps:
+    image: studiamatch-dev:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        STUDIAMATCH_UID: ${STUDIAMATCH_UID:-1000}
+        STUDIAMATCH_GID: ${STUDIAMATCH_GID:-1000}
+    container_name: studiamatch-node-deps
+    user: root
+    entrypoint: ["/usr/local/bin/studiamatch-bootstrap"]
+    command: ["--prepare-node"]
+    working_dir: /app
+    environment:
+      STUDIAMATCH_UID: ${STUDIAMATCH_UID:-1000}
+      STUDIAMATCH_GID: ${STUDIAMATCH_GID:-1000}
     volumes:
-      - .:/app
-      - /app/web/node_modules
-      - /app/venv
+      - type: bind
+        source: .
+        target: /app
+      - type: volume
+        source: node_modules
+        target: /app/web/node_modules
+        volume:
+          nocopy: true
+    restart: "no"
+
+  app:
+    image: studiamatch-dev:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        STUDIAMATCH_UID: ${STUDIAMATCH_UID:-1000}
+        STUDIAMATCH_GID: ${STUDIAMATCH_GID:-1000}
+    container_name: studiamatch-dev
+    user: "${STUDIAMATCH_UID:-1000}:${STUDIAMATCH_GID:-1000}"
+    entrypoint: ["/usr/local/bin/studiamatch-bootstrap"]
+    command: ["npm", "--prefix", "web", "run", "dev", "--", "--hostname", "0.0.0.0"]
+    working_dir: /app
+    environment:
+      STUDIAMATCH_UID: ${STUDIAMATCH_UID:-1000}
+      STUDIAMATCH_GID: ${STUDIAMATCH_GID:-1000}
+      HOME: /home/studiamatch
+      NODE_ENV: development
+    volumes:
+      - type: bind
+        source: .
+        target: /app
+      - type: volume
+        source: node_modules
+        target: /app/web/node_modules
+        volume:
+          nocopy: true
+    tmpfs:
+      - /app/web/.next:uid=${STUDIAMATCH_UID:-1000},gid=${STUDIAMATCH_GID:-1000},mode=0775
     ports:
       - "3000:3000"
     env_file:
       - .env.local
-    environment:
-      - NODE_ENV=development
     stdin_open: true
     tty: true
+    depends_on:
+      node-deps:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3000/admin/login/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+
+volumes:
+  node_modules:
+    name: studiamatch_node_modules

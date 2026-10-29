@@ -1,0 +1,4 @@
+command=bash .context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/run_h3_uat002_003_r173.sh
+phase=preflight|error_code=PASS|runner=H3-UAT-002,003|ports=3380,3381,3383
+phase=pages-workerd-readiness|error_code=PASS|runtime=R146|ports=3380,3381,3383|bind=127.0.0.1
+phase=uat-email-fallback-r173|exit=0|result=PASS|cases=2/2|viewports=6/6|screenshots=6|retries=0

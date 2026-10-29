@@ -1,0 +1,68 @@
+tests/h3req1_c03_integrated_drill.sh: OK
+tests/h3req1_c03_integrated_runtime.mjs: OK
+tests/h3req1_c03_cache_digest.mjs: OK
+tests/h3req1-c03-edge-main/index.ts: OK
+tests/h3req1-c03-bootstrap/package.json: OK
+tests/h3req1-c03-bootstrap/package-lock.json: OK
+tests/h3req1-c03-edge-lock-resolver/deno.json: OK
+tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock: OK
+web/package.json: OK
+web/package-lock.json: OK
+web/vendor/braces-3.0.4-h3.1.tgz: OK
+supabase/functions/admin-invite/index.ts: OK
+web/functions/_middleware.ts: OK
+web/functions/_lib/admin-bff.ts: OK
+web/functions/_lib/admin-quota.ts: OK
+web/src/lib/supabase-transport.ts: OK
+workers/admin-quota/index.ts: OK
+tests/sql/h3_from_h2_pro_pg17_harness.sql: OK
+tests/sql/h2_pro_pg17_harness.sql: OK
+tests/sql/h3req1_c03_integrated_extension_setup.sql: OK
+tests/sql/h3req1_c03_integrated_setup.sql: OK
+tests/sql/h3req1_c03_integrated_assert_inflight.sql: OK
+tests/sql/h3req1_c03_integrated_assert_suspended.sql: OK
+tests/sql/h3req1_c03_integrated_assert_completed_suspended.sql: OK
+tests/sql/h3req1_c03_integrated_assert_recovered.sql: OK
+tests/sql/h3req1_c03_integrated_assert_final.sql: OK
+db/rollback/h3req1_safe_suspend.sql: OK
+db/rollback/h3req1_safe_resume.sql: OK
+db/migrations/20260827_h2_pro_expand_schema_compat.sql: OK
+db/migrations/20260827_h2_pro_seed_editorial_field_definitions.sql: OK
+db/migrations/20260827_h2_pro_backfill_editorial_state.sql: OK
+db/migrations/20260827_h2_pro_capture_legacy_cohort.sql: OK
+db/migrations/20260827_h2_pro_contract_public_reader.sql: OK
+db/migrations/20260827_h2_pro_rollback_public_reader_contract.sql: OK
+db/migrations/20260827_h2_pro_contract_legacy_cohort.sql: OK
+db/migrations/20260828_h3_admin_auth.sql: OK
+db/migrations/20260830_h3_expanded_contract.sql: OK
+db/migrations/20260828_h3_admin_editorial_rpc.sql: OK
+db/migrations/20260828_h3_admin_editorial_reader_rpc.sql: OK
+db/migrations/20260828_h3_admin_course_queue_view.sql: OK
+db/migrations/20260828_h3_admin_queue_rpc.sql: OK
+db/migrations/20260829_h3_rbac_users.sql: OK
+db/migrations/20260902_h3_pr_contract.sql: OK
+db/migrations/20260903_h3_rbac_contract_fix.sql: OK
+db/migrations/20260918_h3_invitation_flow_persistence.sql: OK
+db/migrations/20260919_h3_invitation_auth_token_delta.sql: OK
+db/migrations/20260920_h3_invitation_edge_runtime.sql: OK
+db/migrations/20260921_h3_invitation_onboarding_rpc.sql: OK
+db/migrations/20260924_h3_onboarding_rbac_hardening.sql: OK
+db/migrations/20260924_h3_onboarding_rbac_hardening_fix.sql: OK
+db/migrations/20260925_h3_legacy_member_creation_guard.sql: OK
+db/migrations/20260925_h3_admin_members_onboarding_reader.sql: OK
+db/migrations/20260927_h3_admin_queue_facets_filter.sql: OK
+db/migrations/20261004_h3_admin_queue_first_null_guard.sql: OK
+db/migrations/20260927_h3_publication_visibility_contract.sql: OK
+db/migrations/20260928_h3_invitation_accept_email_regex_fix.sql: OK
+db/migrations/20261001_h3_invitation_reservation_compensation.sql: OK
+db/migrations/20261001_h3_course_editorial_audit_availability.sql: OK
+db/migrations/20261002_h3_admin_quota_expand.sql: OK
+db/migrations/20261002_h3_admin_quotas.sql: OK
+db/migrations/20261004_h3_admin_rpc_signed_gateway_expand.sql: OK
+db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql: OK
+bootstrap-diagnostic-class=no-recognized-safe-category
+bootstrap-diagnostic-class=no-recognized-safe-category
+bootstrap-diagnostic-class=no-recognized-safe-category
+Locked dependency volume SHA-256: {"deno-cache":"0caf7782e6c39a383c41871d5d8bc62801c5ebd369ffd9400542fa9c9000c2ff","edge-node-modules":"00448e894ad63e0bc4d1f5a26cc92369a2d8cc9a882817a57d2a6c69ffe558c3","miniflare-node-modules":"637d7c16a194ec553e6cec3cd07efa1d06ba4a323a40f3ef72062f758e70088f","pages-node-modules":"cc440ac84152f8fcf22af29dd00d53d85a5edebf20e1f1ce20e7240a3ca0fc3d"}
+NO-GO: runtime state timeout: healthz
+Halted phase=isolated-workerd-bootstrap exit=1; no automatic cleanup/resume; preserve resources at their current state.
