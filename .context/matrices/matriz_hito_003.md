@@ -31,8 +31,15 @@ FG3 desactiva con 404/410 reiterado tras la gracia vigente. Fecha antigua y erro
 transitorios no desactivan. Una respuesta HTTP 200 no prueba pertenencia actual al
 catálogo; la retirada semántica con página 200 queda limitada y trazada a H1.
 
-Las métricas, ejecuciones y estados de septiembre que siguen son historia de esa
-matriz anterior; no validan esta enmienda ni se recalculan aquí.
+#### Corte inicial E1–E6 antes de la verificación de navegador — histórico
+
+La tabla siguiente conserva el primer corte local de la enmienda, cuando E6 estaba
+pendiente. No se reescribe ese resultado: el addendum vigente debajo registra la
+verificación posterior.
+
+Las métricas, ejecuciones y estados de septiembre pertenecen a la matriz anterior;
+no validan esta enmienda ni se recalculan aquí. La tabla inmediata registra el
+corte inicial local de E1–E6 para la enmienda de 2026-10-28.
 
 | Caso nuevo | Antes del cambio `f39a688` | Después, evidencia local | Resultado |
 |---|---|---|---|
@@ -44,6 +51,10 @@ matriz anterior; no validan esta enmienda ni se recalculan aquí.
 | E6 | No había comprobación del preview separado y nuevo layout. | ESLint/TypeScript/build y contrato source-level pasan; navegación de teclado y medición visual desktop/móvil no se ejecutaron porque el Chrome bridge rechazó navegación autorizada y el runtime canónico no está instalado en la imagen Docker. | PENDIENTE; gate de PR abierto |
 
 Resultado del nuevo denominador fijo: 5/6 E aceptados localmente (83,3 %); E6 no aporta crédito. Este porcentaje describe solo esta matriz local, no aceptación remota ni avance global H3REQ1. Ver comandos y límites en el [checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
+#### Resultado posterior del contrato editorial — 2026-10-28
+
+E1–E6 quedaron aceptados localmente **6/6**. La aceptación remota R1–R4 quedó en **4/4 en Development** después de restaurar el valor original; esto no acredita Certification ni cierre global de H3REQ1. El paquete de promoción está en NO-GO por el selector documental y la configuración de hostname; ver el [estado operativo](../estado_del_proyecto.md) y el [checkpoint de promoción](../evidencia/h3req1_editorial_contract_2026-10-28.md#preparacion-de-promocion-a-certification). El 5/6 de la tabla superior permanece como corte histórico anterior, sin convertirlo en PASS retroactivo.
 
 | ID | Criterio | Evidencia GO requerida |
 |---|---|---|

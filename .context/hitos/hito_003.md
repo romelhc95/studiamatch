@@ -1,6 +1,10 @@
 # HITO-003 - Admin Editorial
 
-## Corte local del contrato editorial — 2026-10-28
+## Estado vigente H3REQ1 — aceptación Development y preparación Certification — 2026-10-28
+
+El criterio cliente vigente del hito es `H3-CA4`. E1–E6 locales quedaron aceptados 6/6 y R1–R4 remotos quedaron aceptados 4/4 en Development, con la restauración pública del original comprobada. Esto no acredita Certification ni cierre global del hito. La promoción está en NO-GO por el selector documental y la allowlist del host de Certification; consultar [estado operativo](../estado_del_proyecto.md) y [paquete/checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md#preparacion-de-promocion-a-certification). Las decisiones humanas reutilizadas y el alcance no ampliado permanecen en la atestación sanitizada de CA4.
+
+## Corte local inicial del contrato editorial — 2026-10-28 (histórico)
 
 La decisión humana sanitizada [H3-CA4-EDITORIAL-CONTRACT-2026-10-28](../evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md)
 actualiza edición User, borrador/publicación, prioridad persistente del último
@@ -257,7 +261,7 @@ mejora evolutiva. Permanecen abiertos 03A/03B remoto, UAT Development y
 Certification, hostnames por ambiente, convergencia Pro/Free/local y
 `expand -> compatibilidad -> deploy -> contract`.
 
-## Matriz de avance por criterio
+## Matriz histórica de avance por criterio — 2026-09-23; no usar como estado vigente
 
 | Criterio | Implementación | Validación | Pendiente de cierre |
 |---|---|---:|---:|---|

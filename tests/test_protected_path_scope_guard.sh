@@ -511,6 +511,11 @@ import tempfile
 from pathlib import Path
 
 guard_source = Path(sys.argv[1]).resolve()
+# These fixtures exercise ordinary PRs even when CI itself is a promotion PR.
+os.environ["GITHUB_BASE_REF"] = "desarrollo"
+os.environ["GITHUB_HEAD_REF"] = "feature/regression"
+os.environ["GITHUB_EVENT_NAME"] = "pull_request"
+os.environ["GITHUB_REF"] = "refs/pull/regression/merge"
 paths = (
     ".github/scripts/production_control_preflight.sh",
     "tests/test_fase09_10_pre_main_controls.py",
@@ -620,6 +625,7 @@ python3 - "$ROOT/.context/evidencia/h3req1_public_admin_corrections_2026-10-26/c
   "$ROOT/scripts/security/protected_path_scope_guard.sh" "$ROOT/.github/workflows/security-audit.yml" "$ROOT" <<'PY'
 import json
 import os
+import hashlib
 import re
 import subprocess
 import sys
@@ -784,7 +790,7 @@ def commit(repo, message):
     git(repo, "add", ".")
     git(repo, "commit", "-qm", message)
 
-def run_selector(repo, base_sha, r21_path, d04_path):
+def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=False):
     output = repo / "github-output.txt"
     output.unlink(missing_ok=True)
     env = os.environ.copy()
@@ -793,6 +799,10 @@ def run_selector(repo, base_sha, r21_path, d04_path):
         "R21_MANIFEST": r21_path,
         "D04_MANIFEST": d04_path,
         "GITHUB_OUTPUT": str(output),
+        "GITHUB_BASE_REF": "certificacion" if promotion else "desarrollo",
+        "GITHUB_HEAD_REF": "desarrollo" if promotion else "feature/test",
+        "GITHUB_EVENT_NAME": "push" if postmerge else "pull_request",
+        "GITHUB_REF": "refs/heads/certificacion" if postmerge else "refs/pull/test/merge",
     })
     result = subprocess.run(
         ["bash", "-e", "-c", selector_script], cwd=repo, env=env,
@@ -845,6 +855,57 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     result, selected = run_selector(repo, base, r21_path, d04_path)
     if result.returncode == 0 or selected is not None:
         raise SystemExit("R21 selector regression: ambiguous candidate manifests did not fail closed")
+
+    # The same packages have a deterministic full union only on the promotion route.
+    (repo / "feature.txt").write_text("must be selected\n", encoding="utf-8")
+    (repo / ".context/evidencia/candidate-pr-scope.json").write_text(json.dumps({
+        "schemaVersion": 1, "baseSha": base, "purpose": "PR paths, not doc scope",
+        "includedPaths": ["feature.txt"],
+    }), encoding="utf-8")
+    (repo / ".context/evidencia/historical.json").write_text("{invalid historical artifact", encoding="utf-8")
+    commit(repo, "promotion includes independent PR scope and ordinary paths")
+    result, selected = run_selector(repo, base, r21_path, d04_path, promotion=True)
+    if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
+        raise SystemExit(f"promotion selector regression: full union failed: {result.stderr}")
+    aggregate = json.loads((repo / selected).read_text(encoding="utf-8"))
+    aggregate_paths = {entry["path"] for entry in aggregate["scope"]["entries"]}
+    if (aggregate["baseline_sha"] != base or aggregate["head_sha"] != git(repo, "rev-parse", "HEAD")
+        or {p["path"] for p in aggregate["packages"]} != {".context/evidencia/r22.json", d04_path}
+        or not {"feature.txt", ".context/evidencia/candidate-pr-scope.json", d04_path}.issubset(aggregate_paths)):
+        raise SystemExit("promotion selector regression: package union or full diff coverage was lost")
+    for package in aggregate["packages"]:
+        if package["sha256"] != hashlib.sha256((repo / package["path"]).read_bytes()).hexdigest():
+            raise SystemExit("promotion selector regression: package digest mismatch")
+    result, selected = run_selector(repo, base, r21_path, d04_path, postmerge=True)
+    if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
+        raise SystemExit("promotion selector regression: post-merge Certification push lost the union")
+
+    repo, base = create_repo(temp_root, "promotion-missing-input")
+    write_manifest(repo, ".context/evidencia/r22.json", "R22")
+    candidate = repo / ".context/evidencia/r22.json"
+    value = json.loads(candidate.read_text(encoding="utf-8"))
+    value["scope"]["entries"] = [{"path": "absent-input.txt", "status": "included"}]
+    candidate.write_text(json.dumps(value), encoding="utf-8")
+    commit(repo, "promotion must not drop missing selected inputs")
+    result, selected = run_selector(repo, base, r21_path, d04_path, promotion=True)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("promotion selector regression: missing input did not fail closed")
+
+    repo, base = create_repo(temp_root, "promotion-invalid-pr-scope")
+    (repo / ".context/evidencia/candidate-pr-scope.json").write_text(json.dumps({
+        "schemaVersion": 1, "purpose": "malformed", "includedPaths": [],
+    }), encoding="utf-8")
+    commit(repo, "malformed PR scope is not an exemption")
+    result, selected = run_selector(repo, base, r21_path, d04_path, promotion=True)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("promotion selector regression: invalid PR scope did not fail closed")
+
+    repo, base = create_repo(temp_root, "promotion-corrupt-role-manifest")
+    (repo / r21_path).write_text("{invalid", encoding="utf-8")
+    commit(repo, "corruption cannot hide a baseline role manifest")
+    result, selected = run_selector(repo, base, r21_path, d04_path, promotion=True)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("promotion selector regression: corrupted baseline role manifest was ignored")
 
     repo, base = create_repo(temp_root, "deleted-successor")
     (repo / r21_path).unlink()
@@ -917,5 +978,48 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     if result.returncode == 0 or output.exists():
         raise SystemExit("R21 selector regression: missing trusted baseline did not fail closed")
 
+    # Exercise the real pin validator using disposable Git trees, without changing project refs.
+    repo, base = create_repo(temp_root, "promotion-path-pins")
+    (repo / "README.md").write_text("reviewed accumulated content\n", encoding="utf-8")
+    (repo / "unlisted-neighbor.txt").write_text("must not be admitted\n", encoding="utf-8")
+    commit(repo, "reviewed source fixture")
+    source = git(repo, "rev-parse", "HEAD")
+    pin_path = repo / "promotion-path-pins.json"
+    pin_value = {
+        "schema_version": 1, "baseline_sha": base, "source_sha": source,
+        "entries": [{"path": "README.md", "baseline_blob": git(repo, "rev-parse", f"{base}:README.md"),
+                     "source_blob": git(repo, "rev-parse", f"{source}:README.md")}],
+    }
+    def run_pins(actual_base=base, value=None):
+        pin_path.write_text(json.dumps(value if value is not None else pin_value), encoding="utf-8")
+        return subprocess.run(
+            ["bash", "-c", 'source "$1"; shift; protected_path_promotion_scope "$@"',
+             "pin-test", str(guard_path), str(pin_path), actual_base, base, source],
+            cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+    result = run_pins()
+    if result.returncode != 0 or result.stdout.strip() != "README.md":
+        raise SystemExit(f"promotion pin regression: exact source not admitted or neighbor leaked: {result.stderr}")
+    result = run_pins(actual_base=source)
+    if result.returncode == 0 or result.stdout:
+        raise SystemExit("promotion pin regression: wrong baseline did not fail without output")
+    corrupt = json.loads(json.dumps(pin_value))
+    corrupt["entries"][0]["source_blob"] = "0" * 40
+    result = run_pins(value=corrupt)
+    if result.returncode == 0 or result.stdout:
+        raise SystemExit("promotion pin regression: forged blob did not fail without output")
+    duplicate = json.loads(json.dumps(pin_value))
+    duplicate["entries"].append(duplicate["entries"][0])
+    result = run_pins(value=duplicate)
+    if result.returncode == 0 or result.stdout:
+        raise SystemExit("promotion pin regression: duplicate pin did not fail without output")
+    (repo / "README.md").write_text("unreviewed successor drift\n", encoding="utf-8")
+    commit(repo, "drift pinned source")
+    result = run_pins()
+    if result.returncode == 0 or result.stdout:
+        raise SystemExit("promotion pin regression: changed pinned content did not fail without output")
+
 print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
+print("promotion-manifest-selector=PASS|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
+print("promotion-path-pins=PASS|exact_tree=1|neighbor_not_selected=1|wrong_baseline=fail_closed|forged_blob=fail_closed|duplicate=fail_closed|content_drift=fail_closed")
 PY

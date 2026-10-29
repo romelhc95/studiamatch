@@ -22,5 +22,10 @@ campos internos, cálculos o metadatos; tampoco concede publicación, membresía
 calidad u otras acciones administrativas. Los resultados anteriores permanecen
 históricos y no se reinterpretan como pruebas del contrato nuevo.
 
-La autorización de publicación se encuentra vigente para el paquete exacto de esta
-rama, pero no se ha consumido: E6 continúa pendiente y no se crea PR incompleto.
+### Estado al corte inicial de implementación local — 2026-10-28
+
+La autorización descrita en este corte cubría el paquete de esa rama feature. El texto conserva la decisión original y no se extiende a otras operaciones.
+
+### Resultado posterior de implementación y aceptación — 2026-10-28
+
+El paquete se integró mediante PR #509. E1–E6 locales quedaron aceptados; R1–R4 remotos quedaron aceptados en Development (4/4), y el valor público original se restauró y republicó. El resultado y sus límites están en [checkpoint canónico](../../evidencia/h3req1_editorial_contract_2026-10-28.md). Esta actualización es trazabilidad del resultado, no autorización para promover a Certification, cambiar configuración, aplicar SQL, abrir/mergear un nuevo PR ni hacer deploy. La disposición documental asociada a #509 vence antes de Certification y no se reutiliza.

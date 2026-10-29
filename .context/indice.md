@@ -1,6 +1,6 @@
 # StudIAMatch — índice de transferencia
 
-> Corte local del candidato público duración/móvil: 2026-10-24. Describe fuentes y evidencia observadas en estos checkouts; no acredita adopción remota ni concede permisos.
+> Corte H3REQ1: contrato editorial aceptado en Development R1–R4 (4/4); preparación de promoción a Certification en NO-GO por selector documental y configuración del host. El [estado operativo](estado_del_proyecto.md) es la autoridad vigente; no hay autorización de promoción.
 
 Esta es la única entrada principal de Obsidian. El [estado del proyecto](estado_del_proyecto.md) es la única autoridad operativa para el corte vigente, resultados, pendientes y siguiente paso. Las reglas de ejecución están en [AGENTS.md](../AGENTS.md).
 
@@ -56,7 +56,7 @@ Sigue los [recorridos de transferencia](transferencia.md) para cambiar: una regl
 
 ## Historia y evidencia
 
-- [Contrato editorial H3REQ1 — E1–E6 local y aceptación remota R1–R4](evidencia/h3req1_editorial_contract_2026-10-28.md) conserva el merge/deployment #508, R1–R4 (2/4: R1/R4 aceptados, R2 falló con HTTP 400/22P02, R3 pendiente), la recuperación auditada, el fix SQL PG17 validado y el contraste documental integral/candidate-aware; migration correctiva sin JIT remoto ni deploy.
+- [Contrato editorial H3REQ1 — E1–E6 local, R1–R4 remoto y preparación de Certification](evidencia/h3req1_editorial_contract_2026-10-28.md) conserva el merge #509, Development R1–R4 (4/4), recuperación auditada, dos migraciones ya aplicadas a Free compartido y el NO-GO de promoción con diagnóstico documental, host y smoke mínimo. Los cortes 2/4 y `22P02` siguen preservados como historia; no hay promoción autorizada.
 - [D04: distinguir denegación de rol de fallo RPC](evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md) conserva el diagnóstico acotado del 502 histórico, el cambio local de SQLSTATE/BFF, pruebas focales Docker y los límites de SQL/runtime sin ejecutar.
 - [Ciclo de aceptación local del candidato de duración compuesta y filtros móviles](evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md) conserva R11 y añade R12: H3-UAT-058/H3-CA4.11 y H3-UAT-059/H3-CA4.9 pasan juntos en 6/6 viewports; 058 incluye la comprobación de footer/filtros a 320 px y 059 pasa 39/39 aserciones por viewport. Son resultados locales sintéticos; Preview, integración, deployment y aceptación remota siguen pendientes.
 - [Revisión del candidato de correcciones públicas y Admin R21](evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md) agrupa el delta exacto, sus consumidores, validaciones Docker y escenarios remotos que deben renovarse. No autoriza publicación; no incorpora el WIP Admin/MFA/FG3 ajeno.
