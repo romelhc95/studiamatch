@@ -1297,13 +1297,13 @@ H3_LOCAL_PATHS
 )
    if [[ ( "${GITHUB_BASE_REF:-}" == "certificacion" && "${GITHUB_HEAD_REF:-}" == "desarrollo" ) \
      || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/certificacion" \
-       && "$base" == "c80f6504a3ea353bc2c222df1da09c4b5ba0ae58" ) ]]; then
+       && "$base" == "03515dee69fc42b10808d1c67cc4e00ebacd0c40" ) ]]; then
      # Human-approved review scope is the complete accumulated tree, not arbitrary successors.
      promotion_paths=$(protected_path_promotion_scope \
        .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json \
        "$base" \
-       c80f6504a3ea353bc2c222df1da09c4b5ba0ae58 \
-       941eca496676bd11cd0e2796e6c0a34efd62082d) || exit 1
+       03515dee69fc42b10808d1c67cc4e00ebacd0c40 \
+       34469196c5ba4d073b49479f2fb44e84c279dbbb) || exit 1
      allowed_h3_local+=$'\n'"$promotion_paths"
    fi
    filter_remaining() {

@@ -8,22 +8,78 @@
 
 ### PR #512 — remediación focal de CI
 
-El PR #512 publicó `c6bd818821c41727cd217d352990343ebe23cedf` hacia
-`desarrollo`. Fallaron el inventario de consumidores Supabase y el guard de
-rutas protegidas; `security-audit` agregado falló por esos dos jobs. El inventario
-omitía dos fixtures sintéticos y el matcher H3 omitía ocho rutas ya incluidas en
-el paquete revisado. La corrección local registra ambos tests como
-`supabase-pattern-test-only`, admite solo las ocho rutas exactas y añade negativos
-para vecinos. No se cambia el scanner, no se omiten checks ni se amplían carpetas.
+Integrado el 2026-10-29 a las 23:03 America/Lima. El merge SHA de Desarrollo es
+`34469196c5ba4d073b49479f2fb44e84c279dbbb`; el HEAD revisado del PR fue
+`317d5e7bc861e414ea1d806774de973abab9fa7b`. Certification permanece en
+`03515dee69fc42b10808d1c67cc4e00ebacd0c40`. En el HEAD del PR hubo 16 checks
+success y dos skipped (`Supabase Preview`, `H2 Main Production Expand Gate`), sin
+fallos ni ejecuciones pendientes; la aprobación humana requerida constaba antes
+del merge.
 
-Docker aislado, sin red y con source read-only: 95 tests focales PASS y suite Python
-exacta de CI 262 tests/10 subtests PASS; revisión estática de seguridad sin hallazgos; suite shell
-de scope/selector/pins PASS y comparación real contra `6f059a0b…` PASS. Esta evidencia
-local no sustituye los checks del próximo SHA. El FAIL integral residual permanece
-separado de la disposición A del contenido original; no se afirma PASS integral.
-Sin merge, SQL, cambios cloud ni promoción. Detalle en el checkpoint editorial.
+Cloudflare Pages desplegó automáticamente el SHA de Desarrollo en el deployment
+`b8255fbf-19e6-4feb-ba06-bb687e079f46`, estado success, alias
+`desarrollo.studiamatch-aty.pages.dev`. Lectura de metadatos Preview: existen los
+nombres de `ADMIN_ALLOWED_HOSTS`, las HMAC keys y el key id; está el binding de
+servicio `ADMIN_QUOTA`. No se leyeron valores de variables ni secretos. No hubo
+deploy manual, SQL ni ejecución de workflows de negocio.
 
-### H3REQ1 — paquete local actualizado, NO-GO de publicación — 2026-10-29 18:57 America/Lima
+### H3REQ1 — preparación real Desarrollo → Certification — NO-GO
+
+Refs observadas: Desarrollo `34469196c5ba4d073b49479f2fb44e84c279dbbb` y
+Certification `03515dee69fc42b10808d1c67cc4e00ebacd0c40`. El ancestro común es
+`6f059a0b27ef38541a7b62503c78920e621f05c1`; la divergencia Git es 10 commits
+adelante / 3 detrás y el delta del candidato suma 31 archivos (+3582/−245).
+`merge-tree` no informa conflictos y el árbol resultante coincide con el árbol
+de Desarrollo. Esto no actualiza ramas protegidas ni equivale a un PR o merge.
+
+El selector real del workflow eligió el manifiesto H3 de promoción y agregó 46
+paths. En Docker, self-test/candidate-aware pasó: 752/752 fuentes asignadas,
+119/119 documentos activos alcanzables, 433/433 históricos enlazados. El checker
+integral conserva FAIL: 350 diagnósticos en Certification frente a 348 en
+Desarrollo, cero nuevos exclusivos y dos resueltos. Se mantiene visible y separado;
+la disposición A de #512 fue consumida y solo cubría solicitar integración a
+Desarrollo, por lo que no se extiende a Certification.
+
+El guard integrado rechaza el candidato porque sus pins esperan baseline
+`c80f6504…` y source `941eca49…`, mientras las refs actuales son `03515dee…` y
+`34469196…`. El arreglo local conserva la comprobación de pins: actualiza el par
+exacto de SHAs y regenera 27 pins de blobs inmutables para los paths del candidato
+que no editaría el follow-up. Los cuatro paths del candidato que sí cambiarán en
+ese follow-up, más el propio manifiesto de pins, permanecen cubiertos por
+allowlists exactos; no se amplían carpetas ni se omite el gate.
+
+Con este arreglo local no integrado, la comparación exacta del candidato pasa en
+Docker y `tests/test_protected_path_scope_guard.sh` pasa con selector, pins,
+vecinos negativos y casos fail-closed. También pasan `bash -n`, `git diff --check`,
+credential scan del paquete (cinco paths modificados y el test existente). Tras
+registrar la disposición A, el self-test documental candidate-aware se ejecutó
+en Docker/red `none` sobre una copia temporal del árbol base más exactamente los
+cinco paths locales: `DOC_SELF_TEST_PASS`, 752/752 fuentes, 119/119 activos,
+433/433 históricos, 9.376 links y 4.699 anchors; `DOC_GATE_PASS`. Log SHA-256
+`68349a36e11d1d6c371a497135d3c2a172af0b67db7db9a1f4532da0e8df7de4`. Un
+intento diagnóstico sin manifest de candidato tuvo el self-test interno PASS,
+pero el gate completo falló al tratar 305 fuentes candidate-only no seleccionadas
+como parte del scope; no se cuenta como resultado candidate-aware. El log
+integral sigue byte-idéntico al del candidato integrado: 348 diagnósticos.
+ShellCheck no está en la imagen Docker y sigue pendiente de CI. El 2026-10-30
+01:23 America/Lima Codex Security volvió a rechazar el inicio del diff scan con
+`Working-tree contents changed after they were selected. Select Uncommitted
+changes again`; no devolvió `scanId` y no cuenta como scan completado. Se hizo
+revisión estática focal del guard/pins y sus controles: el diff solo sustituye
+los SHAs esperados y los blobs correspondientes; siguen activos el anclaje a
+baseline/source, la validación de unicidad/rutas, la comparación de blobs y el
+rechazo fail-closed. Esa lectura no sustituye Codex Security ni CI. El guard/pins
+remotos no cambian hasta que el follow-up sea integrado a Desarrollo.
+
+Resultado actual: NO-GO para solicitar/crear PR Desarrollo → Certification. No
+se ha pedido una disposición documental nueva para Certification ni autorización
+para su PR. Siguiente decisión: autorizar por separado el commit/push/PR protegido
+a Desarrollo del follow-up local de cinco paths; no incluye merge. Después de
+integrarlo se deben refrescar refs y comprobar el pin set efectivo antes de pedir
+disposición y autorización nuevas para Certification. E1–E6 local 6/6, R1–R4
+Development 4/4 y smoke Certification 1/1 permanecen aceptados y no se repitieron.
+
+### Corte H3REQ1 previo al merge #512 — histórico/supersedido — 2026-10-29 18:57 America/Lima
 
 Worktree `/tmp/studiamatch-h3req1-production-remediation-20261029`, rama
 `codex/h3req1-production-remediation-20261029`, base/HEAD
@@ -72,15 +128,18 @@ checker/configuración y sin diagnósticos nuevos exclusivos. Baseline y candida
 comparten checker SHA-256
 `f2a95870de748b2e59ee0d988abb0b16125da47c996a7f85841f1113fcebbb75`; logs
 oficiales y listas completas con hashes están en `final-checksums.txt`. Los 2
-diagnósticos baseline-only se resolvieron; el FAIL integral sigue abierto. La
-única disposición vigente es **propuesta, no aprobada**, limitada al residual
-histórico demostrado para esta huella y a permitir solicitar únicamente la
-integración protegida a `desarrollo`. No cubre commit/push/PR, review, merge,
-Certification, `main`, SQL, workflow, configuración ni deploy. Owner propuesto
-Romel/TL; riesgo: trazabilidad histórica incompleta; vencimiento propuesto
-único **2026-11-05 23:59 America/Lima**. La disposición #509 del 04/11 está
-consumida e histórica; no se extiende. Las propuestas descritas en cortes
-anteriores quedan supersedidas por esta disposición única.
+diagnósticos baseline-only se resolvieron; el FAIL integral sigue abierto. El
+responsable aprobó el 2026-10-30 a las 01:06 America/Lima una disposición nueva
+para el residual histórico de esta corrección local: base Desarrollo
+`34469196c5ba4d073b49479f2fb44e84c279dbbb`, diff SHA-256
+`e6f072cc6a1e63eebe6cad9136b971917386f19ee1ffe432f4e6ba0902c209ce`, cinco
+paths. Owner Romel/TL; riesgo: trazabilidad histórica incompleta; vence el
+**2026-11-05 23:59 America/Lima** o antes de cualquier promoción a Certification,
+lo que ocurra primero. Solo dispone el residual para tramitar la integración
+protegida a `desarrollo`; no convierte el FAIL en PASS y no autoriza commit,
+push, PR, review, merge, Certification, `main`, SQL, workflow, configuración ni
+deploy. La aprobación de publicación se solicitará por separado. La disposición
+#509 y la A de #512 están consumidas en sus propios alcances y no se extienden.
 
 **Revisión de seguridad:** Codex Security scan diff-scoped completado sobre el
 candidato local, snapshot
