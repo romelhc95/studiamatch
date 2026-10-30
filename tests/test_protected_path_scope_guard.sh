@@ -117,6 +117,14 @@ h3_manifest_paths = {
     "scripts/maintenance/pro_h3_migration_manifest.py",
     "tests/test_h3_pro_migration_manifest.py",
     "tests/test_fase10_main_boundary.py",
+    ".context/hitos/hito_001.md",
+    ".github/workflows/db-sync-to-pro.yml",
+    "scripts/maintenance/check_db_parity.py",
+    "scripts/maintenance/db_migrate.py",
+    "scripts/maintenance/h2_pro_preflight_report.py",
+    "tests/admin_audit_changes.test.mjs",
+    "tests/test_h2_pro_preflight_report.py",
+    "web/src/lib/admin-audit-changes.mjs",
 }
 if any(not any(re.search(pattern, path) for pattern in patterns) for path in h3_manifest_paths):
     raise SystemExit("protected path integration test: exact H3 Pro manifest paths are not admitted")
@@ -125,6 +133,14 @@ for neighbor in (
     "tests/test_h3_pro_migration_manifest_extra.py",
     "tests/test_fase10_main_boundary_extra.py",
     ".context/evidencia/h3req1_editorial_contract_candidate_scope_extra_2026-10-28.json",
+    ".context/hitos/hito_001_extra.md",
+    ".github/workflows/db-sync-to-pro-extra.yml",
+    "scripts/maintenance/check_db_parity_extra.py",
+    "scripts/maintenance/db_migrate_extra.py",
+    "scripts/maintenance/h2_pro_preflight_report_extra.py",
+    "tests/admin_audit_changes_extra.test.mjs",
+    "tests/test_h2_pro_preflight_report_extra.py",
+    "web/src/lib/admin-audit-changes-extra.mjs",
 ):
     if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
         raise SystemExit(f"protected path integration test: neighboring H3 Pro manifest path is admitted: {neighbor}")

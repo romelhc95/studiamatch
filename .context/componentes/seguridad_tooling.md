@@ -2,6 +2,13 @@
 
 ## Límites del control local
 
+Remediación CI PR #512: el inventario de consumidores registra también los tests
+H2 de migración/preflight como fixtures de patrones; no son autorización de
+transporte remoto. El matcher H3 admite las ocho rutas exactas del paquete
+productivo antes omitidas, con negativos para cada vecino. La comparación real
+base→HEAD se ejecuta además de las regresiones sintéticas para detectar omisiones
+de la unión del candidato. No se admiten carpetas ni se desactiva el scanner.
+
 | Control | Fuente | Qué comprueba | Límite |
 |---|---|---|---|
 | Credential scan | `scripts/security/scan_credentials.sh`, `scan_worktree_file.py`, `.githooks/pre-commit`, `.githooks/pre-push` | Patrones configurados en staged/diff/tree y scripts de invocación; la lista concreta de consumidores está en el [registro](../trazabilidad/registro_fuentes_componentes.md#seguridad-y-tooling). | Solo cubre archivos/diffs y patrones escaneados; no lee secret stores ni demuestra hook instalado. No exponer valores al registrar fallos. |

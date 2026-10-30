@@ -6,6 +6,23 @@
 
 ## Corte vigente
 
+### PR #512 — remediación focal de CI
+
+El PR #512 publicó `c6bd818821c41727cd217d352990343ebe23cedf` hacia
+`desarrollo`. Fallaron el inventario de consumidores Supabase y el guard de
+rutas protegidas; `security-audit` agregado falló por esos dos jobs. El inventario
+omitía dos fixtures sintéticos y el matcher H3 omitía ocho rutas ya incluidas en
+el paquete revisado. La corrección local registra ambos tests como
+`supabase-pattern-test-only`, admite solo las ocho rutas exactas y añade negativos
+para vecinos. No se cambia el scanner, no se omiten checks ni se amplían carpetas.
+
+Docker aislado, sin red y con source read-only: 95 tests focales PASS y suite Python
+exacta de CI 262 tests/10 subtests PASS; revisión estática de seguridad sin hallazgos; suite shell
+de scope/selector/pins PASS y comparación real contra `6f059a0b…` PASS. Esta evidencia
+local no sustituye los checks del próximo SHA. El FAIL integral residual permanece
+separado de la disposición A del contenido original; no se afirma PASS integral.
+Sin merge, SQL, cambios cloud ni promoción. Detalle en el checkpoint editorial.
+
 ### H3REQ1 — paquete local actualizado, NO-GO de publicación — 2026-10-29 18:57 America/Lima
 
 Worktree `/tmp/studiamatch-h3req1-production-remediation-20261029`, rama

@@ -1,5 +1,28 @@
 # Checkpoint local — contrato editorial H3REQ1
 
+## Remediación focal CI del PR #512
+
+El HEAD publicado inicial `c6bd818821c41727cd217d352990343ebe23cedf` falló en
+`Python Compile And Tests` (un fallo de inventario, 261 tests PASS) y
+`Protected Path Integrity` (rutas fuera del matcher). `security-audit` fue
+consecuencia. Las URLs de evidencia son los jobs `123876652432` y
+`123876652518` del run `40998348079` en `romelhc95/studiamatch`.
+
+Causa: dos módulos de test nuevos contienen patrones de transporte Supabase y
+faltaban del inventario exacto. Ocho paths ya incluidos en el paquete estaban
+fuera del matcher H3; el fallback legacy tampoco cubría la unión. La corrección
+registra únicamente los fixtures como `supabase-pattern-test-only`, agrega ocho
+rutas exactas al matcher y prueba vecinos rechazados. No se altera transporte,
+credenciales, scanner, SQL ni comportamiento del producto.
+
+Revalidación local Docker sin red y con source read-only: 95 tests de contrato
+de credenciales y controles H2/H3 PASS; suite Python exacta de CI 262 tests/10
+subtests PASS; revisión de seguridad estática sin hallazgos; shell de scope, selector y pins PASS;
+`--compare-candidate` contra la base real `6f059a0b…` PASS. Son resultados locales,
+no acreditan el próximo CI. El contenido original aprobado y su disposición
+permanecen como historia; la corrección debe identificarse por su propio delta.
+
+
 ## Actualización final del paquete H2/Pro y cierre de remediación local — 2026-10-29 18:57 America/Lima
 
 Este corte supersede los estados anteriores de esta nota. Para la disposición
