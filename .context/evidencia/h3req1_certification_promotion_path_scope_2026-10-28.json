@@ -2,7 +2,7 @@
   "schema_version": 1,
   "manifest_role": "protected promotion path pins; no execution authorization",
   "baseline_sha": "03515dee69fc42b10808d1c67cc4e00ebacd0c40",
-  "source_sha": "34469196c5ba4d073b49479f2fb44e84c279dbbb",
+  "source_sha": "34dfcc014dfa45a71e00ac9a1e729283ab4d2254",
   "purpose": "Exact immutable Git blob pins for the current Development candidate against the current Certification baseline. The four candidate paths edited by this follow-up remain governed by existing exact-path allowlists; unchanged candidate paths, including the pin test, remain blob-pinned. The pin manifest itself is excluded to avoid self-referential drift.",
   "entries": [
     {
@@ -13,7 +13,7 @@
     {
       "path": ".context/componentes/database_migrations.md",
       "baseline_blob": "6a32fabd43b6e5e4e3cb48d89460ec1f1cdf2396",
-      "source_blob": "1369d585ef80aee66a521851cc41b2affec6c89f"
+      "source_blob": "4b79c4c488ee827a1b35f8c0b4fb2bf6b4755c1e"
     },
     {
       "path": ".context/componentes/mantenimiento.md",
@@ -53,17 +53,17 @@
     {
       "path": ".context/trazabilidad/registro_fuentes_componentes.json",
       "baseline_blob": "38eb7b7233caa1809f8572001ff4b94dac18be9a",
-      "source_blob": "8fff7543aacef56d7368496dd054f8434ff34e3b"
+      "source_blob": "9572226760e0a0646734dbc21bbd94ee70cd302f"
     },
     {
       "path": ".context/trazabilidad/registro_fuentes_componentes.md",
       "baseline_blob": "e89b3382e6d5b9ee157dbddea30294f882a4dc6a",
-      "source_blob": "bf150968363506d8f2d83c245da7d57d592b2a3e"
+      "source_blob": "29107401ecc688655abc278182848c4a2885a7a3"
     },
     {
       "path": ".github/workflows/db-sync-to-pro.yml",
       "baseline_blob": "50bc37a6f06a8c8a065be37b10afa67b98964dc0",
-      "source_blob": "466207179182934cbdc2a6d448526ca5bfe4c9c9"
+      "source_blob": "bcbda59d95f78153fa09305b39aacfd12895685e"
     },
     {
       "path": ".github/workflows/security-audit.yml",
@@ -78,7 +78,7 @@
     {
       "path": "scripts/maintenance/db_migrate.py",
       "baseline_blob": "07bad4cefd36611610d244ff42d4a23f01a32bc4",
-      "source_blob": "959abb9461cb0aa50d668fec581fd1cea47667c7"
+      "source_blob": "bc9d16d68db712ea0bb422815eab386085d2c3ae"
     },
     {
       "path": "scripts/maintenance/h2_pro_preflight_report.py",
@@ -93,7 +93,7 @@
     {
       "path": "scripts/maintenance/pro_h3_migration_manifest.py",
       "baseline_blob": null,
-      "source_blob": "6cc87207e47d3e10a0ab1c4439b41f6003ba7de4"
+      "source_blob": "7e14349c4e16895d33c5e0e20335b708ce3b1feb"
     },
     {
       "path": "tests/admin_audit_changes.test.mjs",
@@ -108,7 +108,7 @@
     {
       "path": "tests/test_h2_pro_migration_controls.py",
       "baseline_blob": "330e7f30a2d6f81d173d5f0f023c9e0b953ddc30",
-      "source_blob": "e13e67ae92cfd97ef77195dc7d4a28a0e10947e5"
+      "source_blob": "52064290ffaee2ecc8c68a622b738ee9bab97861"
     },
     {
       "path": "tests/test_h2_pro_preflight_report.py",

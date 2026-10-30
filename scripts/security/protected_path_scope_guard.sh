@@ -1303,7 +1303,7 @@ H3_LOCAL_PATHS
        .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json \
        "$base" \
        03515dee69fc42b10808d1c67cc4e00ebacd0c40 \
-       34469196c5ba4d073b49479f2fb44e84c279dbbb) || exit 1
+       34dfcc014dfa45a71e00ac9a1e729283ab4d2254) || exit 1
      allowed_h3_local+=$'\n'"$promotion_paths"
    fi
    filter_remaining() {
