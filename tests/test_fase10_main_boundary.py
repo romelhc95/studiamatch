@@ -64,6 +64,18 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "NEXT_" + "SUPABASE_PUBLISHABLE_KEY" in verify_section
 
 
+def test_h3_pro_manifest_is_main_only_in_the_existing_manual_db_sync_flow() -> None:
+    workflow = source(".github/workflows/db-sync-to-pro.yml")
+
+    assert "h3-editorial-expand" in workflow
+    assert "h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract|h3-editorial-expand" in workflow
+    assert 'test "${GITHUB_REF_NAME}" = "main"' in workflow
+    assert "github.event_name == 'workflow_dispatch'" in workflow
+    assert "apply_authorized" in workflow
+    assert "backup_pitr_verified" in workflow
+    assert "ddl_authorization_id != ''" in workflow
+
+
 def test_main_scheduled_writers_start_paused_until_environment_controls_allow_them() -> None:
     workflows = [
         source(".github/workflows/fg1_inventory.yml"),

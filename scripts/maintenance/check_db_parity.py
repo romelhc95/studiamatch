@@ -18,6 +18,7 @@ import os
 import re
 import sys
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -28,6 +29,11 @@ from shared.supabase_credentials import (
     get_environment_credentials,
     get_secret_key,
     require_distinct_environments,
+)
+from maintenance.pro_h3_migration_manifest import (
+    H3_PRO_MANIFEST_NAME,
+    H3_PRO_MIGRATIONS,
+    validate_h2_cohort_inputs,
 )
 
 
@@ -108,6 +114,7 @@ OPERATIONAL_TABLES = {
 }
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PRO_PROJECT_REF = "xwhtiqmboljkshrtviyw"
 
 
 def migration_is_applied(applied: set[str], required_name: str) -> bool:
@@ -148,6 +155,18 @@ def assert_environment(target: str) -> None:
         missing.append("SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL")
     if missing:
         raise RuntimeError(f"Faltan credenciales para {target}: {', '.join(missing)}")
+    if target == "pro":
+        active_url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")
+        expected_host = f"{PRO_PROJECT_REF}.supabase.co"
+        parsed = urlparse(active_url)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != expected_host
+            or parsed.username
+            or parsed.password
+            or parsed.port not in (None, 443)
+        ):
+            raise RuntimeError(f"Pro target must be pinned to {expected_host}")
     get_secret_key()
 
 
@@ -161,7 +180,12 @@ def try_rpc(db: DatabaseClient, sql: str) -> list[dict[str, Any]] | None:
 
 def service_select(db: DatabaseClient, table: str, columns: str, limit: int = 1000):
     url = f"{db.supabase_url}/rest/v1/{table}?select={columns}&limit={limit}"
-    res = requests.get(url, headers=db._get_headers(use_service_role=True), timeout=30)
+    res = requests.get(
+        url,
+        headers=db._get_headers(use_service_role=True),
+        timeout=30,
+        allow_redirects=False,
+    )
     if res.status_code == 200:
         return res.json()
     raise RuntimeError(f"REST select failed for {table}.{columns}: {res.status_code} {(res.text or '')[:160]}")
@@ -172,6 +196,7 @@ def public_get(db: DatabaseClient, path: str) -> requests.Response:
         f"{db.supabase_url}/rest/v1/{path}",
         headers=db._get_headers(use_service_role=False),
         timeout=30,
+        allow_redirects=False,
     )
 
 
@@ -180,6 +205,7 @@ def service_get(db: DatabaseClient, path: str) -> requests.Response:
         f"{db.supabase_url}/rest/v1/{path}",
         headers=db._get_headers(use_service_role=True),
         timeout=30,
+        allow_redirects=False,
     )
 
 
@@ -192,6 +218,7 @@ def rest_select_all(db: DatabaseClient, table: str, columns: str, *, use_service
             f"{db.supabase_url}/rest/v1/{table}?select={columns}&limit={limit}&offset={offset}",
             headers=db._get_headers(use_service_role=use_service_role),
             timeout=30,
+            allow_redirects=False,
         )
         if res.status_code != 200:
             raise RuntimeError(f"REST select failed for {table}.{columns}: {res.status_code} {(res.text or '')[:160]}")
@@ -214,6 +241,7 @@ def service_post_rpc(db: DatabaseClient, function_name: str, payload: dict[str, 
         headers=db._get_headers(use_service_role=True),
         json=payload,
         timeout=30,
+        allow_redirects=False,
     )
 
 
@@ -307,7 +335,12 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
         "?is_active=eq.true&is_verified=eq.true"
         "&select=id,categories(name),institutions(name,slug)&limit=1"
     )
-    service_res = requests.get(embedded_url, headers=db_target._get_headers(use_service_role=True), timeout=30)
+    service_res = requests.get(
+        embedded_url,
+        headers=db_target._get_headers(use_service_role=True),
+        timeout=30,
+        allow_redirects=False,
+    )
     if service_res.status_code != 200:
         errors.append(
             "PostgREST embedded query falla con service role. "
@@ -323,6 +356,7 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
             embedded_url,
             headers=public_headers,
             timeout=30,
+            allow_redirects=False,
         )
         if public_res.status_code != 200:
             errors.append(
@@ -343,6 +377,7 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
             public_profile_sensitive_url,
             headers=public_headers,
             timeout=30,
+            allow_redirects=False,
         )
         if sensitive_profile_res.status_code == 200:
             errors.append(
@@ -366,6 +401,7 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
                 headers=public_headers,
                 json=payload,
                 timeout=30,
+                allow_redirects=False,
             )
             if rpc_res.status_code in (200, 201, 204):
                 errors.append(
@@ -514,6 +550,119 @@ def check_h2_manifest_contract(db_target: DatabaseClient, manifest: str | None):
     if errors:
         return "ERROR", errors
     print("  OK: contrato H2 Pro verificado")
+    return "OK", []
+
+
+def check_h3_manifest_contract(db_target: DatabaseClient, manifest: str | None):
+    if manifest is None:
+        return "OK", []
+    if manifest != H3_PRO_MANIFEST_NAME:
+        return "ERROR", [f"Manifest H3 Pro no permitido: {manifest}"]
+
+    print(f"\n[CHECK H3] Production H3 manifest contract: {manifest}")
+    errors: list[str] = []
+    try:
+        target_migrations = service_select(db_target, "supabase_migrations", "name") or []
+        applied = {row.get("name") for row in target_migrations if row.get("name")}
+        missing = sorted(set(H3_PRO_MIGRATIONS) - applied)
+        if missing:
+            errors.append(f"Migraciones H3 Pro faltantes: {missing}")
+    except Exception as exc:
+        errors.append(f"No se pudo verificar supabase_migrations para H3: {exc}")
+
+    try:
+        expected_count, expected_digest = validate_h2_cohort_inputs(
+            os.environ.get("H2_EXPECTED_ELIGIBLE_COUNT", ""),
+            os.environ.get("H2_EXPECTED_COHORT_DIGEST", ""),
+        )
+    except ValueError as exc:
+        return "ERROR", errors + [f"H3 requiere preflight agregado H2 válido: {exc}"]
+
+    verify_res = service_post_rpc(
+        db_target,
+        "h2_verify_expand_compat",
+        {
+            "p_expected_count": expected_count,
+            "p_expected_cohort_digest": expected_digest,
+        },
+    )
+    if verify_res.status_code not in (200, 201):
+        errors.append(
+            "h2_verify_expand_compat no acreditó el prerrequisito H2: "
+            f"HTTP {verify_res.status_code}"
+        )
+    else:
+        result = verify_res.json() if verify_res.content else None
+        expected_contract = {
+            "eligible_count": expected_count,
+            "cohort_count": expected_count,
+            "effective_count": expected_count,
+            "missing_count": 0,
+            "unexpected_count": 0,
+            "cohort_digest": expected_digest,
+            "public_column_count": 28,
+            "private_column_count": 0,
+            "security_invoker": True,
+            "rls_tables_count": 3,
+            "direct_courses_public": True,
+        }
+        if not isinstance(result, dict) or any(
+            result.get(key) != value for key, value in expected_contract.items()
+        ):
+            errors.append("h2_verify_expand_compat devolvió un contrato agregado distinto")
+
+    state_res = service_get(
+        db_target,
+        "course_editorial_state?select=published_manual_overrides,published_manual_start_date,published_editorial_values&limit=0",
+    )
+    if state_res.status_code != 200:
+        errors.append(
+            "course_editorial_state no expone el snapshot H3 esperado al service role: "
+            f"HTTP {state_res.status_code}"
+        )
+
+    audit_res = service_get(
+        db_target,
+        "course_editorial_audit?select=id,course_id,action,created_at&limit=0",
+    )
+    if audit_res.status_code != 200:
+        errors.append(
+            "course_editorial_audit no está disponible al service role: "
+            f"HTTP {audit_res.status_code}"
+        )
+
+    public_view = public_get(
+        db_target,
+        "courses_public_effective?select=id,name,slug,url,benefits,mode,price_pen,start_date_text&limit=0",
+    )
+    if public_view.status_code != 200:
+        errors.append(
+            "courses_public_effective no satisface la proyección pública H3: "
+            f"HTTP {public_view.status_code}"
+        )
+    for private_field in ("editorial_status", "manual_overrides", "published_editorial_values"):
+        exposure = public_get(
+            db_target,
+            f"courses_public_effective?select={private_field}&limit=0",
+        )
+        if exposure.status_code == 200:
+            errors.append(f"courses_public_effective expone un campo editorial privado: {private_field}")
+        elif exposure.status_code not in (400, 401, 403):
+            errors.append(
+                "La comprobación de campo editorial privado quedó inconclusa: "
+                f"{private_field} HTTP {exposure.status_code}"
+            )
+
+    service_view = service_get(
+        db_target,
+        "courses_public_effective?select=id,name,slug,url,benefits,mode,price_pen,start_date_text&limit=0",
+    )
+    if service_view.status_code != 200:
+        errors.append("courses_public_effective no está disponible al service role")
+
+    if errors:
+        return "ERROR", errors
+    print("  OK: contrato H3 Pro verificado; H2 sigue en compatibilidad")
     return "OK", []
 
 
@@ -695,7 +844,15 @@ def main() -> None:
         choices=sorted(H2_MANIFEST_MIGRATIONS),
         help="Ajusta la verificacion target-only al manifiesto Pro aplicado.",
     )
+    parser.add_argument(
+        "--h3-manifest",
+        choices=[H3_PRO_MANIFEST_NAME],
+        help="Valida el contrato H3 Pro aplicado y su prerrequisito H2 expand/compat.",
+    )
     args = parser.parse_args()
+
+    if args.h2_manifest and args.h3_manifest:
+        parser.error("--h2-manifest y --h3-manifest son mutuamente excluyentes")
 
     if args.target_only:
         load_environment(args.env)
@@ -706,6 +863,7 @@ def main() -> None:
             ("target_columns", check_target_columns(db_target)),
             ("schema_contracts", check_schema_contracts(db_target, check_public=legacy_public_required)),
             ("h2_manifest_contract", check_h2_manifest_contract(db_target, args.h2_manifest)),
+            ("h3_manifest_contract", check_h3_manifest_contract(db_target, args.h3_manifest)),
         ]
         has_error = any(status == "ERROR" for _, (status, _) in results)
         print(f"\n{'=' * 60}")

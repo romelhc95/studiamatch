@@ -1,6 +1,1055 @@
 # Checkpoint local — contrato editorial H3REQ1
 
-## Remediación local de promoción por TL
+## Remediación focal CI del PR #512
+
+El HEAD publicado inicial `c6bd818821c41727cd217d352990343ebe23cedf` falló en
+`Python Compile And Tests` (un fallo de inventario, 261 tests PASS) y
+`Protected Path Integrity` (rutas fuera del matcher). `security-audit` fue
+consecuencia. Las URLs de evidencia son los jobs `123876652432` y
+`123876652518` del run `40998348079` en `romelhc95/studiamatch`.
+
+Causa: dos módulos de test nuevos contienen patrones de transporte Supabase y
+faltaban del inventario exacto. Ocho paths ya incluidos en el paquete estaban
+fuera del matcher H3; el fallback legacy tampoco cubría la unión. La corrección
+registra únicamente los fixtures como `supabase-pattern-test-only`, agrega ocho
+rutas exactas al matcher y prueba vecinos rechazados. No se altera transporte,
+credenciales, scanner, SQL ni comportamiento del producto.
+
+Revalidación local Docker sin red y con source read-only: 95 tests de contrato
+de credenciales y controles H2/H3 PASS; suite Python exacta de CI 262 tests/10
+subtests PASS; revisión de seguridad estática sin hallazgos; shell de scope, selector y pins PASS;
+`--compare-candidate` contra la base real `6f059a0b…` PASS. Son resultados locales,
+no acreditan el próximo CI. El contenido original aprobado y su disposición
+permanecen como historia; la corrección debe identificarse por su propio delta.
+
+
+## Actualización final del paquete H2/Pro y cierre de remediación local — 2026-10-29 18:57 America/Lima
+
+Este corte supersede los estados anteriores de esta nota. Para la disposición
+documental vigente rige únicamente la propuesta del 2026-11-05 23:59 America/Lima,
+limitada al residual probado y a permitir solicitar integración protegida a
+`desarrollo`; no autoriza producción. Esta es la única propuesta vigente. Las
+propuestas de promoción/producción incluidas en cortes posteriores son
+históricas y quedan supersedidas; la disposición #509 del 04/11 está consumida,
+no se extiende y no resuelve esta huella.
+
+### Estado e inventario
+
+Worktree `/tmp/studiamatch-h3req1-production-remediation-20261029`, rama
+`codex/h3req1-production-remediation-20261029`, base/HEAD
+`6f059a0b27ef38541a7b62503c78920e621f05c1`. Estado en este corte: 30 paths,
+25 modificados y 5 nuevos. El fingerprint estable final, el inventario y los
+hashes por archivo se fijan fuera del árbol en
+`/tmp/h3req1-production-remediation-20261029-final/`; la propuesta de revisión
+se vincula a esos bytes. No se creó commit ni se publicó. Se preservó el WIP de
+los otros checkouts.
+
+### Remediación H2/Pro
+
+`scripts/maintenance/h2_pro_preflight_report.py` separa ahora el diagnóstico
+read-only de la autorización de apply. Clasifica baseline previo a H2, objetos
+H2 parciales fuera del ledger, superficie pública compatible observada,
+inconsistencias de ledger/schema y errores de lectura. El estado parcial
+observado produce agregados y `REVIEW_REQUIRED`, sin líneas para el futuro JIT;
+los estados inconsistentes o errores producen `INCOMPLETE`/`READ_ERROR`. La
+superficie compatible no afirma esquema privado completo ni ejecución de la
+RPC de verificación. `apply_authorized=false`,
+`application_decision=NOT_AUTHORIZED`; no invoca RPC, SQL, DML ni backfill.
+Los guards del migrador no cambiaron. El digest etiquetado como cohorte
+elegible se calcula sobre IDs elegibles ordenados, no sobre el conjunto público
+cuando hay divergencia.
+
+Pruebas en Docker de proyecto, red deshabilitada, árbol read-only: **29/29**
+casos del reporte más quince controles/regresiones de lectura/paridad/migrador,
+**44/44 PASS**. Se confirma en subprocess que los mensajes de carga del cliente
+quedan en `stderr`, para que el artefacto del workflow contenga JSON limpio.
+Dos regresiones de agregación confirman que una fila no forma un grupo
+duplicado y que dos cursos con igual institución/slug sí forman uno. Tres grupos
+de pruebas verifican que GET/RPC no siguen redirects HTTP, incluidas las cinco
+llamadas directas en la ruta de paridad de schema, y que las probes de privacidad
+H3 fallan cerrado ante HTTP 302/500. Esto evita reenviar `apikey` a otro origen
+y tratar errores transitorios como prueba de privacidad. La lógica de duplicados
+ya era correcta. Log de pruebas SHA-256
+`2bd78775f382ddb2b7640e87a241317b320cbe2badaea3ff041c0eb404ee7ae8`;
+`py_compile` separado SHA-256
+`70dfa6a2bf0032db1311a455aa076b1fd8cefc461c31853a91323661f6f9dfd9`.
+Cubren
+baseline, H2 parcial sin registro, superficie compatible como observación,
+ledger/schema inconsistente, visibilidad pública divergente y errores HTTP,
+red, JSON y payload con forma inválida, sin reflejar filas o mensajes sensibles.
+El reporte rechaza URLs con esquema, host, credenciales, puerto, ruta, query o
+fragmento ajenos al origen canónico Pro; acepta HTTPS con puerto implícito o 443,
+con ruta vacía o `/`.
+`py_compile` de lector y tests: PASS. Logs exactos y SHA-256 en
+`final-checksums.txt` externo. No se ejecutó el reporte contra Pro ni se repitió
+el preflight remoto previo.
+
+### Contrato del reporte y autorización pendiente
+
+El preflight futuro tiene dos privilegios de lectura: publishable para el GET
+público `courses?select=id` (solo filas visibles por RLS), y service key del
+environment Production para paginar todas las filas de `courses` con columnas
+`id,institution_id,slug,is_active,is_verified,url`, todas las filas de
+`institution_site_profiles` con `institution_id,production_enabled,notes` y
+los nombres de `supabase_migrations`. También hace `limit=0` para comprobar la
+existencia de tres tablas públicas H2 y `courses_public_effective`; solo si
+existe `crawler_exclusions`, consulta como máximo `id` de una fila. El service
+key evade RLS; esas lecturas de filas operativas requieren JIT aunque no haya
+escrituras.
+
+El proceso compara internamente IDs y URLs, pero el JSON solo expone conteos,
+digest SHA-256 de IDs elegibles ordenados, nombres del manifiesto H2, presencia
+booleana, bloqueadores con cantidades y errores sanitizados. No imprime filas,
+IDs, slugs, URLs, notas, cuerpos HTTP, secretos ni valores de API keys. No
+consulta esquemas privados, invoca RPC, escribe archivos en la base ni hace
+DDL/DML/backfill. La importación del cliente queda en `stderr`; `stdout` se
+reserva para JSON. El workflow captura el reporte como artifact por 30 días y
+ejecuta después un dry-run del migrador (conteo/lista de pendientes), sin apply.
+Para el JIT futuro: `workflow_dispatch` en ref `certificacion`, `operation=report`,
+`migration_manifest=h2-expand-compat`, `candidate_sha` igual al SHA integrado
+vigente, `payload_sha` igual a ese SHA, `apply_authorized=false`,
+`backup_pitr_verified=false`, `ddl_authorization_id` vacío,
+`h2_expected_eligible_count=0` inerte, digest vacío y
+`h2_advisors_reviewed=false`. Es una solicitud de lectura report-only, no un
+JIT de aplicación. La solicitud revisable completa está en el checkpoint
+externo `approval-requests.md`; permanece pendiente y no fue ejecutada. La SHA
+debe fijarse al presentar la solicitud, no se anticipa con una rama local.
+
+### Gate documental y disposición propuesta
+
+El checker integral se mantiene visible con 350 diagnósticos en baseline y 348
+en candidato bajo los mismos bytes/configuración, sin diagnósticos candidatos
+exclusivos. El checker tiene SHA-256
+`f2a95870de748b2e59ee0d988abb0b16125da47c996a7f85841f1113fcebbb75`. Los logs
+oficiales y full-list exactos están en `final-checksums.txt`; el self-test/
+candidate-aware se reporta por separado y no convierte el FAIL integral en
+PASS. Los dos diagnósticos baseline-only se resolvieron y no hubo diagnósticos
+nuevos únicos. Los 348 restantes son deuda histórica de trazabilidad; no se
+recrearon documentos privados, no se borraron relaciones masivamente y no se
+rebajó el checker.
+
+Disposición propuesta, **no aprobada**: huella y logs finales exactos del
+paquete; causa: referencias históricas sin fuente autorizada y proyección
+candidate-only incompleta; riesgo: trazabilidad histórica incompleta, sin
+evidencia de impacto funcional causada por los residuales; owner propuesto
+Romel/TL; vencimiento único propuesto **2026-11-05 23:59 America/Lima**. El
+alcance solicitado es únicamente reconocer ese residual para poder solicitar
+integración protegida a `desarrollo`. No autoriza commit, push, PR, review,
+merge, promoción, SQL, workflow, configuración ni deploy. Las disposiciones
+#509/#510/#511 no aplican; la fecha #509 04/11 corresponde a una disposición
+consumida e histórica. No hay propuesta vigente para `certificacion→main` ni
+para producción.
+
+### Revisión de seguridad del diff
+
+Codex Security terminó una revisión diff-scoped del candidato: scan
+`c28d2808-5a58-4342-8284-54715649cb95`, snapshot
+`codex-security-snapshot/v1:sha256:22f4ea54b05873332bff3d8130c225d6428180ee408ba0a546051093697d02e5`,
+12/12 ítems cubiertos, cero hallazgos y cinco superficies sin issue. El reporte
+canónico está en
+`/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-production-remediation-20261029/6f059a0b27ef38541a7b62503c78920e621f05c1_20261029T235250Z_f_kxu_b3/report.md`.
+No es auditoría global ni demuestra grants, esquema o runtime Pro. Se ejecutó
+antes de esta edición de cierre; después solo se cambian documentos y borradores,
+no código. La huella/hash final se conserva en el checkpoint externo.
+
+### Criterios aceptados, límites y siguiente acción
+
+E1–E6 local **6/6**, Development R1–R4 **4/4** y smoke Certification **1/1**
+continúan aceptados y no se repiten. La lectura Pro previa (23 migraciones;
+H2 parcial fuera del ledger) se conserva, sin nueva lectura. No se acredita SQL
+aplicado, compatibilidad runtime Pro ni aceptación productiva. H2 report/verify,
+SQL H3, Pages/BFF, promociones protegidas y smoke con recuperación requieren
+autorizaciones independientes. H1 sigue sin FG1/FG2/FG3 ni schedules; H4 sigue
+dependiendo de contrato H2 y secuencia H2→H3→H4.
+
+**Siguiente decisión:** revisar el paquete y decidir la disposición propuesta.
+Si se aprueba, emitir una autorización separada para commit, push no forzado y
+PR a `desarrollo`. No ejecutar acciones remotas con este cierre local.
+
+## Corte anterior — supersedido, 2026-10-29 15:18 America/Lima
+
+**Candidato:** worktree `/tmp/studiamatch-h3req1-production-remediation-20261029`,
+rama `codex/h3req1-production-remediation-20261029`, base/HEAD
+`6f059a0b27ef38541a7b62503c78920e621f05c1`. El inventario final tiene 27 paths
+(23 modificados, 4 nuevos), más amplio que el delta anterior de 13. La lista
+ordenada y SHA-256 por ruta se conserva fuera del repositorio en
+`/tmp/h3req1-production-remediation-20261029-final/candidate-fingerprint.txt`;
+el hash de la huella se incluye en el borrador externo de PR para evitar
+autorreferencia. Sin commit, push, PR, merge, SQL, workflow, configuración
+remota ni deploy. WIP de otros checkouts preservado.
+
+**Criterios aceptados y no repetidos:** E1–E6 local 6/6, Development R1–R4 4/4
+y smoke Certification 1/1 siguen aceptados. No hay checks CI del candidato
+porque no se abrió PR. No se reejecutaron smoke, onboarding ni cuotas.
+
+**Gates locales afectados:** con la imagen del proyecto
+`studiamatch-h3req1:sync-a57bc415-rebuilt-20261018` y red Docker deshabilitada,
+el manifest H3/orden/hashes, entradas inválidas, selector `certificacion→main`,
+pins, regresión de interpolación Bash, H2/paridad/boundary, CA4.6, guard,
+TypeScript y ESLint pasaron. El rerun final Python de manifest H3, H2/paridad
+y boundary fue 21/21 en 0,23 s; CA4.6 Node 1/1 y el test de host Pro 8/8 en
+el rerun con cacheprovider deshabilitado. `tests/test_protected_path_scope_guard.sh`
+volvió a pasar selector `certificacion→main`, pins positivos/negativos y
+rechazo fail-closed de la regresión Bash.
+El primer credential scan marcó el identificador/valor sintético del fixture,
+no una credencial; el fixture ahora evita patrones de credenciales y el escaneo
+exacto de los 27 paths pasó. El self-test con manifest
+candidate-aware sobre el árbol actualizado pasó 751/751 fuentes, 119/119 docs
+activos y 433/433 históricos. El recheck final volvió a dar candidate-aware
+PASS. Sin manifest, el checker oficial terminó exit 1 con 200 diagnósticos
+impresos y 148 resumidos; el runner diagnóstico externo, que conserva la
+lógica y aumenta el límite de impresión, confirmó los 348. No fue fallo de
+self-test. El credential scan exacto de 27 rutas pasó. Tres intentos
+instrumentales no cuentan como tests: bootstrap detenido por node_modules
+desincronizado; `/usr/bin/python3` sin pytest, antes de colección; y pytest del
+venv sin `PYTHONPATH`, con error de importación durante colección. La corrida
+válida usó entrypoint explícito, el venv `/opt/venv/bin/pytest` y
+`PYTHONPATH=/app`. No se cambiaron permisos del socket ni se modificaron
+contenedores o volúmenes ajenos. Los logs y hashes exactos se registran en
+`final-checksums.txt` externo.
+
+El build estático Next 16.3.8 terminó PASS en una copia de `/tmp`, con el modo
+mock local que ya soporta la aplicación (`NEXT_PUBLIC_H3_MOCK_URL` y
+`NEXT_PUBLIC_H3_ALLOW_MOCK_BUILD=true`), generó 17 páginas y no contactó
+Supabase. La descarga pública de Geist fue el único egress de la build. Esto
+valida compilación/export sintéticos; no es smoke, deployment ni runtime Pro.
+
+**Seguridad del diff:** revisión Codex Security successor completa, 11/11
+superficies de seguridad relevantes cubiertas, 0 findings, snapshot
+`codex-security-snapshot/v1:sha256:c74d9d9a6abcb1ba90230e9e5e0d4d3268b1f91e504f3c66fc96dfa53a4048d2`,
+scan `ae623b31-4065-4f73-8811-cbde81cd39be`. Reutilizó revisiones exactas para
+bytes sin cambios; no es auditoría global ni valida runtime, Pro o Production.
+El scan anterior encontró dos mejoras de hardening (host canónico Pro y
+aserción independiente de fuentes Docker) que ya están parcheadas localmente y
+se verificaron en el successor. Reporte sellado bajo
+`/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-production-remediation-20261029/`.
+El único cambio posterior al snapshot fue la cadena de un fixture de test para
+evitar que el credential scanner la interpretara como valor sensible; la
+lógica de aplicación quedó idéntica. Ese delta fue revisado manualmente, el
+módulo afectado pasó 8/8 y el credential scan exacto de 27 rutas pasó.
+
+**Gate documental, separado por alcance:** self-test/candidate-aware PASS;
+checker integral oficial FAIL con 348 diagnósticos candidatos contra 350 en
+baseline usando el mismo checker/config. Los dos diagnósticos baseline-only se
+corrigen; no aparecen diagnósticos únicos nuevos. Los residuales se agrupan en
+79 paths candidate-only repetidos en tres categorías, 88 relaciones sobre 20
+paths únicos, 15 exclusiones locales/generadas y 8 referencias a cuatro
+documentos privados excluidos con sucesores sanitizados. No se recrearon
+fuentes, copiaron documentos privados ni retiraron relaciones masivamente.
+Disposición productiva **propuesta y no aprobada**, solo para la huella/log
+final de este paquete; owner Romel/TL; riesgo de trazabilidad histórica
+incompleta; vencimiento propuesto 2026-11-05 23:59 America/Lima o antes del
+primer merge `certificacion→main`, lo que ocurra primero. Las disposiciones de
+#509/#510/#511 no la cubren. Candidate-aware PASS no sustituye el FAIL integral.
+
+**H2/Pro y configuración:** se reutiliza la lectura SELECT-only de Pro
+`xwhtiqmboljkshrtviyw`: 23 entradas de ledger, objetos H2 parciales fuera de
+ledger, cohorte agregada todavía no leída, y faltan objetos snapshot/Admin/H3.
+El report H2 existente aborta antes de imprimir agregados por el drift parcial;
+requiere corrección local read-only y pruebas antes de que se decida un
+`workflow_dispatch report/verify`. No reaplicar H2 por ledger ni invocar
+funciones. Manifest H3 de 31 migrations preparado localmente, sin DDL ni
+workflow. Pages Production conserva pendientes de host Admin, tres HMACs
+distintas, key id respaldado por Pro y binding `ADMIN_QUOTA`. El valor de
+`NEXT_SUPABASE_SECRET_KEY` no se leyó; `plain_text` por sí solo no prueba
+exposición y no se halló consumidor Pages local. Sin cambios remotos.
+
+**Resultado:** NO-GO de publicación e integración hasta remediar el gate
+integral o aprobar una disposición nueva para esta huella. Después requieren
+autorización separada commit/push no forzado/PR hacia `desarrollo`; H2
+report/verify, workflow de SQL H3, Pages/BFF, promociones protegidas y smoke
+Production son gates distintos. H1 no habilita FG1/FG2/FG3 ni schedules; H4
+permanece pendiente de contrato H2 y secuencia H2→H3→H4.
+
+## Corte anterior — histórico, 2026-10-29 después de 14:31 America/Lima
+
+## Revalidación del paquete ampliado y cierre local — 2026-10-29, después del corte 14:31 America/Lima
+
+**Candidato e inventario:** worktree `/tmp/studiamatch-h3req1-production-remediation-20261029`,
+rama `codex/h3req1-production-remediation-20261029`, base/HEAD
+`6f059a0b27ef38541a7b62503c78920e621f05c1`; 27 paths (23 modificados, cuatro
+nuevos). No hubo commit, push, PR, merge, SQL, workflow, configuración remota ni
+deploy. La huella final y logs completos se guardan fuera del repo en
+`/tmp/h3req1-production-remediation-20261029-final/` para no autorreferenciar el
+inventario.
+
+**Gates Docker nuevos:** la imagen existente del proyecto
+`studiamatch-h3req1:sync-a57bc415-rebuilt-20261018`, red deshabilitada, validó
+20/20 pruebas Python (manifiesto H3/orden/hashes, selección y entradas inválidas,
+guardas H2/paridad, controles de promoción a `main` e interpolación Bash), 1/1
+prueba Node CA4.6, guard/selector/pins con positivos y negativos fail-closed,
+`tsc --noEmit` y ESLint del editor. La dependencia npm se montó read-only desde
+el volumen preexistente; el typecheck usó cache en `/tmp`. El primer typecheck
+falló solo por intentar escribir ese cache en una copia read-only y se repitió
+con el destino externo: solo cuenta el segundo. `git diff --check` y credential
+scan se anotan en el checkpoint externo después del rerun final. actionlint y
+ShellCheck son reutilizados, no reejecutados, porque sus inputs no cambiaron.
+El primer bootstrap que rechazó node_modules y la primera invocación de tsc no
+son resultados de test. No se tocaron permisos del socket, contenedor de
+desarrollo ni volúmenes existentes.
+
+**Aceptaciones que permanecen cerradas:** E1–E6 local 6/6, Development R1–R4
+4/4 y Certification 1/1. Se reutilizaron; ningún smoke se repitió.
+
+**Gate documental exacto:** self-test/candidate-aware PASS, 751/751 fuentes,
+119/119 documentos activos alcanzables, 433/433 históricos enlazados,
+9.372 enlaces y 4.696 anchors. Log `selftest-final.log`, SHA-256
+`fe816a1b04367ded34f502143d63f501df967178f5674df47ffac23f38f74250`.
+Checker integral FAIL: baseline 350, candidato 348, mismo checker SHA-256
+`f52eb76ad8ea5c64c3eb32ab4cd76661db5d7a33cd45aeb23311d6dc482d5da1`. La
+ejecución candidata vigente reproduce log SHA-256
+`0d43cdf829066c459ecffc28eb339b9d889c1a12f9e6dbd38adb0dfb90abbb10`; el
+full-list asociado tiene SHA-256
+`cb1767e4bdb2abc76d2d411b94b4713be9011d68e3c350008e3f0c86d696d0fe`; los
+primeros 200 diagnósticos son iguales. La ejecución baseline vigente confirma
+los primeros 200 del full-list baseline (350 total; SHA-256
+`eae1107b5eba56ee9c9a9252f51ad241e95adda7328eb8a1ec33724a363524da`).
+El candidato elimina los dos diagnósticos baseline-only
+`INTEGRATION_PROJECTION_CANDIDATE_ONLY_COUNT` y `REGISTRY_MARKDOWN_DRIFT`; no
+añade diagnósticos únicos. Categorías residuales: 79 `CANDIDATE_ONLY_PATH_MISSING`,
+79 `SOURCE_PATH_MISSING_OR_OUT_OF_SCOPE`, 79 `SOURCE_PATH_MISSING`, 88
+`RELATION_PATH_MISSING`, 15 `EXCLUSION_PATH_MISSING`, cuatro
+`DOCUMENT_EXCLUSION_PATH_MISSING` y cuatro `DOC_EXCLUSION_STALE`. Las tres
+categorías de 79 son los mismos 79 paths únicos; las 88 relaciones apuntan a 20
+paths únicos. Los 15 casos son exclusiones locales/generadas; los ocho casos
+finales corresponden a cuatro originales privados excluidos con reemplazo
+sanitizado. No se copiaron fuentes privadas, recrearon archivos ni retiraron
+relaciones en masa. Disposición residual propuesta, no aprobada: solo este
+candidato y su log integral; owner Romel/TL; riesgo de trazabilidad histórica
+incompleta; vencimiento propuesto 2026-11-05 23:59 America/Lima o antes del
+primer merge `certificacion→main`, lo que ocurra primero. No extiende #509,
+#510 ni #511.
+
+**Seguridad y siguientes gates:** el Codex Security scan previo usó snapshot
+pre-fix y no acredita el árbol final. El scan de diff final queda separado y su
+reporte se localiza desde el checkpoint externo. H2/Pro conserva 23 entradas de
+ledger y objetos H2 parciales fuera de ledger; no se ejecutó report/verify ni
+SQL. El paquete H3 mantiene 31 migraciones fijadas y hash de inventario
+`52a4c8d60edad14af801f630be74a6286fc3e19ea6359940c7a6b5263c3240bd`; sin DDL,
+workflow ni backfill. Pages/BFF/Access Production sin cambios y ningún secreto
+leído. H1 sigue en preparación, sin FG1/FG2/FG3/schedules; H4 permanece en
+preparación hasta evidencia del contrato H2 y secuencia H2→H3→H4.
+
+**Punto de control:** NO-GO para publicación mientras el gate integral no tenga
+una remediación demostrada o una disposición humana exacta aprobada. Tras
+resolverlo, se necesita autorización independiente para commit, push no
+forzado y PR a `desarrollo`; H2 agregado/report-verify, SQL H3 por workflow
+protegido, Pages/BFF, cada promoción y smoke productivo requieren solicitudes
+separadas. Ningún resultado local declara GO Pro.
+
+## Cierre ampliado y gates de promoción H3REQ1 — corte previo, 2026-10-29 14:02–14:31 America/Lima
+
+**Worktree/candidato:** `/tmp/studiamatch-h3req1-production-remediation-20261029`,
+rama `codex/h3req1-production-remediation-20261029`, HEAD/base
+`6f059a0b27ef38541a7b62503c78920e621f05c1`. Inventario de 27 paths (23 tracked
+modificados y 4 nuevos); creció de 25 únicamente con los handoffs H1/H4.
+Huellas finales: `/tmp/h3req1-production-remediation-20261029-final/candidate-fingerprint.txt`
+y su hash externo; no se registran sus bytes dentro del propio inventario. Sin
+commit, push, PR, merge, SQL, workflow, configuración remota ni deploy.
+
+**Aceptaciones reusadas sin repetición:** E1–E6 local 6/6, Development R1–R4
+4/4, Certification smoke 1/1. No se reasignan porcentajes entre matrices.
+
+**Gates locales previos sobre el mismo código:** Docker, red deshabilitada y
+checkout read-only: pytest focal 20/20; Node CA4.6 1/1; guard/selector/pins con
+casos positivos y negativos fail-closed PASS; `git diff --check`, actionlint,
+ShellCheck y credential scan PASS. La última edición posterior fue texto de
+documentación en `admin_portal.md`; no cambió entradas de código/tests.
+
+**Intento de cerrar los reruns documentales:** `studiamatch-dev:local` rechazó
+el arranque por desajuste de hashes de Node, antes de ejecutar scanner alguno;
+no es resultado de test. Se leyó el hash de una segunda imagen del proyecto y
+coincidía con ambos manifests (`web/package.json` y `web/package-lock.json`).
+La reconstrucción redundante se canceló. Se creó un volumen Docker exclusivo
+para preparar Node deps, sin tocar `studiamatch_node_modules`; el daemon quedó
+sin responder durante el provisionamiento. `docker info`/run acotados a 12 s
+expiraron, y no se ejecutaron suites en esa última operación. No se cambió el
+modo/permisos de `docker.sock`. La ruta del checkpoint externo es
+`/tmp/h3req1-production-remediation-20261029-final/`.
+
+**Integridad documental:** último self-test/candidate-aware disponible PASS:
+751/751 fuentes asignadas, 119/119 documentos activos alcanzables y 433/433
+históricos enlazados. Último checker integral oficial disponible FAIL: 348
+diagnósticos, frente a 350 en baseline con mismo checker/config. Log previo al
+último cambio documental:
+`/tmp/h3req1-production-remediation-20261029-final/logs/candidate-final2-integral.log`,
+SHA-256 `0d43cdf829066c459ecffc28eb339b9d889c1a12f9e6dbd38adb0dfb90abbb10`.
+La última edición de `admin_portal.md` no se revalidó por el bloqueo Docker; el
+hash/log anterior no se presenta como ejecución del árbol final exacto. Causas
+reconciliadas por rutas únicas: 79 fuentes candidate-only locales sin historia
+Git/copia autorizada; 88 relaciones que apuntan a 20 de esas rutas; 15
+exclusiones locales/generadas ausentes; 8 diagnósticos sobre cuatro originales
+privados excluidos con sucesores sanitizados. No se copiaron fuentes privadas,
+no se recrearon artefactos, no se borraron relaciones ni se debilitó el checker.
+La disposición para este residual está propuesta, NO aprobada: alcance solo
+integral 348 del candidato exacto; owner Romel/TL; riesgo de trazabilidad
+histórica incompleta sin señal demostrada de pérdida funcional o exposición;
+vencimiento propuesto 2026-11-05 23:59 America/Lima o antes del primer merge
+`certificacion→main`, lo que ocurra primero. Requiere decisión humana vinculada
+a la nueva huella/log; no extiende #509/#510/#511 ni sustituye candidate-aware.
+
+**Seguridad del diff:** scan Codex Security completado, scope de 11 superficies.
+El snapshot inmutable `codex-security-snapshot/v1:sha256:f925f6c4ad7e1b9f0fb063ed05320439c97a6bd6a1f856307525c1b68bf3672c` precede la corrección del shell de workflow y conserva una finding CWE-78/P3.
+El código actual pasa inputs por variables de entorno y shell citado; las pruebas
+focales del workflow ya habían pasado y el árbol actual se inspeccionó manualmente.
+El scan avisa que el worktree cambió mientras corría; no es scan inmutable
+post-fix. Reporte generado en:
+`/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-production-remediation-20261029/6f059a0b27ef38541a7b62503c78920e621f05c1_20261029T184334Z_f_0npl6f/report.md`.
+
+**H2/Pro y H3:** Pro sigue en preflight SELECT-only: 23 entradas de ledger y
+objetos H2 parciales fuera del ledger; no se leyeron ids/filas/cohorte. El
+script `h2_pro_preflight_report.py` falla al detectar los objetos parciales
+antes de emitir agregados. No está listo un dispatch de report/verify: requiere
+delta local read-only que informe drift junto con conteos/digest sin filtrar
+datos y tests focales. No reaplicar H2 por ledger. H3 mantiene manifest cerrado
+de 31 SQLs, dependencias explícitas y digest de inventario
+`52a4c8d60edad14af801f630be74a6286fc3e19ea6359940c7a6b5263c3240bd`; no hubo
+DDL/PG17 ni ejecución remota. Hashes/rutas están en el manifest versionado.
+
+**Handoff/operación:** H1 queda `PREPARATION_ONLY_PENDING_H2_H3_PRO_ACCEPTANCE`,
+sin FG1/FG2/FG3/schedules. H4 queda
+`PREPARATION_ONLY_PENDING_H2_CONTRACT_AND_SEQUENCE`, sin writers ni cambios de
+producto. Pages/BFF Production permanece sin cambiar; no se leyeron secretos ni
+se reutilizan claves Preview. Las aceptaciones remotas previas siguen cerradas;
+no constituyen GO Pro.
+
+**Siguiente gate:** recuperar Docker y correr exacto el self-test/candidate-aware,
+integral y credential scan contra los bytes finales. Si el FAIL integral sigue
+en 348 sin nuevos diagnósticos, solicitar disposición humana para huella/log
+final; solo tras gate resuelto pedir autorización separada de commit/push no
+forzado/PR a `desarrollo`. H2 agregado/verificación, SQL H3 mediante workflow
+protegido, Pages/Access BFF, cada promoción y smoke productivo requieren JITs
+independientes. No hay autorización de merge/promoción/producción en este corte.
+
+## Corte intermedio de remediación local — histórico, 2026-10-29 13:28 America/Lima
+
+### Baseline y alcance del paquete
+
+Se continúa en el worktree aislado
+`/tmp/studiamatch-h3req1-production-remediation-20261029`, rama
+`codex/h3req1-production-remediation-20261029`, desde
+`desarrollo@6f059a0b27ef38541a7b62503c78920e621f05c1`. El delta final actual
+abarca 24 paths (20 modificados y 4 nuevos); la huella SHA-256 por path y sus
+hashes están en el artefacto temporal de esta sesión, no en Git. Se preservaron
+los demás checkouts/WIP. No hubo commit, push, PR, merge, SQL, workflow, Pages/
+Access write ni deploy.
+
+### Remediación local y evidencia focal
+
+- **CA4.6:** `auditChanges` ignora una ausencia de `availability_status` solo
+  cuando `admin_publish_course` la omite por contrato. Un `null` explícito, un
+  cambio editorial o la eliminación permitida siguen apareciendo como cambio.
+  La prueba nueva `tests/admin_audit_changes.test.mjs` pasa 1/1 en Docker. El
+  hallazgo original es LOW: presentación engañosa en historial; no cambia la
+  disponibilidad ni el evento persistido.
+- **Selector:** la selección de `certificacion → main` y su push posterior usa
+  el acumulado de manifests/diff, conserva pins y rechaza rutas/metadata
+  ambiguas. `tests/test_protected_path_scope_guard.sh` pasa los casos positivos,
+  negativos y fail-closed en Docker.
+- **Manifest H3:** 31 migrations seleccionadas por lista exacta, SHA-256 y
+  precedencias verificadas. `db_migrate.py`, `check_db_parity.py` y el workflow
+  DB Sync existente lo consumen; el camino es main-only, no acepta selección
+  parcial para Pro y exige el prerrequisito H2. No se ejecutó SQL, dispatch ni
+  fixture PG17 con DDL.
+- Tests de este delta en Docker/red deshabilitada: Python manifest/H2/main
+  20/20; Node CA4.6 1/1; guard/selector PASS; actionlint del workflow PASS;
+  ShellCheck de los dos scripts cambiados PASS. Estas son validaciones locales,
+  no CI remoto. E1–E6 6/6, R1–R4 4/4 y Certification 1/1 se reutilizan sin
+  repetición.
+
+### Diagnóstico documental y disposición propuesta
+
+El checker integral se ejecutó con el mismo binario/configuración vigente para
+baseline y candidato: baseline 350 diagnósticos; candidato 348. Self-test y
+candidate-aware son gates distintos y no neutralizan el FAIL integral. La
+comparación previa 349→348 es histórica: el checker vigente también detecta en
+baseline un Markdown generado desactualizado. El candidato resuelve dos errores
+baseline-only (proyección candidate-only y Markdown desactualizado), no añade
+diagnósticos únicos. El residual candidato se agrupa por ruta/categoría, no como
+348 trabajos independientes:
+
+| Causa única | Diagnósticos | Evidencia | Tratamiento |
+|---|---:|---|---|
+| 79 paths candidate-only ausentes en Git; existen solo como archivos locales ignorados/no trackeados en el checkout histórico | 237 | `unique-source-missing-paths.txt`, SHA-256 `0f6421a517ec47aa788c8662a7a30d7fbea0dc6b50681256589ecb11a3a034e3`; `known-copy-check.txt` | No copiar ni fabricar; mantener paths y pedir origen verificable si se desea reconciliar. |
+| Relaciones que apuntan a 20 de esas 79 rutas | 88 | Mismo inventario de rutas; son 15 read-classification helpers, 15 tests, 10 tmpfs pairs, 10 npm-audit, 10 identidad Docker, 5 startup recovery, 5 source snapshot, 5 bootstrap lock, 4 dispatch cutover, 3 harvester, 3 Deno lock, 2 overrides y 1 bootstrap config | No borrar ni reasignar por semejanza. |
+| Exclusiones locales/generadas/cache ausentes, en 7 registros | 15 | Diagnósticos exactos del checker e inventario externo | Mantener razón/trazabilidad; no recrear outputs. |
+| Cuatro exclusiones de documentos históricos privados ausentes y sus stale warnings | 8 | Originals comprobados en checkout histórico; cuatro sucesores sanitizados versionados | No abrir/copiar originals; conservar sucesores sanitizados. |
+
+Logs finales del mismo checker/configuración:
+baseline 350:
+`/tmp/h3req1-production-remediation-20261029-final/logs/baseline-integral-complete.log`,
+SHA-256 `eae1107b5eba56ee9c9a9252f51ad241e95adda7328eb8a1ec33724a363524da`;
+candidato 348:
+`/tmp/h3req1-production-remediation-20261029-final/logs/candidate-integral-complete.log`,
+SHA-256 `1715cb75adaa83c34e96a39b37481d313d3558513c40d48a1f58555225cacfb7`.
+El checker normal imprime 200 filas; la copia temporal que generó el detalle
+cambió solo el límite de impresión a 10.000 y conservó la misma lógica/exit.
+Self-test + candidate-aware del árbol final: PASS, 751/751 fuentes, 119/119
+activos, 433/433 históricos; log
+`/tmp/h3req1-production-remediation-20261029-final/logs/candidate-scoped-self-test.log`,
+SHA-256 `702c32812953a12d71fac23a9b258866b2ee3ab49dd00b4e8578affb2176fa3f`.
+El inventario de 79 paths únicos está en
+`/tmp/h3req1-production-remediation-20261029/unique-source-missing-paths.txt`,
+SHA-256 `0f6421a517ec47aa788c8662a7a30d7fbea0dc6b50681256589ecb11a3a034e3`;
+no se recopiaron documentos sensibles. El gate acotado preserva PASS, pero el
+integral sigue FAIL y el paquete no se publicará mientras siga pendiente.
+
+**Disposición propuesta, no aprobada ni aplicada:** exclusivamente los 348
+diagnósticos integrales de este candidato y su log/huella final; causa,
+reconciliación y evidencia arriba. Owner: Romel/TL. Riesgo: trazabilidad de
+fuentes históricas incompleta; no hay evidencia de pérdida funcional ni de
+exposición de seguridad. Vencimiento propuesto: 2026-11-05 23:59 America/Lima o
+antes del primer merge `certificacion → main`, lo que ocurra primero. No extiende
+#509/#510/#511. La decisión requiere el SHA/fingerprint final, y la aprobación no
+autorizaría publicación por sí sola.
+
+### Pro/H2 y lectura agregada pendiente
+
+Preflight SELECT-only ya completado en `xwhtiqmboljkshrtviyw`: 23 migrations
+hasta `20260607221002`; objetos H2 parciales fuera del ledger, `courses` con
+SELECT directo público, sin las columnas snapshot y sin objetos Admin/H3. La
+cohorte no se leyó.
+
+El script actual `scripts/maintenance/h2_pro_preflight_report.py` lee por service
+role los campos de curso necesarios para elegibilidad (`id`, institution, slug,
+active/verified, URL) y flags agregados de perfil; consulta IDs visibles con
+publishable y solo imprime conteos/digest/metadata. No obstante, cuando encuentra
+objetos H2 previos al manifest, aborta antes de emitir el reporte. Por eso todavía
+faltan `eligible_count`, `ordered_eligible_ids_digest`, `public_visible_count`,
+`missing_from_public_count`, `unexpected_public_count` y grupos duplicados
+institution/slug. La matriz no permite inferir esos valores ni decidir re-run.
+
+La verificación local `public.h2_verify_expand_compat(integer,text)` requiere que
+ya exista el schema/cohorte; valida elegibles/cohort/effective counts, identidad
+exacta (missing/unexpected), digest, 28 columnas de proyección, cero columnas
+privadas, `security_invoker`, RLS 3/3 y SELECT directo legacy todavía vigente.
+Su implementación es STABLE SECURITY DEFINER con `search_path=pg_catalog,
+pg_temp`; la migration local concede EXECUTE solo a service_role y revoca otros
+roles. Esto es contrato fuente, no observación ACL remota de esa función. No se
+invocó.
+
+Solicitud futura exacta (no ejecutada): corregir primero el camino de reporte para
+que, aun con drift parcial, termine entregando solamente esos agregados y metadata
+de objetos, sin IDs ni filas; después solicitar aprobación separada para el
+`workflow_dispatch` Pro en `xwhtiqmboljkshrtviyw`, `operation=report`, candidato y
+SHA inmutables. No usar `apply`. Solo luego de verificar expand/cohorte exactos se
+solicitaría autorización separada para invocar `h2_verify_expand_compat`; mantener
+el reader legacy durante deploy. H2 expand files: schema compat, seed definitions,
+backfill state, capture cohort y RLS cohort; no reaplicar ni marcar ledger por
+conteo. Contract public-reader y contract legacy cohort son pasos posteriores.
+
+### Pages/BFF y recuperación Pro
+
+Cloudflare MCP se consultó con proyección server-side limitada a nombre, tipo y
+presencia de entradas/bindings; no se devolvieron valores. Pages Production
+`studiamatch`/`main` tiene URL y publishable-key bindings; `NEXT_SUPABASE_SECRET_KEY`
+aparece `plain_text`, pero no se leyó el valor y el tipo por sí solo no acredita
+exposición. No hay consumidor en `web/` ni Pages Functions locales; workflows y
+scripts backend usan secrets de ambiente separados. No se retiró la variable.
+
+Delta posterior que requiere JIT por separado: `ADMIN_ALLOWED_HOSTS` con el host
+Admin productivo exacto; `ADMIN_QUOTA` service binding a
+`studiamatch-admin-quota` tras verificar su Durable Object counter; tres HMAC
+keys Production independientes por función y de Preview, por mecanismo seguro;
+`ADMIN_RPC_GATEWAY_KEY_ID` respaldado por la fila Pro después de disponer schema.
+Access se conserva Admin-only/6h. El rol gateway depende de la tabla de claves H3
+y de una activación `pgrst.db_pre_request` con autorización propia; no se
+aprovisionó nada ni se copiaron secretos.
+
+**Transición/rollback:** Expand: cotejar H2 y aplicar únicamente cambios forward
+compatibles, luego manifest H3 cerrado; Compatibilidad: mantener lector/cohorte
+legacy y snapshot/auditoría; Deploy: PR protegido y Pages normal, con runtime y
+bindings después de DB/verificación; Contract: retirar legacy solo tras paridad,
+aceptación del runtime y estabilidad. Si falla, volver al deployment compatible,
+preservar schema/auditoría/cohorte y corregir hacia delante; no borrar historia ni
+restaurar datos masivamente.
+
+### Resultado y siguiente decisión
+
+Estado: remediación local de CA4.6/selector y mecanismo H3 preparada; tests focales
+PASS; gate integral FAIL; H2 cohorte y report/verify pendientes; configuración
+Production no modificada. NO-GO de publicación y producción. Siguiente decisión:
+resolver o aprobar una disposición documental nueva, limitada a fingerprint/log
+final; solo si el gate permite integrar, autorizar commit, push no forzado y PR a
+`desarrollo` en una solicitud separada. El PR no autoriza merge, workflow, SQL,
+configuración ni promoción.
+
+## Cortes históricos previos — las observaciones de Pro pendiente/inaccesible quedan supersedidas por el preflight SELECT-only
+
+### Cierre de verificación independiente — 2026-10-29 12:25 America/Lima
+
+Inicio de esta pasada: **12:05 America/Lima**. Cierre: **12:25 America/Lima**.
+No hubo modificación de producto/remoto: se conservan los 13 paths locales, sin
+commit, push, PR, merge, SQL, workflow, configuración, deploy ni promoción.
+
+GitHub MCP releyó las refs `desarrollo@6f059a0b27ef38541a7b62503c78920e621f05c1`
+y `certificacion@03515dee69fc42b10808d1c67cc4e00ebacd0c40`, ambas protegidas.
+`main@70d0f4fee885be0f6780e5d14f466b2a6c897961` es el estado de la lectura previa;
+no se abrió un candidato de promoción desde este worktree local.
+
+La integración Supabase disponible no expone `mcp__supabase_pro`; el conector
+alternativo denegó nuevamente URL, ledger y listado de tablas para
+`xwhtiqmboljkshrtviyw`. Se conserva como evidencia aportada por TL, no revalidada
+en esta conexión: 23 versiones reportadas, `course_editorial_state` y
+`courses_public_effective` presentes, `admin_members` y
+`h3_admin_rpc_gateway_keys` ausentes. No se consultaron filas/Auth/secretos ni se
+ejecutó SQL. El script SELECT-only preparado tiene SHA-256
+`f29fa1c6028e9fafd52c3a2371ddc4be6557618c5d0efa53f5dd747ac9168161`.
+
+Cloudflare MCP confirmó por metadata la app Access de `admin.studiamatch.com`:
+una política allow con un selector de correo y duración `6h`; no se devolvió la
+dirección del usuario ni se cambió la política. No se repitió GET de Pages porque
+el objeto de proyecto/deployment incluye `env_vars.value`; se reutiliza el estado
+sanitizado previo y no se volvió a leer ningún valor secreto.
+
+Docker Node 22, `--network none`, árbol del candidato montado read-only:
+
+- Self-test + candidate-aware: **PASS**, exit 0; 749/749 fuentes asignadas,
+  119/119 documentos activos alcanzables, 433/433 históricos enlazados. Log
+  `/tmp/h3req1-production-remediation-20261029/final-continuation-candidate-aware.log`,
+  SHA-256 `9c5329ebe100b56abd01149581b4a8669768c43a5ba1b822fdb4ef3e1a19feb9`.
+- Checker integral/self-test: **FAIL esperado del gate**, exit 1, 348 diagnósticos
+  (el output limitado muestra 200 + 148 resumidos); baseline 349 con el mismo
+  checker/configuración. El detalle íntegro previamente capturado mantiene el
+  desglose por ruta de § “Reconciliación de los 348 diagnósticos”. Log de esta
+  corrida `/tmp/h3req1-production-remediation-20261029/final-continuation-integral.log`,
+  SHA-256 `302f437b66f9f200494471ef1c2de7ff05b4a7bab433ff69a2c7549bbb4be381`.
+- Scanner de credenciales: **PASS** en los 13 paths exactos del delta; log
+  `/tmp/h3req1-production-remediation-20261029/final-continuation-credential-scan.log`,
+  SHA-256 `c907c408226ecdd488273b9af102a9201a0efaf17a8d58788658a67652ca1396`.
+- `git diff --check`: **PASS**. No se repitieron suites de producto: CA4.6 y
+  selector no cambiaron desde sus pruebas focales Docker aceptadas; E1–E6 **6/6**,
+  Development R1–R4 **4/4** y smoke Certification **1/1** se reutilizan sin
+  reejecución.
+
+El error inicial del contenedor de proyecto (`node_modules` fuera de sync) fue de
+infraestructura y no ejecutó tests. El comando final usó la imagen Node 22 ya
+disponible, vía Docker con permisos normales, sin tocar socket/volúmenes del
+producto, con red deshabilitada y source montado read-only. No se convirtió el
+FAIL integral en PASS ni se alteró el checker.
+
+### Continuación: reconciliación Pro y fuentes documentales — 2026-10-29
+
+#### Preflight Pro SELECT-only completado
+
+Registro del preflight: **2026-10-29 12:45 America/Lima**.
+
+El MCP WSL `mcp__supabase_pro` quedó visible después de la intervención de Romel.
+`get_project_url` confirmó `https://xwhtiqmboljkshrtviyw.supabase.co`; el ref es
+`xwhtiqmboljkshrtviyw`. `list_migrations` devolvió 23 versiones: primera
+`20260525030610`, última `20260607221002`; ninguna versión H2/H3 posterior aparece
+en ese ledger. La lectura estuvo acotada a catálogo de relaciones/columnas,
+constraints, funciones (firma, `SECURITY DEFINER`, settings, digest y ACL), vistas,
+policies, RLS y privileges. No se consultaron filas operativas, Auth, contenido de
+claves ni secretos. Una primera agregación SELECT falló con PostgreSQL `42803`
+(`aggregate function calls cannot be nested`); no tuvo efectos. La consulta
+corregida y las dos consultas SELECT suplementarias terminaron correctamente.
+
+#### Matriz Pro observada frente al contrato H2/H3
+
+| Objeto requerido | Estado observado | Diferencia / consecuencia | Migración responsable | Dependencia y verificación que falta |
+|---|---|---|---|---|
+| Ledger `supabase_migrations.schema_migrations` | Existe; 23 versiones hasta `20260607221002` | No registra H2/H3 de agosto–octubre, aunque varios objetos H2 existen. Hay drift ledger/schema; el conteo no identifica apply. | Ninguna aislada; `scripts/maintenance/db_migrate.py` consume el ledger | En candidato inmutable, ejecutar `DB Sync to Production` en modo `report`/`verify`; no insertar marcas ni reaplicar sin comparar efecto de cada archivo. |
+| H2 editorial: `courses`, `editorial_field_definitions`, `course_editorial_state`, `course_editorial_audit` | Presentes; columnas y checks editoriales consultados. RLS habilitado. | `availability_status`, override, versión, actor y auditoría existen; no se leyeron filas. `anon/authenticated` no tienen ACL de tabla para estado/audit; definitions permite SELECT filtrado a esos roles y DML a service_role. | `20260827_h2_pro_expand_schema_compat.sql`, `20260827_h2_pro_seed_editorial_field_definitions.sql`, evolución H2 | El expand manifest también incluye backfill/captura; cohort count/digest no se verificó. Cotejar metadatos exactos, ledger y `h2_verify_expand_compat` contra candidato; no ejecutar su RPC aquí. |
+| Auditoría append-only | Audit presente, RLS; triggers `prevent_course_editorial_audit_update/delete` habilitados; helper no es SECURITY DEFINER, `search_path=pg_catalog`, ACL service_role/postgres. | ACL de tabla da permisos completos a service_role, mientras policies solo SELECT/INSERT y triggers bloquean UPDATE/DELETE. No se probaron writes. | H2 `20260827_h2_pro_expand_schema_compat.sql` y hardening H2 | Verificar trigger/policies/grants en el workflow H2; no tocar filas ni repetir smoke. |
+| Cohorte legacy `private.h2_legacy_public_course_cohort` | Presente; RLS habilitado; anon/auth/service_role sin privilegios de tabla observados. | No se leyeron filas, conteos, IDs ni digests; estado de captura no queda acreditado. | `20260827_h2_pro_expand_schema_compat.sql`, `20260827_h2_pro_capture_legacy_cohort.sql`, `20260827_h2_pro_enable_legacy_cohort_rls.sql` | Requiere conteo/digest aprobados y `h2_verify_expand_compat`; cualquier invocación/apply exige JIT. |
+| Reader público H2: `courses_public_effective` + `private.h2_public_courses_effective()` | Vista presente, `security_invoker=true`, SELECT para anon/auth/service_role. Helper SECURITY DEFINER, `search_path=pg_catalog, pg_temp`, EXECUTE explícito para esos roles. | `public.courses` conserva SELECT y DML ACL para anon/auth; sus policies para ambos son SELECT-only y la tabla tiene RLS. No se cuenta con prueba de denegación de writes. El contrato que retira SELECT directo aún no está aplicado. | H2 `20260827_h2_pro_contract_public_reader.sql`; rollback dedicado `20260827_h2_pro_rollback_public_reader_contract.sql` | El contract exige cohorte no vacía, paridad de conteo/digest y frontend compatible. Mantener legacy durante deploy; probar smoke antes de contraer. |
+| H2 contrato de cohorte | No confirmado como aplicado; las condiciones de preflight del contract reader no se satisfacen porque SELECT directo sigue permitido. | No retirar cohorte ni policies por suposición. | `20260827_h2_pro_contract_legacy_cohort.sql` | Depende del reader contract y de paridad H2 estricta; verificar cohortes/digest en etapa autorizada. |
+| Admin/RBAC: `admin_members`, `admin_invitations`, vistas/colas, secuencias y RPCs | No existen relaciones/seq `admin_*`/`h3_*` ni funciones `public.admin_*`/`private.h3_*`. | Contrato Admin H3 ausente en Pro. `exec_sql(sql_text text)` sí existe: SECURITY DEFINER, `search_path=pg_catalog, public`, EXECUTE solo service_role/postgres. | Base `20260828_h3_admin_auth.sql`, RBAC y contratos/fixes hasta `20261025_h3_admin_members_onboarding_forbidden_status.sql` | H2 public reader primero; después auth/RBAC, editorial/queue, invitaciones/onboarding y fixes en orden de dependencias. Workflow Pro actual no ofrece manifest H3. |
+| Quota y gateway firmado | `private.h3_admin_quota_events`, `h3_admin_rpc_gateway_keys`, nonces y todos los RPC `h3_*` ausentes. | No hay base DB para cuota o gateway; aún no se confirma un key id de gateway. No se consultó key material. | `20261002_h3_admin_quota_expand.sql` antes de `20261002_h3_admin_quotas.sql`; `20261004_h3_admin_rpc_signed_gateway_expand.sql` antes de `20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql` | Depende del set completo de RPC Admin. Provisionar key id/secret y binding de cuota solo con JIT independiente. |
+| Snapshot publicado y guard de precio | Faltan `published_manual_overrides`, `published_manual_start_date`, `published_editorial_values`; faltan `admin_get_course_editorial`, `admin_update_course`, `admin_publish_course`. El helper H2 actual tiene digest `316b93d8f306a85204b816fe5cacc8e0`; el guard no se infiere por digest. | La proyección snapshot no está habilitada. No hay evidencia de que un borrador se separe de público en Pro. | `20261028_h3_editorial_publication_snapshot.sql` antes de `20261028_h3_public_price_projection_empty_price_guard.sql` | Requiere H2 reader y RPCs Admin; comparar firmas/ACL, columnas/constraints, `search_path` y vista, luego smoke remoto con JIT tras integración. |
+
+RLS/ACL adicional: `public.courses` tiene RLS y las policies observadas para anon/authenticated son SELECT; service_role tiene policy ALL. `course_editorial_state` y audit son service_role-only; `editorial_field_definitions` usa policy pública `is_public=true`. El schema `private` concede USAGE a anon/auth/service para las funciones existentes, pero las tablas privadas no dan privilegios de tabla a esos roles. El ACL general de `public.courses` conserva grants DML a anon/authenticated; la falta de policies de escritura no se trató como prueba de runtime. El resultado completo de estas lecturas está en el transcript MCP de esta sesión; el archivo `/tmp/h3req1-production-remediation-20261029/pro-readonly-schema-preflight.sql` fue un borrador SELECT-only revisado, no se ejecutó en bloque.
+
+#### Delta idempotente y orden preparado, no ejecutado
+
+1. **H2 expand/compatibilidad:** el manifest cerrado `h2-expand-compat` contiene `20260827_h2_pro_expand_schema_compat`, `20260827_h2_pro_seed_editorial_field_definitions`, `20260827_h2_pro_backfill_editorial_state`, `20260827_h2_pro_capture_legacy_cohort` y `20260827_h2_pro_enable_legacy_cohort_rls`. La tabla/columnas ya existen, pero ledger no registra las versiones y no se inspeccionó estado de DML. Primero usar report/verify del candidato inmutable; apply requiere JIT DDL, backup/PITR, candidate/payload SHA, Production approval, conteo/digest de cohorte y review de Advisors. No resembrar/backfillear para demostrar estado.
+2. **H2 deploy/contract:** dejar acceso directo legacy compatible durante el deploy normal de Pages; solo después del smoke autorizado y conteo/digest correctos considerar `h2-contract-public-reader`. El retiro posterior de cohorte usa manifest separado y depende del contract reader. `h2-rollback-public-reader-contract` es la ruta versionada de recuperación; no aplicar ahora.
+3. **H3 DB:** antes de ejecutar migrations hay que ampliar por PR protegido el manifest cerrado de `DB Sync to Production`/`PRO_MIGRATION_MANIFESTS`; actualmente solo enumera F10-8 y H2. Orden funcional: Admin auth/RBAC → RPCs editoriales/colas e invitación/onboarding con hardening → quota EXPAND antes de wrappers → gateway EXPAND antes del wrapper acotado → snapshot editorial → guard de precio. La selección H3 exacta debe quedar fija por SHA y revisar todas las migrations del contrato; no usar `--only` en Pro ni aplicar la carpeta completa.
+4. **H2/H3 verify:** cotejar ledger, firmas/retornos, columnas, constraints, triggers, policies, ACL efectivo, `SECURITY DEFINER`/`search_path`, vistas y advisors; el smoke Business de producción necesita JIT de escrituras separado. PostgreSQL 17 con DDL también requiere su propio JIT. Ningún SQL/fixture, workflow o cambio remoto se ejecutó en esta continuación.
+
+#### Revalidación del checker en el árbol final evaluado — 2026-10-29
+
+Tras actualizar el estado operativo y este checkpoint, se ejecutó de nuevo el
+checker sobre el árbol candidato real, montado read-only en Docker Node 22 con
+`--network none`; no se evaluó un snapshot anterior.
+
+- Self-test y candidate-aware con el manifiesto exacto
+  `.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json`:
+  **PASS**, exit 0; salida `DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`, 749/749 fuentes
+  asignadas, 119/119 documentos activos alcanzables y 433/433 históricos
+  enlazados. Log
+  `/tmp/studiamatch-h3req1-production-remediation-20261029/final-pro-candidate-aware-self-test.log`,
+  SHA-256 `48661c4af0bf3cf5db676ec57e728a24f446f5bfad8505ef1437b2c09e288e31`.
+- Integral sin manifiesto: **FAIL**, exit 1, 348 diagnósticos; el baseline
+  equivalente permanece en 349. El checker imprime 200 y resume 148; la lista
+  íntegra candidata sigue archivada en los logs de reconciliación previos. Log
+  `/tmp/studiamatch-h3req1-production-remediation-20261029/final-pro-integral.log`, SHA-256
+  `3649c26e94e12737569b30f40b2166c1b759f30f7be751c2b2fb48777e10fbda`.
+- La primera imagen local `studiamatch-h3req1:sync-a57bc415-rebuilt-20261018`
+  abortó antes del checker por `node_modules` fuera de sync; no cuenta como
+  resultado. Se conservó el log
+  `/tmp/studiamatch-h3req1-production-remediation-20261029/final-pro-project-image-infra-error.log`,
+  SHA-256 `c00c0e69db4428db96c230e045f30c459263f7125cee004f81229c370157edb9`.
+  La repetición usó la imagen limpia `node:22-bookworm-slim`
+  (`sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d`),
+  `--network none`, contenedor read-only y el árbol candidato montado read-only.
+  Se distingue el error instrumental del resultado real del gate; no se cambió
+  el checker ni se convirtió el FAIL integral en PASS.
+
+#### Reconciliación de los 348 diagnósticos integrales por ruta
+
+Se contrastaron rutas con el historial Git alcanzable del candidato y con el
+checkout conocido `feat/h3req1-sync-20261002@a57bc415257ab8154d40d7c71d34c69d0bdaeb0d`,
+solo mediante rutas, tracking/status y existencia; no se abrieron los contenidos
+locales. No se editó ese checkout.
+
+| Grupo único | Diagnósticos | Hallazgo de trazabilidad | Decisión segura |
+|---|---:|---|---|
+| 79 rutas candidate-only sin archivo en el candidato | 237 (`SOURCE_PATH_MISSING`, `SOURCE_PATH_MISSING_OR_OUT_OF_SCOPE`, `CANDIDATE_ONLY_PATH_MISSING`) | `git log --all` del candidato no encuentra una versión; 0/79 están trackeadas en el checkout histórico. Las 79 existen allí como archivos locales no trackeados/ignorados. Familias: 56 `docker_peer_substep_diag`, 2 `docker_peer_phase_diag`, 16 herramientas/tests C03, 2 configs override, 2 bootstrap Deno y 1 test del pipeline. | Son WIP/diagnósticos locales, no fuentes autorizadas del candidato. No copiar ni fabricar; conservar referencias registradas para una conciliación con fuente verificable. Inventario solo de paths: `/tmp/h3req1-production-remediation-20261029/unique-source-missing-paths.txt`. |
+| Referencias de relaciones a rutas faltantes | 88 sobre 20 rutas únicas | Las 20 están dentro de las 79 rutas anteriores. Reparto por familia: 15 read-classification helpers, 15 contract tests, 10 tmpfs pair, 10 npm audit, 10 identidad Docker, 5 startup recovery, 5 source snapshot, 5 bootstrap lock, 4 dispatch cutover, 3 harvester, 3 Deno versioned lock, 2 docker overrides, 1 bootstrap config. | No se eliminó ninguna relación. Sin fuente Git verificable no se reasigna a otra ruta por semejanza. |
+| Exclusiones de fuentes locales/generadas ausentes en el candidato | 15 | Siete registros cubren 15 paths ausentes: preferencias Obsidian, captura OpenChamber, cache pytest, marcador Syncthing, sentinel del resolver Deno y dos outputs Next/TypeScript. Los paths señalados existen en el checkout histórico; el lock R3 existe también en el candidato, por eso su path no suma diagnóstico. Las razones del registro clasifican preferencias, cache y outputs generados; no son módulos del producto. | No son exclusiones globalmente obsoletas; faltan en este checkout de candidato. Se conservan. El detalle path-only está en `/tmp/h3req1-production-remediation-20261029/known-copy-check.txt`. |
+| Cuatro originales de evidencia privada ausentes del candidato | 8 (4 exclusiones documentales + 4 stale) | Los originales son rastreables en el checkout histórico y están excluidos por identificadores personales. Sus cuatro sucesores sanitizados R18 están trackeados en el candidato; no se leyó ni copió ningún original. | Conservar exclusión y sucesores sanitizados. No recrear originales ni borrar la relación. |
+
+El total sigue **348 FAIL** (237 + 88 + 15 + 8); el baseline fue 349. Los
+diagnósticos no son 348 tareas independientes: corresponden a las rutas y
+familias anteriores. Se conservaron las 79 relaciones fuente y las exclusiones;
+no se cambió el checker ni se fabricaron artefactos. `--self-test` y
+candidate-aware PASS previos (749/749) no reemplazan el integral. La disposición
+de Certification (#511) está consumida y no cubre producción. Para resolverlo
+antes de una decisión productiva, la opción mínima es una disposición nueva que
+enumere solo el set de diagnósticos archivado, con owner Romel/TL, riesgo de
+trazabilidad incompleta y vencimiento propuesto **2026-11-05 23:59 America/Lima o
+antes del primer merge `certificacion → main`, lo que ocurra primero**. Aún no se
+solicita/aprueba porque falta el SHA inmutable de promoción; al llegar a ese SHA
+se debe regenerar el log y limitar la decisión exactamente a sus diagnósticos.
+
+#### H2, Pages/Access, llave legacy y transición de producción
+
+- H2 sigue sin evidencia actual para el candidato productivo: el run
+  `33143730910` (`93c802c7`) es anterior y las remediaciones locales aún no tienen
+  SHA publicado. Cuando exista un candidato inmutable en `certificacion`, se
+  necesita un run nuevo de `DB Sync to Production` con branch/SHA y payload fijados,
+  manifest/operación seleccionados por el diff real, y `verify` posterior. Para
+  `h2-expand-compat`, `apply` además exige
+  `ddl_authorization_id`, `backup_pitr_verified`, conteo/cohort digest exactos,
+  Production environment approval, artefacto de evidencia y revisión de Security/
+  Performance Advisors. Si el preflight prueba que no falta H2, no se reaplica:
+  se ejecuta solo el `verify` compatible.
+- Pages `studiamatch` / `main` usa `admin.studiamatch.com`. El delta BFF exacto
+  preparado para un JIT posterior: `ADMIN_ALLOWED_HOSTS=admin.studiamatch.com`;
+  `ADMIN_QUOTA` como service binding al Worker `studiamatch-admin-quota`; tres
+  HMAC keys Production distintas entre sí y de Preview, cada una ≥32 bytes,
+  creadas en el mecanismo seguro del ambiente; y
+  `ADMIN_RPC_GATEWAY_KEY_ID` igual a un id válido que el preflight Pro confirme.
+  Access existente sigue Admin-only/6h, sin cambios. No se copian valores de Free.
+- `NEXT_SUPABASE_SECRET_KEY` aparece en Pages Production con tipo `plain_text`;
+  el nombre no tiene consumidores en `web/` ni en Pages Functions en el árbol
+  actual. Los workflows/scripts backend consumen sus variables separadas del
+  ambiente/GitHub. El valor nunca se leyó. Acción preparada: JIT aparte para
+  quitar esa variable de Pages Production y verificar solo su ausencia; rollback
+  mediante reprovisión desde el almacén seguro, sin recuperar ni imprimir el
+  valor actual. Las lecturas de Pages no se refrescaron porque el endpoint de
+  proyecto/deployment devuelve el mapa completo `env_vars`, incluido `value`;
+  se reutiliza únicamente el metadato sanitizado anterior y el análisis local de
+  consumidores.
+- **Expand:** cotejar y aplicar migrations forward-only exactas con JIT, sin
+  sincronizar cursos operativos. **Compatibilidad:** conservar cohort/reader
+  legacy y snapshots; no activar contract hasta probar el nuevo reader.
+  **Deploy:** PRs protegidos `desarrollo → certificacion → main` y despliegue
+  Pages normal, luego configuración/JIT de runtime. **Contract:** retirar
+  compatibilidad solo con H2/H3 gates y estabilidad acreditados. **Rollback:**
+  revertir código por PR/deployment previo y restaurar configuración desde
+  metadata segura; mantener schema, snapshot y auditoría, sin down migration
+  destructiva ni borrado de datos.
+
+**Autorizaciones separadas todavía necesarias:** (a) commit, push no forzado y
+PR de los 13 paths locales a `desarrollo`; (b) después del preflight y del
+candidato real, JIT de workflow/SQL H2 o H3 si aplica y JIT Cloudflare para BFF,
+binding y retiro de la variable legacy; (c) PR protegido a Certification y luego
+`certificacion → main`, cada uno con review/merge separados. Este ciclo no ejecutó
+ninguna operación protegida. E1–E6 6/6, R1–R4 4/4 y smoke Certification 1/1 se
+reutilizan como evidencia cerrada; no se repitieron.
+
+### Alcance, baseline y trabajo preservado
+
+Inicio de esta continuación: **2026-10-29 10:45 America/Lima**. El trabajo se
+realiza en `/tmp/studiamatch-h3req1-production-remediation-20261029`, rama
+`codex/h3req1-production-remediation-20261029`, HEAD/base
+`6f059a0b27ef38541a7b62503c78920e621f05c1` (`desarrollo`). El worktree documental
+anterior conserva sus tres documentos locales y el checkout histórico conserva su
+WIP; ninguno se sobrescribió ni se convirtió en fuente del candidato.
+
+Aceptaciones reutilizadas sin repetir: E1–E6 local **6/6**, R1–R4 Development
+**4/4**, smoke Certification **1/1** con borrador aislado, publicación visible,
+auditoría y recuperación. No se recalcula un porcentaje global de H3REQ1.
+
+### CA4.6: contrato de auditoría y corrección mínima
+
+La observación se clasifica **severidad baja (S3)**: error de presentación que
+puede sugerir falsamente que el estado de inscripción cambió durante publicación;
+no hay mutación de disponibilidad, pérdida de auditoría ni acción sin permiso.
+`admin_publish_course` conserva `availability_status` en `old_values` pero lo
+omite de `new_values`, porque la RPC no cambia ese estado. La nueva
+`web/src/lib/admin-audit-changes.mjs` ignora solo esa ausencia en eventos `publish`
+para esa clave; no filtra omisiones generales. `null` explícito permanece
+distinguible de clave ausente; una edición editorial real se conserva; al eliminar
+un override permitido, el evento `update` conserva valor anterior→base nueva.
+
+La prueba sintética nueva informa:
+`admin-audit-changes=PASS|publish-omission=ignored|explicit-null=preserved|editorial-change=preserved|override-removal=preserved`.
+No se modificó SQL, disponibilidad, cuentas ni datos remotos. Las pruebas de
+aceptación anteriores quedan intactas.
+
+### Selector para promoción certificacion→main
+
+`security-audit.yml` ahora selecciona la unión exacta de manifests/documentos y
+del diff completo en PR `certificacion -> main` y en el push posterior a `main`;
+conserva `desarrollo -> certificacion`, sus pins, selección única ordinaria y
+fallos cerrados. `tests/test_protected_path_scope_guard.sh` cubre ambas rutas y
+los casos negativos de pin/baseline/ambigüedad. Docker informó:
+
+```text
+promotion-manifest-selector=PASS|development_to_certification=1|certification_to_main=1|postmerge_certification=1|postmerge_main=1|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed
+promotion-path-pins=PASS|exact_tree=1|neighbor_not_selected=1|wrong_baseline=fail_closed|forged_blob=fail_closed|duplicate=fail_closed|content_drift=fail_closed
+```
+
+No se cambió una allowlist ni una branch protection. Main sigue sin verificación
+de protección por MCP: `GET /branches/main/protection` devolvió 403
+`Resource not accessible by integration`; no se atribuye un estado no observado.
+
+### Gate documental: baseline, candidato y causas
+
+Se compararon baseline y candidato con el mismo checker/configuración. La corrida
+oficial integral informa el total aunque limita su impresión normal a 200 líneas:
+baseline **349** diagnósticos y candidato **348**. Para obtener la lista completa
+del candidato se usó una copia temporal no versionada del checker que cambió solo
+el límite de impresión de 200 a 10000; la lógica de validación y el árbol evaluado
+permanecieron iguales. El selector candidate-aware y el self-test pasan para el
+manifest exacto, con **749/749** fuentes asignadas; el integral permanece FAIL y
+no se reporta PASS. El cambio del selector no degrada la cobertura acumulada.
+
+Desglose candidato (348 ocurrencias):
+
+- 79 paths candidate-only ausentes: cada uno produce `SOURCE_PATH_MISSING`,
+  `SOURCE_PATH_MISSING_OR_OUT_OF_SCOPE` y `CANDIDATE_ONLY_PATH_MISSING`.
+- 88 `RELATION_PATH_MISSING` repartidos en 20 paths únicos ya clasificados
+  candidate-only; no se identificó un path de relación fuera de ese grupo.
+- 15 referencias `EXCLUSION_PATH_MISSING` a restos locales/generados/cache, no a
+  fuentes del candidato de producto.
+- 4 `DOCUMENT_EXCLUSION_PATH_MISSING` y 4 `DOC_EXCLUSION_STALE` para referencias
+  documentales históricas ausentes.
+
+En el baseline, el JSON canónico esperaba 367 rutas candidate-only, pero el árbol
+observado tenía 304 (`304 != 367`), lo que aporta un diagnóstico. Para el candidato
+exacto desarrollo@`6f059a0b` + delta local, el JSON registra las cantidades
+observadas: 444 fuentes de integración y 305 candidate-only. Así se elimina ese
+mismatch específico en el candidato sin reducir cobertura ni borrar relaciones.
+El self-test ya no exige la presencia física de dos nombres YAML retirados por
+histórico: deriva esas fuentes del registro, exige que permanezcan asignadas y que
+toda omisión física sea candidate-only y no seleccionada por el manifest exacto.
+No se elimina relación en masa ni se fabrican archivos históricos. Los 348
+diagnósticos restantes tienen causas demostradas: 79 rutas de exploración/WIP
+histórico ausentes en este candidato (principalmente scripts de prueba/operación);
+88 referencias de relaciones que apuntan a esas rutas; 15 exclusiones de artefactos
+locales/generados/cache; y cuatro exclusiones de documentos históricos privados
+ausentes con cuatro diagnósticos de exclusión obsoleta. El riesgo es que la relación
+histórica no se puede verificar desde este árbol actual. Remediación mínima:
+reconciliar cada ruta contra el historial Git o una copia autorizada, enlazar
+reemplazos sanitizados sin recuperar documentos privados, y retirar solo exclusiones
+generadas tras confirmar su origen. Owner: Romel/TL; ninguna disposición de
+Certification cubre producción. Registros:
+`/tmp/h3req1-production-remediation-20261029/baseline-integral-same-checker.log`,
+`/tmp/h3req1-production-remediation-20261029/final-candidate-integral.log` y lista
+completa del candidato
+`/tmp/h3req1-production-remediation-20261029/final-candidate-full-diagnostics.log`.
+
+### Refs, divergencia e integración local de main
+
+Lecturas GitHub actuales: desarrollo
+`6f059a0b27ef38541a7b62503c78920e621f05c1`, certificacion
+`03515dee69fc42b10808d1c67cc4e00ebacd0c40`, main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. Certificación→main está divergida:
+certificación 100 commits adelante y 4 detrás, merge base
+`c80f6504a3ea353bc2c222df1da09c4b5ba0ae58`. La reconstrucción local de esos SHAs
+con `git merge-tree` no encontró conflictos; tree sintético
+`2028bdc24a720e5a0d19921b559134a9adf77f27`. El diff histórico completo abarca
+1.619 paths (aprox. 709.433 adiciones y 149.740 eliminaciones) y 41 archivos de
+migración (35 añadidos, 6 modificados); el API Compare expone solo sus primeros
+300 archivos. Estos conteos describen un acumulado amplio, no solo H3REQ1.
+
+No se actualizó ninguna rama remota. El tree local y el merge-tree no equivalen a
+CI ni a integración autorizada.
+
+### Pro y evidencia H2: corte anterior de las 11:21, actualizado por la continuación superior
+
+Este snapshot registró que la única lectura MCP read-only a Pro
+`xwhtiqmboljkshrtviyw` fue denegada y que ledger/schema no se observaron en ese
+corte. El bloqueo de autenticación fue superado después según el TL, que reportó
+lectura parcial (23 entradas y objetos concretos presentes/ausentes); véase la
+actualización superior de esta continuación. El archivo SELECT-only también fue
+ampliado después para consultar metadatos de columnas, constraints, policies,
+RLS/ACL, funciones y vistas sin datos operativos ni valores de claves.
+
+La evidencia H2 vigente local
+`.context/operaciones/h2_main_production_expand_evidence.json` apunta al run
+`33143730910`, SHA `93c802c7b0af2339a50ba3b4526fced9e1b3f7fd`; no acredita el
+candidato actual. En la comparación con certificacion@`03515dee`, 1.625 paths
+cambiaron y 644 quedan fuera del gate de evidencia H2. El workflow que exige el
+gate es `DB Sync to Production` (`workflow_dispatch`, branch certificacion,
+manifest `h2-expand-compat`, `operation=apply`, candidate/payload SHA fijados,
+Production approval y verify/artifact/advisor results). No se ejecutó. Después de
+conocer Pro schema/ledger se debe preparar JIT exacto de `apply` o decidir que el
+baseline ya satisface H2; una diferencia de archivos no decide ese estado.
+
+### Pages, Access y dependencias de runtime
+
+Cloudflare read-only confirma Pages `studiamatch`, Production branch `main`,
+deployment success `2b53bc74-576d-4e12-8b80-2986a857bde7`, SHA
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`, host `admin.studiamatch.com`; el
+`NEXT_PUBLIC_SUPABASE_URL` reporta únicamente el host Pro
+`xwhtiqmboljkshrtviyw.supabase.co`. No se leyeron valores de keys.
+
+Production todavía carece de `ADMIN_ALLOWED_HOSTS`,
+`ADMIN_QUOTA_HMAC_KEY`, `ADMIN_RPC_GATEWAY_HMAC_KEY`,
+`ADMIN_SESSION_ACTIVITY_HMAC_KEY`, `ADMIN_RPC_GATEWAY_KEY_ID` y binding
+`ADMIN_QUOTA`. Preview contiene las tres keys como `secret_text`, un key id,
+hosts de preview/desarrollo/certificación, y servicio `ADMIN_QUOTA` →
+`studiamatch-admin-quota`. Cloudflare Worker read-only confirma ese script y el DO
+`ADMIN_QUOTA_COUNTER` (`AdminQuotaCounter`, sin route pública ni workers.dev).
+Código BFF requiere HMAC keys de al menos 32 bytes y rechaza igualdad; la clave
+de cuota separada entre ambientes mantiene digests de cuotas separados aunque el
+Worker DO sea el backend compartido. Pro debe suministrar el key id ya válido; el
+valor se contrasta por metadata SQL sin seleccionar su secreto.
+
+La variable Pages `NEXT_SUPABASE_SECRET_KEY` existe en Production con tipo
+`plain_text`; no se accedió a su valor y `rg` no encuentra consumidor bajo `web/`.
+Los consumidores visibles de esa variable están en workflows/scripts backend,
+que toman credenciales de GitHub/entorno, no del Pages runtime. Se recomienda
+retirarla de Pages mediante JIT separado y verificar `web/` sin ella, o corregir
+almacenamiento si se demuestra un consumidor; nunca copiar la key de Free.
+
+Cloudflare Access mantiene la app self-hosted Admin para `admin.studiamatch.com`,
+sesión 6h y un selector de email; el account tiene IdP Cloudflare y OTP. No hubo
+cambio de Access. La configuración mínima futura es `ADMIN_ALLOWED_HOSTS` con
+solo `admin.studiamatch.com`, las tres keys de Production distintas entre sí y
+distintas a Preview, `ADMIN_RPC_GATEWAY_KEY_ID` igual a un id válido en Pro y el
+binding `ADMIN_QUOTA` al servicio indicado. Se mantiene Access Admin-only, sin
+colaboradores, comodines ni bypass.
+
+### Matriz breve de gates sin mezclar denominadores
+
+| Gate | Antes de este delta | Resultado local/observado | Acción mínima |
+|---|---|---|---|
+| CA4.6 audit UI | Publish mostraba disponibilidad omitida como cambio | 4/4 casos sintéticos PASS | Revisión/PR protegido a Development; ninguna escritura remota |
+| Selector promoción | No agregaba certificacion→main ni push main | Regresiones y pins PASS en Docker | CI/review del PR cuando se autorice |
+| Self-test/candidate-aware documental | Self-test tropezaba con dos rutas históricas; proyección 304/367 | Self-test PASS; 749/749; candidate-aware PASS | Conservar manifests exactos |
+| Integral documental | Baseline 349 | Candidato 348; sigue FAIL | Reconciliar diagnósticos o nueva decisión humana para el candidato final |
+| Pro ledger/schema | No observado en el snapshot anterior; el preflight SELECT-only superior ya lo completó | 23 entradas hasta `20260607221002`; núcleo H2 parcial fuera de ledger; reader contract no activo; H3 Admin, gateway, quota y columnas snapshot ausentes | No reaplicar por conteo. Reconciliar ledger/schema H2 con report/verify y evidencia de cohorte; preparar después manifest H3 cerrado por SHA y workflow protegido |
+| Pages/Access Production | Host público y Access existentes; BFF no configurado | Sin cambios; faltan vars/binding BFF | JIT Cloudflare separado después del cotejo Pro |
+
+### Transición, rollback, autorizaciones y punto de parada
+
+- **Expand:** comprobar Pro ledger/schema con la consulta preparada. Solo crear
+  migración forward-only si el drift está demostrado; aplicar una vez con JIT y
+  verificar ledger, schema, RPC, views y ACL. Nunca inferir apply por diferencias
+  de archivos ni reaplicar las migraciones Free compartidas.
+- **Compatibilidad:** mantener el fallback legacy y el snapshot editorial; no
+  copiar datos operativos entre Free y Pro. Configurar `ADMIN_QUOTA` y HMAC keys
+  independientes por ambiente, sin reutilizar secretos de Free/Preview.
+- **Deploy:** la promoción `certificacion -> main` se hace por PR protegido tras
+  resolver el gate documental, H2, branch protection, aprobación y CI. Pages
+  despliega desde main; no hacer deployment manual.
+- **Contract:** después del smoke Production autorizado y estabilidad observada,
+  retirar por PR las rutas/flags legacy que el contrato nuevo sustituye. No
+  activar FG2/FG3, writers ni schedules en este ciclo.
+- **Rollback:** restaurar el deployment Pages previo o revertir mediante PR;
+  revertir configuración al snapshot previo usando el mecanismo de Cloudflare sin
+  exponer valores; conservar schema, snapshots y auditoría append-only. No borrar
+  filas ni ejecutar rollback destructivo; cualquier schema correctivo sería
+  forward-only con JIT propio.
+
+No se solicitaron ni consumieron JIT de Pro SQL, Pages, workflow H2, commit/push/PR,
+merge, deployment o promoción. El paquete local requiere esas aprobaciones por
+separado y detenerse antes de cualquier operación remota.
+
+### Validación local final y paquete de preparación — 2026-10-29
+
+Inicio de la continuación: **10:45 America/Lima**. Fin registrado: **11:21
+America/Lima**. Worktree `/tmp/studiamatch-h3req1-production-remediation-20261029`,
+rama `codex/h3req1-production-remediation-20261029`, base `desarrollo@6f059a0b27ef38541a7b62503c78920e621f05c1`.
+El delta final contiene 13 paths (11 modificados, 2 nuevos), sin archivos de los
+otros worktrees. No hubo commit, push, PR, merge, SQL, workflow remoto, Access,
+configuración Pages, deploy ni promoción.
+
+Resultados focales actuales, todos ejecutados en Docker con red deshabilitada y el
+checkout de solo lectura:
+
+- `admin_audit_changes.test.mjs`: PASS, cuatro casos — omisión de disponibilidad
+  durante `publish`, `null` explícito, cambio editorial y eliminación permitida.
+- `test_protected_path_scope_guard.sh`: PASS; selector PR/push de Development→Certification
+  y Certification→main, agregación de paquetes + diff completo, hashes/pins y
+  negativos de ambigüedad, baseline, input faltante y drift permanecen fail-closed.
+- `actionlint 1.7.12`: PASS para `.github/workflows/security-audit.yml`.
+- `scan_credentials.sh`: PASS para los 13 paths exactos; no se imprimieron valores.
+- ESLint focal del editor/helper y `tsc --noEmit --incremental false`: exit 0.
+- `git diff --check`: PASS. Los 13 inputs del paquete son los indicados en la
+  sección `scope` del reporte de seguridad.
+- Self-test + manifest candidate-aware exacto en Docker: PASS; 749/749 fuentes,
+  119/119 documentos activos alcanzables y 433/433 documentos históricos enlazados.
+- Checker integral oficial sin manifest: **exit 1, FAIL, 348 diagnósticos** para el
+  candidato. Inventario completo conservado por una copia temporal del checker que
+  cambia solo el límite de impresión (200→10000), sin alterar validación:
+  348 líneas `DOC_GATE_FAIL`. Logs: `baseline-integral-same-checker.log`,
+  `final-candidate-integral-closeout.log` y
+  `final-candidate-full-diagnostics-closeout.log`, en
+  `/tmp/h3req1-production-remediation-20261029/`.
+
+La causa del delta baseline→candidato está acotada: el baseline observó 304 rutas
+candidate-only contra un esperado obsoleto de 367, un diagnóstico; el candidato
+actual registra 305 rutas candidate-only y 444 fuentes de integración (443 en
+baseline), por lo que ese mismatch se corrige. Permanecen 348 diagnósticos: 79
+rutas candidate-only ausentes generan 237 fallos de source/path; 88 relaciones
+apuntan a 20 de esas rutas; 15 exclusiones corresponden a archivos locales,
+generados o cache ausentes; cuatro documentos históricos privados ausentes generan
+cuatro referencias documentales y cuatro exclusiones stale. El riesgo es trazabilidad
+histórica incompleta. Solución: reconciliar rutas individualmente contra Git o
+backups autorizados; apuntar a reemplazos sanitizados sin recuperar privados; retirar
+solo exclusiones de artefactos cuya procedencia se confirme. Owner: Romel/TL. No
+existe una disposición vigente para producción.
+
+Revisión de seguridad del diff completada sin findings reportables, alcance patch
+local; no es una auditoría global ni valida runtime Pro/Cloudflare. Scan
+`d708fb6a-742b-45f1-9be9-2101ad7b2022`, base `6f059a0b27ef38541a7b62503c78920e621f05c1`,
+snapshot `codex-security-snapshot/v1:sha256:d9e4aa4bd6bfd52cf89f98df5368be46fba717dcd6d2df521fae2676e1380c3c`.
+El scan concluyó 11:16:46 UTC, antes de que se guardara esta actualización final
+documental; el único delta posterior es prosa de estado/validación. Reporte
+`/home/romel/.codex/state/plugins/codex-security/scans/studiamatch-h3req1-production-remediation-20261029/6f059a0b27ef38541a7b62503c78920e621f05c1_20261029T160407Z_4ofy2nqt/report.md`.
+Recibo manual de las correcciones textuales después del snapshot:
+`artifacts/03_coverage/manual_post_snapshot_docs_review.md` en el mismo directorio.
+
+### Bloqueos y acciones exactas antes de producción
+
+| Bloqueo | Evidencia/riesgo | Acción y autorización pendiente |
+|---|---|---|
+| El candidato productivo real todavía no incluye este delta; main no está protegido por una lectura verificada | Desarrollo@`6f059a0b`, Certification@`03515dee`, main@`70d0f4fe`; Certification→main aparece 100 commits adelante/4 detrás, el merge-tree local limpio no equivale a CI. Protection API de main devolvió 403 | Autorizar por separado commit local, push no forzado y PR a `desarrollo`. Después PR protegido desarrollo→certificacion y PR separado certificacion→main; verificar protection, review y CI con SHAs finales. Ningún merge queda autorizado aquí. |
+| Gate documental integral | 348 diagnósticos; deuda de referencias históricas; PASS candidate-aware no sustituye FAIL integral | Remediación ruta por ruta verificable o nueva disposición humana específica para el SHA productivo final, con owner, riesgo y vencimiento. No extender #509/#510 ni la disposición de Certification. |
+| Pro ledger/schema/H2 | Preflight MCP SELECT-only completado: 23 versiones; objetos H2 presentes pero no anotados en ledger; `courses` aún tiene grants directos de escritura a anon/authenticated; cohort rows/digest no consultados. Admin/H3 y snapshot ausentes. | Pro ya no está bloqueado por acceso. En candidato integrado, ejecutar solo `report/verify`; decidir H2 apply por objetos y ledger, no por conteo. Apply necesita JIT Production, backup/PITR y verificación de cohorte. H3 necesita un manifest cerrado por SHA y un workflow protegido que hoy no existe. Ningún dispatch ni SQL se ejecutó. |
+| Runtime BFF/Pages Production incompleto | Pages `studiamatch` main desplegado `2b53bc74`, SHA `70d0f4fe`; faltan hosts Admin, tres HMAC, key-id y binding `ADMIN_QUOTA`. Access Admin-only/6h está vigente. No se leyeron valores de keys | JIT Cloudflare separado para `ADMIN_ALLOWED_HOSTS=admin.studiamatch.com`, tres HMAC aleatorias de ≥32 bytes y distintas entre sí/Preview, `ADMIN_RPC_GATEWAY_KEY_ID` igual a un id activo de Pro y binding al Worker existente `studiamatch-admin-quota`. La configuración se prepara luego del read-only Pro; aplicar por deployment normal autorizado. Access permanece igual. |
+| Variable `NEXT_SUPABASE_SECRET_KEY` en Pages Production figura `plain_text` | Metadatos leídos; valor nunca leído; sin consumidor bajo `web/` | JIT aparte para retirarla de Pages Production, verificando consumidores antes/después. No copiar secretos de Free ni incluir valor en solicitudes. |
+
+No se ejecutó nada de lo anterior. Orden de preparación: acceso Pro read-only → decidir H2 con ledger real → integrar el delta por PR protegido en desarrollo y promover por PRs separados → recalcular documentación y gates sobre el SHA final → aprobar/ejecutar SQL solo si el preflight demuestra drift → aplicar JIT Pages y despliegue normal → smoke mínimo Production con JIT de escritura/restauración si toca datos. `expand → compatibilidad → deploy → contract` y rollback están definidos en la sección anterior; no se activa pipeline, writer o schedule.
+
+### Preparación de descripción PR — no publicada
+
+Descripción basada en `.github/pull_request_template.md` preparada en
+`/tmp/h3req1-production-remediation-pr-body.md`. La autorización necesaria para
+publicar es exacta: commit de estos 13 paths sobre la rama actual, push no forzado
+de `codex/h3req1-production-remediation-20261029` y PR hacia `desarrollo` con base
+`6f059a0b27ef38541a7b62503c78920e621f05c1`. El CI/Preview automático habitual se
+acepta solo bajo esa instrucción; no incluye merge, SQL ni configuración remota.
+
+## Corte histórico — remediación local de promoción por TL previa al PR #510
 
 Revisión posterior de continuidad: la sesión Luna conserva como último mensaje
 el NO-GO del 2026-10-29 00:04:23 UTC; no hay continuación nueva acreditada allí.

@@ -278,6 +278,8 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/deprecated/fase32b_migrate_free_to_pro.py": "supabase-data-and-management-api",
     "scripts/deprecated/seed_crawler_exclusions.py": "supabase-data-api",
     "tests/test_h2_development_legacy_compat.py": "supabase-pattern-test-only",
+    "tests/test_h2_pro_migration_controls.py": "supabase-pattern-test-only",
+    "tests/test_h2_pro_preflight_report.py": "supabase-pattern-test-only",
     "tests/test_h2_writer_scan.py": "supabase-pattern-test-only",
     "scripts/deprecated/harvesters/continental_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/idat_harvester.py": "supabase-data-api",
