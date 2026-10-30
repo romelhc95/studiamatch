@@ -1888,3 +1888,159 @@ remotas. No se acreditan como aceptación nueva.
 3. **Retirada semántica HTTP 200** — owner H1; riesgo: un URL vivo puede mostrar una
    página que ya no lista el programa. Punto de revisión: diseño/ingesta H1; sin
    crawler universal ni waiver en este paquete.
+
+## Corte posterior al merge #512 — preparación Desarrollo → Certification — 2026-10-29 23:49 America/Lima
+
+### Tareas y gates
+
+1. Reconciliar merge/refs y despliegue normal Development: PASS.
+2. Evaluar candidato real Desarrollo → Certification con selector, pins y
+   compatibilidad: NO-GO por el guard de pins obsoletos; no se abrió PR.
+3. Evaluar integridad documental: candidate-aware PASS e integral FAIL separado.
+4. Preparar la corrección mínima del guard en un worktree aislado y validarla en
+   Docker: pruebas focales PASS; todavía no integrada ni publicada.
+5. Preservar aceptaciones anteriores: E1–E6 6/6, R1–R4 4/4, smoke Certification
+   1/1; no repetidas.
+
+### Merge y deployment verificados
+
+- PR #512 quedó integrado en Desarrollo con merge SHA
+  `34469196c5ba4d073b49479f2fb44e84c279dbbb`; HEAD revisado del PR
+  `317d5e7bc861e414ea1d806774de973abab9fa7b`. Certification sigue en
+  `03515dee69fc42b10808d1c67cc4e00ebacd0c40`.
+- CI del HEAD del PR: 16 success, 2 skipped (`Supabase Preview` y
+  `H2 Main Production Expand Gate`), cero fallos/pending; aprobación humana
+  vigente antes del merge.
+- Cloudflare Pages Development: deployment
+  `b8255fbf-19e6-4feb-ba06-bb687e079f46`, commit `34469196…`, success, alias
+  `desarrollo.studiamatch-aty.pages.dev`. Origen: deployment normal del push de
+  GitHub, sin deploy manual.
+- Lectura Cloudflare limitada a metadatos de Preview: presentes los nombres de
+  `ADMIN_ALLOWED_HOSTS`, HMAC keys, `ADMIN_RPC_GATEWAY_KEY_ID` y binding
+  `ADMIN_QUOTA`. No se leyeron valores secretos.
+
+### Candidato real y documentación
+
+- Ancestro común: `6f059a0b27ef38541a7b62503c78920e621f05c1`; divergencia Git:
+  10 commits adelante / 3 detrás. Delta certificacion→desarrollo: 31 archivos,
+  +3582/−245. `merge-tree` terminó sin conflictos y su tree SHA
+  `44478b685611db0b023bb179b9811b2a68658989` coincide con el tree de Desarrollo.
+- El selector del workflow, con baseline `certificacion` y source `desarrollo`,
+  eligió `.git/h3req1-promotion-documentation.json` y produjo 46 paths
+  agregados. Self-test/candidate-aware PASS: 752/752 fuentes, 119/119 documentos
+  activos, 433/433 históricos. Log candidate-aware SHA-256
+  `94e37a107c94e94cf4d09f854a66d0fff186cee1891bf605bbeff4f36d10a502`.
+- Checker integral: FAIL en ambos árboles; Certification 350 diagnósticos,
+  Desarrollo 348, cero nuevos exclusivos y dos resueltos. El FAIL no se traduce
+  a PASS por el gate acotado. Logs completos: baseline SHA-256
+  `fc06f91f08f41752d705723b42e988dee98959fb1417dcb1d2173fe38ae4cc84`, candidato
+  `e4326d0a6f3e491b5e95a3f724a9d9706f638a0ce49c39f4a5ea6bc704611cf9`. Listas
+  únicas: baseline 350, SHA `416da38b2dd3cb7d4eba5c4742625c5eb24f3762401b1aa4cc3a88e09bb9e867`;
+  candidato 348, SHA `e739d874045f360b218d5590fcd0b60cb46c6c248c337cddcce308ff9e1edaa0`.
+  No se borraron relaciones ni se fabricaron fuentes.
+- La disposición A asociada al paquete #512 cubría solo su candidato y está
+  consumida. El responsable aprobó una disposición nueva el 2026-10-30 a las
+  01:06 America/Lima para el diff local exacto `e6f072cc6a1e63eebe6cad9136b971917386f19ee1ffe432f4e6ba0902c209ce` (base Desarrollo
+  `34469196c5ba4d073b49479f2fb44e84c279dbbb`, cinco paths), limitada a tramitar
+  integración protegida a Desarrollo. Owner Romel/TL; riesgo de trazabilidad
+  histórica incompleta; vence el 2026-11-05 23:59 America/Lima o antes de
+  cualquier promoción a Certification. No convierte el integral FAIL en PASS ni
+  autoriza commit, push, PR, review, merge o promoción. Se solicitará por
+  separado autorización para commit/push/PR.
+- Revalidación documental posterior a A, en Docker/red `none`: el checker se
+  ejecutó sobre un archivo temporal derivado de los cinco paths exactos del diff
+  y un archive del HEAD base. Resultado `DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`,
+  752/752 fuentes asignadas, 119/119 documentos activos alcanzables, 433/433
+  históricos enlazados, 9.376 links y 4.699 anchors. Log:
+  `/tmp/h3req1-a-approved-doc-self-test.log`, SHA-256
+  `68349a36e11d1d6c371a497135d3c2a172af0b67db7db9a1f4532da0e8df7de4`.
+  El manifest temporal selecciona esos cinco paths y no es artefacto de
+  autorización ni de CI. Una invocación sin manifest no se cuenta como gate del
+  candidato: incluye 305 fuentes candidate-only no seleccionadas y devuelve
+  `DOC_GATE_FAIL`; el integral histórico continúa separado en 348 diagnósticos.
+
+### Bloqueo de pins y corrección local no integrada
+
+- Con refs reales `certificacion@03515dee…` y `desarrollo@34469196…`, el guard
+  integrado rechaza la ruta porque su pin de promoción aún requiere baseline
+  `c80f6504a3ea353bc2c222df1da09c4b5ba0ae58` y source
+  `941eca496676bd11cd0e2796e6c0a34efd62082d`. Log del guard real:
+  `/tmp/h3req1-certification-gates-34469196/protected-promotion.log`, SHA-256
+  `1768889617e6cfcdb50867af65cb631424810b9cb905fcffceefeacf56e6936b`.
+- En el worktree aislado `/tmp/studiamatch-h3req1-certification-review-20261029`
+  (base integrada `34469196…`, sin commit), se conservó el contrato de pins. Se
+  regeneró el manifiesto para baseline Certification `03515dee…` y source
+  Development `34469196…`: 27 paths de blob inmutable. Los cuatro paths del
+  candidato que cambiará el follow-up, además del manifiesto de pins, se excluyen
+  de las entradas porque esos paths siguen sujetos a allowlists exactos y no pueden
+  fijarse contra el árbol source que antecede al propio cambio. La prueba de pins
+  no cambia y queda incluida entre los blobs fijados.
+- Manifiesto local SHA-256
+  `5edc9aa2f0273eb31d7f44640238d32ebf2db582bc836ec00759bc29d84b6797`. El guard
+  conserva el gate de `desarrollo -> certificacion`, actualizado al par exacto
+  `03515dee…` / `34469196…`; no hay bypass ni fallback a una allowlist abierta.
+  La versión anterior del manifiesto sigue preservada en Git en el commit base,
+  SHA-256 `3174c54ddb7ee689ccfaec47ee8f20a1c9c18631c2c7adfa4517a8969223d774`.
+- Docker/red `none`: comparación del candidato real con los pins regenerados PASS;
+  `tests/test_protected_path_scope_guard.sh`, `bash -n`, `git diff --check` y
+  credential scan de los cinco paths modificados y el test existente PASS. La
+  suite confirma 1.196
+  rutas, 13 catálogos/1.173 referencias, selector y agregación de manifests,
+  pins exactos, baseline equivocado, blobs falsos, duplicados, drift y negativos.
+  El log final de suite y log del guard candidato se guardan en
+  `/tmp/h3req1-certification-gates-34469196/final-pin-tests.log` y
+  `final-protected-candidate.log`; SHA-256 respectivos:
+  `1b5c60290a305231d2e466db3a3fef1b63da0507844f7df6248570615c9a3c69` y
+  `3c12cc7d4f66c1ebe2406795845c81cf47bb3fac6debf03e8126959a2c7baa4f`.
+  Credential scan: `c907c408226ecdd488273b9af102a9201a0efaf17a8d58788658a67652ca1396`;
+  self-test documental: `94e37a107c94e94cf4d09f854a66d0fff186cee1891bf605bbeff4f36d10a502`.
+  Checker integral diagnóstico final: `e4326d0a6f3e491b5e95a3f724a9d9706f638a0ce49c39f4a5ea6bc704611cf9`.
+  ShellCheck no está disponible en la imagen; debe ejecutarse en CI después de
+  que un PR protegido lleve el arreglo a Desarrollo. Esto no acredita el guard
+  integrado ni el candidato actual.
+- Tras actualizar el índice/estado, el primer self-test señaló el anchor roto del
+  enlace al checkpoint; se quitó el fragmento y se repitió. Resultado final en
+  Docker/red `none`: `DOC_SELF_TEST_PASS`, 752/752 fuentes asignadas, 119/119
+  activos alcanzables, 433/433 históricos enlazados, 9.376 links y 4 paths
+  candidate-only en el manifiesto local H3 editorial. `DOC_GATE_PASS`; log
+  SHA-256 `94e37a107c94e94cf4d09f854a66d0fff186cee1891bf605bbeff4f36d10a502`.
+  Esta pasada valida el índice y la evidencia local; el selector real de la
+  promoción, ejecutado antes sobre el diff remoto exacto, seleccionó el agregado
+  de 46 paths descrito arriba.
+- Checker integral diagnóstico después de las ediciones locales produjo un log
+  byte-idéntico al del Desarrollo integrado (`SHA-256
+  e4326d0a6f3e491b5e95a3f724a9d9706f638a0ce49c39f4a5ea6bc704611cf9`): conserva
+  348 diagnósticos y no agrega nuevos respecto del baseline actual. El baseline
+  Certification sigue en 350. El FAIL integral no está resuelto.
+- La revisión estática focal del patch se limitó al guard, pins y pruebas: el
+  diff solo actualiza los SHAs esperados y blobs del manifest; permanecen el
+  anclaje source/baseline, validación de rutas/duplicados, comparación de blobs,
+  emisión solo tras validar todo y allowlists runtime sin ampliar. El test
+  conserva vecinos negativos. El 2026-10-30 01:23 America/Lima Codex Security
+  volvió a rechazar el inicio con `Working-tree contents changed after they were
+  selected. Select Uncommitted changes again`; no hubo `scanId` ni scan completo.
+  Este bloqueo del launcher no se presenta como ausencia de hallazgos. ShellCheck
+  permanece pendiente de CI; no se afirma que el scan externo esté completado.
+- Árbol de trabajo local: solo están modificados
+  `scripts/security/protected_path_scope_guard.sh` y
+  `tests/test_protected_path_scope_guard.sh` al iniciar este checkpoint; después
+  se actualizaron localmente también esta evidencia, `estado_del_proyecto.md` e
+  `indice.md`. No hubo commit, push, PR, merge, SQL, workflow, configuración ni
+  deploy manual.
+
+### Decisión y siguiente acción
+
+**NO-GO para solicitar/crear PR Desarrollo → Certification**: el guard integrado
+falla con el baseline efectivo y la corrección todavía no está integrada. La
+disposición documental nueva fue aprobada solo para tramitar la integración
+protegida a Desarrollo; el permiso de publicación aún falta. Después de integrar
+el arreglo, releer las ramas y repetir únicamente selector/pins/gates
+documentales afectados. Para Certification, evaluar nuevamente el residual y
+obtener disposición y autorizaciones propias del candidato actualizado.
+
+No repetir E1–E6, R1–R4 ni smoke Certification. No hubo aprobación de promoción,
+no se ejecutó merge, DB Sync `report`, SQL H2/H3, workflow, cambio Pages/Access ni
+deploy manual. Tras un futuro merge autorizado a Certification, verificar el
+deployment real y preparar (sin ejecutar) el JIT `DB Sync to Production` con
+`operation=report`, `migration_manifest=h2-expand-compat`, SHA/payload exactos y
+`apply_authorized=false`.
