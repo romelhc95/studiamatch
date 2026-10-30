@@ -2,7 +2,11 @@
 
 > Autoridad del schema: Pro es el baseline autoritativo según AGENTS.md. Las definiciones del diccionario proceden del SQL/fixtures locales; la lectura remota R15 se limita a metadata sanitizada y no convierte SQL local en prueba de aplicación.
 
-## Metadata remota R15
+## Metadata remota R15 — histórica, superada por preflight del 2026-10-29
+
+El siguiente estado conserva la lectura de ese corte y no describe el acceso ni
+el inventario operativo vigente. El cotejo Pro SELECT-only posterior está en el
+[checkpoint H3REQ1](evidencia/h3req1_editorial_contract_2026-10-28.md#preflight-pro-select-only-completado).
 
 En la lectura read-only del 2026-10-13, Pro (`xwhtiqmboljkshrtviyw`) reportó ACTIVE_HEALTHY/PostgreSQL 17.6.1.111. Su ledger listó 23 entradas hasta `20260607221002`; ninguno de los 28 archivos H3 locales entre `20260828` y `20261010` aparece. El listado de schema encontró 19 relaciones públicas por `information_schema` y 18 mediante la API de tablas. Las tablas enumeradas no incluyen `admin_invitations`, `admin_members` o `admin_membership_audit`, y `pg_proc` no devolvió funciones públicas `admin_%`; sí se enumeran objetos editoriales como `course_editorial_state`, `course_editorial_audit` y `courses_public_effective`. Esta discrepancia es evidencia de metadata actual para el alcance consultado; no se aplicó SQL ni se consultaron filas.
 
@@ -69,7 +73,7 @@ db/rollback/h3req1_safe_resume.sql y h3req1_safe_suspend.sql son procedimientos 
 
 ## Fuentes
 
-db/restore_full_schema.sql, db/migrations/, db/rollback/, db/seeds/h3_admin_seed_local.sql, tests/sql/, tests/test_h2_*, tests/test_admin_invite_edge_contract.py, tests/test_supabase_credentials_contract.py y baseline/reglas en AGENTS.md. Metadata H3 Pro y límites de Free constan en R15; las diferencias detalladas por objeto, schema completo Free, RLS/grants/triggers no enumerados y adopción funcional siguen pendientes.
+db/restore_full_schema.sql, db/migrations/, db/rollback/, db/seeds/h3_admin_seed_local.sql, tests/sql/, tests/test_h2_*, tests/test_admin_invite_edge_contract.py, tests/test_supabase_credentials_contract.py y baseline/reglas en AGENTS.md. La tabla/objetos Pro de R15 son un corte histórico; el preflight SELECT-only de metadata del 2026-10-29 queda registrado en el checkpoint H3REQ1 actual. La cohorte/datos agregados siguen pendientes; no inferir migrations por ledger/cantidad ni por el manifiesto local.
 
 ## Rutinas relevantes por propósito
 

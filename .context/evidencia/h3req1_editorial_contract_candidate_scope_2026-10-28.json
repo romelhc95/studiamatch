@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
-  "manifest_role": "candidate-aware documentation integrity selection; H3REQ1 editorial contract 2026-10-28; exact local package scope, not a PR path manifest",
+  "manifest_role": "candidate-aware documentation integrity selection; H3REQ1 editorial contract 2026-10-28 with H2/Pro preflight report remediation 2026-10-29; exact local package scope, not a PR path manifest",
   "scope": {
     "entries": [
+      {"path":".github/workflows/db-sync-to-pro.yml","status":"included"},
       {"path":".github/workflows/security-audit.yml","status":"included"},
       {"path":".context/hitos/README.md","status":"included"},
       {"path":".context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json","status":"included"},
@@ -30,15 +31,32 @@
       {"path":"web/src/components/admin/CourseLivePreview.tsx","status":"included"},
       {"path":"web/src/components/admin/editorial-ui.tsx","status":"included"},
       {"path":".context/evidencia/h3req1_editorial_contract_2026-10-28.md","status":"included"},
+      {"path":".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json","status":"included"},
       {"path":".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md","status":"included"},
       {"path":"db/migrations/20261028_h3_editorial_publication_snapshot.sql","status":"included"},
-      {"path":"tests/test_integrity_ping_retirement_contract.py","status":"included"}
+      {"path":"tests/test_integrity_ping_retirement_contract.py","status":"included"},
+      {"path":"scripts/maintenance/db_migrate.py","status":"included"},
+      {"path":"scripts/maintenance/check_db_parity.py","status":"included"},
+      {"path":"scripts/maintenance/pro_h3_migration_manifest.py","status":"included"},
+      {"path":"scripts/maintenance/h3req1_documentation_integrity.mjs","status":"included"},
+      {"path":"tests/admin_audit_changes.test.mjs","status":"included"},
+      {"path":"tests/test_fase10_main_boundary.py","status":"included"},
+      {"path":"tests/test_h2_pro_migration_controls.py","status":"included"},
+      {"path":"tests/test_h2_pro_preflight_report.py","status":"included"},
+      {"path":"tests/test_h3_pro_migration_manifest.py","status":"included"},
+      {"path":"web/src/lib/admin-audit-changes.mjs","status":"included"},
+      {"path":".context/hitos/hito_001.md","status":"included"},
+      {"path":".context/hitos/hito_004.md","status":"included"}
     ]
   },
   "package_artifacts": {
     "promotion_path_pins": {"path":".context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json","included":true},
     "checkpoint": {"path":".context/evidencia/h3req1_editorial_contract_2026-10-28.md","included":true},
     "client_attestation": {"path":".context/evidencias_cliente/sprint_1/atestado_correccion_contrato_editorial_CA4_2026-10-28.md","included":true},
-    "migration": {"path":"db/migrations/20261028_h3_editorial_publication_snapshot.sql","included":true}
+    "migration": {"path":"db/migrations/20261028_h3_editorial_publication_snapshot.sql","included":true},
+    "h3_migration_manifest": {"path":"scripts/maintenance/pro_h3_migration_manifest.py","included":true},
+    "production_db_sync_workflow": {"path":".github/workflows/db-sync-to-pro.yml","included":true},
+    "h2_pro_preflight_report": {"path":"scripts/maintenance/h2_pro_preflight_report.py","included":true},
+    "h2_pro_preflight_tests": {"path":"tests/test_h2_pro_preflight_report.py","included":true}
   }
 }

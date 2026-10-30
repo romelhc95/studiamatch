@@ -12,6 +12,7 @@ import CourseLivePreview, { type CourseLivePreviewData } from '@/components/admi
 import { getFieldCopy, QUALITY_STATUS_META, StatusBadge } from '@/components/admin/editorial-ui';
 import { MfaRequiredCard } from '@/components/admin/MfaRequiredCard';
 import { adminRpc, getAuthenticatorAssuranceLevel, isMfaRequiredError, requireActiveAdmin, type AdminRole } from '@/lib/admin-auth';
+import { auditChanges } from '@/lib/admin-audit-changes.mjs';
 
 interface CourseData {
   course_id: string;
@@ -120,25 +121,11 @@ function safeExternalUrl(value: string | null | undefined, requireHttps = false)
   }
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
 function auditValue(value: unknown): string {
   if (value === null || value === undefined) return 'Sin dato';
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
   const serialized = JSON.stringify(value) ?? '—';
   return serialized.length > 500 ? `${serialized.slice(0, 497)}…` : serialized;
-}
-
-function auditChanges(event: AuditEvent): Array<{ field: string; before: unknown; after: unknown }> {
-  const before = asRecord(event.old_values?.editorial_fields) || asRecord(event.old_values?.manual_overrides) || event.old_values || {};
-  const after = asRecord(event.new_values?.editorial_fields) || asRecord(event.new_values?.manual_overrides) || event.new_values || {};
-  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
-    .filter((key) => key !== 'version' && JSON.stringify(before[key]) !== JSON.stringify(after[key]))
-    .map((field) => ({ field, before: before[field], after: after[field] }));
 }
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
