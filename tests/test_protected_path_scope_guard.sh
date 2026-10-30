@@ -90,7 +90,11 @@ local_match = re.search(
 if not local_match:
     raise SystemExit("protected path integration test: missing exact local allowlist")
 
-patterns = [workflow_regex("allowed_h3"), workflow_regex("allowed_h3_extra")]
+patterns = [
+    workflow_regex("allowed_h3"),
+    workflow_regex("allowed_h3_extra"),
+    workflow_regex("allowed_h3_migration_manifest"),
+]
 local_paths = {line.strip() for line in local_match.group("body").splitlines() if line.strip()}
 writer_paths = {
     ".github/scripts/production_control_preflight.sh",
@@ -107,6 +111,24 @@ for neighbor in writer_neighbors:
         raise SystemExit(
             f"protected path integration test: neighboring writer path is admitted: {neighbor}"
         )
+
+h3_manifest_paths = {
+    ".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
+    "scripts/maintenance/pro_h3_migration_manifest.py",
+    "tests/test_h3_pro_migration_manifest.py",
+    "tests/test_fase10_main_boundary.py",
+}
+if any(not any(re.search(pattern, path) for pattern in patterns) for path in h3_manifest_paths):
+    raise SystemExit("protected path integration test: exact H3 Pro manifest paths are not admitted")
+for neighbor in (
+    "scripts/maintenance/pro_h3_migration_manifest_extra.py",
+    "tests/test_h3_pro_migration_manifest_extra.py",
+    "tests/test_fase10_main_boundary_extra.py",
+    ".context/evidencia/h3req1_editorial_contract_candidate_scope_extra_2026-10-28.json",
+):
+    if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+        raise SystemExit(f"protected path integration test: neighboring H3 Pro manifest path is admitted: {neighbor}")
+
 diff_scope = guard.split('git diff --name-only -z "$base" HEAD -- \\\n', 1)[1].split('>"$changed_path_file"', 1)[0]
 pathspecs = diff_scope.replace("\\\n", " ").split()
 preflight_path = ".github/scripts/production_control_preflight.sh"
@@ -790,7 +812,8 @@ def commit(repo, message):
     git(repo, "add", ".")
     git(repo, "commit", "-qm", message)
 
-def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=False):
+def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=False,
+                 production=False, production_push=False):
     output = repo / "github-output.txt"
     output.unlink(missing_ok=True)
     env = os.environ.copy()
@@ -799,10 +822,10 @@ def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=
         "R21_MANIFEST": r21_path,
         "D04_MANIFEST": d04_path,
         "GITHUB_OUTPUT": str(output),
-        "GITHUB_BASE_REF": "certificacion" if promotion else "desarrollo",
-        "GITHUB_HEAD_REF": "desarrollo" if promotion else "feature/test",
-        "GITHUB_EVENT_NAME": "push" if postmerge else "pull_request",
-        "GITHUB_REF": "refs/heads/certificacion" if postmerge else "refs/pull/test/merge",
+        "GITHUB_BASE_REF": "main" if production else ("certificacion" if promotion else "desarrollo"),
+        "GITHUB_HEAD_REF": "certificacion" if production else ("desarrollo" if promotion else "feature/test"),
+        "GITHUB_EVENT_NAME": "push" if postmerge or production_push else "pull_request",
+        "GITHUB_REF": "refs/heads/main" if production_push else ("refs/heads/certificacion" if postmerge else "refs/pull/test/merge"),
     })
     result = subprocess.run(
         ["bash", "-e", "-c", selector_script], cwd=repo, env=env,
@@ -879,6 +902,12 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     result, selected = run_selector(repo, base, r21_path, d04_path, postmerge=True)
     if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
         raise SystemExit("promotion selector regression: post-merge Certification push lost the union")
+    result, selected = run_selector(repo, base, r21_path, d04_path, production=True)
+    if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
+        raise SystemExit(f"production selector regression: Certification-to-main PR lost the union: {result.stderr}")
+    result, selected = run_selector(repo, base, r21_path, d04_path, production_push=True)
+    if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
+        raise SystemExit(f"production selector regression: post-merge main push lost the union: {result.stderr}")
 
     repo, base = create_repo(temp_root, "promotion-missing-input")
     write_manifest(repo, ".context/evidencia/r22.json", "R22")
@@ -1020,6 +1049,6 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
         raise SystemExit("promotion pin regression: changed pinned content did not fail without output")
 
 print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
-print("promotion-manifest-selector=PASS|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
+print("promotion-manifest-selector=PASS|development_to_certification=1|certification_to_main=1|postmerge_certification=1|postmerge_main=1|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
 print("promotion-path-pins=PASS|exact_tree=1|neighbor_not_selected=1|wrong_baseline=fail_closed|forged_blob=fail_closed|duplicate=fail_closed|content_drift=fail_closed")
 PY

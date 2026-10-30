@@ -2,6 +2,59 @@
 
 > Generado el 2026-10-12 desde nombres presentes en el checkout candidato. El orden lexicográfico coincide con el prefijo de fecha, no certifica orden de aplicación en ningún ambiente. Los cuerpos y comentarios de cada migration definen el cambio. No se ejecutó SQL.
 
+## h3-pro-promotion-manifest
+
+### Candidate local del manifiesto H3 Pro — 2026-10-29
+
+El módulo [`pro_h3_migration_manifest.py`](../../scripts/maintenance/pro_h3_migration_manifest.py)
+declara el inventario ordenado y cerrado de **31** migrations H3, con SHA-256
+por archivo y validación byte a byte. La suite
+[`test_h3_pro_migration_manifest.py`](../../tests/test_h3_pro_migration_manifest.py)
+rechaza nombres extra/ausentes/duplicados, reordenamiento, archivos ausentes o
+modificados y entradas de cohorte inválidas. El inventario exacto vive en
+`H3_PRO_MIGRATIONS`; no se deriva de todos los archivos del directorio al aplicar.
+
+Los resúmenes repetidos de las entradas históricas del ledger que dicen que DB
+Sync “solo acepta H2” describen el corte anterior. La extensión H3 de esta ficha
+existe únicamente en este worktree local; aún no está integrada ni aplicada en Pro.
+
+Las dependencias que deben conservarse en ese orden son: Admin auth antes de
+RBAC y del contrato expandido; quota EXPAND antes del wrapper; gateway EXPAND
+antes del wrapper ligado al payload; y snapshot editorial antes del guard del
+precio. El H2 expand/compatibility reader es un prerrequisito externo, no una
+migration incluida en el conjunto H3. El delta local extiende el flujo existente
+`DB Sync to Production` para seleccionar `h3-editorial-expand` solo en `main`,
+validar el SHA de cada SQL y usar los gates report → autorización
+DDL/Production/backup-PITR → apply → verify.
+El caller de Pro no admite `--only` ni selección parcial.
+
+El preflight Pro de este corte observa 23 entradas de ledger, objetos H2
+editoriales presentes fuera de ese ledger, `admin_*`/`h3_*` Admin ausentes y
+campos snapshot ausentes. No se leyó la cohorte ni se ejecutó
+`h2_verify_expand_compat`; por eso este manifest local no es aplicable todavía.
+El report read-only H2 ahora distingue el baseline de una instalación parcial
+fuera de ledger y entrega agregados con `REVIEW_REQUIRED`; una superficie H2
+compatible observada es solo diagnóstico porque el lector no puede consultar el
+schema privado ni ejecutar el RPC de verificación. Ledger parcial, objetos
+faltantes y errores de lectura permanecen `INCOMPLETE`/`READ_ERROR`; ninguno
+produce GO ni líneas JIT. La guarda de apply sigue separada; H3 exige además el
+RPC de verificación H2 agregado antes de iniciar SQL. El futuro reader/contract
+legacy sigue activo durante compatibilidad.
+
+**Transición/recuperación:** expand solo después de reconciliar H2 y acreditar el
+conteo/digest exacto; compatibilidad conserva el reader H2 y evita retirar datos
+o historial; deploy normal por la rama protegida con runtime compatible; contract
+H2 se considera después de paridad y aceptación del runtime, usando su manifest
+separado. Si un apply parcial falla, detenerse, cotejar ledger/schema y reanudar
+solo con evidencia; no marcar migrations manualmente ni borrar snapshots/auditoría.
+Rollback de aplicación: volver al deployment de código compatible y mantener el
+schema expandido; una corrección SQL requiere migration forward-only y JIT propio.
+Este candidato no ejecutó workflow, SQL ni PG17 con DDL.
+
+**Estado de prueba:** selección/manifiesto, hashes, dependencias, rechazo de
+entradas inválidas y tests de controles corrieron offline en Docker; el resultado
+consolidado vigente está en el [checkpoint H3REQ1](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
 
 ## 202604
 

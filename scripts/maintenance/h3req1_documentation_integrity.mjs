@@ -686,7 +686,7 @@ function renderRegistryMarkdown(registry) {
     const anchor = component.registry_anchor ?? component.id;
     lines.push(`### ${anchor}`, "", `[${escapeMarkdown(component.title)}](${docLink(component.document)}) · ${component.domain_documents.map((item) => `[${escapeMarkdown(item.path)}#${escapeMarkdown(item.anchor)}](${docLink(item)})`).join(" · ")}`, "");
   }
-  lines.push("## Checker", "", "Validación local: `bash scripts/security/run_documentation_integrity.sh --self-test`. El modo normal es de solo lectura; `--render` regenera esta vista desde el JSON. El self-test simula una fuente nueva sin registro, exige su rechazo, permite omisiones exactas solo si están registradas y el manifiesto no las selecciona, rechaza rutas no registradas/seleccionadas o ausencia de manifiesto, comprueba que `unknown` no se acepte como estado relacional, valida la forma de `remote_only`, confirma las dos rutas YAML Docker del inventario y rechaza marcadores documentales con sufijo o duplicados. Los grupos `inline_comment: none` se validan por el registro externo y no leen el contenido para buscar marcadores.", "", "## Componentes", "", "| Componente | Página de componente | Dominio | Propósito |", "|---|---|---|---|");
+  lines.push("## Checker", "", "Validación local: `bash scripts/security/run_documentation_integrity.sh --self-test`. El modo normal es de solo lectura; `--render` regenera esta vista desde el JSON. El self-test simula una fuente nueva sin registro, exige su rechazo, permite omisiones exactas solo si están registradas y el manifiesto no las selecciona, rechaza rutas no registradas/seleccionadas o ausencia de manifiesto, comprueba que `unknown` no se acepte como estado relacional, valida la forma de `remote_only`, exige que las fuentes YAML de override Docker permanezcan asignadas y que cualquier fuente ausente esté marcada como candidate-only exacta, y rechaza marcadores documentales con sufijo o duplicados. Los grupos `inline_comment: none` se validan por el registro externo y no leen el contenido para buscar marcadores.", "", "## Componentes", "", "| Componente | Página de componente | Dominio | Propósito |", "|---|---|---|---|");
   for (const component of registry.components) {
     lines.push(`| ${escapeMarkdown(component.title)} | [${escapeMarkdown(component.document.path)}](${docLink(component.document)}) | ${component.domain_documents.map((item) => `[${escapeMarkdown(item.path)}](${docLink(item)})`).join(", ")} | ${escapeMarkdown(component.purpose)} |`);
   }
@@ -796,10 +796,26 @@ function runSelfTest(registry, discovered, assigned, candidateScope, candidateOn
     ".context/operaciones/h3req1_docker_candidate_cutover_v4_override_2026-10-09.yml",
     ".context/operaciones/h3req1_docker_candidate_override_2026-10-09.yml",
   ];
+  const missingDockerOverrideSources = (inventory) => dockerOverrideSources.filter((relative) => !inventory.has(relative));
+  const simulatedMissingDockerInventory = new Map(assigned);
+  simulatedMissingDockerInventory.delete(dockerOverrideSources[0]);
+  if (!missingDockerOverrideSources(simulatedMissingDockerInventory).includes(dockerOverrideSources[0])) {
+    process.stderr.write("DOC_SELF_TEST_FAIL removing a required Docker override did not fail the exact inventory check\n");
+    return false;
+  }
+  const missingDockerSources = missingDockerOverrideSources(assigned);
+  if (missingDockerSources.length > 0) {
+    process.stderr.write(`DOC_SELF_TEST_FAIL required Docker candidate override is absent from the registered inventory: ${missingDockerSources.join(", ")}\n`);
+    return false;
+  }
   for (const relative of dockerOverrideSources) {
-    if ((!discovered.includes(relative) && !candidateManifestOmissionAllowed(relative, candidateOnlyPaths, candidateScope))
-      || !assigned.has(relative)) {
-      process.stderr.write(`DOC_SELF_TEST_FAIL registered context source missing from discovery or assignment: ${relative}\n`);
+    if (!discovered.includes(relative) && !candidateOnlyPaths.has(relative)) {
+      process.stderr.write(`DOC_SELF_TEST_FAIL absent Docker candidate override is not an exact candidate-only source: ${relative}\n`);
+      return false;
+    }
+    if (candidateScope && !discovered.includes(relative)
+      && !candidateManifestOmissionAllowed(relative, candidateOnlyPaths, candidateScope)) {
+      process.stderr.write(`DOC_SELF_TEST_FAIL selected candidate manifest does not allow the exact absent Docker override: ${relative}\n`);
       return false;
     }
   }

@@ -69,8 +69,9 @@ posterior al merge no pierde el contrato validado en el PR ni habilita sucesores
 arbitrarios. Los PRs de otras rutas siguen bajo selección única.
 
 El selector de `security-audit.yml` conserva una única selección y rechaza
-ambigüedad en PRs normales. Solo para la ruta GitHub `desarrollo -> certificacion`
-genera un agregado efímero en `.git/h3req1-promotion-documentation.json`: unión de
+ambigüedad en PRs normales. Para las rutas GitHub `desarrollo -> certificacion`
+y `certificacion -> main` genera un agregado efímero en
+`.git/h3req1-promotion-documentation.json`: unión de
 todos los paquetes documentales cambiados, sus artifacts incluidos y todas las
 rutas supervivientes del diff Git real. Registra baseline, HEAD y SHA-256 de cada
 paquete. Los paths seleccionados ausentes o inseguros y los manifiestos
@@ -80,15 +81,16 @@ válida, y sus archivos siguen incluidos en el diff agregado. JSON histórico qu
 puede ser una selección por nombre ni tiene rol JSON válido no se interpreta como
 selector. No se elimina ni altera ese artifact.
 
-`tests/test_protected_path_scope_guard.sh` prueba la unión y cobertura del diff,
-hashes, inputs ausentes, PR scope inválido y ambigüedad normal. PASS Docker local
-no acredita Actions ni promoción. Se conserva el checker integral y su FAIL
-histórico: esta remediación no concede waiver ni autorización remota. Se expande
-el selector manteniendo compatibilidad con una selección; el deploy será mediante
-PR protegido a Development y el cambio seguirá vigente en Certification. No hay
+`tests/test_protected_path_scope_guard.sh` prueba ambas rutas PR, los pushes
+posteriores a cada promoción, la unión y cobertura del diff, hashes, inputs
+ausentes, PR scope inválido y ambigüedad normal. PASS Docker local no acredita
+Actions ni promoción. Se conserva el checker integral y su FAIL histórico: esta
+remediación no concede waiver ni autorización remota. Se expande el selector
+manteniendo compatibilidad con una selección; el despliegue sigue el PR protegido
+del ambiente correspondiente. No hay
 legacy nuevo que retirar. Rollback: revertir el cambio por PR protegido; la
 promoción volvería a fallar cerrada, sin efectos DB. La revisión/evidencia de este
-ciclo se registra en el [checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md#remediacion-local-de-promocion-por-tl).
+ciclo se registra en el [checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md).
 
 [`registro_fuentes_componentes.json`](../trazabilidad/registro_fuentes_componentes.json) es la autoridad verificable de asignaciones. Cada ruta mantenida queda enlazada a un componente, una ficha/anchor de fuente y una página de dominio; el registro añade propósito, contrato, consumidores/dependencias, datos, pruebas/evidencia, operación/permisos y procedencia. Las relaciones se anotan por grupos con límites explícitos: `pending` y `unknown` no cuentan como verificadas ni se convierten en consumidores por similitud de nombre.
 

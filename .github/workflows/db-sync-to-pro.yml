@@ -23,6 +23,7 @@ on:
           - h2-contract-public-reader
           - h2-contract-legacy-cohort
           - h2-rollback-public-reader-contract
+          - h3-editorial-expand
       candidate_sha:
         description: "Immutable certificacion/main evidence commit approved for Production DB operation"
         required: true
@@ -99,16 +100,17 @@ jobs:
       - name: Verify immutable candidate
         env:
           CANDIDATE_SHA: ${{ steps.resolve.outputs.candidate_sha }}
+          MIGRATION_MANIFEST: ${{ inputs.migration_manifest }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           git fetch --no-tags origin "${GITHUB_REF_NAME}"
           test "$(git rev-parse "origin/${GITHUB_REF_NAME}")" = "$CANDIDATE_SHA"
-          case "${{ inputs.migration_manifest }}" in
+          case "$MIGRATION_MANIFEST" in
             h2-expand-compat)
               test "${GITHUB_REF_NAME}" = "certificacion"
               ;;
-            h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract)
+            h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract|h3-editorial-expand)
               test "${GITHUB_REF_NAME}" = "main"
               ;;
           esac
@@ -208,8 +210,9 @@ jobs:
           MIGRATION_MANIFEST: ${{ inputs.migration_manifest }}
         run: |
           set -euo pipefail
-          printf '%s' "$MIGRATION_MANIFEST" | grep -Eq '^(f10-8-atomic-cleansing-provenance|h2-expand-compat|h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract)$'
+          printf '%s' "$MIGRATION_MANIFEST" | grep -Eq '^(f10-8-atomic-cleansing-provenance|h2-expand-compat|h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract|h3-editorial-expand)$'
           python3 - <<'PY'
+          import os
           import pathlib
 
           root = pathlib.Path(".")
@@ -221,10 +224,16 @@ jobs:
               "h2-contract-public-reader",
               "h2-contract-legacy-cohort",
               "h2-rollback-public-reader-contract",
+              "h3-editorial-expand",
           ]
           missing = [item for item in required if item not in script]
           if missing:
               raise SystemExit(f"db_migrate.py missing manifest contract: {missing}")
+          if os.environ["MIGRATION_MANIFEST"] == "h3-editorial-expand":
+              import sys
+              sys.path.insert(0, "scripts")
+              from maintenance.pro_h3_migration_manifest import validate_h3_manifest_tree
+              validate_h3_manifest_tree("db/migrations")
           PY
 
   report:
@@ -268,7 +277,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
-        run: python3 scripts/maintenance/h2_pro_preflight_report.py | tee h2-pro-preflight-report.json
+        run: |
+          set -euo pipefail
+          python3 scripts/maintenance/h2_pro_preflight_report.py | tee h2-pro-preflight-report.json
       - name: Report pending migrations dry-run
         id: check
         env:
@@ -342,7 +353,10 @@ jobs:
         env:
           DDL_AUTHORIZATION_ID: ${{ inputs.ddl_authorization_id }}
           CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}
+          MIGRATION_MANIFEST: ${{ inputs.migration_manifest }}
           PAYLOAD_SHA: ${{ inputs.payload_sha }}
+          H2_EXPECTED_ELIGIBLE_COUNT: ${{ inputs.h2_expected_eligible_count }}
+          H2_EXPECTED_COHORT_DIGEST: ${{ inputs.h2_expected_cohort_digest }}
         run: |
           set -euo pipefail
           printf '%s' "$DDL_AUTHORIZATION_ID" | grep -Eq '^DDL-[A-Z0-9][A-Z0-9_-]{3,}$'
@@ -350,13 +364,13 @@ jobs:
           auth_file=".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md"
           test -f "$auth_file"
           grep -Fx "Status: APPROVED_FOR_PRODUCTION_DDL" "$auth_file"
-          grep -Fx "Authorized manifest: ${{ inputs.migration_manifest }}" "$auth_file"
+          grep -Fx "Authorized manifest: ${MIGRATION_MANIFEST}" "$auth_file"
           grep -Fx "Authorized payload SHA: ${PAYLOAD_SHA}" "$auth_file"
-          if [ "${{ inputs.migration_manifest }}" = "h2-expand-compat" ]; then
-            printf '%s' "${{ inputs.h2_expected_eligible_count }}" | grep -Eq '^[1-9][0-9]*$'
-            printf '%s' "${{ inputs.h2_expected_cohort_digest }}" | grep -Eq '^sha256:[0-9a-f]{64}$'
-            grep -Fx "H2 expected eligible count: ${{ inputs.h2_expected_eligible_count }}" "$auth_file"
-            grep -Fx "H2 expected cohort digest: ${{ inputs.h2_expected_cohort_digest }}" "$auth_file"
+          if [ "$MIGRATION_MANIFEST" = "h2-expand-compat" ] || [ "$MIGRATION_MANIFEST" = "h3-editorial-expand" ]; then
+            printf '%s' "$H2_EXPECTED_ELIGIBLE_COUNT" | grep -Eq '^[1-9][0-9]*$'
+            printf '%s' "$H2_EXPECTED_COHORT_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+            grep -Fx "H2 expected eligible count: ${H2_EXPECTED_ELIGIBLE_COUNT}" "$auth_file"
+            grep -Fx "H2 expected cohort digest: ${H2_EXPECTED_COHORT_DIGEST}" "$auth_file"
           fi
           grep -Fx "Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED" "$auth_file"
           grep -Fx "Pro apply gate: APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR" "$auth_file"
@@ -510,7 +524,13 @@ jobs:
           MIGRATION_MANIFEST: ${{ inputs.migration_manifest }}
           H2_EXPECTED_ELIGIBLE_COUNT: ${{ inputs.h2_expected_eligible_count }}
           H2_EXPECTED_COHORT_DIGEST: ${{ inputs.h2_expected_cohort_digest }}
-        run: python3 scripts/maintenance/check_db_parity.py --env pro --target-only --h2-manifest "$MIGRATION_MANIFEST"
+        run: |
+          set -euo pipefail
+          if [ "$MIGRATION_MANIFEST" = "h3-editorial-expand" ]; then
+            python3 scripts/maintenance/check_db_parity.py --env pro --target-only --h3-manifest "$MIGRATION_MANIFEST"
+          else
+            python3 scripts/maintenance/check_db_parity.py --env pro --target-only --h2-manifest "$MIGRATION_MANIFEST"
+          fi
       - name: Report target schema result
         run: |
           set -euo pipefail

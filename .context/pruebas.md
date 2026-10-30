@@ -1,12 +1,49 @@
 # Pruebas y evidencia
 
-## Corte local nuevo — 2026-10-28
+## Estado H3REQ1 — 2026-10-29
+
+E1–E6 local permanecen aceptados **6/6**; Development R1–R4 **4/4** y el
+smoke de Certification **1/1** también siguen aceptados. No se repiten en este
+ciclo. La evidencia remota y sus límites están en el [checkpoint editorial
+H3REQ1](evidencia/h3req1_editorial_contract_2026-10-28.md).
+
+La preparación local de producción incluye pruebas focales del manifest cerrado
+H3, selección/guard del workflow DB Sync, boundary `certificacion → main`,
+presentación de auditoría CA4.6 y el reporte agregado H2/Pro. Se reportan por
+candidato y solo con comandos ejecutados en Docker; no son aceptación Pro ni
+reemplazan CI. El estado exacto del delta está en el
+[estado operativo](estado_del_proyecto.md).
+
+### Revalidación final del candidato local — 2026-10-29
+
+En la imagen Docker del proyecto, red deshabilitada y checkout read-only, el
+lector H2/Pro pasó 29/29 casos y los quince controles focales de lectura,
+paridad y migrador pasaron junto con ellos: 44/44. Se añadieron regresiones de
+agregación: una sola fila no es un grupo duplicado y dos cursos con el mismo par
+institución/slug cuentan un grupo. GET/RPC no siguen redirects HTTP; probes de
+privacidad H3 rechazan 302/500 como resultado inconcluso. Los demás casos cubren
+baseline, H2 parcial fuera del ledger, superficie compatible observada,
+estados inconsistentes, visibilidad, errores HTTP/red/JSON/forma sanitizados,
+el pin del destino Pro y stdout JSON limpio frente a logs de importación. No se
+cambió la lógica de duplicados. Log conjunto SHA-256
+`2bd78775f382ddb2b7640e87a241317b320cbe2badaea3ff041c0eb404ee7ae8`;
+`py_compile` separado SHA-256
+`70dfa6a2bf0032db1311a455aa076b1fd8cefc461c31853a91323661f6f9dfd9`. Los demás gates focales previos del paquete se
+conservan por inputs, con sus resultados separados en el checkpoint.
+Self-test/candidate-aware documental PASS (751 fuentes, 119 docs activos, 433
+históricos); checker integral FAIL: 348 diagnósticos frente a 350 en baseline
+bajo el mismo checker/configuración. El build estático mock-local previo produjo
+17 páginas, sin consultar Supabase; CI y runtime Pro no se ejecutaron. Logs y
+hashes finales están en `/tmp/h3req1-production-remediation-20261029-final/`.
+
+### Corte histórico de aceptación local — 2026-10-28
 
 El [checkpoint editorial H3REQ1](evidencia/h3req1_editorial_contract_2026-10-28.md)
-separa el nuevo contrato E1–E6 de métricas históricas. E1–E4 se ejercitaron en
-PostgreSQL 17 desechable con fixtures sintéticos; E5 en pruebas unitarias Docker de
-FG3; E6 está pendiente de navegador. Los logs e intentos/fixes se resumen allí. No
-hubo PR, CI, pruebas de negocio remotas ni acceso a cuentas reales.
+registra el primer corte E1–E6. En ese instante E6 estaba pendiente; la aceptación
+posterior 6/6 arriba lo supersede. E1–E4 se ejercitaron en PostgreSQL 17
+desechable con fixtures sintéticos; E5 en pruebas unitarias Docker de FG3. Los
+logs e intentos/fixes se resumen allí; no se reescriben como si hubieran estado
+disponibles en el corte inicial.
 
 ## Correspondencia suite → componente → entorno → resultado
 

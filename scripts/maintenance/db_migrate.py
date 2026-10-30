@@ -34,6 +34,12 @@ from urllib.parse import urlparse
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client, _request_with_retry, DNS_RETRY_DELAYS
 from shared.supabase_credentials import get_secret_key
+from maintenance.pro_h3_migration_manifest import (
+    H3_PRO_MANIFEST_NAME,
+    H3_PRO_MIGRATIONS,
+    validate_h3_manifest_tree,
+    validate_h2_cohort_inputs,
+)
 
 
 MIGRATIONS_DIR = os.path.join(
@@ -61,6 +67,7 @@ PRO_MIGRATION_MANIFESTS = {
     "h2-rollback-public-reader-contract": (
         "20260827_h2_pro_rollback_public_reader_contract",
     ),
+    H3_PRO_MANIFEST_NAME: H3_PRO_MIGRATIONS,
 }
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
@@ -148,6 +155,12 @@ def resolve_requested_migrations(args, parser):
     if args.manifest not in PRO_MIGRATION_MANIFESTS:
         allowed = ", ".join(sorted(PRO_MIGRATION_MANIFESTS))
         parser.error(f"manifest Pro no permitido: {args.manifest}. Permitidos: {allowed}")
+
+    if args.manifest == H3_PRO_MANIFEST_NAME:
+        try:
+            validate_h3_manifest_tree(MIGRATIONS_DIR)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
 
     return PRO_MIGRATION_MANIFESTS[args.manifest]
 
@@ -373,6 +386,56 @@ def assert_h2_expand_preapply_guard(db):
         )
 
 
+def assert_h3_expand_preapply_guard(db):
+    """Verify H2 expand compatibility before any H3 Pro migration is applied."""
+    try:
+        expected_count, expected_digest = validate_h2_cohort_inputs(
+            os.environ.get("H2_EXPECTED_ELIGIBLE_COUNT", ""),
+            os.environ.get("H2_EXPECTED_COHORT_DIGEST", ""),
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"H3 expand precondition: {exc}") from exc
+
+    url = f"{db.supabase_url}/rest/v1/rpc/h2_verify_expand_compat"
+    response = requests.post(
+        url,
+        headers=db._get_headers(use_service_role=True),
+        json={
+            "p_expected_count": expected_count,
+            "p_expected_cohort_digest": expected_digest,
+        },
+        timeout=30,
+        allow_redirects=False,
+    )
+    if response.status_code not in (200, 201):
+        raise RuntimeError(
+            "H3 expand precondition failed: h2_verify_expand_compat did not pass "
+            f"(HTTP {response.status_code}); no H3 migration was applied"
+        )
+
+    result = response.json() if response.content else None
+    expected_contract = {
+        "eligible_count": expected_count,
+        "cohort_count": expected_count,
+        "effective_count": expected_count,
+        "missing_count": 0,
+        "unexpected_count": 0,
+        "cohort_digest": expected_digest,
+        "public_column_count": 28,
+        "private_column_count": 0,
+        "security_invoker": True,
+        "rls_tables_count": 3,
+        "direct_courses_public": True,
+    }
+    if not isinstance(result, dict) or any(
+        result.get(key) != value for key, value in expected_contract.items()
+    ):
+        raise RuntimeError(
+            "H3 expand precondition failed: H2 aggregate/schema contract differs; "
+            "no H3 migration was applied"
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Aplicador de migrations SQL")
     parser.add_argument("--env", choices=["free", "pro"], default="free",
@@ -431,6 +494,8 @@ def main():
 
     if args.env == "pro" and args.manifest == "h2-expand-compat" and not args.dry_run:
         assert_h2_expand_preapply_guard(db)
+    if args.env == "pro" and args.manifest == H3_PRO_MANIFEST_NAME and not args.dry_run:
+        assert_h3_expand_preapply_guard(db)
 
     print(f"  Migrations pendientes: {len(pending)}")
     print()
