@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client, _request_with_retry, DNS_RETRY_DELAYS
 from shared.supabase_credentials import get_secret_key
 from maintenance.pro_h3_migration_manifest import (
+    PRO_MIGRATION_MANIFESTS,
     H3_PRO_MANIFEST_NAME,
     H3_PRO_MIGRATIONS,
     validate_h3_manifest_tree,
@@ -47,28 +48,6 @@ MIGRATIONS_DIR = os.path.join(
     "db", "migrations"
 )
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PRO_MIGRATION_MANIFESTS = {
-    "f10-8-atomic-cleansing-provenance": (
-        "20260808_fase10_8_atomic_cleansing_provenance",
-    ),
-    "h2-expand-compat": (
-        "20260827_h2_pro_expand_schema_compat",
-        "20260827_h2_pro_seed_editorial_field_definitions",
-        "20260827_h2_pro_backfill_editorial_state",
-        "20260827_h2_pro_capture_legacy_cohort",
-        "20260827_h2_pro_enable_legacy_cohort_rls",
-    ),
-    "h2-contract-public-reader": (
-        "20260827_h2_pro_contract_public_reader",
-    ),
-    "h2-contract-legacy-cohort": (
-        "20260827_h2_pro_contract_legacy_cohort",
-    ),
-    "h2-rollback-public-reader-contract": (
-        "20260827_h2_pro_rollback_public_reader_contract",
-    ),
-    H3_PRO_MANIFEST_NAME: H3_PRO_MIGRATIONS,
-}
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 

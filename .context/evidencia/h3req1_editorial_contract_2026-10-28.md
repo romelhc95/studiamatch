@@ -1,5 +1,38 @@
 # Checkpoint local — contrato editorial H3REQ1
 
+## Corrección P1 DB Sync y prevención de nuevo drift de pins
+
+Hallazgo validado en #514:
+https://github.com/romelhc95/studiamatch/pull/514#discussion_r4425547640
+El bloque `Validate closed Pro manifest offline` exigía el literal
+`h3-editorial-expand` en `db_migrate.py`, que lo importa de otro módulo.
+Reproducción Docker offline/read-only: missing `['h3-editorial-expand']`, exit 1.
+CI ordinario no ejecutaba ese bloque manual y no detectaba el defecto.
+
+Fix aislado desde `b9eb77185f1a037111ce1237820ae6c38b15ea67`: mover, sin cambiar
+su contenido, el registro Pro al módulo stdlib existente y consumir el mismo
+registro desde migrador y preflight. Workflow coteja conjunto cerrado, tuple
+no vacío/único, rutas SQL existentes y pins H3. No importa requests/dotenv ni
+clientes DB. Los guards de apply, JIT, main-only H3 y backup permanecen activos.
+
+`tests/test_h2_pro_migration_controls.py` extrae y ejecuta el bloque real del YAML:
+seis manifests válidos, cuatro selecciones inválidas, registro alterado, archivo
+H2 ausente y hash H3 distinto; prueba aislada `-I -S` sin dependencias. Suite
+focal Docker 87/87 PASS (controles H2, manifest H3, credenciales y boundary).
+Suite Python exacta de CI: 276 passed/10 subtests passed. Scanner de credenciales
+y regresiones de scope/selector/pins PASS; actionlint 1.7.12 PASS. Self-test y
+candidate-aware: DOC_GATE_PASS, 752/752 fuentes, 119/119 activos y 433/433
+históricos. Security-auditor revisó estáticamente el diff funcional: cero
+hallazgos, registros/orden equivalentes y guards JIT preservados; no ejecutó
+tests independientes ni incluyó documentación/pins en ese dictamen.
+No es runtime Pro ni aplicación SQL. No se repite ninguna aceptación remota.
+
+El refresh de pins usa el commit local inmutable del código corregido para fijar
+sus blobs; guard/manifiesto/checkpoint de la actualización quedan en sus rutas
+exactas, sin excepciones de carpeta. No se elimina la validación de hashes.
+La revisión/CI del nuevo SHA y la disposición exacta del residual son gates
+posteriores; #514 no queda aprobado para merge por este fix local.
+
 ## Remediación focal CI del PR #512
 
 El HEAD publicado inicial `c6bd818821c41727cd217d352990343ebe23cedf` falló en

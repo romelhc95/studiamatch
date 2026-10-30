@@ -6,6 +6,30 @@
 
 ## Corte vigente
 
+### Corrección P1 del preflight DB Sync — camino a main
+
+Base inmutable de este fix: `desarrollo@b9eb77185f1a037111ce1237820ae6c38b15ea67`.
+El PR #514 de promoción permanece abierto, sin merge: el preflight manual buscaba
+el literal H3 en el migrador aunque este lo importaba, y abortaba todos los
+manifests antes de report/apply/verify. Se reprodujo offline con exit 1.
+
+La corrección local comparte el registro cerrado entre migrador y workflow en
+el módulo stdlib existente, sin importar clientes DB. Los seis manifests se
+validan ejecutando el bloque real del YAML. Negativos de selección, registro,
+SQL ausente y hash H3 alterado preservan fail-closed. Docker sin red/read-only:
+87 tests focales y suite CI de 276 tests/10 subtests PASS. Scanner de credenciales,
+regresiones scope/selector/pins, candidate-aware/self-test documental y actionlint
+PASS. Revisión estática focal security-auditor: cero hallazgos; no sustituye CI
+ni revisión productiva. No se repiten aceptaciones E1–E6 6/6, Development 4/4 ni
+Certification 1/1. Se actualizarán los pins de promoción sobre el commit local
+inmutable del fix antes de publicar para evitar otro follow-up de pins.
+
+NO-GO de promoción hasta integrar el fix, reevaluar el candidato y sus checks.
+H2 parcial Pro, reporte/verify, SQL H3, BFF/Pages, evidencia H2 de main y smoke
+productivo conservan gates independientes. No se ejecutó SQL, workflow remoto,
+configuración, merge ni deploy manual. La disposición de #514 solo corresponde
+a su SHA anterior y no se extiende por intención al nuevo candidato.
+
 ### PR #512 — remediación focal de CI
 
 Integrado el 2026-10-29 a las 23:03 America/Lima. El merge SHA de Desarrollo es

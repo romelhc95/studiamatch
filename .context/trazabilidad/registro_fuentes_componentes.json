@@ -20663,7 +20663,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Exact 31-file H3 inventory with SHA-256 pins and explicit precedence; rejects absent, extra, duplicate, reordered, missing, and hash-drifted inputs; validates aggregate H2 cohort precondition inputs. Does not apply SQL.",
+        "note": "Exact 31-file H3 inventory with SHA-256 pins and explicit precedence; shared six-manifest Pro registry imported by db_migrate and dependency-free workflow preflight. Rejects invalid registry/selection, missing SQL and H3 hash drift; validates aggregate H2 cohort inputs. Does not apply SQL.",
         "evidence": [
           "path:scripts/maintenance/pro_h3_migration_manifest.py",
           "path:db/migrations/20260828_h3_admin_auth.sql",
@@ -20689,7 +20689,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Focused Docker tests cover inventory/order/hash pins, invalid selections, resolver selection/rejection, H2 precondition shape, workflow contract, and main-only boundary; see current checkpoint for final results.",
+        "note": "Focused Docker tests execute the actual YAML preflight for all six manifests and reject invalid selection, registry drift, absent H2 SQL and altered H3 SQL; isolated stdlib-only import is tested. Inventory/order/hash pins, H2 inputs and main-only boundary remain covered; see current checkpoint.",
         "evidence": [
           "path:tests/test_h3_pro_migration_manifest.py",
           "path:tests/test_h2_pro_migration_controls.py",

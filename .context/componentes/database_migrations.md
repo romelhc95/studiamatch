@@ -4,6 +4,18 @@
 
 ## h3-pro-promotion-manifest
 
+### Preflight offline del registro compartido — corrección P1 de PR 514
+
+`PRO_MIGRATION_MANIFESTS` vive en el módulo de biblioteca estándar
+`pro_h3_migration_manifest.py` y el migrador lo importa. El bloque real de
+`DB Sync to Production` importa ese mismo registro sin cargar requests, dotenv,
+clientes DB ni claves; coteja el conjunto cerrado, los archivos seleccionados y
+los hashes H3. No busca el literal H3 dentro del source del migrador.
+`tests/test_h2_pro_migration_controls.py` ejecuta el bloque Bash/Python extraído
+del YAML con cada uno de los seis manifests, selección inválida, drift del
+registro, SQL ausente y hash H3 alterado. Una prueba con Python `-I -S` confirma
+que el registro no requiere dependencias instaladas. No se ejecutó SQL.
+
 ### Candidate local del manifiesto H3 Pro — 2026-10-29
 
 El módulo [`pro_h3_migration_manifest.py`](../../scripts/maintenance/pro_h3_migration_manifest.py)

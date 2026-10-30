@@ -1,4 +1,8 @@
 import os
+import shutil
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,11 +23,15 @@ def test_db_migrate_requires_closed_manifest_for_pro() -> None:
     text = read("scripts/maintenance/db_migrate.py")
 
     assert "PRO_MIGRATION_MANIFESTS" in text
-    assert '"h2-expand-compat"' in text
-    assert '"20260827_h2_pro_enable_legacy_cohort_rls"' in text
-    assert '"h2-contract-public-reader"' in text
-    assert '"h2-contract-legacy-cohort"' in text
-    assert '"h2-rollback-public-reader-contract"' in text
+    assert db_migrate.PRO_MIGRATION_MANIFESTS["h2-expand-compat"] == (
+        "20260827_h2_pro_expand_schema_compat",
+        "20260827_h2_pro_seed_editorial_field_definitions",
+        "20260827_h2_pro_backfill_editorial_state",
+        "20260827_h2_pro_capture_legacy_cohort",
+        "20260827_h2_pro_enable_legacy_cohort_rls",
+    )
+    for name in ("h2-contract-public-reader", "h2-contract-legacy-cohort", "h2-rollback-public-reader-contract"):
+        assert name in db_migrate.PRO_MIGRATION_MANIFESTS
     assert 'parser.error("--manifest es obligatorio para Pro")' in text
     assert "--only no esta permitido con --env pro" in text
     assert "resolve_migration_files(requested_migrations)" in text
@@ -48,7 +56,8 @@ def test_h3_pro_manifest_is_closed_pinned_and_has_h2_compat_preflight() -> None:
     assert "validate_h3_manifest_tree" in manifest
     assert "H3_PRO_MIGRATION_PRECEDENCE" in manifest
     assert "H3_PRO_EXTERNAL_PREREQUISITE" in manifest
-    assert 'H3_PRO_MANIFEST_NAME: H3_PRO_MIGRATIONS' in migrator
+    assert 'H3_PRO_MANIFEST_NAME: H3_PRO_MIGRATIONS' in manifest
+    assert "PRO_MIGRATION_MANIFESTS," in migrator
     assert "assert_h3_expand_preapply_guard" in migrator
     assert "h2_verify_expand_compat" in migrator
     assert "--h3-manifest" in parity
@@ -110,6 +119,78 @@ def test_db_sync_workflow_uses_manifest_and_authorization_gate() -> None:
     assert "/advisors?type=" not in text
     assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in text
     assert "production_control_preflight.sh DB-SYNC --enforce" in text
+
+
+def run_workflow_manifest_preflight(root: Path, manifest: str) -> subprocess.CompletedProcess:
+    """Execute the real offline YAML step, not a duplicate validator."""
+    text = read(".github/workflows/db-sync-to-pro.yml")
+    step = text.split("      - name: Validate closed Pro manifest offline\n", 1)[1].split("\n  report:", 1)[0]
+    script = textwrap.dedent(step.split("        run: |\n", 1)[1])
+    return subprocess.run(
+        ["bash", "-eu", "-c", script],
+        cwd=root,
+        env={"PATH": os.environ["PATH"], "MIGRATION_MANIFEST": manifest, "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize("manifest", tuple(db_migrate.PRO_MIGRATION_MANIFESTS))
+def test_actual_workflow_preflight_accepts_each_registered_manifest(manifest: str) -> None:
+    result = run_workflow_manifest_preflight(ROOT, manifest)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("manifest", ["", "unknown", "../h2-expand-compat", "h2-expand-compat; exit 0"])
+def test_actual_workflow_preflight_rejects_unknown_or_unsafe_selection(manifest: str) -> None:
+    assert run_workflow_manifest_preflight(ROOT, manifest).returncode != 0
+
+
+@pytest.fixture
+def isolated_manifest_tree(tmp_path: Path) -> Path:
+    module_path = Path("scripts/maintenance/pro_h3_migration_manifest.py")
+    (tmp_path / module_path.parent).mkdir(parents=True)
+    shutil.copyfile(ROOT / module_path, tmp_path / module_path)
+    migrations = tmp_path / "db/migrations"
+    migrations.mkdir(parents=True)
+    for names in db_migrate.PRO_MIGRATION_MANIFESTS.values():
+        for name in names:
+            shutil.copyfile(ROOT / "db/migrations" / f"{name}.sql", migrations / f"{name}.sql")
+    return tmp_path
+
+
+def test_actual_workflow_preflight_rejects_registry_drift(isolated_manifest_tree: Path) -> None:
+    path = isolated_manifest_tree / "scripts/maintenance/pro_h3_migration_manifest.py"
+    path.write_text(path.read_text().replace('"h2-expand-compat":', '"h2-unregistered":', 1))
+    assert run_workflow_manifest_preflight(isolated_manifest_tree, "h2-expand-compat").returncode != 0
+
+
+def test_actual_workflow_preflight_rejects_missing_h2_sql(isolated_manifest_tree: Path) -> None:
+    first = db_migrate.PRO_MIGRATION_MANIFESTS["h2-expand-compat"][0]
+    (isolated_manifest_tree / "db/migrations" / f"{first}.sql").unlink()
+    assert run_workflow_manifest_preflight(isolated_manifest_tree, "h2-expand-compat").returncode != 0
+
+
+def test_actual_workflow_preflight_rejects_changed_h3_sql(isolated_manifest_tree: Path) -> None:
+    path = isolated_manifest_tree / "db/migrations" / f"{H3_PRO_MIGRATIONS[0]}.sql"
+    path.write_text(path.read_text() + "\n-- unexpected drift\n")
+    assert run_workflow_manifest_preflight(isolated_manifest_tree, "h3-editorial-expand").returncode != 0
+
+
+def test_shared_manifest_registry_needs_only_standard_library() -> None:
+    code = (
+        "import sys; sys.path.insert(0, 'scripts'); "
+        "from maintenance.pro_h3_migration_manifest import PRO_MIGRATION_MANIFESTS; "
+        "assert len(PRO_MIGRATION_MANIFESTS) == 6; "
+        "assert not {'requests', 'dotenv', 'shared.db_client'} & sys.modules.keys()"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", code], cwd=ROOT,
+        capture_output=True, text=True, timeout=10, check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_check_db_parity_has_h2_manifest_specific_contracts() -> None:
