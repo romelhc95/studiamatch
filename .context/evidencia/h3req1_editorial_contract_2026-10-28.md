@@ -1,5 +1,37 @@
 # Checkpoint local — contrato editorial H3REQ1
 
+## Continuación 2026-10-31 — corrección del diagnóstico H2 y scope main WIP
+
+Tras login Pro asistido y recarga MCP se confirmó el project ref
+`xwhtiqmboljkshrtviyw`. Todas las consultas siguientes fueron SELECT de metadatos
+o agregados; sin IDs de curso, filas Auth, secretos, RPC ni writes.
+
+El ledger interno `supabase_migrations.schema_migrations` tiene 23 entradas,
+última `20260607221002`. Ese ledger NO es el consumido por nuestro migrador.
+El ledger correcto `public.supabase_migrations` tiene 58 entradas y registra
+las cinco migraciones `h2-expand-compat`; cero registros H3. Se corrige la
+inferencia histórica de H2 parcial/no registrado. No reaplicar ni insertar ledger
+por ese diagnóstico anterior. La cohorte elegible, la capturada y el reader
+efectivo leído como administrador cuentan 224; digest elegible/capturada idéntico
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`;
+ceros en las cuatro diferencias de conjuntos. No equivale a prueba anon ni a
+workflow verify sobre candidato actual. La evidencia main sigue requiriendo
+renovación real; los objetos Admin/RPC, quota, gateway y snapshot H3 siguen
+ausentes. No se ejecutó apply.
+
+Scope main: 239 rutas rechazadas coinciden exactamente con el manifest histórico
+de Certification; todos sus blobs/modos siguen idénticos a Certification y
+source histórico. WIP separado de base `6d73b51b…`: manifest main exacto,
+caller de ruta protegida y regresiones. La revisión estática detectó una prueba
+push que retenía refs de PR; se corrigió para vaciarlas y añadir negativos de
+baseline/ref de push ajeno. Tras recuperación Docker asistida, regresiones/caller
+real y comparación main PASS; ShellCheck 0.11.0 PASS; 46 tests Python focales PASS;
+scanner PASS; render y candidate-aware/self-test PASS, 752/752 fuentes,
+119/119 activos y 433/433 históricos. La revisión estática posterior confirmó
+hallazgo resuelto, sin hallazgos abiertos del alcance. No se repite UAT.
+Se consolida fix DB Sync y main scope en una rama local; los pins Certification
+se renuevan sobre su commit inmutable validado antes de publicar. Sin GO remoto.
+
 ## Corrección P1 DB Sync y prevención de nuevo drift de pins
 
 Hallazgo validado en #514:

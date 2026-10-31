@@ -6,6 +6,36 @@
 
 ## Corte vigente
 
+### Continuación 2026-10-31 — remediación main validada localmente
+
+Las refs protegidas no cambiaron: Desarrollo `b9eb7718…`, Certification
+`03515dee…`, main `70d0f4fe…`. El fix validado `6d73b51b…` permanece local y
+congelado; publicación/disposición solicitadas y aún no aprobadas expresamente.
+La simulación main rechazó 239 rutas del acumulado de 1.630 archivos. Comparación
+estática: el conjunto es idéntico al scope histórico de Certification y todos
+sus blobs siguen idénticos a Certification y al source histórico. El follow-up
+añade pins exactos/caller para main y tests del caller real, sin ampliar carpetas.
+Docker recuperado: regresiones/caller real, comparación main, ShellCheck,
+scanner y documentación candidate-aware/self-test PASS; 46 tests Python focales
+PASS. Se consolida con el fix anterior en una sola rama candidata desde Desarrollo.
+Faltan refresh final de pins Certification y comprobación del commit definitivo;
+la publicación exige nueva autorización del candidato consolidado.
+
+Docker 29.9.2 está operativo tras recuperación asistida.
+Chrome Windows sí responde. Tras el login manual confirmado y recarga MCP,
+Supabase Pro está conectado: URL `https://xwhtiqmboljkshrtviyw.supabase.co`.
+Corrección de diagnóstico: `supabase_migrations.schema_migrations` tiene 23
+entradas, pero el migrador usa `public.supabase_migrations`: tiene 58 entradas,
+con las cinco migraciones H2 expand registradas y cero H3. La cohorte elegible,
+cohorte capturada y lector efectivo consultado como rol administrativo tienen
+224 cursos; ambos digests de cohorte son
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`,
+con cero diferencias de conjuntos. No leer el ledger interno como falta de apply
+H2 ni volver a aplicarlo por esa causa. Esto no prueba visibilidad anónima ni
+verify del candidato actual. Cero RPC Admin y ausencia de membresías,
+invitaciones, quota, claves gateway y columnas snapshot H3 confirmados.
+No se ejecutaron escrituras SQL, workflow, configuración, merge o deploy.
+
 ### Corrección P1 del preflight DB Sync — camino a main
 
 Base inmutable de este fix: `desarrollo@b9eb77185f1a037111ce1237820ae6c38b15ea67`.
@@ -25,7 +55,8 @@ Certification 1/1. Se actualizarán los pins de promoción sobre el commit local
 inmutable del fix antes de publicar para evitar otro follow-up de pins.
 
 NO-GO de promoción hasta integrar el fix, reevaluar el candidato y sus checks.
-H2 parcial Pro, reporte/verify, SQL H3, BFF/Pages, evidencia H2 de main y smoke
+H2 Pro requiere verificación renovada (véase corrección de ledger arriba);
+reporte/verify, SQL H3, BFF/Pages, evidencia H2 de main y smoke
 productivo conservan gates independientes. No se ejecutó SQL, workflow remoto,
 configuración, merge ni deploy manual. La disposición de #514 solo corresponde
 a su SHA anterior y no se extiende por intención al nuevo candidato.

@@ -15397,12 +15397,13 @@
       },
       "data": {
         "state": "verified",
-        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Additional promotion paths use exact baseline c80f6504 and source 941eca49, enforced independently by the caller and checked against source/HEAD Git blobs in h3req1_certification_promotion_path_scope_2026-10-28.json.",
+        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Promotion manifests fix exact baseline/source independently in the caller and compare source/HEAD Git blobs. The local main follow-up carries forward exactly the 239 historical Certification-scope paths unchanged since certificacion 03515dee, pinned against main 70d0f4fe and source 6d73b51b. Docker caller/negative regressions, actual main comparison and ShellCheck passed; no remote GO. Certification pins are refreshed after freezing the validated follow-up.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
           "path:.github/scripts/production_control_preflight.sh",
-          "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json"
+          "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json",
+          "path:.context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json"
         ]
       },
       "tests_evidence": {
