@@ -18,8 +18,16 @@ añade pins exactos/caller para main y tests del caller real, sin ampliar carpet
 Docker recuperado: regresiones/caller real, comparación main, ShellCheck,
 scanner y documentación candidate-aware/self-test PASS; 46 tests Python focales
 PASS. Se consolida con el fix anterior en una sola rama candidata desde Desarrollo.
-Faltan refresh final de pins Certification y comprobación del commit definitivo;
-la publicación exige nueva autorización del candidato consolidado.
+Pins finales: Certification 28 paths contra baseline `03515dee…` y source
+`2d3ed36b…`; main 239 paths contra baseline `70d0f4fe…` y source `6d73b51b…`.
+Las tres comparaciones reales (feature/Desarrollo, Desarrollo/Certification y
+Certification/main) pasan en el commit local `8c2cc6ed…`, junto con scanner y
+candidate-aware/self-test. Revisión estática final de pins: sin hallazgos.
+Integral conserva FAIL: comparación diagnóstica sin truncar confirma exactamente
+348 fallos en baseline y candidato, cero añadidos y cero retirados. La copia
+diagnóstica cambia solo root/salida, no reglas/veredicto; checker versionado intacto.
+GO local para solicitar publicación; NO-GO remoto/main. La autorización previa
+solicitada para `6d73b51b…` no cubre por intención el candidato consolidado.
 
 Docker 29.9.2 está operativo tras recuperación asistida.
 Chrome Windows sí responde. Tras el login manual confirmado y recarga MCP,

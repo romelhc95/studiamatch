@@ -29,8 +29,26 @@ real y comparación main PASS; ShellCheck 0.11.0 PASS; 46 tests Python focales P
 scanner PASS; render y candidate-aware/self-test PASS, 752/752 fuentes,
 119/119 activos y 433/433 históricos. La revisión estática posterior confirmó
 hallazgo resuelto, sin hallazgos abiertos del alcance. No se repite UAT.
-Se consolida fix DB Sync y main scope en una rama local; los pins Certification
-se renuevan sobre su commit inmutable validado antes de publicar. Sin GO remoto.
+Se consolidó fix DB Sync y main scope en una rama local. Refresh Certification
+fija 28 paths, baseline `03515dee…`, source `2d3ed36b…`; main mantiene sus 239
+paths baseline `70d0f4fe…`, source `6d73b51b…`. En `8c2cc6ed…` pasan las tres
+comparaciones reales contra Desarrollo, Certification y main, scanner y gate
+candidate-aware/self-test. Revisión final estática de blobs/modos/ancestría:
+cero discrepancias y sin hallazgos. Evidencia externa
+`/tmp/h3req1-main-scope-evidence-20261031/`, archivos
+`final-feature-guard.log`, `final-certification-guard.log`, `final-main-guard.log`
+(cada uno SHA-256 `3c12cc7d4f66c1ebe2406795845c81cf47bb3fac6debf03e8126959a2c7baa4f`)
+y `final-documentation.log`
+(`094f601126a9796c1093d5c3497294a97cfde3c7facb87fc3dd6ccce94c5d37f`).
+
+El checker integral versionado conserva FAIL. Su salida varía en un enlace por
+la nueva relación documental; no es byte-idéntica al baseline. Para comparar
+todos los fallos se usaron copias temporales con root fijado al mount y se quitó
+únicamente el truncado de 200 líneas: reglas/veredicto intactos, sin editar
+checker versionado. `integral-full-comparison.json` confirma baseline 348,
+candidato 348, añadidos 0, retirados 0. Logs completos en la misma carpeta de
+evidencia. El self-test siguió activo. Sin GO remoto, disposición nueva requerida
+para el paquete consolidado; no se publican resultados ni cambios por intención.
 
 ## Corrección P1 DB Sync y prevención de nuevo drift de pins
 
