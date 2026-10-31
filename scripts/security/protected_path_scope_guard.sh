@@ -119,6 +119,7 @@ if [ -n "$changed" ]; then
    # tests/test_protected_path_scope_guard.sh; keep deletions and ignored evidence explicit.
    allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'
 .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json
+.context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json
 README.md
 .env.example
 .github/pull_request_template.md
@@ -1303,7 +1304,18 @@ H3_LOCAL_PATHS
        .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json \
        "$base" \
        03515dee69fc42b10808d1c67cc4e00ebacd0c40 \
-       34469196c5ba4d073b49479f2fb44e84c279dbbb) || exit 1
+       2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734) || exit 1
+     allowed_h3_local+=$'\n'"$promotion_paths"
+   fi
+   if [[ ( "${GITHUB_BASE_REF:-}" == "main" && "${GITHUB_HEAD_REF:-}" == "certificacion" ) \
+     || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/main" \
+       && "$base" == "70d0f4fee885be0f6780e5d14f466b2a6c897961" ) ]]; then
+     # Carry forward exactly the already-certified accumulated paths, never a folder waiver.
+     promotion_paths=$(protected_path_promotion_scope \
+       .context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json \
+       "$base" \
+       70d0f4fee885be0f6780e5d14f466b2a6c897961 \
+       6d73b51bc687d9156f65f5c437bedb0f4f2c617c) || exit 1
      allowed_h3_local+=$'\n'"$promotion_paths"
    fi
    filter_remaining() {

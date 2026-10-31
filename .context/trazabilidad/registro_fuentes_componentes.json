@@ -15397,12 +15397,13 @@
       },
       "data": {
         "state": "verified",
-        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Additional promotion paths use exact baseline c80f6504 and source 941eca49, enforced independently by the caller and checked against source/HEAD Git blobs in h3req1_certification_promotion_path_scope_2026-10-28.json.",
+        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Promotion manifests fix exact baseline/source independently in the caller and compare source/HEAD Git blobs. The local main follow-up carries forward exactly the 239 historical Certification-scope paths unchanged since certificacion 03515dee, pinned against main 70d0f4fe and source 6d73b51b. Docker caller/negative regressions, actual main comparison and ShellCheck passed; no remote GO. Certification pins are refreshed after freezing the validated follow-up.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
           "path:.github/scripts/production_control_preflight.sh",
-          "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json"
+          "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json",
+          "path:.context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json"
         ]
       },
       "tests_evidence": {
@@ -20663,7 +20664,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Exact 31-file H3 inventory with SHA-256 pins and explicit precedence; rejects absent, extra, duplicate, reordered, missing, and hash-drifted inputs; validates aggregate H2 cohort precondition inputs. Does not apply SQL.",
+        "note": "Exact 31-file H3 inventory with SHA-256 pins and explicit precedence; shared six-manifest Pro registry imported by db_migrate and dependency-free workflow preflight. Rejects invalid registry/selection, missing SQL and H3 hash drift; validates aggregate H2 cohort inputs. Does not apply SQL.",
         "evidence": [
           "path:scripts/maintenance/pro_h3_migration_manifest.py",
           "path:db/migrations/20260828_h3_admin_auth.sql",
@@ -20689,7 +20690,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Focused Docker tests cover inventory/order/hash pins, invalid selections, resolver selection/rejection, H2 precondition shape, workflow contract, and main-only boundary; see current checkpoint for final results.",
+        "note": "Focused Docker tests execute the actual YAML preflight for all six manifests and reject invalid selection, registry drift, absent H2 SQL and altered H3 SQL; isolated stdlib-only import is tested. Inventory/order/hash pins, H2 inputs and main-only boundary remain covered; see current checkpoint.",
         "evidence": [
           "path:tests/test_h3_pro_migration_manifest.py",
           "path:tests/test_h2_pro_migration_controls.py",

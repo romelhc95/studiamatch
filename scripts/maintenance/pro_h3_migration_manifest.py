@@ -97,6 +97,32 @@ H3_PRO_EXTERNAL_PREREQUISITE = (
 )
 
 
+# Shared by the runtime migrator and the dependency-free workflow preflight.
+# Importing this registry never loads database clients, environment files or keys.
+PRO_MIGRATION_MANIFESTS = {
+    "f10-8-atomic-cleansing-provenance": (
+        "20260808_fase10_8_atomic_cleansing_provenance",
+    ),
+    "h2-expand-compat": (
+        "20260827_h2_pro_expand_schema_compat",
+        "20260827_h2_pro_seed_editorial_field_definitions",
+        "20260827_h2_pro_backfill_editorial_state",
+        "20260827_h2_pro_capture_legacy_cohort",
+        "20260827_h2_pro_enable_legacy_cohort_rls",
+    ),
+    "h2-contract-public-reader": (
+        "20260827_h2_pro_contract_public_reader",
+    ),
+    "h2-contract-legacy-cohort": (
+        "20260827_h2_pro_contract_legacy_cohort",
+    ),
+    "h2-rollback-public-reader-contract": (
+        "20260827_h2_pro_rollback_public_reader_contract",
+    ),
+    H3_PRO_MANIFEST_NAME: H3_PRO_MIGRATIONS,
+}
+
+
 def validate_h3_manifest_names(names: tuple[str, ...] | list[str]) -> None:
     selected = tuple(names)
     if selected != H3_PRO_MIGRATIONS:

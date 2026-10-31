@@ -1,5 +1,88 @@
 # Checkpoint local — contrato editorial H3REQ1
 
+## Continuación 2026-10-31 — corrección del diagnóstico H2 y scope main WIP
+
+Tras login Pro asistido y recarga MCP se confirmó el project ref
+`xwhtiqmboljkshrtviyw`. Todas las consultas siguientes fueron SELECT de metadatos
+o agregados; sin IDs de curso, filas Auth, secretos, RPC ni writes.
+
+El ledger interno `supabase_migrations.schema_migrations` tiene 23 entradas,
+última `20260607221002`. Ese ledger NO es el consumido por nuestro migrador.
+El ledger correcto `public.supabase_migrations` tiene 58 entradas y registra
+las cinco migraciones `h2-expand-compat`; cero registros H3. Se corrige la
+inferencia histórica de H2 parcial/no registrado. No reaplicar ni insertar ledger
+por ese diagnóstico anterior. La cohorte elegible, la capturada y el reader
+efectivo leído como administrador cuentan 224; digest elegible/capturada idéntico
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`;
+ceros en las cuatro diferencias de conjuntos. No equivale a prueba anon ni a
+workflow verify sobre candidato actual. La evidencia main sigue requiriendo
+renovación real; los objetos Admin/RPC, quota, gateway y snapshot H3 siguen
+ausentes. No se ejecutó apply.
+
+Scope main: 239 rutas rechazadas coinciden exactamente con el manifest histórico
+de Certification; todos sus blobs/modos siguen idénticos a Certification y
+source histórico. WIP separado de base `6d73b51b…`: manifest main exacto,
+caller de ruta protegida y regresiones. La revisión estática detectó una prueba
+push que retenía refs de PR; se corrigió para vaciarlas y añadir negativos de
+baseline/ref de push ajeno. Tras recuperación Docker asistida, regresiones/caller
+real y comparación main PASS; ShellCheck 0.11.0 PASS; 46 tests Python focales PASS;
+scanner PASS; render y candidate-aware/self-test PASS, 752/752 fuentes,
+119/119 activos y 433/433 históricos. La revisión estática posterior confirmó
+hallazgo resuelto, sin hallazgos abiertos del alcance. No se repite UAT.
+Se consolidó fix DB Sync y main scope en una rama local. Refresh Certification
+fija 28 paths, baseline `03515dee…`, source `2d3ed36b…`; main mantiene sus 239
+paths baseline `70d0f4fe…`, source `6d73b51b…`. En `8c2cc6ed…` pasan las tres
+comparaciones reales contra Desarrollo, Certification y main, scanner y gate
+candidate-aware/self-test. Revisión final estática de blobs/modos/ancestría:
+cero discrepancias y sin hallazgos. Evidencia externa
+`/tmp/h3req1-main-scope-evidence-20261031/`, archivos
+`final-feature-guard.log`, `final-certification-guard.log`, `final-main-guard.log`
+(cada uno SHA-256 `3c12cc7d4f66c1ebe2406795845c81cf47bb3fac6debf03e8126959a2c7baa4f`)
+y `final-documentation.log`
+(`094f601126a9796c1093d5c3497294a97cfde3c7facb87fc3dd6ccce94c5d37f`).
+
+El checker integral versionado conserva FAIL. Su salida varía en un enlace por
+la nueva relación documental; no es byte-idéntica al baseline. Para comparar
+todos los fallos se usaron copias temporales con root fijado al mount y se quitó
+únicamente el truncado de 200 líneas: reglas/veredicto intactos, sin editar
+checker versionado. `integral-full-comparison.json` confirma baseline 348,
+candidato 348, añadidos 0, retirados 0. Logs completos en la misma carpeta de
+evidencia. El self-test siguió activo. Sin GO remoto, disposición nueva requerida
+para el paquete consolidado; no se publican resultados ni cambios por intención.
+
+## Corrección P1 DB Sync y prevención de nuevo drift de pins
+
+Hallazgo validado en #514:
+https://github.com/romelhc95/studiamatch/pull/514#discussion_r4425547640
+El bloque `Validate closed Pro manifest offline` exigía el literal
+`h3-editorial-expand` en `db_migrate.py`, que lo importa de otro módulo.
+Reproducción Docker offline/read-only: missing `['h3-editorial-expand']`, exit 1.
+CI ordinario no ejecutaba ese bloque manual y no detectaba el defecto.
+
+Fix aislado desde `b9eb77185f1a037111ce1237820ae6c38b15ea67`: mover, sin cambiar
+su contenido, el registro Pro al módulo stdlib existente y consumir el mismo
+registro desde migrador y preflight. Workflow coteja conjunto cerrado, tuple
+no vacío/único, rutas SQL existentes y pins H3. No importa requests/dotenv ni
+clientes DB. Los guards de apply, JIT, main-only H3 y backup permanecen activos.
+
+`tests/test_h2_pro_migration_controls.py` extrae y ejecuta el bloque real del YAML:
+seis manifests válidos, cuatro selecciones inválidas, registro alterado, archivo
+H2 ausente y hash H3 distinto; prueba aislada `-I -S` sin dependencias. Suite
+focal Docker 87/87 PASS (controles H2, manifest H3, credenciales y boundary).
+Suite Python exacta de CI: 276 passed/10 subtests passed. Scanner de credenciales
+y regresiones de scope/selector/pins PASS; actionlint 1.7.12 PASS. Self-test y
+candidate-aware: DOC_GATE_PASS, 752/752 fuentes, 119/119 activos y 433/433
+históricos. Security-auditor revisó estáticamente el diff funcional: cero
+hallazgos, registros/orden equivalentes y guards JIT preservados; no ejecutó
+tests independientes ni incluyó documentación/pins en ese dictamen.
+No es runtime Pro ni aplicación SQL. No se repite ninguna aceptación remota.
+
+El refresh de pins usa el commit local inmutable del código corregido para fijar
+sus blobs; guard/manifiesto/checkpoint de la actualización quedan en sus rutas
+exactas, sin excepciones de carpeta. No se elimina la validación de hashes.
+La revisión/CI del nuevo SHA y la disposición exacta del residual son gates
+posteriores; #514 no queda aprobado para merge por este fix local.
+
 ## Remediación focal CI del PR #512
 
 El HEAD publicado inicial `c6bd818821c41727cd217d352990343ebe23cedf` falló en

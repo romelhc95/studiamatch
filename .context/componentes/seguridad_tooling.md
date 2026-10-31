@@ -53,6 +53,25 @@ El nombre fue comunicado como una GitHub App existente. La búsqueda de todo el 
 
 ## Registro de fuentes y gate
 
+### Continuación main — 31-oct-2026, validación local sin GO remoto
+
+La comparación exacta contra `main@70d0f4fe…` rechaza 239 paths que coinciden
+exactamente con el scope histórico de la primera promoción a Certification.
+Se cotejaron todos sus blobs: permanecen idénticos a `certificacion@03515dee…`
+y al source histórico. No se agrega comportamiento nuevo en esas 239 rutas.
+El [scope main aislado](../evidencia/h3req1_main_promotion_path_scope_2026-10-31.json)
+fija baseline `70d0f4fe…` y source `6d73b51b…` también en el caller del guard.
+La extensión solo se consume en PR `certificacion -> main` o en su push posterior
+con baseline exacto; se mantienen los controles existentes de blobs/ancestría.
+El test nuevo ejecuta el caller real en repositorios desechables: PR y push
+válidos, baseline incorrecto, head ajeno, source forjado y drift de contenido.
+Docker fue recuperado con asistencia del responsable. Caller/regresiones,
+comparación real main, ShellCheck y documentación candidate-aware/self-test PASS;
+46 tests Python de contratos documentales/seguridad PASS. Sin GO remoto.
+Los pins de Certification se renuevan sobre el commit inmutable validado antes
+de publicar. El paquete local integra el fix anterior `6d73b51b…` y este follow-up
+en una única rama candidata desde Desarrollo; no exige publicar dos PRs.
+
 ### Selección documental de promoción — remediación local 28-oct-2026
 
 El responsable eligió revisar el acumulado completo hacia Certification. El guard

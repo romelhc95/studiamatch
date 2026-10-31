@@ -214,25 +214,36 @@ jobs:
           python3 - <<'PY'
           import os
           import pathlib
+          import sys
 
           root = pathlib.Path(".")
-          script = (root / "scripts" / "maintenance" / "db_migrate.py").read_text(encoding="utf-8")
-          required = [
-              "PRO_MIGRATION_MANIFESTS",
+          sys.path.insert(0, str(root / "scripts"))
+          from maintenance.pro_h3_migration_manifest import (
+              PRO_MIGRATION_MANIFESTS,
+              H3_PRO_MANIFEST_NAME,
+              H3_PRO_MIGRATIONS,
+              validate_h3_manifest_tree,
+          )
+          required = {
               "f10-8-atomic-cleansing-provenance",
               "h2-expand-compat",
               "h2-contract-public-reader",
               "h2-contract-legacy-cohort",
               "h2-rollback-public-reader-contract",
               "h3-editorial-expand",
-          ]
-          missing = [item for item in required if item not in script]
-          if missing:
-              raise SystemExit(f"db_migrate.py missing manifest contract: {missing}")
-          if os.environ["MIGRATION_MANIFEST"] == "h3-editorial-expand":
-              import sys
-              sys.path.insert(0, "scripts")
-              from maintenance.pro_h3_migration_manifest import validate_h3_manifest_tree
+          }
+          if set(PRO_MIGRATION_MANIFESTS) != required:
+              raise SystemExit("Pro manifest registry differs from the closed workflow contract")
+          selected = os.environ["MIGRATION_MANIFEST"]
+          migrations = PRO_MIGRATION_MANIFESTS[selected]
+          if not isinstance(migrations, tuple) or not migrations or len(set(migrations)) != len(migrations):
+              raise SystemExit("Pro manifest must contain a non-empty unique migration tuple")
+          for name in migrations:
+              if not isinstance(name, str) or pathlib.Path(name).name != name or not (root / "db" / "migrations" / f"{name}.sql").is_file():
+                  raise SystemExit("Pro manifest references an invalid or missing migration")
+          if PRO_MIGRATION_MANIFESTS[H3_PRO_MANIFEST_NAME] != H3_PRO_MIGRATIONS:
+              raise SystemExit("H3 manifest registry differs from the pinned inventory")
+          if selected == H3_PRO_MANIFEST_NAME:
               validate_h3_manifest_tree("db/migrations")
           PY
 
