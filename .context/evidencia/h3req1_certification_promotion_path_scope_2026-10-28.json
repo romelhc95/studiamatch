@@ -2,7 +2,7 @@
   "schema_version": 1,
   "manifest_role": "protected promotion path pins; no execution authorization",
   "baseline_sha": "03515dee69fc42b10808d1c67cc4e00ebacd0c40",
-  "source_sha": "34dfcc014dfa45a71e00ac9a1e729283ab4d2254",
+  "source_sha": "2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734",
   "purpose": "Exact immutable Git blob pins for the current Development candidate against the current Certification baseline. The four candidate paths edited by this follow-up remain governed by existing exact-path allowlists; unchanged candidate paths, including the pin test, remain blob-pinned. The pin manifest itself is excluded to avoid self-referential drift.",
   "entries": [
     {
@@ -23,7 +23,7 @@
     {
       "path": ".context/componentes/seguridad_tooling.md",
       "baseline_blob": "23f8e5ef69810e3fb78a6133b3e3e0d284de0955",
-      "source_blob": "ae7195bf79aefbe4fb30da950633717de584bb57"
+      "source_blob": "118f572c883b67c338402050f78c8ca2f39cc383"
     },
     {
       "path": ".context/database.md",
@@ -33,7 +33,12 @@
     {
       "path": ".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
       "baseline_blob": "3910f9f1db46ea217be7a6cf8576c997a29ae733",
-      "source_blob": "05397d7d179047c748b90dc2e4fd090333a18b4a"
+      "source_blob": "ce3734f9d446e39ee1ab8d74e03e8e7a868f95fb"
+    },
+    {
+      "path": ".context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json",
+      "baseline_blob": null,
+      "source_blob": "a2dd8544551e51ff208f0f97d988f373e4192ee4"
     },
     {
       "path": ".context/hitos/hito_001.md",
@@ -53,12 +58,12 @@
     {
       "path": ".context/trazabilidad/registro_fuentes_componentes.json",
       "baseline_blob": "38eb7b7233caa1809f8572001ff4b94dac18be9a",
-      "source_blob": "9572226760e0a0646734dbc21bbd94ee70cd302f"
+      "source_blob": "876373c049e4e2d3714f11974f8f7827b94b9c23"
     },
     {
       "path": ".context/trazabilidad/registro_fuentes_componentes.md",
       "baseline_blob": "e89b3382e6d5b9ee157dbddea30294f882a4dc6a",
-      "source_blob": "29107401ecc688655abc278182848c4a2885a7a3"
+      "source_blob": "2fb9b6ae3cd3d022aec8dc1cfa2715fc5fa08831"
     },
     {
       "path": ".github/workflows/db-sync-to-pro.yml",
@@ -123,7 +128,7 @@
     {
       "path": "tests/test_protected_path_scope_guard.sh",
       "baseline_blob": "84a26ec9c9c25e020ce7ee46e4ab0bb4a37d67b3",
-      "source_blob": "dfc8f5f59dc3a76886e480522098198e525e3f3e"
+      "source_blob": "fcaa7c213578baa5a7665af18372ff4cfb85ada1"
     },
     {
       "path": "tests/test_supabase_credentials_contract.py",

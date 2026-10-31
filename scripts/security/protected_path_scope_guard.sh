@@ -1304,7 +1304,7 @@ H3_LOCAL_PATHS
        .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json \
        "$base" \
        03515dee69fc42b10808d1c67cc4e00ebacd0c40 \
-       34dfcc014dfa45a71e00ac9a1e729283ab4d2254) || exit 1
+       2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734) || exit 1
      allowed_h3_local+=$'\n'"$promotion_paths"
    fi
    if [[ ( "${GITHUB_BASE_REF:-}" == "main" && "${GITHUB_HEAD_REF:-}" == "certificacion" ) \
