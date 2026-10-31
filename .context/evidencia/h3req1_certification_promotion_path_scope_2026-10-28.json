@@ -1,1204 +1,149 @@
 {
   "schema_version": 1,
   "manifest_role": "protected promotion path pins; no execution authorization",
-  "baseline_sha": "c80f6504a3ea353bc2c222df1da09c4b5ba0ae58",
-  "source_sha": "941eca496676bd11cd0e2796e6c0a34efd62082d",
-  "purpose": "Exact additional paths of the full Development accumulated promotion; admitted only on desarrollo -> certificacion with independently pinned baseline/source and unchanged Git blobs. Ordinary PR protections remain active.",
+  "baseline_sha": "03515dee69fc42b10808d1c67cc4e00ebacd0c40",
+  "source_sha": "2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734",
+  "purpose": "Exact immutable Git blob pins for the current Development candidate against the current Certification baseline. The four candidate paths edited by this follow-up remain governed by existing exact-path allowlists; unchanged candidate paths, including the pin test, remain blob-pinned. The pin manifest itself is excluded to avoid self-referential drift.",
   "entries": [
     {
-      "path": ".context/decisiones/ADR-0028_target_release_governance.md",
-      "baseline_blob": null,
-      "source_blob": "de6ff4df98e03fbf4193af0bc573791806d8da50"
-    },
-    {
-      "path": ".context/evidencia/H3REQ1_REMOTE_VALIDATION_PROGRESS.md",
-      "baseline_blob": null,
-      "source_blob": "8ca99ae2cf646b6399c154050338024a76755c23"
-    },
-    {
-      "path": ".context/evidencia/h3-build-manifest.json",
-      "baseline_blob": null,
-      "source_blob": "b1515ea1541987841385c9a5eae7c962fa607568"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-001-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "41fb9bad5684b985044b36a4ed203d141da89992"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-001-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "40f24133ad034ca435cf61b063f14e5bbff4969c"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-001-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "db8a5c95d8dcd6ca352fb9a2d8bfd4376f229a69"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-002-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cecf51f5c8a2eddca2e386a0dc2f3beda9a4d6e7"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-002-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "eae07b7736356301bf742b9e164a4897b67899b0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-002-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-003-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "5e6b8d754ff3ab6b566c6f3b8444e0eaecd92128"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-003-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "a7ce6acdba5e074dd39a633350397d880f07e5b4"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-003-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "d59b7b61341b05b00fe244bc31256d53f2f783ff"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-004-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "872fdadacd343693785ce72f0f2979daf87590d1"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-004-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "d9f8c1f284c850525d9d0582a00877c048107a13"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-004-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "92fea93206d609a8538ef8fe31430799e2cb1a1a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-005-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "41fb9bad5684b985044b36a4ed203d141da89992"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-005-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "40f24133ad034ca435cf61b063f14e5bbff4969c"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-005-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "db8a5c95d8dcd6ca352fb9a2d8bfd4376f229a69"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-006-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cb5ed362df9228d3935b3d11eeec2f65cc806d85"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-006-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e7e6b75482b8a7e3789fa8e620890a0bb548596a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-006-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "766ce023d66924c4e63ca322ffdbc6a44d4bd474"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-007-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "6667fed1f103e06a3877670716b15a75f10ff1f5"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-007-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "cd7d660e221c134d613a7eb65a9b55af177a1187"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-007-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "869cd1d3c812b936851ba4a0cf2535dde370f50f"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-008-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "6667fed1f103e06a3877670716b15a75f10ff1f5"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-008-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "cd7d660e221c134d613a7eb65a9b55af177a1187"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-008-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "869cd1d3c812b936851ba4a0cf2535dde370f50f"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-009-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "6667fed1f103e06a3877670716b15a75f10ff1f5"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-009-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "cd7d660e221c134d613a7eb65a9b55af177a1187"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-009-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "869cd1d3c812b936851ba4a0cf2535dde370f50f"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-010-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cb5ed362df9228d3935b3d11eeec2f65cc806d85"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-010-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e7e6b75482b8a7e3789fa8e620890a0bb548596a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-010-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "766ce023d66924c4e63ca322ffdbc6a44d4bd474"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-011-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "41fb9bad5684b985044b36a4ed203d141da89992"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-011-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e338c591b3fa6446da355189b21051b63eef544d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-011-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "db8a5c95d8dcd6ca352fb9a2d8bfd4376f229a69"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-012-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "41fb9bad5684b985044b36a4ed203d141da89992"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-012-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e338c591b3fa6446da355189b21051b63eef544d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-012-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "dce54ab595f382166f70d7f9dd364079dae39dba"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-013-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cecf51f5c8a2eddca2e386a0dc2f3beda9a4d6e7"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-013-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "eae07b7736356301bf742b9e164a4897b67899b0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-013-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-014-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cecf51f5c8a2eddca2e386a0dc2f3beda9a4d6e7"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-014-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "eae07b7736356301bf742b9e164a4897b67899b0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-014-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-015-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "b32b97d6389331818ab8e9df61c9b61527090f53"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-015-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "3bb23281ec082d6d7a5295e291fc1c6362bd0c1c"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-015-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "f9f72dd580d77f82b63e11d7a8f2e70dc8214bbf"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-016-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cecf51f5c8a2eddca2e386a0dc2f3beda9a4d6e7"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-016-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "eae07b7736356301bf742b9e164a4897b67899b0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-016-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-017-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cecf51f5c8a2eddca2e386a0dc2f3beda9a4d6e7"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-017-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "eae07b7736356301bf742b9e164a4897b67899b0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-017-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-018-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cb5ed362df9228d3935b3d11eeec2f65cc806d85"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-018-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e7e6b75482b8a7e3789fa8e620890a0bb548596a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-018-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "766ce023d66924c4e63ca322ffdbc6a44d4bd474"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-019-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cb5ed362df9228d3935b3d11eeec2f65cc806d85"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-019-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e7e6b75482b8a7e3789fa8e620890a0bb548596a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-019-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "766ce023d66924c4e63ca322ffdbc6a44d4bd474"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-020-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cb5ed362df9228d3935b3d11eeec2f65cc806d85"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-020-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e7e6b75482b8a7e3789fa8e620890a0bb548596a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-020-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "766ce023d66924c4e63ca322ffdbc6a44d4bd474"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-021-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cb5ed362df9228d3935b3d11eeec2f65cc806d85"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-021-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e7e6b75482b8a7e3789fa8e620890a0bb548596a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-021-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "766ce023d66924c4e63ca322ffdbc6a44d4bd474"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-022-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "6667fed1f103e06a3877670716b15a75f10ff1f5"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-022-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "cd7d660e221c134d613a7eb65a9b55af177a1187"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-022-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "869cd1d3c812b936851ba4a0cf2535dde370f50f"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-023-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cb5ed362df9228d3935b3d11eeec2f65cc806d85"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-023-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e7e6b75482b8a7e3789fa8e620890a0bb548596a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-023-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "766ce023d66924c4e63ca322ffdbc6a44d4bd474"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-024-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cca949fbdeb56ab15ffa447d82b911ea33f7b560"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-024-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e338c591b3fa6446da355189b21051b63eef544d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-024-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "dce54ab595f382166f70d7f9dd364079dae39dba"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-025-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cca949fbdeb56ab15ffa447d82b911ea33f7b560"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-025-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e338c591b3fa6446da355189b21051b63eef544d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-025-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "dce54ab595f382166f70d7f9dd364079dae39dba"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-026-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cca949fbdeb56ab15ffa447d82b911ea33f7b560"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-026-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e338c591b3fa6446da355189b21051b63eef544d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-026-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "dce54ab595f382166f70d7f9dd364079dae39dba"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-027-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "41fb9bad5684b985044b36a4ed203d141da89992"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-027-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e338c591b3fa6446da355189b21051b63eef544d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-027-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "dce54ab595f382166f70d7f9dd364079dae39dba"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-028-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "86e8a02d48319e1ab0577806e108d5b763281257"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-028-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "5ce1295f7bb65be53e5fdc871648bd38fc55a448"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-028-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "0812d06a6a25fc3ead27801233a9bbe53d50c063"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-029-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "90ab97bc6d5eb162e94fae9872a2efe81767106f"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-029-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "f2ff038ede9b944dda08a969b44781813df4c087"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-029-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "e746ec5d743821f577f263deb2d5ba81096f03fa"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-030-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "c8812203c613d396d33ced7e288ede42806194b7"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-030-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "9febaecc0951dcd100ab446b04052502599fd627"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-030-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "8a78a4c92c6ac824bafd186104aec1428d22d08d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-031-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "9fee4ced2b86d473600c3613ae84877bfb4e1686"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-031-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "017f47ce5e2c6c0680e51641654ddfbd06e1d727"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-031-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-032-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "5e6b8d754ff3ab6b566c6f3b8444e0eaecd92128"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-032-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "a7ce6acdba5e074dd39a633350397d880f07e5b4"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-032-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "d59b7b61341b05b00fe244bc31256d53f2f783ff"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-033-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cecf51f5c8a2eddca2e386a0dc2f3beda9a4d6e7"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-033-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "eae07b7736356301bf742b9e164a4897b67899b0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-033-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-034-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "447ec92a381520f2ac6164795e483983ff6b47b8"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-034-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "fc005b59825d97f0c4c283ef0056cf5fcf95a768"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-034-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "acfe3ffcde8dbe2c3f172652863350bada1f7500"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-035-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "447ec92a381520f2ac6164795e483983ff6b47b8"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-035-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "fc005b59825d97f0c4c283ef0056cf5fcf95a768"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-035-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "acfe3ffcde8dbe2c3f172652863350bada1f7500"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-036-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "447ec92a381520f2ac6164795e483983ff6b47b8"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-036-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "fc005b59825d97f0c4c283ef0056cf5fcf95a768"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-036-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "acfe3ffcde8dbe2c3f172652863350bada1f7500"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-037-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "447ec92a381520f2ac6164795e483983ff6b47b8"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-037-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "fc005b59825d97f0c4c283ef0056cf5fcf95a768"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-037-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "acfe3ffcde8dbe2c3f172652863350bada1f7500"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-038-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "447ec92a381520f2ac6164795e483983ff6b47b8"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-038-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "fc005b59825d97f0c4c283ef0056cf5fcf95a768"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-038-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "acfe3ffcde8dbe2c3f172652863350bada1f7500"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-039-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "447ec92a381520f2ac6164795e483983ff6b47b8"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-039-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "fc005b59825d97f0c4c283ef0056cf5fcf95a768"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-039-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "acfe3ffcde8dbe2c3f172652863350bada1f7500"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-040-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cca949fbdeb56ab15ffa447d82b911ea33f7b560"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-040-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "5ce1295f7bb65be53e5fdc871648bd38fc55a448"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-040-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "0812d06a6a25fc3ead27801233a9bbe53d50c063"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-041-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "41fb9bad5684b985044b36a4ed203d141da89992"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-041-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "40f24133ad034ca435cf61b063f14e5bbff4969c"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-041-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "db8a5c95d8dcd6ca352fb9a2d8bfd4376f229a69"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-042-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "a3fadb19ba42ec56bb520a6bb435f0fb845b6ee6"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-042-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "905c1da1bc7e6f576cac3aa74f83942ff41fd38a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-042-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "d4429351feee15ca1ca055805e4271f8365bccf8"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-043-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cca949fbdeb56ab15ffa447d82b911ea33f7b560"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-043-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "40f24133ad034ca435cf61b063f14e5bbff4969c"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-043-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "dce54ab595f382166f70d7f9dd364079dae39dba"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-044-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "cca949fbdeb56ab15ffa447d82b911ea33f7b560"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-044-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "e338c591b3fa6446da355189b21051b63eef544d"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-044-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "dce54ab595f382166f70d7f9dd364079dae39dba"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-045-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "41fb9bad5684b985044b36a4ed203d141da89992"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-045-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "40f24133ad034ca435cf61b063f14e5bbff4969c"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-045-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "db8a5c95d8dcd6ca352fb9a2d8bfd4376f229a69"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-046-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "9fee4ced2b86d473600c3613ae84877bfb4e1686"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-046-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "eae07b7736356301bf742b9e164a4897b67899b0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-046-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "eddfc78bf7dcd1c44494ed788309a1bf94818c7a"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-047-desktop.png",
-      "baseline_blob": null,
-      "source_blob": "493416ab6db6f13e4207e0887a4a388a62338b78"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-047-mobile.png",
-      "baseline_blob": null,
-      "source_blob": "7ab75c7a55a59195d24415d9300a4bf6406b6d08"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/H3-UAT-047-tablet.png",
-      "baseline_blob": null,
-      "source_blob": "088ca1972544b56ac059ac382332bac7f62a3317"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/h3-expanded-uat-artifact-hashes.json",
-      "baseline_blob": null,
-      "source_blob": "6f2f9d13744c0d7eb9fd50d26bbcb0e4d1a48ec0"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/h3-expanded-uat-executions.json",
-      "baseline_blob": null,
-      "source_blob": "5df70ef6e0ccb8dc2af0523578a0e6c2456eb231"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/h3-expanded-uat-manifest.json",
-      "baseline_blob": null,
-      "source_blob": "9e6f314746abc70d1845534fb766a664172c45d4"
-    },
-    {
-      "path": ".context/evidencia/h3-expanded/h3-expanded-uat-matrix.json",
-      "baseline_blob": null,
-      "source_blob": "b687e1e004290683b3f8ddad534302ddd0641ca7"
-    },
-    {
-      "path": ".context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_db_implementation_local_2026-09-21.md",
-      "baseline_blob": null,
-      "source_blob": "fc24b7612b2e24ad3a86b1fc8cea44baae5c3452"
-    },
-    {
-      "path": ".context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_frontend_auth_local_2026-09-22.md",
-      "baseline_blob": null,
-      "source_blob": "987b79c27a11acd2ef3b7aa587f937089411e354"
-    },
-    {
-      "path": ".context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_local_2026-09-19.md",
-      "baseline_blob": null,
-      "source_blob": "2e7682fe25819fc4636e1d71efc23838d5753822"
-    },
-    {
-      "path": ".context/evidencia/h3-invitation-flow/evidencia_h3_invitation_flow_remediation_local_2026-09-23.md",
-      "baseline_blob": null,
-      "source_blob": "ccd33ac80bc08283cd33d2331af1b33e939caf15"
-    },
-    {
-      "path": ".context/evidencia/h3-invitation-flow/evidencia_h3_uat_mock_2026-09-23.md",
-      "baseline_blob": null,
-      "source_blob": "51ac12278d13a805f715552f963835e5af61f543"
-    },
-    {
-      "path": ".context/evidencia/h3_migration_classification_2026-08-30.md",
-      "baseline_blob": null,
-      "source_blob": "6fe1e0172293c7e3d00fedb4ac4400b38b49cfb8"
-    },
-    {
-      "path": ".context/evidencia/h3_pro_free_local_matrix_2026-08-30.md",
-      "baseline_blob": null,
-      "source_blob": "2fa2469d8cbf3d27c19f8df599842e927900d1ed"
-    },
-    {
-      "path": ".context/evidencia/h3_pro_h2_authoritative_baseline_2026-08-30.json",
-      "baseline_blob": null,
-      "source_blob": "aebef704ec3d0c40fb746a5576c00a6a3fc1e10d"
-    },
-    {
-      "path": ".context/evidencia/h3_remote_validation_readonly_2026-09-24.md",
-      "baseline_blob": null,
-      "source_blob": "ab716dbbf9dff16c8ca46f59f575910c88b723f0"
-    },
-    {
-      "path": ".context/evidencia/h3req1_development_cycle_2026-09-24.md",
-      "baseline_blob": null,
-      "source_blob": "65981b1f536fc8eedf07704088e5bbcffb4f122b"
-    },
-    {
-      "path": ".context/evidencia/h3req1_development_remote_cycle_2026-09-26.md",
-      "baseline_blob": null,
-      "source_blob": "15bc19218b62578585aa41efbd4fb60296ec797d"
-    },
-    {
-      "path": ".context/evidencia/h3req1_development_validation_2026-09-24.md",
-      "baseline_blob": null,
-      "source_blob": "c5323a253a257bd1d30208cb328befe9d45fe996"
-    },
-    {
-      "path": ".context/evidencia/h3req1_remediation_baseline_2026-09-23.md",
-      "baseline_blob": null,
-      "source_blob": "c6deb1d578070a35e2a3a5ed174a3c4cfb410ee7"
-    },
-    {
-      "path": ".context/evidencia/h3req1_remediation_final_2026-09-23.md",
-      "baseline_blob": null,
-      "source_blob": "d4076b517e9515d57528c67e212736349d59066b"
-    },
-    {
-      "path": ".context/evidencia/h3req1_remediation_report_2026-09-23.md",
-      "baseline_blob": null,
-      "source_blob": "90a02fc04219fbb75fee9055d9875823e72ce010"
-    },
-    {
-      "path": ".context/evidencia/h3req1_remote_validation_readonly_2026-09-24_cycle2.md",
-      "baseline_blob": null,
-      "source_blob": "dadb71707870fa2d08ad91aac0d2c53a75a52006"
+      "path": ".context/componentes/admin_portal.md",
+      "baseline_blob": "1d4139958fc7d5ee9b1802951496b783a908aef0",
+      "source_blob": "5a449c4d59bae8d07e53c14a82954d9704b41c63"
     },
     {
-      "path": ".context/evidencia/h3req1_uat_matrix_local_2026-09-23.md",
-      "baseline_blob": null,
-      "source_blob": "1a359e876f130a6758461cbc02b6383acecaab2f"
-    },
-    {
-      "path": ".context/evidencias_cliente/sprint_1/atestado_h3_ampliacion_prompt_humano_sanitizado.md",
-      "baseline_blob": null,
-      "source_blob": "0d283db9deb036d5424bf9a72ccf4a17ec61205a"
-    },
-    {
-      "path": ".context/evidencias_cliente/sprint_1/evidencia_hito_003.md",
-      "baseline_blob": "aea76da92af615af2b73a8d2edda76e82a5d70e5",
-      "source_blob": "efd0ebb6aad8037c2fc1b19f2794f86e481c2ee6"
-    },
-    {
-      "path": ".context/hitos/h3req1_closure_review_final_2026-09-23.md",
-      "baseline_blob": null,
-      "source_blob": "9faee9b08b3dffca584c587130a5250d45a05686"
-    },
-    {
-      "path": ".context/operaciones/evidencia_jit_a_supabase_auth_free.md",
-      "baseline_blob": null,
-      "source_blob": "a564707f25c98885eb38e6d0b4b2f846c4a90244"
-    },
-    {
-      "path": ".context/operaciones/evidencia_jit_b_cloudflare_access_dns.md",
-      "baseline_blob": null,
-      "source_blob": "f4795cecd2abfa0c0947c47a1adccfaac1edccf1"
-    },
-    {
-      "path": ".context/operaciones/jit_supabase_auth_cloudflare_access_mfa.md",
-      "baseline_blob": null,
-      "source_blob": "d31c139dcfc936dca492e89a2df46081b034005e"
-    },
-    {
-      "path": ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
-      "baseline_blob": "abca82e0433a3932796379f13cc62a81a2ba2aed",
-      "source_blob": "d827f9307412b8720a15e4ea65fd001acff84e44"
-    },
-    {
-      "path": ".context/operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md",
-      "baseline_blob": "812d4146db0bc8c38e1ee4b835462de06a124ce7",
-      "source_blob": "53cd75c5b2fabe944511a9fd3d46657b2d299021"
-    },
-    {
-      "path": ".context/operaciones/rf01_hotfix_reconciliation_contract_target.md",
-      "baseline_blob": null,
-      "source_blob": "aaca4cf463bed7e839d21a3a5aa5a0eeea664288"
-    },
-    {
-      "path": ".context/operaciones/rf01_release_promotion_contract_target.md",
-      "baseline_blob": null,
-      "source_blob": "67fa23167e8c5eee03f5c5c8bc58e9be17cc2594"
-    },
-    {
-      "path": ".context/seguimiento/rf01_build_report.md",
-      "baseline_blob": null,
-      "source_blob": "a8c1f442f1837eadfbe4e93a7441ebfc10c0faad"
-    },
-    {
-      "path": ".context/waivers/waiver_h3_static_export.md",
-      "baseline_blob": null,
-      "source_blob": "443a7b6e626f75a57107c2d2cbc8bddd92497cad"
-    },
-    {
-      "path": "db/migrations/20260412_dynamic_categories.sql",
-      "baseline_blob": "b9be899a6369d1efff48c0ce34f5c81c967b79c8",
-      "source_blob": "f7fda829be97cea8c2297d19ed88a8326cfb4308"
-    },
-    {
-      "path": "db/migrations/20260413_social_proof.sql",
-      "baseline_blob": "a1a8139117e5b1f9825abe0fbadce88653476703",
-      "source_blob": "1fe01939be999e196d94c4634e41ee9ebd898236"
-    },
-    {
-      "path": "db/migrations/20260414_fase18_saneamiento.sql",
-      "baseline_blob": "86617547bf1c9d1535822e1e9b8504d00bc9674e",
-      "source_blob": "4da4310f9a1892e218581e66d7089c57664ee73a"
-    },
-    {
-      "path": "db/migrations/20260414_optimize_search.sql",
-      "baseline_blob": "be5e86152a991aa495cbe8cad5e82ed033597a6f",
-      "source_blob": "c5c94e48aeb3b616438940f567124749ef8cb1aa"
-    },
-    {
-      "path": "db/migrations/20260415_market_salaries.sql",
-      "baseline_blob": "c9312fb75023396a421d87d979343b7d6f381a14",
-      "source_blob": "e189689d269efe256c52cacfc32cd74668c3bfa8"
-    },
-    {
-      "path": "db/migrations/20260416_seniority_roi_update.sql",
-      "baseline_blob": "30a3a1e8df9e014a09472ccb0aae3c338c68da71",
-      "source_blob": "fd67d0715dc25b8f632c4815e092be3596983a08"
-    },
-    {
-      "path": "db/migrations/20260828_h3_admin_auth.sql",
-      "baseline_blob": null,
-      "source_blob": "2eca367a7dd3eaa0297ac4270eba44016c318586"
-    },
-    {
-      "path": "db/migrations/20260828_h3_admin_course_queue_view.sql",
-      "baseline_blob": null,
-      "source_blob": "72652cb87b1834163d6a541251fff1c5efa9e326"
-    },
-    {
-      "path": "db/migrations/20260828_h3_admin_editorial_reader_rpc.sql",
-      "baseline_blob": null,
-      "source_blob": "9c8853a9004118523fb98026a3b60a3e5c230dbe"
-    },
-    {
-      "path": "db/migrations/20260828_h3_admin_editorial_rpc.sql",
-      "baseline_blob": null,
-      "source_blob": "06c7ef32e20e3759e29c686036117b8c2944ac57"
-    },
-    {
-      "path": "db/migrations/20260828_h3_admin_queue_rpc.sql",
-      "baseline_blob": null,
-      "source_blob": "78a70654ab953418dd92797039c9c228d61f2376"
-    },
-    {
-      "path": "db/migrations/20260829_h3_rbac_users.sql",
-      "baseline_blob": null,
-      "source_blob": "3ab83d248239aa925603e23bea96e3df5690c232"
+      "path": ".context/componentes/database_migrations.md",
+      "baseline_blob": "6a32fabd43b6e5e4e3cb48d89460ec1f1cdf2396",
+      "source_blob": "4b79c4c488ee827a1b35f8c0b4fb2bf6b4755c1e"
     },
     {
-      "path": "db/migrations/20260830_h3_expanded_contract.sql",
-      "baseline_blob": null,
-      "source_blob": "fcf13d0e07123112c254555cedfcbe25a9e47780"
-    },
-    {
-      "path": "db/migrations/20260902_h3_pr_contract.sql",
-      "baseline_blob": null,
-      "source_blob": "503ef0bce5b60be8996aa534d3bf708e0dfa317b"
-    },
-    {
-      "path": "db/migrations/20260903_h3_rbac_contract_fix.sql",
-      "baseline_blob": null,
-      "source_blob": "decb3733734f5c114e682fef582f99cbd5cc9ff7"
-    },
-    {
-      "path": "db/migrations/20260918_h3_invitation_flow_persistence.sql",
-      "baseline_blob": null,
-      "source_blob": "52b73e96bcf1f8dce6628c5f48c6c6ec85ad1796"
-    },
-    {
-      "path": "db/migrations/20260919_h3_invitation_auth_token_delta.sql",
-      "baseline_blob": null,
-      "source_blob": "1a5aa94858bdbd31cac0ab6c039652ab9a5142fa"
-    },
-    {
-      "path": "db/migrations/20260920_h3_invitation_edge_runtime.sql",
-      "baseline_blob": null,
-      "source_blob": "692697ce051414fe55e6b171f5668d152b2c1cbb"
-    },
-    {
-      "path": "db/migrations/20260921_h3_invitation_onboarding_rpc.sql",
-      "baseline_blob": null,
-      "source_blob": "5b29a227d5da472673d2b4355b086dd7774ab228"
-    },
-    {
-      "path": "db/migrations/20260924_h3_onboarding_rbac_hardening.sql",
-      "baseline_blob": null,
-      "source_blob": "ee4df888a10e8c3a324b326fd40b697952024c38"
-    },
-    {
-      "path": "db/migrations/20260924_h3_onboarding_rbac_hardening_fix.sql",
-      "baseline_blob": null,
-      "source_blob": "128b5b09f7d1e60e77984276434336df42d4d877"
-    },
-    {
-      "path": "db/migrations/20260925_h3_admin_members_onboarding_reader.sql",
-      "baseline_blob": null,
-      "source_blob": "0e9e390b261cb9ee597aa8e12bcb6d9efc22d3bc"
-    },
-    {
-      "path": "db/migrations/20260925_h3_legacy_member_creation_guard.sql",
-      "baseline_blob": null,
-      "source_blob": "32e9f07ecd4dc92f6126b0630959b8c5bd719337"
-    },
-    {
-      "path": "db/production_init.sql",
-      "baseline_blob": "368240add5e842ff553dd41c6eb3b7e120c2f4a1",
-      "source_blob": "d0acb771cab7b054bc8cd07a208b81b280430181"
+      "path": ".context/componentes/mantenimiento.md",
+      "baseline_blob": "ec11fe83f8979171856c18f0bbbbdb28d17fbe8f",
+      "source_blob": "a5277da64bfe3d4ef7c065082af47e5e7a0d6e42"
     },
     {
-      "path": "db/production_seed.sql",
-      "baseline_blob": "a64be07723b898b7cca9d03b61094d577c7170b8",
-      "source_blob": "4e8bc6ff0efcd939df801f5bf8481974db3cfd8e"
+      "path": ".context/componentes/seguridad_tooling.md",
+      "baseline_blob": "23f8e5ef69810e3fb78a6133b3e3e0d284de0955",
+      "source_blob": "118f572c883b67c338402050f78c8ca2f39cc383"
     },
     {
-      "path": "mock-server/package-lock.json",
-      "baseline_blob": null,
-      "source_blob": "7baeb9fb29a3aeffaeb9f6f6c1c2217997ac6503"
+      "path": ".context/database.md",
+      "baseline_blob": "d1b235a617d6e627a1d1a721b41d1c8f8aeb5837",
+      "source_blob": "c436ead85af60afa6b5ce6b3a202a0f53146f558"
     },
     {
-      "path": "mock-server/package.json",
-      "baseline_blob": null,
-      "source_blob": "dc82227259752685337d89b47a22ce204e6daa08"
+      "path": ".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
+      "baseline_blob": "3910f9f1db46ea217be7a6cf8576c997a29ae733",
+      "source_blob": "ce3734f9d446e39ee1ab8d74e03e8e7a868f95fb"
     },
     {
-      "path": "mock-server/static-server.js",
+      "path": ".context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json",
       "baseline_blob": null,
-      "source_blob": "ecb42fb908c692013567d2f6b9d0c074a0e4d956"
-    },
-    {
-      "path": "requirements-pipeline.txt",
-      "baseline_blob": "38bbc3f369b949602b1dd668d2e6f16805cdb586",
-      "source_blob": "b11687a0a06598c6fd7dd84ea4c24f3805155a41"
-    },
-    {
-      "path": "requirements.txt",
-      "baseline_blob": "8a46b44584cbc2374bbda43972ac66678cfae524",
-      "source_blob": "952c38ab8823be292edda5d1e58284b704966a7c"
-    },
-    {
-      "path": "scripts/core/enrichment_worker.py",
-      "baseline_blob": "24d790b1e4a008f159f87dc26410216858fefd31",
-      "source_blob": "f3d384ac1c1594097bd2a627d4aa35bca128b047"
-    },
-    {
-      "path": "scripts/core/sync_vector_worker.py",
-      "baseline_blob": "927d11ca99c53f6942402fa22e25153136164b4b",
-      "source_blob": "9cad485c4bdb7323bbf31b4d8527b22e83d38ea0"
-    },
-    {
-      "path": "scripts/maintenance/audit_url_slugs.py",
-      "baseline_blob": "7babd086316a5391cd5bb2803540a790ff92fe6d",
-      "source_blob": "6e182657c682f57b5fdcd4937f41a9cc28eb677f"
-    },
-    {
-      "path": "scripts/maintenance/category_audit_report.py",
-      "baseline_blob": "fa73d30c6406386f73d8cc0e10b1ba712754a478",
-      "source_blob": "97d3c5c2eaf25118ee3ed913c1ebbc23914fd159"
+      "source_blob": "a2dd8544551e51ff208f0f97d988f373e4192ee4"
     },
     {
-      "path": "scripts/maintenance/dedup_integrity_audit.py",
-      "baseline_blob": "f5c2291de758bcbde7f7b5845be0dd956dc3eb22",
-      "source_blob": "2f8d8dafcce13182d90ac0fe690f12911eba7be8"
+      "path": ".context/hitos/hito_001.md",
+      "baseline_blob": "22fd34cdecfcd29903a9c323c8df31c048a030eb",
+      "source_blob": "ff2598413f7096dd3d69a02d9747e0de30939cd5"
     },
     {
-      "path": "scripts/maintenance/lightweight_ping.py",
-      "baseline_blob": "a7070d11a091e3e3219b24810756689393f217ca",
-      "source_blob": "45280114ae870730e3b4f2f804463cd055fbc0d0"
+      "path": ".context/hitos/hito_004.md",
+      "baseline_blob": "0ff2705a4f2b7de08b8feb88b012020933acb5de",
+      "source_blob": "52b5c91dbcffce8a3de39f1103a996e41bd5c41a"
     },
     {
-      "path": "scripts/maintenance/metadata_quality_report.py",
-      "baseline_blob": "93b7b2a1ac667f06b3ecd416520e15091daa6fb6",
-      "source_blob": "a00565f48712fe63df0eacb73d4aea022307a1c0"
+      "path": ".context/pruebas.md",
+      "baseline_blob": "50e06800972fe9cdaa154e30a0a76127ab73f8ff",
+      "source_blob": "65d791e743f096d3db5445b069c23c9f679c4598"
     },
     {
-      "path": "scripts/maintenance/preventive_cleanup.py",
-      "baseline_blob": "0220c0971f41672acf27ba1a657a7426c3b1bdf5",
-      "source_blob": "7171bc699f67600b3fe098666a3fafa4ea265281"
+      "path": ".context/trazabilidad/registro_fuentes_componentes.json",
+      "baseline_blob": "38eb7b7233caa1809f8572001ff4b94dac18be9a",
+      "source_blob": "876373c049e4e2d3714f11974f8f7827b94b9c23"
     },
     {
-      "path": "scripts/maintenance/quality_assurance_audit.py",
-      "baseline_blob": "4cf88255a0601b59ec1377491b9c8c454641a524",
-      "source_blob": "37ab7681c6f81f80aa014f072426584377729b2c"
+      "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+      "baseline_blob": "e89b3382e6d5b9ee157dbddea30294f882a4dc6a",
+      "source_blob": "2fb9b6ae3cd3d022aec8dc1cfa2715fc5fa08831"
     },
     {
-      "path": "scripts/shared/test_db_compatibility.py",
-      "baseline_blob": "124753dbd2fc291908a56fcc2b6cb3a9d2f96e77",
-      "source_blob": "d3076336139e561437a507b8abce481f5636b633"
+      "path": ".github/workflows/db-sync-to-pro.yml",
+      "baseline_blob": "50bc37a6f06a8c8a065be37b10afa67b98964dc0",
+      "source_blob": "bcbda59d95f78153fa09305b39aacfd12895685e"
     },
     {
-      "path": "scripts/shared/utils.py",
-      "baseline_blob": "b8219cbe312f2a259444ca2bbc08ac7c81d64473",
-      "source_blob": "068be8ab534a1d112ae68f619e7711ea1cbe3712"
+      "path": ".github/workflows/security-audit.yml",
+      "baseline_blob": "8722469480796e64c6385f4ce4a4fd2f62d46b7e",
+      "source_blob": "9c85e10c3ec14f901583cd1128ce0eecb1937c59"
     },
     {
-      "path": "supabase/config.toml",
-      "baseline_blob": null,
-      "source_blob": "ed909f1be40ba13fd2a5c74755b15635dfd7a07c"
+      "path": "scripts/maintenance/check_db_parity.py",
+      "baseline_blob": "c587da570c272f18643e5b2b2e5a8581881887f2",
+      "source_blob": "2595d8224c030769128a259f8fe6a5df24c781f9"
     },
     {
-      "path": "tests/fixtures/h3/admin_auth_local_mock.sql",
-      "baseline_blob": null,
-      "source_blob": "9464a40d2a573d36db6d96ee6beafebc41b4dc4d"
+      "path": "scripts/maintenance/db_migrate.py",
+      "baseline_blob": "07bad4cefd36611610d244ff42d4a23f01a32bc4",
+      "source_blob": "bc9d16d68db712ea0bb422815eab386085d2c3ae"
     },
     {
-      "path": "tests/mobile_usability.spec.ts",
-      "baseline_blob": "1f6702fd7eaeb914b5dca955ef94766bc2d2d272",
-      "source_blob": "a27b554e7f20ef11c2034c6816ac96e70848630d"
+      "path": "scripts/maintenance/h2_pro_preflight_report.py",
+      "baseline_blob": "2e54d6c859f5851e2c89c77deb24c6610fd512d3",
+      "source_blob": "fb6273ad4a2b40b617d81501fdacaa83929e9b1d"
     },
     {
-      "path": "tests/quality_audit.spec.ts",
-      "baseline_blob": "f1b7bb934b47c505a7ab8e82afc90bd05bae89b1",
-      "source_blob": "d04260eb8ccd18733fbf7276916d1bdfc1ff5a72"
+      "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
+      "baseline_blob": "92b4182ba838670c2108d9962081d7225fcb25ec",
+      "source_blob": "1e858062e9a0b1d32f2adc2550f48f2943efbdf7"
     },
     {
-      "path": "tests/sql/h3_onboarding_rbac_hardening_harness.sql",
+      "path": "scripts/maintenance/pro_h3_migration_manifest.py",
       "baseline_blob": null,
-      "source_blob": "ea10ccde470b720c17946b804037fe7c73201769"
+      "source_blob": "7e14349c4e16895d33c5e0e20335b708ce3b1feb"
     },
     {
-      "path": "tests/sql/h3_pg17_harness_local.sql",
+      "path": "tests/admin_audit_changes.test.mjs",
       "baseline_blob": null,
-      "source_blob": "29df1aceef457cbf3c10e742c01053effbea9f58"
-    },
-    {
-      "path": "tests/test_h2_pipeline_contract.py",
-      "baseline_blob": "ccd25dea965625ede91fade031d68f1a170349b9",
-      "source_blob": "b5fa24f68084d2f2bcc5fa3496776f655c024d1b"
-    },
-    {
-      "path": "tests/test_harvester.py",
-      "baseline_blob": "e8782d6f8d261dcc1bc9af4b7144664cc2a5adbf",
-      "source_blob": "9e09a1347527f050b94bc6df46f240a9bce6d10c"
-    },
-    {
-      "path": "web/.gitignore",
-      "baseline_blob": "517252d40650c3bb1099576bfe2a361f8352107d",
-      "source_blob": "5ef6a520780202a1d6addd833d800ccb1ecac0bb"
-    },
-    {
-      "path": "web/components.json",
-      "baseline_blob": "1eb338a7ac2bbaa4ea71b4bae0ea8ad57f8e3adf",
-      "source_blob": "8d886db5756307e013bc8ae97c05220fb7b6ab7a"
+      "source_blob": "b427eb6018609845aee45fff50bb8646cb8ec433"
     },
     {
-      "path": "web/postcss.config.mjs",
-      "baseline_blob": "bc52b4a02b49adefd8cbb84b323fd0362236915a",
-      "source_blob": "61e36849cf7cfa9f1f71b4a3964a4953e3e243d3"
+      "path": "tests/test_fase10_main_boundary.py",
+      "baseline_blob": "92c74d6ab9297fa1cee9eb889665e6c959a20913",
+      "source_blob": "697efec6687e909025206c78cb0bd9e0b7e6e574"
     },
     {
-      "path": "web/public/_headers",
-      "baseline_blob": "bf5feb5c00a8441888477d87aab910b97e4f54d3",
-      "source_blob": "1cfecd59deba9055c4b974943be6d9d04b575bc6"
+      "path": "tests/test_h2_pro_migration_controls.py",
+      "baseline_blob": "330e7f30a2d6f81d173d5f0f023c9e0b953ddc30",
+      "source_blob": "52064290ffaee2ecc8c68a622b738ee9bab97861"
     },
     {
-      "path": "web/src/app/admin/accept-invite/page.tsx",
+      "path": "tests/test_h2_pro_preflight_report.py",
       "baseline_blob": null,
-      "source_blob": "f0d38902af91c971eeee5b69b584a6307e3610c7"
+      "source_blob": "9a8bcd8081fcc9b7114a0feef8b748238f7f85ef"
     },
     {
-      "path": "web/src/app/admin/setup-password/page.tsx",
+      "path": "tests/test_h3_pro_migration_manifest.py",
       "baseline_blob": null,
-      "source_blob": "f5add921b01cb15cc82dfb252b25c599035a50dc"
-    },
-    {
-      "path": "web/src/app/compare/page.tsx",
-      "baseline_blob": "d951ab8faf941f03abb6d3fcbfce5cb6211d6b1e",
-      "source_blob": "2a873850b89e747a8a858a6fce83f8b5d9257918"
-    },
-    {
-      "path": "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx",
-      "baseline_blob": "dd2eebf22bff019fca1bb8f799669e305d6168f4",
-      "source_blob": "6c0851a0cf46a5c48c2762d4def8c5a86c6be5c0"
-    },
-    {
-      "path": "web/src/app/courses/[institution]/[slug]/page.tsx",
-      "baseline_blob": "4c5639923615154269fe0ea5add6d5efd7e60b91",
-      "source_blob": "129ccdf3f55b02777c04076d505e197e7fcaf0d4"
+      "source_blob": "d246bfb37df475bd51516664dd61d406dea15113"
     },
     {
-      "path": "web/src/app/layout.tsx",
-      "baseline_blob": "26c41c9347a0f9ae3320e603e7b3005890c17503",
-      "source_blob": "79533896223fefb687e8e0ea607cae77b10b87f0"
+      "path": "tests/test_protected_path_scope_guard.sh",
+      "baseline_blob": "84a26ec9c9c25e020ce7ee46e4ab0bb4a37d67b3",
+      "source_blob": "fcaa7c213578baa5a7665af18372ff4cfb85ada1"
     },
     {
-      "path": "web/src/components/admin/MfaRequiredCard.tsx",
-      "baseline_blob": null,
-      "source_blob": "2d76e0f0c933f14a7ee9b5aa579eb1bb5437000f"
+      "path": "tests/test_supabase_credentials_contract.py",
+      "baseline_blob": "103d9064ae4ef06a231541387c72e40e14a185bd",
+      "source_blob": "fbf0e81a8ead43e5a7c48e30b57dad9cfa0296ac"
     },
     {
-      "path": "web/src/components/admin/PasswordInput.tsx",
-      "baseline_blob": null,
-      "source_blob": "d4c9ea7b5126056fb8d039bfe9f7945831f409c4"
+      "path": "web/src/app/admin/edit/page.tsx",
+      "baseline_blob": "3f7ff6fb7f14b1f1179e269aadda27eb28b5c84d",
+      "source_blob": "abd3a10b55007000b8ab0c201fdcbb8fb8d9c656"
     },
     {
-      "path": "web/src/components/admin/PasswordRequirements.tsx",
+      "path": "web/src/lib/admin-audit-changes.mjs",
       "baseline_blob": null,
-      "source_blob": "12bf6df804f59143fdcbee98033f6654de124a7e"
+      "source_blob": "2aa733ef369153ca958d207c112cbf12846aa8e1"
     }
   ]
 }

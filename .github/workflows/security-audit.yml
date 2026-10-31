@@ -102,8 +102,10 @@ jobs:
             && !Array.isArray(value.package_artifacts);
           const promotion = (process.env.GITHUB_BASE_REF === "certificacion"
             && process.env.GITHUB_HEAD_REF === "desarrollo")
+            || (process.env.GITHUB_BASE_REF === "main"
+              && process.env.GITHUB_HEAD_REF === "certificacion")
             || (process.env.GITHUB_EVENT_NAME === "push"
-              && process.env.GITHUB_REF === "refs/heads/certificacion");
+              && ["refs/heads/certificacion", "refs/heads/main"].includes(process.env.GITHUB_REF));
           const isPrScope = (value) => value?.schemaVersion === 1
             && /^[a-f0-9]{40}$/i.test(value.baseSha ?? "")
             && Array.isArray(value.includedPaths)
@@ -299,6 +301,7 @@ jobs:
       - run: npm ci
       - run: node ../tests/h3_duration_parser.test.mjs
       - run: node ../tests/admin_header_responsive.test.mjs
+      - run: node ../tests/admin_audit_changes.test.mjs
       - run: node ../tests/admin_queue_request_guard.test.mjs
       - run: node ../tests/h3_admin_bff_mock_uat.mjs
       - run: node ../tests/h3_admin_auth_error_uat.mjs

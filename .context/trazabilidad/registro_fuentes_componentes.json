@@ -126,12 +126,12 @@
       }
     },
     "integration_projection": {
-      "name": "candidato R8 + documentación R9 prevista para reconciliación de paso 3",
-      "source_set": "paths tracked del HEAD baseline más paths de scope R8 y scope R9; los paths candidatos fuera de ese conjunto son WIP local preservado y quedan señalados por grupo.",
-      "candidate_only_path_count_at_cut": 367,
-      "note": "La proyección R8/R9 conserva sus exclusiones exactas; las 10 fuentes del Worker PWI están asignadas como delta deliberado del sucesor R19/R3 y se cuentan en la proyección actual, sin abrir carpetas adicionales.",
+      "name": "candidato local H3REQ1 CA4.6 y promoción certificacion→main — 2026-10-29",
+      "source_set": "Fuentes del desarrollo integrado 6f059a0b más el delta local exacto de esta remediación; WIP no seleccionado permanece señalado por grupo y no se incorpora al candidato.",
+      "candidate_only_path_count_at_cut": 305,
+      "note": "Proyección recalculada en el checkout limpio desarrollo@6f059a0b más este delta local: 447 fuentes relevantes y 305 fuentes candidate-only registradas; incluye el lector H2/Pro y su test focal. Las omisiones del acumulado siguen sujetas a selección exacta y cobertura del diff completo.",
       "refresh": "Al reconciliar paso 3, recalcular todas las listas con el manifiesto combinado; no reutilizar estas listas si cambia el scope.",
-      "projected_relevant_source_paths_at_cut": 443
+      "projected_relevant_source_paths_at_cut": 447
     }
   },
   "exclusions": [
@@ -1191,11 +1191,12 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Auth UI, MFA, onboarding, queue/edit/publication contracts described in frontend/backend. CA4 candidate: active editors can re-edit the full 13-field allowlist; save updates draft only; Admin publication updates the public snapshot, and the preview labels both states.",
+        "note": "Auth UI, MFA, onboarding, queue/edit/publication contracts described in frontend/backend. CA4 candidate: active editors can re-edit the full 13-field allowlist; save updates draft only; Admin publication updates the public snapshot, and the preview labels both states. Audit rendering suppresses only the publish-action availability_status key omitted by the SQL contract; explicit nulls, editorial changes, and real removals remain visible.",
         "evidence": [
           "path:web/src/app/admin/accept-invite/page.tsx",
           "path:web/src/app/admin/auth/callback/page.tsx",
-          "path:web/src/app/admin/edit/page.tsx"
+          "path:web/src/app/admin/edit/page.tsx",
+          "path:web/src/lib/admin-audit-changes.mjs"
         ]
       },
       "consumers": {
@@ -1221,6 +1222,7 @@
         "evidence": [
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
+          "path:tests/admin_audit_changes.test.mjs",
           "path:tests/admin_header_responsive.test.mjs",
           "path:tests/h3_local_uat.mjs",
           "path:tests/test_h3_admin_queue_ux_contract.py"
@@ -1261,14 +1263,17 @@
         "web/src/components/admin/PasswordRequirements.tsx",
         "web/src/components/admin/editorial-ui.tsx",
         "web/src/lib/admin-auth.ts",
-        "tests/admin_header_responsive.test.mjs"
+        "web/src/lib/admin-audit-changes.mjs",
+        "tests/admin_header_responsive.test.mjs",
+        "tests/admin_audit_changes.test.mjs"
       ],
       "source_document": {
         "path": ".context/componentes/admin_portal.md",
         "anchor": "fuentes-y-relaciones"
       },
       "candidate_only_paths": [
-        "tests/admin_header_responsive.test.mjs"
+        "tests/admin_header_responsive.test.mjs",
+        "tests/admin_audit_changes.test.mjs"
       ]
     },
     {
@@ -9433,45 +9438,56 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Manifest selection, preflight, apply, verification and schema parity checks.",
+        "note": "The existing protected DB Sync path now accepts a closed H3 Pro manifest in addition to prior manifests: exact filenames/SHA pins, dependency order, H2 expand/compatibility preflight, report -> protected authorization -> apply -> verify. This is a local candidate only; it does not authorize or prove a workflow run or SQL application.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
-          "path:tests/test_h2_pro_migration_controls.py"
-        ]
-      },
-      "consumers": {
-        "state": "verified",
-        "note": "db-sync-to-pro.yml -> h2_pro_preflight_report.py, db_migrate.py and check_db_parity.py; tests/test_h2_pro_migration_controls.py.",
-        "evidence": [
-          "path:.github/workflows/db-sync-to-pro.yml",
-          "path:scripts/maintenance/h2_pro_preflight_report.py",
+          "path:tests/test_h2_pro_migration_controls.py",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:tests/test_h3_pro_migration_manifest.py",
           "path:scripts/maintenance/db_migrate.py",
           "path:scripts/maintenance/check_db_parity.py"
         ]
       },
-      "data": {
+      "consumers": {
         "state": "verified",
-        "note": "Pro target/schema baseline; runtime inputs/secrets by name only.",
+        "note": "The protected workflow selects the closed manifest and invokes db_migrate.py/check_db_parity.py. The H3 manifest validates exact tracked migration names, hashes, precedence, and H2 prerequisite inputs; it has no standalone apply path.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
-          "path:tests/test_h2_pro_migration_controls.py"
+          "path:scripts/maintenance/h2_pro_preflight_report.py",
+          "path:scripts/maintenance/db_migrate.py",
+          "path:scripts/maintenance/check_db_parity.py",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:tests/test_h3_pro_migration_manifest.py"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Manifest input is tracked SQL filenames and SHA-256 metadata plus aggregate H2 report/verify inputs; no course rows, credentials, or secret values are emitted by manifest validation.",
+        "evidence": [
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:tests/test_h2_pro_migration_controls.py",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:tests/test_h3_pro_migration_manifest.py"
         ]
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Docker 2026-10-13 ejecutó `tests/test_h2_pro_migration_controls.py` junto con el contrato Edge: 24 tests combinados PASS. La suite inspecciona workflow/manifiesto cerrado, dry-run/apply protegidos y rutas H2; no se ejecutó Actions ni se leyó/escribió Pro.",
+        "note": "Focused Docker tests cover exact inventory/order/hash pins, rejection of invalid selections, existing resolver behavior, H2 preconditions, workflow contract, and F10 main boundary. See the current H3REQ1 checkpoint for the final rerun result; no GitHub workflow or remote SQL execution is claimed.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
           "path:tests/test_h2_pro_migration_controls.py",
-          "path:.context/evidencia/h3req1_sem_admin_validacion_local_2026-10-13_r10.md"
+          "path:.context/evidencia/h3req1_sem_admin_validacion_local_2026-10-13_r10.md",
+          "path:tests/test_h3_pro_migration_manifest.py",
+          "path:tests/test_fase10_main_boundary.py"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "workflow_dispatch/protected environments and DDL require separate approval; source config does not prove branch protection.",
+        "note": "A local manifest/workflow candidate only. Pro apply still requires a pinned candidate, required report/verify, Production environment approval, JIT for SQL/workflow, and rollback; no dispatch or remote write was performed.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
-          "path:tests/test_h2_pro_migration_controls.py"
+          "path:tests/test_h2_pro_migration_controls.py",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py"
         ]
       },
       "provenance": {
@@ -10978,9 +10994,11 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "A test module defines the named contract cases; this verifies suite-to-contract mapping only. It was not executed during this documentation cycle and no PASS is claimed.",
+        "note": "The suite includes a local regression for H3 main-only manifest selection and no automatic DB apply; final affected Docker result is recorded in the current H3REQ1 checkpoint. It does not run a production canary or workflow.",
         "evidence": [
-          "path:tests/test_fase10_main_boundary.py"
+          "path:tests/test_fase10_main_boundary.py",
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py"
         ]
       },
       "operations": {
@@ -11489,10 +11507,13 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Contrato estático de `scripts/maintenance/check_db_parity.py`: símbolos check_db_parity.py - Configuration-oriented parity check Free vs target. Exit codes: 0 = OK 1 = non-blocking warnings 2 = blocking parity error Fase 1; migration_is_applied, load_environment, assert_environment, try_rpc, service_select, public_get, service_get, rest_select_all, ordered_ids_digest, service_post_rpc; flags `--env, --h2-manifest, --strict, --target-only`; efectos DB/red en la ficha. No demuestra ejecución.",
+        "note": "Contrato estático de `scripts/maintenance/check_db_parity.py`: símbolos check_db_parity.py - Configuration-oriented parity check Free vs target. Exit codes: 0 = OK 1 = non-blocking warnings 2 = blocking parity error Fase 1; migration_is_applied, load_environment, assert_environment, try_rpc, service_select, public_get, service_get, rest_select_all, ordered_ids_digest, service_post_rpc; flags `--env, --h2-manifest, --strict, --target-only`; efectos DB/red en la ficha. No demuestra ejecución. New local `--h3-manifest` mode validates the exact H3 tree, complete ledger selection and H2 expand/compatibility verifier contract; it does not apply SQL.",
         "evidence": [
           "path:scripts/maintenance/check_db_parity.py",
-          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md"
+          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:tests/test_h3_pro_migration_manifest.py",
+          "path:tests/test_h2_pro_migration_controls.py"
         ]
       },
       "consumers": {
@@ -11523,10 +11544,12 @@
       },
       "operations": {
         "state": "verified",
-        "note": "DB write capability; separate JIT, explicit target and reviewed scope are required; dry-run only where the code exposes it.",
+        "note": "DB write capability; separate JIT, explicit target and reviewed scope are required; dry-run only where the code exposes it. H3 parity mode is read-only; remote use remains separately authorized and does not prove schema application by source inspection.",
         "evidence": [
           "path:scripts/maintenance/check_db_parity.py",
-          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md"
+          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:tests/test_h2_pro_migration_controls.py"
         ]
       },
       "provenance": {
@@ -11623,10 +11646,12 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Contrato estático de `scripts/maintenance/db_migrate.py`: símbolos db_migrate.py — Aplicador universal de migrations SQL para StudIAMatch. Uso: python3 scripts/maintenance/db_migrate.py --env free [--dry-run] python3 ; load_environment, assert_environment, get_applied_migrations, extract_name, resolve_requested_migrations, _exec_sql_with_retry, _ensure_migration_table, _try_register_migration, _sql_literal, render_migration_sql; flags `--dry-run, --env, --manifest, --only`; efectos DB/red en la ficha. No demuestra ejecución.",
+        "note": "Contrato estático de `scripts/maintenance/db_migrate.py`: símbolos db_migrate.py — Aplicador universal de migrations SQL para StudIAMatch. Uso: python3 scripts/maintenance/db_migrate.py --env free [--dry-run] python3 ; load_environment, assert_environment, get_applied_migrations, extract_name, resolve_requested_migrations, _exec_sql_with_retry, _ensure_migration_table, _try_register_migration, _sql_literal, render_migration_sql; flags `--dry-run, --env, --manifest, --only`; efectos DB/red en la ficha. No demuestra ejecución. New local candidate: `PRO_MIGRATION_MANIFESTS` includes the closed H3 manifest; Pro requests validate the whole exact tree and reject partial `--only` selections. This is source behavior, not execution evidence.",
         "evidence": [
           "path:scripts/maintenance/db_migrate.py",
-          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md"
+          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:tests/test_h3_pro_migration_manifest.py"
         ]
       },
       "consumers": {
@@ -11657,10 +11682,12 @@
       },
       "operations": {
         "state": "verified",
-        "note": "DDL/RPC SQL capability; separate JIT DDL, closed manifest, Pro baseline and rollback are required.",
+        "note": "DDL/RPC SQL capability; separate JIT DDL, closed manifest, Pro baseline and rollback are required. The H3 route is main-only and remains protected by report/approval/apply/verify gates; this candidate has not run against Pro.",
         "evidence": [
           "path:scripts/maintenance/db_migrate.py",
-          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md"
+          "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:tests/test_h2_pro_migration_controls.py"
         ]
       },
       "provenance": {
@@ -12483,9 +12510,10 @@
       "inline_comment": "none",
       "comment_target": null,
       "id": "maintenance-tool-h2-pro-preflight-report",
-      "purpose": "Read-only H2 Pro preflight report for JIT preparation. Produces the expected cohort count and ordered ID digest required by db-sync-to-pro before appl.",
+      "purpose": "Reporte read-only y pruebas focales que distinguen baseline, H2 parcial fuera de ledger, superficie pública compatible e inconsistencias; producen agregados para revisión JIT sin autorizar aplicación.",
       "paths": [
-        "scripts/maintenance/h2_pro_preflight_report.py"
+        "scripts/maintenance/h2_pro_preflight_report.py",
+        "tests/test_h2_pro_preflight_report.py"
       ],
       "source_document": {
         "path": ".context/componentes/mantenimiento.md",
@@ -12494,24 +12522,27 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Contrato estático de `scripts/maintenance/h2_pro_preflight_report.py`: símbolos Read-only H2 Pro preflight report for JIT preparation. Produces the expected cohort count and ordered ID digest required by db-sync-to-pro before appl; load_pro_environment, service_get, public_get, select_all, select_service_all, select_public_all, table_exists, table_has_rows, rpc_exists, main; flags `(sin flags argparse detectados)`; efectos DB/red en la ficha. No demuestra ejecución.",
+        "note": "Contrato local validado de `scripts/maintenance/h2_pro_preflight_report.py`: load_pro_environment, GETs REST de solo lectura, classify_h2_state, build_report, main. Lee IDs públicos y campos acotados de courses/profiles/ledger para agregados; no devuelve filas, URLs, IDs ni secretos, no invoca RPC ni escribe. Clasifica baseline, parcial sin ledger, superficie pública H2 compatible observada, inconsistencias y errores de lectura; el esquema privado y RPC de verify no se observan. Estado incompleto nunca habilita apply.",
         "evidence": [
           "path:scripts/maintenance/h2_pro_preflight_report.py",
+          "path:tests/test_h2_pro_preflight_report.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md"
         ]
       },
       "consumers": {
         "state": "verified",
-        "note": "El alcance de búsqueda en ambos checkouts no encontró invocación directa de producto/workflow/test fuera de la identidad de credenciales que enumera `tests/test_supabase_credentials_contract.py`; ese test no ejercita comportamiento. Puede existir invocación manual o indirecta fuera del alcance.",
+        "note": "`.github/workflows/db-sync-to-pro.yml` invoca el reporte para h2-expand-compat cuando operation != verify; guarda artefacto por 30 días y continúa con dry-run del migrador. Los guards de apply/verify no dependen de un PASS de este reporte.",
         "evidence": [
+          "path:.github/workflows/db-sync-to-pro.yml",
           "path:scripts/maintenance/h2_pro_preflight_report.py",
+          "path:scripts/maintenance/db_migrate.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
           "path:.context/evidencia/h3req1_maintenance_consumer_search_2026-10-12.md"
         ]
       },
       "data": {
         "state": "verified",
-        "note": "Datos/efectos concretos de `scripts/maintenance/h2_pro_preflight_report.py`: DB=(sin llamada DB directa parseada); local/red=network requests.get. La ficha diferencia endpoint de red, tablas y destino de artefacto.",
+        "note": "Lecturas REST GET: public courses.id; service courses(id,institution_id,slug,is_active,is_verified,url), institution_site_profiles(institution_id,production_enabled,notes), supabase_migrations.name; probes limit=0 de tablas/vista públicas; crawler_exclusions selecciona solo id y como máximo una fila si existe. No consulta endpoints RPC ni esquemas privados. Resume solo conteos, digest calculado sobre IDs elegibles ordenados, nombres de migración, booleanos y errores sanitizados; no expone filas ni secretos. Privilegios service-side evaden RLS y requieren JIT read-only; sin DDL/DML/RPC/write.",
         "evidence": [
           "path:scripts/maintenance/h2_pro_preflight_report.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md"
@@ -12519,16 +12550,17 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "No se encontró suite de comportamiento específica en el alcance. `test_supabase_credentials_contract.py` solo inventaría identidades/path y no prueba la funcionalidad. Impacto: si se cambia el contrato, agregar una prueba local apropiada y documentar su input/result.",
+        "note": "`tests/test_h2_pro_preflight_report.py`: baseline, parcial H2 fuera de ledger, superficie pública compatible solo como diagnóstico, ledger/schema inconsistente, errores HTTP/red/JSON/forma sanitizados, visibilidad pública divergente, probe mínimo de exclusiones, pin HTTPS canónico Pro y stdout JSON limpio; Docker sin red 29/29. Quince controles focales de lectura/paridad/migrador amplían a 44/44 PASS: grupos duplicados, GET/RPC sin redirects (incluidas cinco llamadas directas de la paridad de schema) y probes H3 privados fail-closed ante HTTP 302/500. Log SHA-256 `2bd78775f382ddb2b7640e87a241317b320cbe2badaea3ff041c0eb404ee7ae8`; `py_compile` separado SHA-256 `70dfa6a2bf0032db1311a455aa076b1fd8cefc461c31853a91323661f6f9dfd9`.",
         "evidence": [
           "path:scripts/maintenance/h2_pro_preflight_report.py",
+          "path:tests/test_h2_pro_preflight_report.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
           "path:.context/evidencia/h3req1_maintenance_consumer_search_2026-10-12.md"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "Network read capability; do not run without explicit endpoint/environment review; no credential values belong in logs/docs.",
+        "note": "Ejecución futura en DB Sync to Production selecciona environment Production y service key (bypass RLS), incluso desde ref certificacion; requiere JIT de lectura. Report-only, manifest h2-expand-compat, SHA integrado inmutable y cohort inputs REPORT_ONLY; no ejecutar por defecto 224. Host Pro fijado al ref canónico. Estados incompletos nunca autorizan apply; guards propios del migrador/workflow permanecen.",
         "evidence": [
           "path:scripts/maintenance/h2_pro_preflight_report.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md"
@@ -12536,7 +12568,7 @@
       },
       "provenance": {
         "state": "verified",
-        "note": "La fila de `scripts/maintenance/h2_pro_preflight_report.py` en la historia local registra `git log --all --follow` en ambos checkouts y si hubo historia local. No acredita decisión, prueba, despliegue ni adopción.",
+        "note": "`scripts/maintenance/h2_pro_preflight_report.py` conserva la búsqueda histórica por ruta; `tests/test_h2_pro_preflight_report.py` es un archivo nuevo de este worktree sin historial previo en el commit base. El origen local queda acotado a este paquete y no acredita adopción remota.",
         "evidence": [
           "path:scripts/maintenance/h2_pro_preflight_report.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
@@ -15343,11 +15375,14 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts.",
+        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts. Current local candidate also pins the accumulated Certification-to-main document selector and keeps invalid/ambiguous selection fail-closed; main boundary tests assert no auto-apply.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
-          "path:.github/scripts/production_control_preflight.sh"
+          "path:.github/scripts/production_control_preflight.sh",
+          "path:scripts/security/protected_path_scope_guard.sh",
+          "path:tests/test_protected_path_scope_guard.sh",
+          "path:tests/test_fase10_main_boundary.py"
         ]
       },
       "consumers": {
@@ -15362,17 +15397,18 @@
       },
       "data": {
         "state": "verified",
-        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Additional promotion paths use exact baseline c80f6504 and source 941eca49, enforced independently by the caller and checked against source/HEAD Git blobs in h3req1_certification_promotion_path_scope_2026-10-28.json.",
+        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Promotion manifests fix exact baseline/source independently in the caller and compare source/HEAD Git blobs. The local main follow-up carries forward exactly the 239 historical Certification-scope paths unchanged since certificacion 03515dee, pinned against main 70d0f4fe and source 6d73b51b. Docker caller/negative regressions, actual main comparison and ShellCheck passed; no remote GO. Certification pins are refreshed after freezing the validated follow-up.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
           "path:.github/scripts/production_control_preflight.sh",
-          "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json"
+          "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json",
+          "path:.context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json"
         ]
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "The R11 evidence maps the scanner regression, scope guard test, workflow contract, H2 controls and credential/policy tests. The exact successor manifest and test pin 13 historical catalogs and their direct target set; local assertions do not prove Actions, installed hooks, secret storage or remote branch protection.",
+        "note": "The R11 evidence maps the scanner regression, scope guard test, workflow contract, H2 controls and credential/policy tests. The exact successor manifest and test pin 13 historical catalogs and their direct target set; local assertions do not prove Actions, installed hooks, secret storage or remote branch protection. Final affected Docker rerun is recorded in the current H3REQ1 checkpoint; this does not assert branch protection state or remote workflow execution.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15381,7 +15417,9 @@
           "path:tests/test_protected_workflow_review.py",
           "path:tests/test_h2_writer_scan.py",
           "path:tests/test_security_flow.py",
-          "path:tests/test_supabase_credentials_contract.py"
+          "path:tests/test_supabase_credentials_contract.py",
+          "path:tests/test_fase10_main_boundary.py",
+          "path:tests/test_h2_pro_migration_controls.py"
         ]
       },
       "operations": {
@@ -15511,14 +15549,16 @@
       "comment_target": ".context/componentes/seguridad_tooling.md#registro-de-fuentes-y-gate",
       "contracts": {
         "state": "verified",
-        "note": "Credential scan, protected path guard, source/documentation integrity and offline checks. Promotion selector generates the full package/diff union only for desarrollo -> certificacion; ordinary PR ambiguity remains fail-closed. Consumer/regression: tests/test_protected_path_scope_guard.sh; documentation: seguridad_tooling.md, selección documental de promoción.",
+        "note": "Credential scan, protected path guard, source/documentation integrity and offline checks. Promotion selector generates the full package/diff union for desarrollo -> certificacion and certificacion -> main, plus the corresponding post-merge pushes; ordinary PR ambiguity remains fail-closed. Consumer/regression: tests/test_protected_path_scope_guard.sh; documentation: seguridad_tooling.md, selección documental de promoción. The local candidate updates the exact Certification-to-main selector/path union and keeps the integral source-documentation result distinct from candidate-aware PASS.",
         "evidence": [
-          "path:.github/workflows/security-audit.yml"
+          "path:.github/workflows/security-audit.yml",
+          "path:scripts/maintenance/h3req1_documentation_integrity.mjs",
+          "path:.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json"
         ]
       },
       "consumers": {
         "state": "verified",
-        "note": "Pull request/push workflow definition calls local scripts and the Python job runs tests/test_protected_path_scope_guard.sh, which validates R17 manifest paths against the current allowlists; no GitHub execution is claimed.",
+        "note": "Pull request/push workflow definition calls local scripts and the Python job runs tests/test_protected_path_scope_guard.sh, which validates protected paths and both promotion selector routes; no GitHub execution is claimed.",
         "evidence": [
           "path:scripts/security/scan_credentials.sh",
           "path:tests/test_protected_path_scope_guard.sh",
@@ -15534,7 +15574,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker.",
+        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker. Candidate scope and integral results are recorded separately in the current checkpoint; a scoped PASS is not treated as an integral PASS.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15542,7 +15582,8 @@
           "path:tests/test_protected_path_scope_guard.sh",
           "path:tests/test_protected_workflow_review.py",
           "path:tests/test_h2_writer_scan.py",
-          "path:.github/workflows/security-audit.yml"
+          "path:.github/workflows/security-audit.yml",
+          "path:.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json"
         ]
       },
       "operations": {
@@ -20613,6 +20654,74 @@
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md"
         ]
       }
+    },
+    {
+      "id": "pro-h3-migration-manifest",
+      "component": "database",
+      "purpose": "Closed, hash-pinned H3 Pro migration selection and compatibility preflight contract.",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "contracts": {
+        "state": "verified",
+        "note": "Exact 31-file H3 inventory with SHA-256 pins and explicit precedence; shared six-manifest Pro registry imported by db_migrate and dependency-free workflow preflight. Rejects invalid registry/selection, missing SQL and H3 hash drift; validates aggregate H2 cohort inputs. Does not apply SQL.",
+        "evidence": [
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:db/migrations/20260828_h3_admin_auth.sql",
+          "path:tests/test_h3_pro_migration_manifest.py"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "Consumed by the existing db_migrate.py, check_db_parity.py, and protected DB Sync workflow; no parallel apply mechanism is introduced.",
+        "evidence": [
+          "path:scripts/maintenance/db_migrate.py",
+          "path:scripts/maintenance/check_db_parity.py",
+          "path:.github/workflows/db-sync-to-pro.yml"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Reads migration filenames/content for SHA-256 and caller-supplied H2 aggregate count/digest inputs. Emits no course rows, credentials, or secret values.",
+        "evidence": [
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:db/migrations/20260828_h3_admin_auth.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Focused Docker tests execute the actual YAML preflight for all six manifests and reject invalid selection, registry drift, absent H2 SQL and altered H3 SQL; isolated stdlib-only import is tested. Inventory/order/hash pins, H2 inputs and main-only boundary remain covered; see current checkpoint.",
+        "evidence": [
+          "path:tests/test_h3_pro_migration_manifest.py",
+          "path:tests/test_h2_pro_migration_controls.py",
+          "path:tests/test_fase10_main_boundary.py"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Local validation only. Any Pro report/apply/workflow/SQL action requires a separate exact authorization, candidate SHA, protected Production gate and rollback; none was executed.",
+        "evidence": [
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:scripts/maintenance/db_migrate.py"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "This manifest file is new and uncommitted in the isolated candidate branch; no earlier upstream rationale is claimed. Its SQL inputs are pre-existing tracked migration files pinned by hash.",
+        "evidence": [
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:db/migrations/20260828_h3_admin_auth.sql"
+        ]
+      },
+      "paths": [
+        "scripts/maintenance/pro_h3_migration_manifest.py",
+        "tests/test_h3_pro_migration_manifest.py"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "h3-pro-promotion-manifest"
+      },
+      "candidate_only_paths": []
     }
   ],
   "active_documents": [

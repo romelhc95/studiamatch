@@ -2,6 +2,13 @@
 
 ## Límites del control local
 
+Remediación CI PR #512: el inventario de consumidores registra también los tests
+H2 de migración/preflight como fixtures de patrones; no son autorización de
+transporte remoto. El matcher H3 admite las ocho rutas exactas del paquete
+productivo antes omitidas, con negativos para cada vecino. La comparación real
+base→HEAD se ejecuta además de las regresiones sintéticas para detectar omisiones
+de la unión del candidato. No se admiten carpetas ni se desactiva el scanner.
+
 | Control | Fuente | Qué comprueba | Límite |
 |---|---|---|---|
 | Credential scan | `scripts/security/scan_credentials.sh`, `scan_worktree_file.py`, `.githooks/pre-commit`, `.githooks/pre-push` | Patrones configurados en staged/diff/tree y scripts de invocación; la lista concreta de consumidores está en el [registro](../trazabilidad/registro_fuentes_componentes.md#seguridad-y-tooling). | Solo cubre archivos/diffs y patrones escaneados; no lee secret stores ni demuestra hook instalado. No exponer valores al registrar fallos. |
@@ -46,6 +53,25 @@ El nombre fue comunicado como una GitHub App existente. La búsqueda de todo el 
 
 ## Registro de fuentes y gate
 
+### Continuación main — 31-oct-2026, validación local sin GO remoto
+
+La comparación exacta contra `main@70d0f4fe…` rechaza 239 paths que coinciden
+exactamente con el scope histórico de la primera promoción a Certification.
+Se cotejaron todos sus blobs: permanecen idénticos a `certificacion@03515dee…`
+y al source histórico. No se agrega comportamiento nuevo en esas 239 rutas.
+El [scope main aislado](../evidencia/h3req1_main_promotion_path_scope_2026-10-31.json)
+fija baseline `70d0f4fe…` y source `6d73b51b…` también en el caller del guard.
+La extensión solo se consume en PR `certificacion -> main` o en su push posterior
+con baseline exacto; se mantienen los controles existentes de blobs/ancestría.
+El test nuevo ejecuta el caller real en repositorios desechables: PR y push
+válidos, baseline incorrecto, head ajeno, source forjado y drift de contenido.
+Docker fue recuperado con asistencia del responsable. Caller/regresiones,
+comparación real main, ShellCheck y documentación candidate-aware/self-test PASS;
+46 tests Python de contratos documentales/seguridad PASS. Sin GO remoto.
+Los pins de Certification se renuevan sobre el commit inmutable validado antes
+de publicar. El paquete local integra el fix anterior `6d73b51b…` y este follow-up
+en una única rama candidata desde Desarrollo; no exige publicar dos PRs.
+
 ### Selección documental de promoción — remediación local 28-oct-2026
 
 El responsable eligió revisar el acumulado completo hacia Certification. El guard
@@ -69,8 +95,9 @@ posterior al merge no pierde el contrato validado en el PR ni habilita sucesores
 arbitrarios. Los PRs de otras rutas siguen bajo selección única.
 
 El selector de `security-audit.yml` conserva una única selección y rechaza
-ambigüedad en PRs normales. Solo para la ruta GitHub `desarrollo -> certificacion`
-genera un agregado efímero en `.git/h3req1-promotion-documentation.json`: unión de
+ambigüedad en PRs normales. Para las rutas GitHub `desarrollo -> certificacion`
+y `certificacion -> main` genera un agregado efímero en
+`.git/h3req1-promotion-documentation.json`: unión de
 todos los paquetes documentales cambiados, sus artifacts incluidos y todas las
 rutas supervivientes del diff Git real. Registra baseline, HEAD y SHA-256 de cada
 paquete. Los paths seleccionados ausentes o inseguros y los manifiestos
@@ -80,15 +107,16 @@ válida, y sus archivos siguen incluidos en el diff agregado. JSON histórico qu
 puede ser una selección por nombre ni tiene rol JSON válido no se interpreta como
 selector. No se elimina ni altera ese artifact.
 
-`tests/test_protected_path_scope_guard.sh` prueba la unión y cobertura del diff,
-hashes, inputs ausentes, PR scope inválido y ambigüedad normal. PASS Docker local
-no acredita Actions ni promoción. Se conserva el checker integral y su FAIL
-histórico: esta remediación no concede waiver ni autorización remota. Se expande
-el selector manteniendo compatibilidad con una selección; el deploy será mediante
-PR protegido a Development y el cambio seguirá vigente en Certification. No hay
+`tests/test_protected_path_scope_guard.sh` prueba ambas rutas PR, los pushes
+posteriores a cada promoción, la unión y cobertura del diff, hashes, inputs
+ausentes, PR scope inválido y ambigüedad normal. PASS Docker local no acredita
+Actions ni promoción. Se conserva el checker integral y su FAIL histórico: esta
+remediación no concede waiver ni autorización remota. Se expande el selector
+manteniendo compatibilidad con una selección; el despliegue sigue el PR protegido
+del ambiente correspondiente. No hay
 legacy nuevo que retirar. Rollback: revertir el cambio por PR protegido; la
 promoción volvería a fallar cerrada, sin efectos DB. La revisión/evidencia de este
-ciclo se registra en el [checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md#remediacion-local-de-promocion-por-tl).
+ciclo se registra en el [checkpoint](../evidencia/h3req1_editorial_contract_2026-10-28.md).
 
 [`registro_fuentes_componentes.json`](../trazabilidad/registro_fuentes_componentes.json) es la autoridad verificable de asignaciones. Cada ruta mantenida queda enlazada a un componente, una ficha/anchor de fuente y una página de dominio; el registro añade propósito, contrato, consumidores/dependencias, datos, pruebas/evidencia, operación/permisos y procedencia. Las relaciones se anotan por grupos con límites explícitos: `pending` y `unknown` no cuentan como verificadas ni se convierten en consumidores por similitud de nombre.
 

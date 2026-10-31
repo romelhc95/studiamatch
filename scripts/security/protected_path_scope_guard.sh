@@ -112,11 +112,14 @@ if [ -n "$changed" ]; then
     echo "protected H2/H3 paths changed; validating the scoped H3 candidate"
     allowed_h3='^(\.context/(indice\.md|estado_del_proyecto\.md|evidencia/(h3-expanded-bff-2026-10-01[^/]*/[^/]+\.(json|png))|evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01\.md|operaciones/(borrador_bff_httponly_admin_h3req1_2026-10-01|plan_remediacion_ingesta_editorial_auditoria_2026-10-01|plan_cierre_integral_h3req1_2026-10-04)\.md|hitos/hito_003\.md|matrices/matriz_hito_003\.md)|\.github/workflows/(fg1_inventory|fg3_integrity|production_pipeline|opencode|security-audit|protected-workflow-integrity)\.yml|Dockerfile|docker-compose\.(yml|yaml)|init-container\.sh|db/migrations/(20260927_h3_(admin_queue_facets_filter|publication_visibility_contract)|20260928_h3_invitation_accept_email_regex_fix|20261001_h3_(course_editorial_audit_availability|invitation_reservation_compensation)|20261004_h3_admin_queue_first_null_guard|20261004_h3_admin_rpc_signed_gateway_(expand|payload_bound_wrapper))\.sql|db/seeds/h3_admin_seed_local\.sql|supabase/functions/admin-invite/index\.ts|supabase/templates/(invite|password-recovery)\.html|web/functions/(_middleware\.ts|_lib/admin-bff\.ts)|web/src/app/admin/(layout|page|login/page|edit/page|users/page|auth/callback/page|reset-password/page)\.tsx|web/src/components/admin/(AdminSessionGuard|AdminCourseQueue|admin/(editorial-ui|CourseLivePreview))\.tsx|web/src/lib/(admin-auth|supabase|supabase-transport)\.ts|web/(next\.config\.js|package\.json|package-lock\.json|tsconfig\.json)|web/public/_redirects|mock-server/server\.js|tests/h3_(admin_bff_mock_uat|admin_invite_edge_uat|invitation_uat|local_uat|supabase_sdk_headers_uat)\.mjs|tests/sql/(h3_pg17_harness\.sql|h3_invitation_reservation_concurrency\.sh)|tests/test_(admin_invite_edge_contract|h3_admin_queue_ux_contract|h3_invitation_callback_contract|h3_mock_invitation_contract|h3_password_recovery_contract|mfa_compatibility_contract|password_policy_contract|security_flow|supabase_credentials_contract|fase09_9_certification_canary)\.py)$'
    allowed_h3_extra='^(\.gitattributes|AGENTS\.md|\.githooks/pre-push|tests/h3_admin_(auth_error_uat|invite_edge_typecheck|quota_uat|quota_runtime|quota_postgrest|safe_suspend_uat|safe_suspend_runtime_uat)\.mjs|tests/h3_local_runtime_(server|quota_fixture)\.mjs|tests/h3req1_c03_(cache_digest|startup_healthz_probe|safe_postgrest_error_code|replay_state_diagnostic)\.mjs|tests/h3req1_pipeline_postgrest_pg17_integration\.py|tests/h3req1-c03-(bootstrap/package\.json|edge-lock-output-r3/deno-edge-runtime-v1\.74\.3-r3\.lock|edge-lock-resolver/deno\.json|edge-main/index\.ts|startup-source-s1-v6\.sha256)|tests/h3req1_c03_postgrest_probe\.mjs|tests/h3req1_c03_docker_daemon_identity_f2d\.py|tests/test_h3req1_c03_docker_daemon_identity_f2d\.py|tests/sql/h3_admin_rpc_signed_gateway_harness\.sql|tests/sql/h3_invitation_(edge_runtime|onboarding)_harness\.sql|tests/sql/(h2_pro_pg17_harness|h3_from_h2_pro_pg17_harness|h3_safe_suspend_harness|h3_admin_quota_harness|h3_quota_postgrest_(fixture|assert))\.sql|db/(rollback/h3req1_safe_suspend|migrations/20261002_h3_admin_(quotas|quota_expand))\.sql|workers/admin-quota/(index\.ts|wrangler\.jsonc)|web/functions/_lib/admin-quota\.ts|scripts/security/(h2_web_mock_smoke\.sh|protected_workflow_review\.py|protected_path_scope_guard\.sh|scan_credentials\.sh|scan_worktree_file\.py)|scripts/security/pwi_worker/(README\.md|github\.mjs|index\.mjs|package\.json|package-lock\.json|policy\.mjs|test/pwi_worker\.test\.mjs|runtime-test/pwi_worker\.runtime\.test\.mjs|vitest\.config\.mjs|wrangler\.jsonc)|tests/test_(protected_workflow_review|obsidian_context_state)\.py|scripts/maintenance/taxonomy_roi_audit\.py|scripts/shared/site_diagnostics\.py|supabase/functions/send-lead-emails/index\.ts|tests/(test_(site_diagnostics_security|taxonomy_roi_audit_privacy)\.py|h3_send_lead_error_uat\.mjs)|web/eslint\.config\.mjs|\.context/evidencia/h3req1_(g10_remote_preparation_2026-10-18_r19|development_integration_package_2026-10-18_r19|pr_body_draft_local_review_2026-10-18_r19|remote_preparation_checks_2026-10-18_r19|remote_preparation_independent_review_2026-10-18_r19|pr_scope_manifest_2026-10-18_r19_reconciled|pr_scope_manifest_2026-10-19_r19_pwi_r3_reconciled|visual_evidence_redaction_2026-10-18_r19)\.(md|txt|json)|\.context/evidencia/(h3req1_g08_credentials_contract_r159_focused\.log|h3req1_g08_current_pytest_r160\.log|h3req1_g08_final_2026-10-10_r2/(h3req1_g08_app_regressions_inputs_r1\.sha256|quota-uat\.out)|h3req1_g09_onboarding_2026-10-11_r7/source-provenance-r7/source-inputs-r7\.sha256)|\.context/(sistema_db_supabase\.md|operaciones/(plan_go_h3req1_local_development_2026-10-02|h3req1_remediation_plan_2026-09-24|h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06)\.md|evidencia/planes_historicos/(plan_go_h3req1_local_development_2026-10-02|h3req1_remediation_plan_2026-09-24|h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06)\.md))$'
+   # Exact H3 Pro manifest/remediation additions; siblings remain rejected.
+   allowed_h3_migration_manifest='^(\.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28\.json|\.context/hitos/hito_001\.md|\.github/workflows/db-sync-to-pro\.yml|scripts/maintenance/(pro_h3_migration_manifest|check_db_parity|db_migrate|h2_pro_preflight_report)\.py|tests/(test_h3_pro_migration_manifest|test_fase10_main_boundary|test_h2_pro_preflight_report)\.py|tests/admin_audit_changes\.test\.mjs|web/src/lib/admin-audit-changes\.mjs)$'
    # Exact retired paths stay allowlisted so scoped deletions still run this gate.
    # R19's exact reconciled candidate and catalog-reference closure are checked against this list by
    # tests/test_protected_path_scope_guard.sh; keep deletions and ignored evidence explicit.
    allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'
 .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json
+.context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json
 README.md
 .env.example
 .github/pull_request_template.md
@@ -1295,13 +1298,24 @@ H3_LOCAL_PATHS
 )
    if [[ ( "${GITHUB_BASE_REF:-}" == "certificacion" && "${GITHUB_HEAD_REF:-}" == "desarrollo" ) \
      || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/certificacion" \
-       && "$base" == "c80f6504a3ea353bc2c222df1da09c4b5ba0ae58" ) ]]; then
+       && "$base" == "03515dee69fc42b10808d1c67cc4e00ebacd0c40" ) ]]; then
      # Human-approved review scope is the complete accumulated tree, not arbitrary successors.
      promotion_paths=$(protected_path_promotion_scope \
        .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json \
        "$base" \
-       c80f6504a3ea353bc2c222df1da09c4b5ba0ae58 \
-       941eca496676bd11cd0e2796e6c0a34efd62082d) || exit 1
+       03515dee69fc42b10808d1c67cc4e00ebacd0c40 \
+       2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734) || exit 1
+     allowed_h3_local+=$'\n'"$promotion_paths"
+   fi
+   if [[ ( "${GITHUB_BASE_REF:-}" == "main" && "${GITHUB_HEAD_REF:-}" == "certificacion" ) \
+     || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/main" \
+       && "$base" == "70d0f4fee885be0f6780e5d14f466b2a6c897961" ) ]]; then
+     # Carry forward exactly the already-certified accumulated paths, never a folder waiver.
+     promotion_paths=$(protected_path_promotion_scope \
+       .context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json \
+       "$base" \
+       70d0f4fee885be0f6780e5d14f466b2a6c897961 \
+       6d73b51bc687d9156f65f5c437bedb0f4f2c617c) || exit 1
      allowed_h3_local+=$'\n'"$promotion_paths"
    fi
    filter_remaining() {
@@ -1323,6 +1337,8 @@ H3_LOCAL_PATHS
    filter_remaining "$changed" "$allowed_h3" || exit 1
    scoped_candidates="$FILTERED"
    filter_remaining "$scoped_candidates" "$allowed_h3_extra" || exit 1
+   scoped_candidates="$FILTERED"
+   filter_remaining "$scoped_candidates" "$allowed_h3_migration_manifest" || exit 1
    scoped_candidates="$FILTERED"
    scoped_disallowed=''
    if [ -n "$scoped_candidates" ]; then

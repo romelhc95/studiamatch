@@ -90,7 +90,11 @@ local_match = re.search(
 if not local_match:
     raise SystemExit("protected path integration test: missing exact local allowlist")
 
-patterns = [workflow_regex("allowed_h3"), workflow_regex("allowed_h3_extra")]
+patterns = [
+    workflow_regex("allowed_h3"),
+    workflow_regex("allowed_h3_extra"),
+    workflow_regex("allowed_h3_migration_manifest"),
+]
 local_paths = {line.strip() for line in local_match.group("body").splitlines() if line.strip()}
 writer_paths = {
     ".github/scripts/production_control_preflight.sh",
@@ -107,6 +111,40 @@ for neighbor in writer_neighbors:
         raise SystemExit(
             f"protected path integration test: neighboring writer path is admitted: {neighbor}"
         )
+
+h3_manifest_paths = {
+    ".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
+    "scripts/maintenance/pro_h3_migration_manifest.py",
+    "tests/test_h3_pro_migration_manifest.py",
+    "tests/test_fase10_main_boundary.py",
+    ".context/hitos/hito_001.md",
+    ".github/workflows/db-sync-to-pro.yml",
+    "scripts/maintenance/check_db_parity.py",
+    "scripts/maintenance/db_migrate.py",
+    "scripts/maintenance/h2_pro_preflight_report.py",
+    "tests/admin_audit_changes.test.mjs",
+    "tests/test_h2_pro_preflight_report.py",
+    "web/src/lib/admin-audit-changes.mjs",
+}
+if any(not any(re.search(pattern, path) for pattern in patterns) for path in h3_manifest_paths):
+    raise SystemExit("protected path integration test: exact H3 Pro manifest paths are not admitted")
+for neighbor in (
+    "scripts/maintenance/pro_h3_migration_manifest_extra.py",
+    "tests/test_h3_pro_migration_manifest_extra.py",
+    "tests/test_fase10_main_boundary_extra.py",
+    ".context/evidencia/h3req1_editorial_contract_candidate_scope_extra_2026-10-28.json",
+    ".context/hitos/hito_001_extra.md",
+    ".github/workflows/db-sync-to-pro-extra.yml",
+    "scripts/maintenance/check_db_parity_extra.py",
+    "scripts/maintenance/db_migrate_extra.py",
+    "scripts/maintenance/h2_pro_preflight_report_extra.py",
+    "tests/admin_audit_changes_extra.test.mjs",
+    "tests/test_h2_pro_preflight_report_extra.py",
+    "web/src/lib/admin-audit-changes-extra.mjs",
+):
+    if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+        raise SystemExit(f"protected path integration test: neighboring H3 Pro manifest path is admitted: {neighbor}")
+
 diff_scope = guard.split('git diff --name-only -z "$base" HEAD -- \\\n', 1)[1].split('>"$changed_path_file"', 1)[0]
 pathspecs = diff_scope.replace("\\\n", " ").split()
 preflight_path = ".github/scripts/production_control_preflight.sh"
@@ -790,7 +828,8 @@ def commit(repo, message):
     git(repo, "add", ".")
     git(repo, "commit", "-qm", message)
 
-def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=False):
+def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=False,
+                 production=False, production_push=False):
     output = repo / "github-output.txt"
     output.unlink(missing_ok=True)
     env = os.environ.copy()
@@ -799,10 +838,10 @@ def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=
         "R21_MANIFEST": r21_path,
         "D04_MANIFEST": d04_path,
         "GITHUB_OUTPUT": str(output),
-        "GITHUB_BASE_REF": "certificacion" if promotion else "desarrollo",
-        "GITHUB_HEAD_REF": "desarrollo" if promotion else "feature/test",
-        "GITHUB_EVENT_NAME": "push" if postmerge else "pull_request",
-        "GITHUB_REF": "refs/heads/certificacion" if postmerge else "refs/pull/test/merge",
+        "GITHUB_BASE_REF": "main" if production else ("certificacion" if promotion else "desarrollo"),
+        "GITHUB_HEAD_REF": "certificacion" if production else ("desarrollo" if promotion else "feature/test"),
+        "GITHUB_EVENT_NAME": "push" if postmerge or production_push else "pull_request",
+        "GITHUB_REF": "refs/heads/main" if production_push else ("refs/heads/certificacion" if postmerge else "refs/pull/test/merge"),
     })
     result = subprocess.run(
         ["bash", "-e", "-c", selector_script], cwd=repo, env=env,
@@ -879,6 +918,12 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     result, selected = run_selector(repo, base, r21_path, d04_path, postmerge=True)
     if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
         raise SystemExit("promotion selector regression: post-merge Certification push lost the union")
+    result, selected = run_selector(repo, base, r21_path, d04_path, production=True)
+    if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
+        raise SystemExit(f"production selector regression: Certification-to-main PR lost the union: {result.stderr}")
+    result, selected = run_selector(repo, base, r21_path, d04_path, production_push=True)
+    if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
+        raise SystemExit(f"production selector regression: post-merge main push lost the union: {result.stderr}")
 
     repo, base = create_repo(temp_root, "promotion-missing-input")
     write_manifest(repo, ".context/evidencia/r22.json", "R22")
@@ -1019,7 +1064,61 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     if result.returncode == 0 or result.stdout:
         raise SystemExit("promotion pin regression: changed pinned content did not fail without output")
 
+    # Exercise the actual main caller as well as the shared validator above.
+    main_marker = '   if [[ ( "${GITHUB_BASE_REF:-}" == "main" && "${GITHUB_HEAD_REF:-}" == "certificacion" )'
+    main_block = guard.split(main_marker, 1)[1].split("   filter_remaining()", 1)[0]
+    main_block = main_marker + main_block
+    repo, base = create_repo(temp_root, "main-promotion-caller")
+    (repo / "README.md").write_text("already certified content\n", encoding="utf-8")
+    commit(repo, "certified source fixture")
+    source = git(repo, "rev-parse", "HEAD")
+    manifest_path = repo / ".context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    main_value = {
+        "schema_version": 1, "baseline_sha": base, "source_sha": source,
+        "entries": [{"path": "README.md", "baseline_blob": git(repo, "rev-parse", f"{base}:README.md"),
+                     "source_blob": git(repo, "rev-parse", f"{source}:README.md")}],
+    }
+    # Replace only immutable fixture identities; routing and caller logic stay real.
+    main_block = main_block.replace("70d0f4fee885be0f6780e5d14f466b2a6c897961", base)
+    main_block = main_block.replace("6d73b51bc687d9156f65f5c437bedb0f4f2c617c", source)
+    def run_main_caller(actual_base=base, event="pull_request", head="certificacion", ref="refs/heads/main", value=None):
+        manifest_path.write_text(json.dumps(main_value if value is None else value), encoding="utf-8")
+        env = os.environ.copy()
+        env.update({"GITHUB_BASE_REF": "main" if event == "pull_request" else "",
+                    "GITHUB_HEAD_REF": head if event == "pull_request" else "",
+                    "GITHUB_EVENT_NAME": event, "GITHUB_REF": ref})
+        script = 'set -eu; source "$1"; base="$2"; allowed_h3_local="";\n' + main_block
+        script += '\nprintf "%s" "$allowed_h3_local"'
+        return subprocess.run(["bash", "-c", script, "main-pin-test", str(guard_path), actual_base],
+                              cwd=repo, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    for event in ("pull_request", "push"):
+        result = run_main_caller(event=event)
+        if result.returncode != 0 or result.stdout.strip() != "README.md":
+            raise SystemExit(f"main caller regression: exact {event} failed: {result.stderr}")
+    result = run_main_caller(actual_base=source)
+    if result.returncode == 0 or result.stdout:
+        raise SystemExit("main caller regression: wrong PR baseline did not fail closed")
+    result = run_main_caller(head="unapproved-feature")
+    if result.returncode != 0 or result.stdout:
+        raise SystemExit("main caller regression: non-Certification PR inherited extra paths")
+    for options in ({"actual_base": source}, {"ref": "refs/heads/desarrollo"}):
+        result = run_main_caller(event="push", **options)
+        if result.returncode != 0 or result.stdout:
+            raise SystemExit("main caller regression: unrelated push inherited extra paths")
+    forged = json.loads(json.dumps(main_value))
+    forged["source_sha"] = base
+    result = run_main_caller(value=forged)
+    if result.returncode == 0 or result.stdout:
+        raise SystemExit("main caller regression: manifest-supplied source overrode caller pin")
+    (repo / "README.md").write_text("unreviewed later edit\n", encoding="utf-8")
+    commit(repo, "unreviewed main successor fixture")
+    result = run_main_caller()
+    if result.returncode == 0 or result.stdout:
+        raise SystemExit("main caller regression: changed certified content inherited scope")
+
+print("main-promotion-caller=PASS|PR=1|push_without_PR_refs=1|wrong_baseline=fail_closed|other_head=no_extra_paths|unrelated_push=no_extra_paths|source_override=fail_closed|successor_drift=fail_closed")
 print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
-print("promotion-manifest-selector=PASS|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
+print("promotion-manifest-selector=PASS|development_to_certification=1|certification_to_main=1|postmerge_certification=1|postmerge_main=1|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
 print("promotion-path-pins=PASS|exact_tree=1|neighbor_not_selected=1|wrong_baseline=fail_closed|forged_blob=fail_closed|duplicate=fail_closed|content_drift=fail_closed")
 PY
