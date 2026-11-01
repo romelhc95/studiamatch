@@ -1,5 +1,18 @@
 # Controles de seguridad y tooling
 
+## Historial del candidato verificado para el gate main — 01-nov-2026
+
+El checkout del job `h2-main-production-expand-gate` usa `fetch-depth: 0`.
+El candidato verificado puede ser ancestro del HEAD con cambios documentales;
+un checkout depth 1 no garantiza que `cat-file` y `merge-base` puedan resolverlo
+tras el fetch de PR y main. No se elimina ni sustituye la comprobación de ancestry.
+La regresión `test_h2_main_gate_checkout_resolves_verified_ancestor` en
+`tests/test_security_flow.py` toma profundidad y fetch del YAML real, crea un
+remoto Git `file://` y exige disponibilidad y ancestry del candidato padre.
+El caso reprodujo RED con depth 1 y GREEN con historial completo en Docker;
+las 16 pruebas de security_flow pasaron. No modifica datos, artefacto H2 ni
+permisos remotos. La publicación exige autorización específica del nuevo paquete.
+
 ## Corrección de baseline de pins y evidencia H2 — 31-oct-2026
 
 El guard permite solo la ruta exacta
