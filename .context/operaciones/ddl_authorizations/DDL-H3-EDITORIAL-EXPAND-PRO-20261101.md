@@ -16,27 +16,36 @@ Status: DRAFT_NOT_AUTHORIZED
 
 ## Condiciones que siguen pendientes
 
-Este archivo todavía no contiene autorización ejecutable ni valores para
-ningún gate. Antes de que una persona pueda decidir una autorización posterior,
-se debe completar la secuencia vigente:
+Este archivo sigue en `DRAFT_NOT_AUTHORIZED`; los datos de autorización que
+dependen de una persona o de comprobaciones futuras no se rellenan ni se
+presentan como satisfechos.
 
-1. Integrar este guard a Development y Certification mediante PRs protegidos.
-2. Obtener el SHA real de Certification que contenga el guard; ejecutar en ese
-   SHA un reporte H2 y una verificación H2 separados, cada uno con sus JITs y
-   gates de ambiente. Run 89 precede al cambio del guard y no acredita este
-   candidato.
-3. Integrar la evidencia auténtica de H2, JSON canónico, pins y todos los
-   documentos relacionados antes de fijar el payload `P`.
-4. Derivar de los artefactos y commits reales el SHA del payload, base, digest
-   no-auth, conteo/digest de cohorte y ancestría; confirmar de nuevo el schema,
-   pendientes y gates de Backup/PITR y Production.
-5. Solo después, presentar la autorización humana exacta. Si se aprueba, el
-   único cambio posterior a `P` será este archivo. El workflow debe rechazar
-   cualquier archivo adicional en `diff(P,M)`.
-
-No se afirman como satisfechos ni se rellenan mediante ejemplos los valores
-que dependen de esas verificaciones futuras. El contenido presente no satisface
-el check de estado del workflow ni autoriza `apply`.
+1. El guard quedó integrado mediante PR #521 en Certification, candidato
+   `605a6ecca29e20ade8cac3874d380758d18e6a11`.
+2. En ese SHA se completó el run #91 (`41338753002`) `operation=verify` para
+   `h2-expand-compat`: SUCCESS; dry-run con cero pendientes; Apply NO-OP;
+   `Apply migrations to Pro` SKIPPED; `Verify target schema` SUCCESS. La
+   evidencia auténtica conserva su etiqueta histórica `operation=apply`, sin
+   convertirla en afirmación de que se aplicó SQL. Run 89 queda como registro
+   histórico, no como cobertura de este candidato.
+3. La evidencia autenticada del run 91 se copia en el JSON canónico junto con
+   las relaciones, documentación y verificaciones de este paquete antes de
+   congelar el futuro payload H3 `P`. H2 candidate/payload `C` no es `P`.
+4. Después de las integraciones protegidas y de validar el árbol real, derivar
+   `auth_base`, `P`, el digest no-auth, el manifest, la cohorte y gates
+   Backup/PITR/Production. Para H2, `C` debe ser ancestro del candidato final
+   `M` y `diff(C,M)` debe pasar `disallowed_after_candidate`. Para H3,
+   `auth_base` debe ser ancestro de `P`, `P` de `M`, y `diff(P,M)` solo puede
+   cambiar este archivo de autorización. No se impone `C` ancestro de `P` sin
+   una condición del workflow que lo exija. Deben preservarse merge commits,
+   sin squash ni rebase.
+5. Solo tras esos gates se presenta la decisión humana de autorización. Si se
+   aprueba, se completan en este mismo archivo los campos exactos que exige
+   el workflow y `Status` cambia de `DRAFT_NOT_AUTHORIZED` a
+   `APPROVED_FOR_PRODUCTION_DDL`. Este archivo será el único path modificado
+   después de `P`; el cambio no se limita a la línea `Status`. No se rellenan
+   aquí valores futuros ni se anticipa esa autorización. El gate mantiene sus
+   verificaciones y rechazará cualquier otro path en `diff(P,M)`.
 
 ## Comprobaciones requeridas por el workflow
 
