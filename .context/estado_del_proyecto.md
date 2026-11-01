@@ -6,6 +6,29 @@
 
 ## Corte vigente
 
+### Continuación 2026-11-01 — corrección del historial del gate main
+
+PR #518 está integrado en Desarrollo `893f41fa8ef9f6ee9ad6799824a48abc0bf922c3`.
+Certification sigue `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. La promoción documental autorizada
+se mantiene sin crear al detectarse un bloqueo adicional de CI para main.
+El checkout depth 1 del job H2 no recupera el ancestro verificado tras el fetch
+de PR/main; una reproducción Git real falló con `Not a valid object name`.
+El fix local añade únicamente `fetch-depth: 0` a ese checkout y una regresión
+ejecutable en `tests/test_security_flow.py`. RED antes del fix, GREEN después;
+16 pruebas security_flow PASS en Docker sin red. No cambia contrato de datos,
+roles, producto ni las validaciones de evidencia. Ambas rutas están permitidas
+por el gate post-verify; se conserva la evidencia auténtica del run 89 y su
+ancestría. No se repite verify ni aceptación mínima 6/6.
+La revisión focal de seguridad no observó HIGH/CRITICAL/P1/P2; no es auditoría
+global ni CI remota. Los gates finales se registran en el paquete TL antes de
+solicitar publicación. La aprobación de promoción de `893f41f` no cubre publicar
+este nuevo delta. No se ejecutó push, PR, merge, SQL, dispatch ni configuración.
+Transición: expand = historial completo para resolver ancestry; compatibilidad =
+mantener schema/artefacto y todos los checks de run/jobs/ZIP; deploy = PR protegido;
+contract = sin legacy de producto nuevo; rollback = revert protegido del fix,
+sin DB afectada. Detalle en el [checkpoint](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
+
 ### Continuación 2026-11-01 — evidencia auténtica del verify H2 Pro y paquete documental
 
 PR #517 quedó integrado en Certification. Las refs remotas leídas en esta continuación son Desarrollo `9c2e227078ca75714a215f7f0f43be3b837bda69`, Certification `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. Certification conserva el merge 15fdc8d con Desarrollo como ancestro y ambos tienen el árbol `8fd6932b81dfb2d86d355d13ebcf5bd98676bcce`; no existe conflicto de producto por la divergencia de main. Deployment normal de Certification `8960fc62-0fd8-4760-87c9-1c0b682c8e75` terminó SUCCESS en `certificacion.studiamatch-aty.pages.dev`.

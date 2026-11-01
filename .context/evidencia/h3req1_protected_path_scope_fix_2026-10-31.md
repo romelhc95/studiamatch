@@ -236,3 +236,34 @@ El árbol de prueba usó el mismo contenido de los seis paths modificados en un 
 El residual integral está demostrado en baseline y candidato: 88 `RELATION_PATH_MISSING`, 79 `SOURCE_PATH_MISSING_OR_OUT_OF_SCOPE`, 79 `SOURCE_PATH_MISSING`, 79 `CANDIDATE_ONLY_PATH_MISSING`, 15 `EXCLUSION_PATH_MISSING`, 4 `DOC_EXCLUSION_STALE` y 4 `DOCUMENT_EXCLUSION_PATH_MISSING`. Son referencias históricas de fuentes/relaciones ausentes o retiradas; el delta no añade ni resuelve diagnósticos. Riesgo: trazabilidad histórica incompleta; no se observó impacto funcional atribuible al paquete. Propuesta pendiente, no aplicada: owner Romel/TL; vencimiento 2026-11-05 23:59 America/Lima o antes de integrar este paquete en Development, lo que ocurra primero; alcance solo disponer este residual para que el TL pueda solicitar la integración protegida de este paquete documental exacto a Development. No convierte el FAIL en PASS y no cubre Certification, main, producción, SQL, workflow ni configuración. El TL debe solicitar por separado autorización de commit/push/PR; el merge requiere su decisión independiente.
 
 Transición: expand = incorporar la evidencia auténtica en su ruta canónica; compatibilidad = conservar el path/schema y la validación independiente del gate; deploy = PRs protegidos creados por el TL, con review/merge por ambiente; contract = no aplica hasta instalación/verificación H3 Pro y despliegue BFF/Pages; rollback = revert documental por flujo protegido, sin borrar ZIP, auditorías, ledger ni datos. Siguiente etapa: preparar el candidato real Certification→main y su disposición/gates propios; H3 Pro y Pages/BFF tienen JIT separados. No activar FG1/FG2/FG3, writers, schedules ni H4.
+
+## Corrección del checkout del gate main — 01-nov-2026
+
+Después del merge de PR #518, Desarrollo está en `893f41fa8ef9f6ee9ad6799824a48abc0bf922c3`.
+La revisión previa de contenido había usado Git con historial completo. Una prueba
+adicional con el checkout real depth 1 y el fetch vigente de PR/main demuestra
+que el objeto `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` no está disponible:
+`git cat-file -e ...^{commit}` falla. Es un bloqueo del gate, no un fallo de H2.
+
+El cambio mínimo es `fetch-depth: 0` en el checkout de
+`h2-main-production-expand-gate`; se conserva `persist-credentials: false`, ref
+exacta, ancestry, allowlist y validación de ejecución/jobs/artefacto. La regresión
+`test_h2_main_gate_checkout_resolves_verified_ancestor` deriva profundidad y fetch
+del YAML, usa un remoto `file://` y prueba un candidato padre de HEAD no apuntado
+por otra ref: RED con el checkout anterior y GREEN con el fix. Las 16 funciones
+de `test_security_flow.py` pasaron en Docker sin red. La reproducción remota Git
+también resolvió el candidato y su ancestry al recuperar el historial completo.
+
+Revisión security-auditor focal de workflow/test: cero HIGH/CRITICAL/P1/P2.
+No altera el JSON auténtico del run 89 ni requiere volver a ejecutarlo: workflow,
+test_security_flow y documentación están expresamente permitidos por la regla de
+cambios posteriores al verify. El paquete nuevo conserva sus propios gates y
+requiere autorización específica de publicación; la promoción de `893f41f` quedó
+sin crear para no llevar un fallo conocido hacia main. No se ejecutaron PR,
+push, merge, SQL, workflows ni configuración por este fix local.
+
+Expand: recuperar historial para resolver el ancestro. Compatibilidad: mismos
+contratos/artefactos y validaciones. Deploy: flujo protegido. Contract: sin legacy
+de producto nuevo. Rollback: revert protegido del fix, sin datos que restaurar.
+El integral histórico sigue separado del gate acotado; los resultados finales
+reproducibles se adjuntan al paquete TL antes de solicitar publicación.

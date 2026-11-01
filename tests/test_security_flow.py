@@ -1,5 +1,7 @@
 from pathlib import Path
+import os
 import re
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +52,39 @@ def test_security_audit_keeps_required_check_name():
     assert "Protected Path Integrity" in text
     assert "validate_work_package.py" not in text
     assert "validate_context_graph.py" not in text
+
+
+def test_h2_main_gate_checkout_resolves_verified_ancestor(tmp_path):
+    workflow = read(".github/workflows/security-audit.yml")
+    gate = workflow.split("  h2-main-production-expand-gate:", 1)[1].split("  security-audit:", 1)[0]
+    checkout = gate.split("      - uses: actions/checkout@", 1)[1].split("      - name:", 1)[0]
+    configured_depth = re.search(r"^\s+fetch-depth:\s*(\d+)\s*$", checkout, re.MULTILINE)
+    depth = int(configured_depth.group(1)) if configured_depth else 1
+    fetch = next(line.strip() for line in gate.splitlines() if line.strip().startswith("git fetch --no-tags origin "))
+
+    def git(*args, cwd):
+        return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+    upstream = tmp_path / "upstream"
+    upstream.mkdir()
+    git("init", "-q", "--initial-branch=certificacion", cwd=upstream)
+    revisions = []
+    for label in ("main baseline", "verified candidate", "documentation only"):
+        (upstream / "evidence.txt").write_text(label, encoding="utf-8")
+        git("add", "evidence.txt", cwd=upstream)
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", label, cwd=upstream)
+        revisions.append(git("rev-parse", "HEAD", cwd=upstream))
+    git("branch", "main", revisions[0], cwd=upstream)
+    git("update-ref", "refs/pull/1/head", revisions[2], cwd=upstream)
+    clone = tmp_path / "checkout"
+    options = ["clone", "-q", "--single-branch", "--branch", "certificacion"]
+    if depth:
+        options.append(f"--depth={depth}")
+    git(*options, upstream.as_uri(), str(clone), cwd=tmp_path)
+    env = {**os.environ, "PR_NUMBER": "1", "PR_HEAD_SHA": revisions[2]}
+    subprocess.run(["bash", "-eu", "-c", fetch], cwd=clone, env=env, check=True, capture_output=True, text=True)
+    git("cat-file", "-e", f"{revisions[1]}^{{commit}}", cwd=clone)
+    git("merge-base", "--is-ancestor", revisions[1], "HEAD", cwd=clone)
 
 
 def test_security_audit_allowlists_scanner_worktree_helper_and_pre_push():
