@@ -1,5 +1,18 @@
 # Controles de seguridad y tooling
 
+## Historial del candidato verificado para el gate main — 01-nov-2026
+
+El checkout del job `h2-main-production-expand-gate` usa `fetch-depth: 0`.
+El candidato verificado puede ser ancestro del HEAD con cambios documentales;
+un checkout depth 1 no garantiza que `cat-file` y `merge-base` puedan resolverlo
+tras el fetch de PR y main. No se elimina ni sustituye la comprobación de ancestry.
+La regresión `test_h2_main_gate_checkout_resolves_verified_ancestor` en
+`tests/test_security_flow.py` toma profundidad y fetch del YAML real, crea un
+remoto Git `file://` y exige disponibilidad y ancestry del candidato padre.
+El caso reprodujo RED con depth 1 y GREEN con historial completo en Docker;
+las 16 pruebas de security_flow pasaron. No modifica datos, artefacto H2 ni
+permisos remotos. La publicación exige autorización específica del nuevo paquete.
+
 ## Corrección de baseline de pins y evidencia H2 — 31-oct-2026
 
 El guard permite solo la ruta exacta
@@ -28,6 +41,20 @@ documental pendiente y los límites se registran en el [checkpoint del fix](../e
 La sección “Continuación main — 31-oct-2026” que sigue describe el baseline
 anterior de este trabajo y se conserva solo como historia; sus pins y resultado
 no se trasladan automáticamente a un candidato sucesor.
+
+### Admisión exacta del borrador DDL H3 Pro — 01-nov-2026
+
+El scope guard añade una sola ruta literal:
+`.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md`.
+No admite el directorio ni IDs vecinos. El documento en esa ruta queda con
+`Status: DRAFT_NOT_AUTHORIZED`; su presencia en el payload no satisface el
+check del workflow que exige una autorización aprobada. El archivo solo podrá
+ser completado tras un report/verify H2 nuevo sobre el SHA real de Certification
+que ya incluya este guard. Run 89 precede al cambio y no se reutiliza para ese
+candidato. El flujo sigue exigiendo que, después del payload, el único archivo
+modificado sea el DDL authorization file; la prueba ejecuta las expresiones del
+guard y del apply gate existentes. Detalle local y resultados en el
+[checkpoint de admisión](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
 
 ## Límites del control local
 

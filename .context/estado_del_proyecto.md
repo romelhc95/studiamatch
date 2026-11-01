@@ -6,13 +6,90 @@
 
 ## Corte vigente
 
-### Continuación 2026-10-31 — guard de scope para el candidato H3REQ1
+### Revisión TL 2026-11-01 — admisión H3 Pro corregida localmente
+
+El paquete local conserva el DDL H3 en `DRAFT_NOT_AUTHORIZED` y admite solo su
+ruta exacta. La revisión TL consolidó la evidencia en el checkpoint ya admitido
+y trasladó las regresiones a `tests/test_security_flow.py`, que CI ejecuta.
+Los fixtures DRAFT/aprobado no fijan permanentemente el estado del documento real.
+Docker sin red: 20/20 funciones con DRAFT y 20/20 con estado aprobado sintético;
+suite histórica PASS en baseline y candidato tras recuperar los blobs históricos
+faltantes del clon parcial, sin cambiar esa suite. Guards, selectores y gates
+documentales acotados de Desarrollo/Certification/main PASS; scanner y diff-check
+PASS. Integral FAIL 348/348 conservado. Revisión focal: cero HIGH/CRITICAL/P1/P2.
+No hubo commit, push, PR, merge, SQL, dispatch ni configuración. Falta publicar e
+integrar el guard, obtener nuevo report/verify H2 autorizado en Certification y
+consolidar evidencia antes de P. No es GO remoto ni cierre productivo.
+
+### Continuación local 2026-11-01 — admisión exacta de autorización H3 Pro
+
+Refs verificadas por GitHub: Desarrollo `ca63eb4d82bfb1d34f7c7b753942a93039cfe2bc`, Certification `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. El trabajo parte de Desarrollo en un checkout aislado con historia completa; los checkouts de TL y el checkout fuente con WIP no se modificaron.
+
+El delta local admite en `scripts/security/protected_path_scope_guard.sh` únicamente la ruta `.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md`. El documento permanece `DRAFT_NOT_AUTHORIZED` y no contiene aprobación ni valores dinámicos pendientes declarados como reales. El workflow de apply conserva sus comprobaciones independientes de estado aprobado, identidad, manifest, payload, base/ancestría, digest/cohorte y gates de Backup/PITR/Production. No se cambió el workflow ni se habilitó `apply`.
+
+Las regresiones focales `tests/test_security_flow.py` pasan 11/11 al invocar sus funciones en el contenedor (la imagen no trae pytest). El guard real acepta solo la ruta exacta y rechaza vecinos; los fragmentos reales del workflow rechazan DRAFT/traversal y archivos extra después de `P`. El script amplio `tests/test_protected_path_scope_guard.sh` aún falla tanto en candidato como en baseline completo porque su destino histórico `8ac174d81cf6ce23658bff132236a78935ace1ad` no contiene `.context/componentes/admin_portal.md`; ese fallo es heredado y no se alteró para obtener verde. Scanner de credenciales árbol/delta, sintaxis Bash, render y `git diff --check` pasan. ShellCheck no está instalado en la imagen.
+
+Checker documental: integral FAIL 348 en baseline y 348 en candidato, con las mismas líneas de diagnóstico; `DOC_SELF_TEST_PASS` aparece en ambos, pero el proceso termina 1 por el FAIL integral. No se declara candidate-aware PASS. Codex Security diff scan `8e2f7b24-fd9b-4cd9-8b60-73d9e2929ad5` completado: cero hallazgos reportables, 3/3 superficies `no_issue_found`, limitado al diff local; su reporte y las limitaciones quedan en el [checkpoint del paquete local](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md). Se reutiliza la evidencia previa del run 89 y no se afirma que cubra el guard nuevo; después de integrar el guard a Certification se requieren report y verify H2 nuevos, cada uno con JIT propio. La evidencia auténtica, JSON, pins y documentos deben quedar en el payload antes de `P`; luego la autorización humana cambiará solo el archivo DDL.
+
+Este ciclo no ejecutó commit, push, PR, merge, SQL remoto, dispatch, configuración ni deploy. No repitió CA4 mínimo 6/6, Development 4/4 ni smoke histórico Certification 1/1. Integral documental y regresiones acotadas se mantienen separadas; el cierre productivo no se acredita. Próximo paso: completar revisión de seguridad por impacto y entregar al TL diff, negativos, rollback y límites para revisión. No habilitar FG1/FG2/FG3, writers, schedules ni H1/H4.
+
+### Continuación 2026-11-01 — corrección del historial del gate main
+
+PR #518 está integrado en Desarrollo `893f41fa8ef9f6ee9ad6799824a48abc0bf922c3`.
+Certification sigue `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. La promoción documental autorizada
+se mantiene sin crear al detectarse un bloqueo adicional de CI para main.
+El checkout depth 1 del job H2 no recupera el ancestro verificado tras el fetch
+de PR/main; una reproducción Git real falló con `Not a valid object name`.
+El fix local añade únicamente `fetch-depth: 0` a ese checkout y una regresión
+ejecutable en `tests/test_security_flow.py`. RED antes del fix, GREEN después;
+16 pruebas security_flow PASS en Docker sin red. No cambia contrato de datos,
+roles, producto ni las validaciones de evidencia. Ambas rutas están permitidas
+por el gate post-verify; se conserva la evidencia auténtica del run 89 y su
+ancestría. No se repite verify ni aceptación mínima 6/6.
+La revisión focal de seguridad no observó HIGH/CRITICAL/P1/P2; no es auditoría
+global ni CI remota. Los gates finales se registran en el paquete TL antes de
+solicitar publicación. La aprobación de promoción de `893f41f` no cubre publicar
+este nuevo delta. No se ejecutó push, PR, merge, SQL, dispatch ni configuración.
+Transición: expand = historial completo para resolver ancestry; compatibilidad =
+mantener schema/artefacto y todos los checks de run/jobs/ZIP; deploy = PR protegido;
+contract = sin legacy de producto nuevo; rollback = revert protegido del fix,
+sin DB afectada. Detalle en el [checkpoint](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
+
+### Continuación 2026-11-01 — evidencia auténtica del verify H2 Pro y paquete documental
+
+PR #517 quedó integrado en Certification. Las refs remotas leídas en esta continuación son Desarrollo `9c2e227078ca75714a215f7f0f43be3b837bda69`, Certification `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. Certification conserva el merge 15fdc8d con Desarrollo como ancestro y ambos tienen el árbol `8fd6932b81dfb2d86d355d13ebcf5bd98676bcce`; no existe conflicto de producto por la divergencia de main. Deployment normal de Certification `8960fc62-0fd8-4760-87c9-1c0b682c8e75` terminó SUCCESS en `certificacion.studiamatch-aty.pages.dev`.
+
+DB Sync to Production run 89 es `41274863913` ([enlace correcto](https://github.com/romelhc95/studiamatch/actions/runs/41274863913)); el run `41241415710` corresponde al reporte 88 y no se cita como verify 89. El run 89 tuvo 6 jobs SUCCESS y 1 SKIPPED: el modo verify fue confirmado como NO-OP por Apply pending migrations, Apply migrations to Pro quedó SKIPPED y Verify target schema fue SUCCESS. El workflow informó Target schema check PASSED para `h2-expand-compat`, candidato `15fdc8dc…`, cohorte 224 y digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`. H2 figura verificado en ese alcance; esta ejecución no acredita H3 instalado en Pro.
+
+El TL autenticó el artefacto 13070419512 (digest ZIP `sha256:2bc61bde47b79ae30876c3b1d71598e3a3fc70f56a22c90f4bc2be17f1c3ecef`) y conserva los tres miembros en `/tmp/h3req1-tl-audit-20261101/`. `.context/operaciones/h2_main_production_expand_evidence.json` fue reemplazado byte por byte desde el miembro auténtico, SHA-256 `d38900871fcdf075a9ce7111820cf27757c26cf854d439cada1bbb52750be41c`; los hashes de ambos informes advisors y su alcance están en la [sección verify 89 del checkpoint](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md). Se preserva `operation=apply` del schema histórico que consume el gate; no se editó el generador ni el workflow. El dispatch real fue `verify` y Apply fue NO-OP. No se versiona el ZIP ni los cuerpos crudos de advisors.
+
+Este checkout es `/tmp/studiamatch-h3req1-verify-evidence-20261101`, rama local `codex/h3req1-verify-evidence-20261101`, con HEAD `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee`; se inició desde Desarrollo `9c2e227…` y avanzó por fast-forward local hasta Certification, conservando 15fd como ancestro. El checkout WIP original no se modificó. El paquete local tiene seis rutas, todas documentales, y permanece sin commit/publicación. Para los gates que requieren HEAD se usó un fixture Git desechable derivado de `15fd`, con el mismo contenido de las seis rutas documentales; su identidad temporal consta en los logs de `/tmp`, no es SHA candidato de PR.
+
+Se reutilizan sin repetición las aceptaciones vigentes: E1–E6 local 6/6, R1–R4 Development 4/4 y smoke histórico Certification 1/1. No se repitieron onboarding, cuotas ni UAT. No se volvió a ejecutar el reporte 88 ni verify 89; run 89 ocurrió antes de esta preparación documental. En este ciclo no hubo nuevas escrituras SQL, dispatch, push, PR, merge, cambios de configuración ni deploy.
+
+| Etapa | Estado de este corte | Siguiente acción |
+|---|---|---|
+| Verify H2 Pro | Acreditado para el candidato y cohorte registrados; Apply fue NO-OP. | Preservar el artefacto auténtico y no repetir verify sin invalidación concreta. |
+| H3 Pro / Pages-BFF | No instalado ni verificado por run 89. | Preparar JIT separados después de integrar el paquete y revisar el gate Certification→main. |
+| Documentación local | Scanner de árbol/diff, diff-check, render, guardas de las tres rutas, selectores, artefacto y candidate-aware main PASS; integral 348→348 FAIL, self-test PASS, sin delta. | Mantener visible el FAIL integral y someter la disposición limitada a decisión humana. |
+| Integración | Sin commit, push, PR ni merge. El TL crea los PRs. | El TL decide la disposición propuesta y solicita por separado la autorización de publicación del paquete exacto. |
+
+El checker normal usó el mismo código/configuración en baseline Desarrollo `9c2e227…` y candidato documental local: integral FAIL 348→348, cero diagnósticos introducidos y cero resueltos. `DOC_SELF_TEST_PASS` aparece en ambos; el comando sale 1 porque conserva el FAIL integral. La comparación no truncada confirma las mismas clases residuales de rutas históricas faltantes/retiradas y referencias incompletas. Candidate-aware para Certification→main: PASS separado; el selector vigente agregó cuatro paquetes/1.628 rutas al fixture local. No es prueba remota ni convierte el integral en PASS.
+
+En Docker `studiamatch-dev:local`, red deshabilitada: scanner de árbol y diff, `git diff --check`, render del registro, tres comparaciones del guard (feature→Development, Development→Certification, acumulado Certification→main), tres selectores y comprobación local del artefacto terminaron PASS. El ZIP de run 89 conserva digest GitHub `2bc61b…3ecef`, tres miembros y JSON idéntico al canónico (`d3890087…be41c`). El contrato de `security-audit.yml` mantiene las verificaciones de SHA/ancestría, metadatos del run, jobs y descarga/comparación del artefacto; los metadatos/jobs del run 89 se reutilizan del informe TL, sin nueva consulta ni dispatch.
+
+El inicio normal de la imagen abortó antes de pruebas porque sus manifests Node no coinciden con los manifests de la app. No se contó como test. Los checks exclusivamente documentales se ejecutaron después en la misma imagen con Bash/Node/Python, red deshabilitada, sin iniciar la app, sin volumen de dependencias ni secretos. Logs y comparación exacta: `/tmp/h3req1-run89-checks-20261101/`.
+
+Transición: expand = actualizar evidencia documental autenticada; compatibilidad = conservar el path y schema que consume el gate, sin cambiar código ni runtime; deploy = integración protegida independiente por ambiente; contract = no aplica hasta instalar y comprobar H3 en Pro y desplegar BFF/configuración; rollback = revertir solo los cambios documentales por PR protegido, conservando artefactos, auditoría y DB. No activar FG1/FG2/FG3, writers, schedules ni H4.
+
+### Corte histórico 2026-10-31 — guard de scope para el candidato H3REQ1
 
 Estado remoto reutilizado del informe TL `/tmp/h3req1-certification-audit-20261031/informe-tl.md` y de lecturas de refs: Desarrollo `965b4862341cb4550c7833677a9675d52404fb4b`, Certification `eddb5527817aa241801ee1477acb9eb1edd8a409`, main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. El deployment normal de Certification corresponde a `eddb5527…`; el reporte #88/run `41241415710` terminó success para `h2-expand-compat`: 5/5 migraciones, 224 cursos elegibles/visibles y cero pendientes. `verify` y `apply` fueron skipped; no se afirma H3 instalado en Pro. Aceptaciones reutilizadas sin repetición: E1–E6 local 6/6, Development R1–R4 4/4 y smoke histórico Certification 1/1.
 
 El candidato local parte de Desarrollo `965b4862341cb4550c7833677a9675d52404fb4b` en `codex/h3req1-protected-path-scope-fix-20261031`; GitHub confirmó esa SHA para `desarrollo`, con Certification `eddb5527817aa241801ee1477acb9eb1edd8a409` y main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. No hay commit candidato ni publicación. Corrige dos límites del guard: admite únicamente el archivo de evidencia H2 Main por path exacto, mientras `security-audit.yml` conserva su validación de contenido independiente; consume los pins congelados de Certification y main solo si `PROTECTED_BASELINE_SHA` coincide con el baseline para el que fueron aprobados. Para cualquier baseline posterior no agrega paths históricos: siguen aplicando las allowlists ordinarias y el rechazo de vecinos. Se preservan las comprobaciones de source, ancestría, blobs, modo, hash y contenido de los pins cuando corresponde consumirlos.
 
-Validación del código/fuentes sin cambios posteriores, Docker sin red y checkout aislado: `tests/test_protected_path_scope_guard.sh` PASS (1196 paths, 13 catálogos/1173 referencias, callers PR/push de ambas promociones, baseline posterior sin pins congelados, source/content drift fail-closed y rutas vecinas rechazadas); `tests/test_fase10_main_boundary.py` PASS; ShellCheck v0.11.0 PASS en ambos scripts afectados. La comparación acumulada de la ruta real contra baselines Development, Certification y main pasó con commits/tree sintéticos desechables y el mismo set de nueve paths; no son SHAs publicados ni reemplazan CI. Estos controles no cambiaron en la edición documental final.
+Validación del código/fuentes sin cambios posteriores, Docker sin red y checkout aislado: `tests/test_protected_path_scope_guard.sh` PASS (1196 paths, 13 catálogos/1173 referencias, callers PR/push de ambas promociones, baseline posterior sin pins congelados, source/content drift fail-closed y rutas vecinas rechazadas); `tests/test_security_flow.py` PASS; ShellCheck v0.11.0 PASS en ambos scripts afectados. La comparación acumulada de la ruta real contra baselines Development, Certification y main pasó con commits/tree sintéticos desechables y el mismo set de nueve paths; no son SHAs publicados ni reemplazan CI. Estos controles no cambiaron en la edición documental final.
 
 Validación del árbol documental final, Docker sin red: scanner del árbol rastreado y del checkpoint nuevo PASS; `git diff --check` rastreado PASS y el archivo nuevo no produjo advertencias en `git diff --no-index --check` (exit 1 solo por diferencia frente a `/dev/null`); render PASS. El checker normal, con la misma imagen y configuración sobre baseline y candidato, devolvió FAIL integral en ambos: 348 diagnósticos cada uno, cero nuevos y cero resueltos. El self-test produjo `DOC_SELF_TEST_PASS`; el proceso envolvente terminó exit 1 por el FAIL integral. Los logs completos y la lista no truncada de diagnósticos están en `/tmp/h3req1-protected-path-scope-evidence-20261031/`. No se afirma candidate-aware PASS para este candidato.
 
