@@ -46,15 +46,22 @@ no se trasladan automáticamente a un candidato sucesor.
 
 El scope guard añade una sola ruta literal:
 `.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md`.
-No admite el directorio ni IDs vecinos. El documento en esa ruta queda con
-`Status: DRAFT_NOT_AUTHORIZED`; su presencia en el payload no satisface el
-check del workflow que exige una autorización aprobada. El archivo solo podrá
-ser completado tras un report/verify H2 nuevo sobre el SHA real de Certification
-que ya incluya este guard. Run 89 precede al cambio y no se reutiliza para ese
-candidato. El flujo sigue exigiendo que, después del payload, el único archivo
-modificado sea el DDL authorization file; la prueba ejecuta las expresiones del
-guard y del apply gate existentes. Detalle local y resultados en el
-[checkpoint de admisión](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
+No admite el directorio ni IDs vecinos. El documento conserva
+`Status: DRAFT_NOT_AUTHORIZED`; su presencia no satisface el gate independiente
+de contenido/estado del workflow.
+
+El guard quedó integrado en Certification por PR #521. El run 91 (ID
+`41338753002`) ejecutó `verify` sobre C
+`605a6ecca29e20ade8cac3874d380758d18e6a11`: el dry-run no halló pendientes,
+Apply fue NO-OP, `Apply migrations to Pro` quedó SKIPPED y `Verify target
+schema` fue SUCCESS. El artefacto H2 autenticado corresponde a ese C y se
+incorpora byte por byte en este paquete. Run 89 permanece como historia y no
+se usa para cubrir este candidato. Esto acredita solo `h2-expand-compat`, no
+H3 instalado en Pro.
+
+Tras congelar `P`, el único archivo modificable será esta autorización DDL;
+el gate conserva su comprobación de estado y contenido. Detalle en el
+[checkpoint](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
 
 ## Límites del control local
 

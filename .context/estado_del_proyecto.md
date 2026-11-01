@@ -6,7 +6,51 @@
 
 ## Corte vigente
 
-### Revisión TL 2026-11-01 — admisión H3 Pro corregida localmente
+### Preparación local de evidencia H2 — run 91 (2026-11-01)
+
+PR #521 está integrado. Refs confirmadas en este corte: Desarrollo
+`64c23fd8a9694f50a2728399bf8e35771bf56fad`, Certification
+`605a6ecca29e20ade8cac3874d380758d18e6a11` y main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. El deployment normal de
+Certification `ac707175-75a9-4c5a-9c6b-0786a6a0d517` terminó SUCCESS. La rama de
+trabajo es un clon aislado desde Desarrollo en
+`/tmp/studiamatch-h3req1-run91-evidence-20261101`, local
+`codex/h3req1-run91-evidence-20261101`; el checkout fuente con WIP y los
+checkouts TL siguen intactos.
+
+DB Sync run #91 (`41338753002`) fue `workflow_dispatch`, ref `certificacion`,
+SHA `605a6ecca29e20ade8cac3874d380758d18e6a11`, SUCCESS. Report pending
+migrations dry-run informó cero pendientes. El job Apply terminó SUCCESS como
+NO-OP; el paso `Apply migrations to Pro` quedó SKIPPED. `Verify target schema`
+y la subida del artefacto fueron SUCCESS. El resultado aplica solo a H2
+`h2-expand-compat`: cohorte 224, digest
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
+No se aplicaron migraciones H3 ni se hicieron writes SQL.
+
+El artefacto autenticado `13096761150` (run
+[41338753002](https://github.com/romelhc95/studiamatch/actions/runs/41338753002))
+tiene ZIP SHA-256
+`f7e3ac3a735013f2b3959b668b72913526e51c24dde063ee4c714613d69a5895` y los tres
+miembros esperados. El JSON canónico fue copiado byte por byte del miembro
+`h2-production-expand-verify-evidence.json`: SHA-256
+`563de170bbce697408413a212f39d8592238749856a0c6652e0bea4ce8051195`; el ZIP y
+la fuente autenticada son idénticos. Se preserva la etiqueta histórica
+`operation=apply` que requiere el gate main; el dispatch remoto fue `verify` y
+Apply fue NO-OP. Advisors: 12 de seguridad y 17 de rendimiento; fingerprints
+idénticos al baseline, sin HIGH/CRITICAL/ERROR, con INFO/WARN conservados.
+Run 89 permanece como historia y no se reutiliza como evidencia actual.
+
+Se actualizaron el JSON canónico, el checkpoint, el estado/índice, fichas,
+registro y borrador DDL. Este último permanece `DRAFT_NOT_AUTHORIZED`. La ruta
+JSON ya tiene admisión exacta en el guard; su contenido sigue sujeto al gate
+independiente de run/jobs/ancestry/ZIP. No se regeneraron pins congelados: sus
+baselines anteriores no cambiaron y los callers omiten esos pins en baselines
+sucesores usando las allowlists ordinarias. No se cambió código, workflow, guard
+ni scope.
+
+Validaciones finales del paquete local se registran en el checkpoint enlazado. Docker sin red: render del registro PASS; suites focales de gate/selector 56/56 PASS; test_protected_path_scope_guard.sh PASS con callers PR/push, selector, pins, acumulado y negativos; scanner de credenciales árbol/delta PASS; git diff --check PASS; artefacto run 91/JSON auténticos verificados byte a byte. Checker integral sin truncar: baseline 348 y candidato 348, 0 nuevos/0 resueltos; self-test PASS, comando integral exit 1 por deuda heredada. Candidate-aware PASS, exit 0. No se repitieron CA4 6/6, R1–R4 4/4 ni smoke Certification 1/1. H3 Pro sigue no aplicado/no verificado; M y P aún no existen; sin commit, push, PR, merge, dispatch, SQL, configuración ni deploy.
+
+### Corte histórico previo a PR #521 — admisión H3 Pro corregida localmente
 
 El paquete local conserva el DDL H3 en `DRAFT_NOT_AUTHORIZED` y admite solo su
 ruta exacta. La revisión TL consolidó la evidencia en el checkpoint ya admitido
@@ -21,7 +65,7 @@ No hubo commit, push, PR, merge, SQL, dispatch ni configuración. Falta publicar
 integrar el guard, obtener nuevo report/verify H2 autorizado en Certification y
 consolidar evidencia antes de P. No es GO remoto ni cierre productivo.
 
-### Continuación local 2026-11-01 — admisión exacta de autorización H3 Pro
+### Corte histórico previo a run 91 — admisión exacta de autorización H3 Pro
 
 Refs verificadas por GitHub: Desarrollo `ca63eb4d82bfb1d34f7c7b753942a93039cfe2bc`, Certification `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. El trabajo parte de Desarrollo en un checkout aislado con historia completa; los checkouts de TL y el checkout fuente con WIP no se modificaron.
 
@@ -33,7 +77,7 @@ Checker documental: integral FAIL 348 en baseline y 348 en candidato, con las mi
 
 Este ciclo no ejecutó commit, push, PR, merge, SQL remoto, dispatch, configuración ni deploy. No repitió CA4 mínimo 6/6, Development 4/4 ni smoke histórico Certification 1/1. Integral documental y regresiones acotadas se mantienen separadas; el cierre productivo no se acredita. Próximo paso: completar revisión de seguridad por impacto y entregar al TL diff, negativos, rollback y límites para revisión. No habilitar FG1/FG2/FG3, writers, schedules ni H1/H4.
 
-### Continuación 2026-11-01 — corrección del historial del gate main
+### Corte histórico — corrección del historial del gate main (PR #518)
 
 PR #518 está integrado en Desarrollo `893f41fa8ef9f6ee9ad6799824a48abc0bf922c3`.
 Certification sigue `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main
@@ -56,7 +100,7 @@ mantener schema/artefacto y todos los checks de run/jobs/ZIP; deploy = PR proteg
 contract = sin legacy de producto nuevo; rollback = revert protegido del fix,
 sin DB afectada. Detalle en el [checkpoint](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
 
-### Continuación 2026-11-01 — evidencia auténtica del verify H2 Pro y paquete documental
+### Corte histórico — evidencia auténtica del verify H2 Pro run 89 y paquete documental (supersedido por run 91)
 
 PR #517 quedó integrado en Certification. Las refs remotas leídas en esta continuación son Desarrollo `9c2e227078ca75714a215f7f0f43be3b837bda69`, Certification `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. Certification conserva el merge 15fdc8d con Desarrollo como ancestro y ambos tienen el árbol `8fd6932b81dfb2d86d355d13ebcf5bd98676bcce`; no existe conflicto de producto por la divergencia de main. Deployment normal de Certification `8960fc62-0fd8-4760-87c9-1c0b682c8e75` terminó SUCCESS en `certificacion.studiamatch-aty.pages.dev`.
 
