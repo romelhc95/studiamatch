@@ -484,15 +484,15 @@
         ".context/operaciones/h2_main_production_expand_evidence.json"
       ],
       "exact_path": true,
-      "kind": "evidencia operativa histórica",
-      "reason": "JSON de evidencia de un corte anterior fuera de la bóveda .context/evidencia; se preserva sin leer ni convertir en fuente mantenida.",
+      "kind": "evidencia operativa de gate",
+      "reason": "JSON operativo exacto consumido por h2-main-production-expand-gate; se mantiene como artifact, no como código. El checker de rutas solo admite este path exacto; el workflow conserva la validación semántica independiente.",
       "document": {
         "path": ".context/componentes/pruebas_evidencia.md",
         "anchor": "artefactos-y-evidencia-generada",
         "label": "Pruebas y evidencia"
       },
-      "retention": "Preservar en su ubicación; no abrir ni incorporar al paquete documental sin revisión sanitizada.",
-      "evidence": "La existencia no demuestra schema remoto actual, ejecución vigente ni adopción."
+      "retention": "Preservar en su ubicación; no editar manualmente para aparentar una ejecución ni moverlo fuera de la ruta consumida por el gate.",
+      "evidence": "La existencia/ruta no demuestra contenido válido, schema remoto, ejecución vigente ni adopción; el gate de security-audit valida el contenido y las referencias a la ejecución/artifact."
     },
     {
       "pattern": "tests/h3req1-c03-edge-lock-output-r3/**",
@@ -776,12 +776,12 @@
     },
     {
       "pattern": ".context/operaciones/h2_main_production_expand_evidence.json",
-      "producer": "Ciclo operativo histórico no re-ejecutado en esta transferencia",
-      "inputs": "Evidencia remota histórica cuyo contenido no se inspeccionó",
-      "purpose": "Preservar un registro operativo histórico fuera de la carpeta de evidencias",
+      "producer": "DB Sync to Production después de verify H2 y revisión de advisors",
+      "inputs": "Metadatos verificados del run, candidate/payload SHA, manifest, cohorte y advisors; el gate de CI valida las referencias contra GitHub",
+      "purpose": "Artifact operativo exacto requerido por h2-main-production-expand-gate de security-audit",
       "location": ".context/operaciones/h2_main_production_expand_evidence.json",
-      "retention": "Preservar sin mover; no incluir como evidencia vigente ni en paquete documental sin revisión",
-      "evidence": "No se leyó; no se atribuye estado remoto a partir de su presencia."
+      "retention": "Preservar en su ruta exacta; renovar solo por el workflow y JIT propios, nunca editar para simular éxito",
+      "evidence": "La ruta se allowlistea por separado; contenido y ejecución solo cuentan tras la validación independiente del workflow. No inferir éxito por presencia."
     },
     {
       "pattern": ".context/operaciones/manifest_h3req1_editorial_atomicity_pg17_2026-10-09.sha256",
@@ -15375,7 +15375,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts. Current local candidate also pins the accumulated Certification-to-main document selector and keeps invalid/ambiguous selection fail-closed; main boundary tests assert no auto-apply.",
+        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts. The H3REQ1 follow-up admits the exact H2 main evidence path while leaving its content gate independent; frozen promotion pins are consumed only at their approved baseline for both PR and push callers. Invalid/ambiguous selection remains fail-closed.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
@@ -15387,7 +15387,7 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "security-audit workflow calls the credential scanner, H2 writer scan, protected path guard and focused tests; tests/test_protected_path_scope_guard.sh reads the exact candidate manifest selected by security-audit.yml and verifies candidate paths, historical catalog closure, hashes and availability against exact allowlists. Hooks run only if installed.",
+        "note": "security-audit workflow calls the credential scanner, H2 writer scan, protected path guard and focused tests. The exact H2 evidence file is independently parsed by h2-main-production-expand-gate; the path allowlist does not satisfy its content, run, ancestry, jobs or artifact checks. tests/test_protected_path_scope_guard.sh covers the exact route, both promotion callers on PR and push, later baselines, source/hash drift and a neighboring path. Hooks run only if installed.",
         "evidence": [
           "path:.github/workflows/security-audit.yml",
           "path:tests/test_protected_path_scope_guard.sh",
@@ -15397,18 +15397,20 @@
       },
       "data": {
         "state": "verified",
-        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Promotion manifests fix exact baseline/source independently in the caller and compare source/HEAD Git blobs. The local main follow-up carries forward exactly the 239 historical Certification-scope paths unchanged since certificacion 03515dee, pinned against main 70d0f4fe and source 6d73b51b. Docker caller/negative regressions, actual main comparison and ShellCheck passed; no remote GO. Certification pins are refreshed after freezing the validated follow-up.",
+        "note": "Tracked source/diff and names of credential variables; secret stores are never read. Promotion manifests fix exact baseline/source independently in the caller and compare source/HEAD Git blobs. Frozen Certification pins apply only at baseline 03515dee; frozen main pins apply only at baseline 70d0f4fe. A later baseline skips those historical extras and retains ordinary exact allowlists. The exact H2 evidence path is allowlisted, but workflow content checks remain mandatory. No remote GO is implied.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
           "path:.github/scripts/production_control_preflight.sh",
           "path:.context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json",
-          "path:.context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json"
+          "path:.context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json",
+          "path:.context/operaciones/h2_main_production_expand_evidence.json",
+          "path:.context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md"
         ]
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "The R11 evidence maps the scanner regression, scope guard test, workflow contract, H2 controls and credential/policy tests. The exact successor manifest and test pin 13 historical catalogs and their direct target set; local assertions do not prove Actions, installed hooks, secret storage or remote branch protection. Final affected Docker rerun is recorded in the current H3REQ1 checkpoint; this does not assert branch protection state or remote workflow execution.",
+        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. Docker results do not prove Actions, installed hooks, secrets or remote branch protection.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15419,7 +15421,8 @@
           "path:tests/test_security_flow.py",
           "path:tests/test_supabase_credentials_contract.py",
           "path:tests/test_fase10_main_boundary.py",
-          "path:tests/test_h2_pro_migration_controls.py"
+          "path:tests/test_h2_pro_migration_controls.py",
+          "path:.context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md"
         ]
       },
       "operations": {
@@ -20784,6 +20787,7 @@
     ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-12.md",
     ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-13_r10.md",
     ".context/evidencia/h3req1_editorial_contract_2026-10-28.md",
+    ".context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md",
     ".context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
     ".context/evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md",
     ".context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md",

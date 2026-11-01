@@ -16,6 +16,13 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "h2-main-production-expand-gate:" in workflow
     assert "H2 Main Production Expand Gate" in workflow
     assert "h2_main_production_expand_evidence.json" in workflow
+    assert "'schema': 'h2-main-production-expand-evidence-v1'" in workflow
+    assert "'manifest': 'h2-expand-compat'" in workflow
+    assert "'operation': 'apply'" in workflow
+    assert "'verify_result': 'success'" in workflow
+    assert "evidence.get('h2_advisors_reviewed') is not True" in workflow
+    assert "git merge-base --is-ancestor \"$evidence_candidate\" \"$PR_HEAD_SHA\"" in workflow
+    assert "h2-production-expand-verify-" in workflow
     assert "github.event.pull_request.base.ref == 'main'" in workflow
     assert "f10-main-boundary:" not in workflow
 
