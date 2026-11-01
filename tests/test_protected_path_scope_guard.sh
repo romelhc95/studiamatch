@@ -128,6 +128,17 @@ h3_manifest_paths = {
 }
 if any(not any(re.search(pattern, path) for pattern in patterns) for path in h3_manifest_paths):
     raise SystemExit("protected path integration test: exact H3 Pro manifest paths are not admitted")
+
+main_expand_evidence = ".context/operaciones/h2_main_production_expand_evidence.json"
+if main_expand_evidence not in local_paths:
+    raise SystemExit("protected path integration test: exact main expand evidence path is not admitted")
+if ".context/operaciones/h2_main_production_expand_evidence_extra.json" in local_paths:
+    raise SystemExit("protected path integration test: neighboring main expand evidence path is admitted")
+checkpoint_path = ".context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md"
+if checkpoint_path not in local_paths:
+    raise SystemExit("protected path integration test: exact local fix checkpoint is not admitted")
+if ".context/evidencia/h3req1_protected_path_scope_fix_2026-10-31_extra.md" in local_paths:
+    raise SystemExit("protected path integration test: neighboring fix checkpoint path is admitted")
 for neighbor in (
     "scripts/maintenance/pro_h3_migration_manifest_extra.py",
     "tests/test_h3_pro_migration_manifest_extra.py",
@@ -1064,60 +1075,76 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     if result.returncode == 0 or result.stdout:
         raise SystemExit("promotion pin regression: changed pinned content did not fail without output")
 
-    # Exercise the actual main caller as well as the shared validator above.
-    main_marker = '   if [[ ( "${GITHUB_BASE_REF:-}" == "main" && "${GITHUB_HEAD_REF:-}" == "certificacion" )'
-    main_block = guard.split(main_marker, 1)[1].split("   filter_remaining()", 1)[0]
-    main_block = main_marker + main_block
-    repo, base = create_repo(temp_root, "main-promotion-caller")
-    (repo / "README.md").write_text("already certified content\n", encoding="utf-8")
-    commit(repo, "certified source fixture")
-    source = git(repo, "rev-parse", "HEAD")
-    manifest_path = repo / ".context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json"
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    main_value = {
-        "schema_version": 1, "baseline_sha": base, "source_sha": source,
-        "entries": [{"path": "README.md", "baseline_blob": git(repo, "rev-parse", f"{base}:README.md"),
-                     "source_blob": git(repo, "rev-parse", f"{source}:README.md")}],
-    }
-    # Replace only immutable fixture identities; routing and caller logic stay real.
-    main_block = main_block.replace("70d0f4fee885be0f6780e5d14f466b2a6c897961", base)
-    main_block = main_block.replace("6d73b51bc687d9156f65f5c437bedb0f4f2c617c", source)
-    def run_main_caller(actual_base=base, event="pull_request", head="certificacion", ref="refs/heads/main", value=None):
-        manifest_path.write_text(json.dumps(main_value if value is None else value), encoding="utf-8")
-        env = os.environ.copy()
-        env.update({"GITHUB_BASE_REF": "main" if event == "pull_request" else "",
-                    "GITHUB_HEAD_REF": head if event == "pull_request" else "",
-                    "GITHUB_EVENT_NAME": event, "GITHUB_REF": ref})
-        script = 'set -eu; source "$1"; base="$2"; allowed_h3_local="";\n' + main_block
-        script += '\nprintf "%s" "$allowed_h3_local"'
-        return subprocess.run(["bash", "-c", script, "main-pin-test", str(guard_path), actual_base],
-                              cwd=repo, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    for event in ("pull_request", "push"):
-        result = run_main_caller(event=event)
-        if result.returncode != 0 or result.stdout.strip() != "README.md":
-            raise SystemExit(f"main caller regression: exact {event} failed: {result.stderr}")
-    result = run_main_caller(actual_base=source)
-    if result.returncode == 0 or result.stdout:
-        raise SystemExit("main caller regression: wrong PR baseline did not fail closed")
-    result = run_main_caller(head="unapproved-feature")
-    if result.returncode != 0 or result.stdout:
-        raise SystemExit("main caller regression: non-Certification PR inherited extra paths")
-    for options in ({"actual_base": source}, {"ref": "refs/heads/desarrollo"}):
-        result = run_main_caller(event="push", **options)
-        if result.returncode != 0 or result.stdout:
-            raise SystemExit("main caller regression: unrelated push inherited extra paths")
-    forged = json.loads(json.dumps(main_value))
-    forged["source_sha"] = base
-    result = run_main_caller(value=forged)
-    if result.returncode == 0 or result.stdout:
-        raise SystemExit("main caller regression: manifest-supplied source overrode caller pin")
-    (repo / "README.md").write_text("unreviewed later edit\n", encoding="utf-8")
-    commit(repo, "unreviewed main successor fixture")
-    result = run_main_caller()
-    if result.returncode == 0 or result.stdout:
-        raise SystemExit("main caller regression: changed certified content inherited scope")
+    # Exercise both real promotion callers. Frozen pins are consumed only at their
+    # approved baseline; a later baseline gets no historical extra paths.
+    caller_specs = (
+        ("certification", ".context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json",
+         '   if [[ "$base" == "03515dee69fc42b10808d1c67cc4e00ebacd0c40"'),
+        ("main", ".context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json",
+         '   if [[ "$base" == "70d0f4fee885be0f6780e5d14f466b2a6c897961"'),
+    )
 
-print("main-promotion-caller=PASS|PR=1|push_without_PR_refs=1|wrong_baseline=fail_closed|other_head=no_extra_paths|unrelated_push=no_extra_paths|source_override=fail_closed|successor_drift=fail_closed")
+    def exercise_caller(label, pin_path_relative, marker, base_ref, head_ref, branch_ref,
+                        expected_baseline, expected_source):
+        caller_block = guard.split(marker, 1)[1].split("   filter_remaining()", 1)[0]
+        caller_block = marker + caller_block
+        repo, pinned_base = create_repo(temp_root, f"{label}-promotion-caller")
+        (repo / "README.md").write_text("reviewed source fixture\n", encoding="utf-8")
+        commit(repo, "pinned source fixture")
+        pinned_source = git(repo, "rev-parse", "HEAD")
+        manifest_path = repo / pin_path_relative
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        pin_value = {
+            "schema_version": 1, "baseline_sha": pinned_base, "source_sha": pinned_source,
+            "entries": [{"path": "README.md", "baseline_blob": git(repo, "rev-parse", f"{pinned_base}:README.md"),
+                         "source_blob": git(repo, "rev-parse", f"{pinned_source}:README.md")}],
+        }
+        # The caller receives the same exact baseline/source constants as CI.
+        caller_block = caller_block.replace(expected_baseline, pinned_base)
+        caller_block = caller_block.replace(expected_source, pinned_source)
+        manifest_path.write_text(json.dumps(pin_value), encoding="utf-8")
+        commit(repo, "add exact promotion pins")
+
+        def run_caller(actual_base=pinned_base, event="pull_request", head=head_ref,
+                       ref=branch_ref, value=None):
+            manifest_path.write_text(json.dumps(pin_value if value is None else value), encoding="utf-8")
+            env = os.environ.copy()
+            env.update({"GITHUB_BASE_REF": base_ref if event == "pull_request" else "",
+                        "GITHUB_HEAD_REF": head if event == "pull_request" else "",
+                        "GITHUB_EVENT_NAME": event, "GITHUB_REF": ref})
+            script = 'set -eu; source "$1"; base="$2"; allowed_h3_local="";\n' + caller_block
+            script += '\nprintf "%s" "$allowed_h3_local"'
+            return subprocess.run(["bash", "-c", script, f"{label}-pin-test", str(guard_path), actual_base],
+                                  cwd=repo, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        for event in ("pull_request", "push"):
+            result = run_caller(event=event)
+            if result.returncode != 0 or result.stdout.strip() != "README.md":
+                raise SystemExit(f"{label} caller regression: exact {event} pins failed: {result.stderr}")
+        later_baseline = git(repo, "rev-parse", "HEAD")
+        result = run_caller(actual_base=later_baseline)
+        if result.returncode != 0 or result.stdout:
+            raise SystemExit(f"{label} caller regression: later baseline consumed frozen pins")
+        forged = json.loads(json.dumps(pin_value))
+        forged["source_sha"] = pinned_base
+        result = run_caller(value=forged)
+        if result.returncode == 0 or result.stdout:
+            raise SystemExit(f"{label} caller regression: source drift was not rejected")
+        (repo / "README.md").write_text("unreviewed pinned-content drift\n", encoding="utf-8")
+        commit(repo, "drift pinned content")
+        result = run_caller()
+        if result.returncode == 0 or result.stdout:
+            raise SystemExit(f"{label} caller regression: pinned content drift was not rejected")
+
+    for label, pin_path, marker in caller_specs:
+        if label == "certification":
+            exercise_caller(label, pin_path, marker, "certificacion", "desarrollo", "refs/heads/certificacion",
+                            "03515dee69fc42b10808d1c67cc4e00ebacd0c40", "2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734")
+        else:
+            exercise_caller(label, pin_path, marker, "main", "certificacion", "refs/heads/main",
+                            "70d0f4fee885be0f6780e5d14f466b2a6c897961", "6d73b51bc687d9156f65f5c437bedb0f4f2c617c")
+
+print("promotion-callers=PASS|certification_PR_push=1|main_PR_push=1|later_baseline_skips_pins=2|source_drift=fail_closed|content_drift=fail_closed")
 print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
 print("promotion-manifest-selector=PASS|development_to_certification=1|certification_to_main=1|postmerge_certification=1|postmerge_main=1|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
 print("promotion-path-pins=PASS|exact_tree=1|neighbor_not_selected=1|wrong_baseline=fail_closed|forged_blob=fail_closed|duplicate=fail_closed|content_drift=fail_closed")

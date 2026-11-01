@@ -120,6 +120,8 @@ if [ -n "$changed" ]; then
    allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'
 .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json
 .context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json
+.context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md
+.context/operaciones/h2_main_production_expand_evidence.json
 README.md
 .env.example
 .github/pull_request_template.md
@@ -1296,10 +1298,10 @@ tests/h3_duration_parser.test.mjs
 web/src/components/Footer.tsx
 H3_LOCAL_PATHS
 )
-   if [[ ( "${GITHUB_BASE_REF:-}" == "certificacion" && "${GITHUB_HEAD_REF:-}" == "desarrollo" ) \
-     || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/certificacion" \
-       && "$base" == "03515dee69fc42b10808d1c67cc4e00ebacd0c40" ) ]]; then
-     # Human-approved review scope is the complete accumulated tree, not arbitrary successors.
+   if [[ "$base" == "03515dee69fc42b10808d1c67cc4e00ebacd0c40" \
+     && ( ( "${GITHUB_BASE_REF:-}" == "certificacion" && "${GITHUB_HEAD_REF:-}" == "desarrollo" ) \
+       || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/certificacion" ) ) ]]; then
+     # Consume frozen pins only for the exact baseline they attest; later baselines use ordinary allowlists.
      promotion_paths=$(protected_path_promotion_scope \
        .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json \
        "$base" \
@@ -1307,10 +1309,10 @@ H3_LOCAL_PATHS
        2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734) || exit 1
      allowed_h3_local+=$'\n'"$promotion_paths"
    fi
-   if [[ ( "${GITHUB_BASE_REF:-}" == "main" && "${GITHUB_HEAD_REF:-}" == "certificacion" ) \
-     || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/main" \
-       && "$base" == "70d0f4fee885be0f6780e5d14f466b2a6c897961" ) ]]; then
-     # Carry forward exactly the already-certified accumulated paths, never a folder waiver.
+   if [[ "$base" == "70d0f4fee885be0f6780e5d14f466b2a6c897961" \
+     && ( ( "${GITHUB_BASE_REF:-}" == "main" && "${GITHUB_HEAD_REF:-}" == "certificacion" ) \
+       || ( "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/main" ) ) ]]; then
+     # Carry forward exact accumulated paths only at the baseline attested by these pins.
      promotion_paths=$(protected_path_promotion_scope \
        .context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json \
        "$base" \
