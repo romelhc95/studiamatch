@@ -776,12 +776,12 @@
     },
     {
       "pattern": ".context/operaciones/h2_main_production_expand_evidence.json",
-      "producer": "DB Sync to Production después de verify H2 y revisión de advisors",
-      "inputs": "Metadatos verificados del run, candidate/payload SHA, manifest, cohorte y advisors; el gate de CI valida las referencias contra GitHub",
-      "purpose": "Artifact operativo exacto requerido por h2-main-production-expand-gate de security-audit",
+      "producer": "DB Sync to Production run 41338753002 (#91), workflow_dispatch operation=verify; canonical JSON retains the historical operation=apply contract label",
+      "inputs": "Authenticated candidate/payload SHA 605a6ecca29e20ade8cac3874d380758d18e6a11, manifest h2-expand-compat, cohort count/digest and reviewed advisor metadata; actual Apply was NO-OP and migrations to Pro were skipped",
+      "purpose": "Canonical artifact required by h2-main-production-expand-gate after the guard-bearing Certification candidate",
       "location": ".context/operaciones/h2_main_production_expand_evidence.json",
-      "retention": "Preservar en su ruta exacta; renovar solo por el workflow y JIT propios, nunca editar para simular éxito",
-      "evidence": "La ruta se allowlistea por separado; contenido y ejecución solo cuentan tras la validación independiente del workflow. No inferir éxito por presencia."
+      "retention": "Preserve byte-for-byte at the exact path; replace only from an authenticated workflow artifact and its separate JIT; raw ZIP and advisor bodies remain external evidence",
+      "evidence": "Run 41338753002 SUCCESS, artifact 13096761150; ZIP SHA-256 f7e3ac3a735013f2b3959b668b72913526e51c24dde063ee4c714613d69a5895; member/canonical JSON SHA-256 563de170bbce697408413a212f39d8592238749856a0c6652e0bea4ce8051195. Hash/presence alone does not prove remote runtime or H3 installation."
     },
     {
       "pattern": ".context/operaciones/manifest_h3req1_editorial_atomicity_pg17_2026-10-09.sha256",
@@ -15414,7 +15414,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. The 2026-11-01 run89 checkpoint links the authenticated verify artifact and records that the actual Apply job was a NO-OP; it does not prove H3 installation in Pro. Docker results do not prove Actions, installed hooks, secrets or remote branch protection. The local continuation adds a real Git caller case for the exact DDL path and rejected neighbors in tests/test_security_flow.py, rejects apply status for a DRAFT fixture, uses only a synthetic approved-status fixture, and proves only the DDL file may change after payload; results are recorded in the linked 2026-11-01 checkpoint. The caller regressions run in the existing CI-listed security_flow suite; DRAFT and approved-state fixtures do not freeze the real authorization document status.",
+        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. The 2026-11-01 run89 checkpoint links the authenticated verify artifact and records that the actual Apply job was a NO-OP; it does not prove H3 installation in Pro. Docker results do not prove Actions, installed hooks, secrets or remote branch protection. The local continuation adds a real Git caller case for the exact DDL path and rejected neighbors in tests/test_security_flow.py, rejects apply status for a DRAFT fixture, uses only a synthetic approved-status fixture, and proves only the DDL file may change after payload; results are recorded in the linked 2026-11-01 checkpoint. The caller regressions run in the existing CI-listed security_flow suite; DRAFT and approved-state fixtures do not freeze the real authorization document status. Current authenticated H2 evidence is DB Sync run 91 (41338753002), candidate 605a6ecca29e20ade8cac3874d380758d18e6a11; actual workflow dispatch was verify, Apply NO-OP, and H3 remains unapplied. Run 89 is preserved as prior history. The canonical JSON matches artifact 13096761150 byte-for-byte; the workflow still independently validates the run, jobs, ancestry, cohort/advisors and ZIP members.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15431,7 +15431,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "Local files cannot prove hooks/branch protections/required checks are active on GitHub. The only newly admitted H3 Pro DDL authorization path remains DRAFT_NOT_AUTHORIZED; report/verify, payload values, JIT and production gates are outstanding.",
+        "note": "H2 h2-expand-compat was verified by run 91 on Certification candidate 605a6ecca29e20ade8cac3874d380758d18e6a11; the actual dispatch was verify, Apply was a no-op, and H3 Pro remains not applied. The exact H3 DDL authorization file stays DRAFT_NOT_AUTHORIZED; its presence and H2 evidence do not authorize H3 apply or production changes.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
@@ -15582,7 +15582,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker. Candidate scope and integral results are recorded separately in the current checkpoint; a scoped PASS is not treated as an integral PASS. test_h2_main_gate_checkout_resolves_verified_ancestor executes the actual YAML depth/fetch against a file:// Git fixture, reproducing the old depth-1 failure and full-history success; this does not claim GitHub Actions execution.",
+        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker. Candidate scope and integral results are recorded separately in the current checkpoint; a scoped PASS is not treated as an integral PASS. test_h2_main_gate_checkout_resolves_verified_ancestor executes the actual YAML depth/fetch against a file:// Git fixture, reproducing the old depth-1 failure and full-history success; this does not claim GitHub Actions execution. The local H2 artifact input for the next main gate is the byte-identical JSON from authenticated verify run 91 (C=605a6ecca29e20ade8cac3874d380758d18e6a11); actual Apply was NO-OP and this does not establish H3 installation. Run 89 remains historical.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",

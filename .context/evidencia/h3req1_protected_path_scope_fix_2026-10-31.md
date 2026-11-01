@@ -183,7 +183,7 @@ El diff contiene únicamente los nueve paths enumerados en este checkpoint. El c
 2. Si se aprueba la disposición, el TL obtiene por separado autorización de commit, push no forzado y PR a Desarrollo; esta sesión no los ejecutó.
 3. Tras PR, revisar CI y aprobación; merge requiere instrucción separada. No ejecutar SQL/workflow verify/Pro ni promover a Certification/main bajo este checkpoint.
 
-## Continuación 2026-11-01 — evidencia auténtica del verify H2 Pro, run 89
+## Corte histórico — evidencia auténtica del verify H2 Pro, run 89 (anterior al guard actualizado)
 
 Esta sección actualiza el estado posterior al PR #517 integrado. No reescribe los resultados/disposición del paquete local del 2026-10-31 que anteceden a esta sección.
 
@@ -404,3 +404,104 @@ sintéticos; no son commits de publicación ni autorizaciones productivas.
 No se publicó el paquete ni se repitió UAT aceptada. La admisión de la ruta no
 autoriza DDL. El nuevo verify H2, evidencia auténtica antes de P y JIT posterior
 siguen pendientes de las integraciones y decisiones humanas correspondientes.
+
+
+## Continuación 2026-11-01 — evidencia autenticada H2 verify run 91 y paquete desde Desarrollo
+
+### Candidato y procedencia
+
+- PR #521 quedó integrado; HEAD revisado del PR `64c23fd8a9694f50a2728399bf8e35771bf56fad` y merge SHA Certification `605a6ecca29e20ade8cac3874d380758d18e6a11`.
+- Refs del corte: Desarrollo `64c23fd8a9694f50a2728399bf8e35771bf56fad`, Certification `605a6ecca29e20ade8cac3874d380758d18e6a11`, main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. El deployment normal de Certification `ac707175-75a9-4c5a-9c6b-0786a6a0d517` terminó SUCCESS.
+- Trabajo local: clon limpio iniciado desde Desarrollo 64c23fd en `/tmp/studiamatch-h3req1-run91-evidence-20261101`, rama local `codex/h3req1-run91-evidence-20261101`. El checkout histórico con WIP y los checkouts del TL no se editaron.
+
+### Run #91 autenticado
+
+El [DB Sync to Production run #91](https://github.com/romelhc95/studiamatch/actions/runs/41338753002), run ID `41338753002`, fue `workflow_dispatch` en `certificacion`, candidato C `605a6ecca29e20ade8cac3874d380758d18e6a11`, inicio `2026-11-01 13:51:32` y fin `13:55:15` America/Lima. El workflow concluyó SUCCESS. Los gates Production del mismo run habían sido aprobados por el reviewer autorizado.
+
+- `Report pending migrations`: dry-run SUCCESS, cero pendientes; el paso `H2 Pro preflight digest report` fue SKIPPED en operation verify.
+- Job `Apply pending migrations`: SUCCESS por `Confirm verify no-op`; `Apply migrations to Pro` y pasos de autorización/apply fueron SKIPPED. No hubo aplicación SQL.
+- `Verify target schema`: SUCCESS para `h2-expand-compat`; el reporte indica `Target schema check PASSED`.
+- El artefacto se escribió y subió con SUCCESS. `FG2 deferred` solo registra aplazamiento; no ejecuta writers.
+- Cohorte: 224; digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
+- Advisors comparados con baseline: seguridad 12/12 y rendimiento 17/17, fingerprints idénticos; cero hallazgos nuevos/bloqueantes. No hubo HIGH/CRITICAL/ERROR; INFO/WARN se conservan.
+
+### Integridad del artefacto y JSON canónico
+
+El TL conserva los miembros autenticados en `/tmp/h3req1-tl-supervision-20261101/verify91/`. Artefacto GitHub `13096761150`; ZIP SHA-256 `f7e3ac3a735013f2b3959b668b72913526e51c24dde063ee4c714613d69a5895`; exactamente tres miembros: el JSON de evidencia y los dos reportes de advisors. Los cuerpos del ZIP y los advisors no se versionan.
+
+El JSON de origen `h2-production-expand-verify-evidence.json`, el miembro JSON del ZIP y `.context/operaciones/h2_main_production_expand_evidence.json` tienen SHA-256 `563de170bbce697408413a212f39d8592238749856a0c6652e0bea4ce8051195` y bytes idénticos. Contiene `branch=certificacion`, C como `candidate_sha` y `payload_sha`, `run_id=41338753002`, `manifest=h2-expand-compat`, `verify_result=success`, cohorte 224 y el digest acreditado. Conserva `operation=apply` porque lo requiere el contrato histórico del gate main; el dispatch real fue `verify`, el job Apply fue NO-OP y las migrations to Pro quedaron SKIPPED. La etiqueta del JSON no se interpreta como ejecución de apply.
+
+Hashes locales de los miembros conservados: Security Advisors `ccf20e9fbbbadc5a7a70fcfe7bda3e01883cad87c82eaff326541692b27bf09b`; Performance Advisors `aae2eb25b7bb244157989f72340889a70c9cd6dcb75bf6f8f7f83e7960ada2f3`. Se registra comparación/resumen sanitizado, no sus cuerpos crudos.
+
+Antes del reemplazo, el JSON canónico era run 89 con SHA-256 `d38900871fcdf075a9ce7111820cf27757c26cf854d439cada1bbb52750be41c` y candidato `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee`. Run 89 queda preservado en las secciones históricas anteriores; run 91 es el artefacto operativo vigente para C. No se reejecutó report, verify, login, Resync ni UAT.
+
+### Relaciones, pins y contratos de promoción
+
+Los consumidores reales verificados son `.github/workflows/security-audit.yml` (gate de contenido H2, ancestry, run, jobs y comparación del ZIP), `scripts/security/protected_path_scope_guard.sh` (ruta literal), `tests/test_fase10_main_boundary.py`, `tests/test_h2_pro_migration_controls.py`, `tests/test_protected_path_scope_guard.sh` y el selector de manifiestos de `security-audit.yml`. La ruta ya estaba admitida exactamente; por eso no se amplió el guard ni una carpeta. El H2 main gate permite cambios de gobernanza bajo `.context/` tras C y conserva su comprobación de artefacto independiente.
+
+No se regeneran los pins congelados de Certification/main: sus fuentes y baselines históricos no cambiaron y solo se consumen en el baseline exacto aprobado. El nuevo JSON no modifica el selector ni los caller manifests. Los cambios de este paquete son exclusivamente `.context/`; tests locales no convierten esto en CI remoto. Para H2, el candidato final `M` debe conservar `C` como ancestro y `diff(C,M)` debe pasar el `disallowed_after_candidate` real. No existe aún M final para declarar esa condición satisfecha.
+
+Para el futuro gate H3, `auth_base` debe ser ancestro de `P`; `P` debe ser ancestro de `M`; y `diff(P,M)` debe cambiar únicamente el archivo DDL aprobado. El JSON auténtico, las relaciones, registro, fichas, pins requeridos y evidencia deben integrarse antes de congelar `P`. H2 candidate/payload C no se trata como P y no se añade una condición C→P que el contrato no exige. No se debe hacer squash/rebase en las promociones. El archivo DDL continúa `DRAFT_NOT_AUTHORIZED`; cualquier transición a aprobado requiere una decisión humana separada.
+
+### Transición, límites y rollback
+
+- **Expand:** incluir JSON autenticado y referencias antes de P.
+- **Compatibilidad:** conservar el contrato exacto del gate H2 y la autorización H3 Draft; el cambio no altera runtime ni schema.
+- **Deploy:** solo integraciones protegidas normales. Esta preparación no autoriza publicación ni deploy manual.
+- **Contract:** no hay contracción de producto en este paquete; H3 Pro sigue sin aplicarse/verificarse.
+- **Rollback:** antes de integrar, revertir el diff local documental. Después, usar únicamente un revert protegido del paquete documental si el TL confirma que no invalida el gate H2; nunca reemplazar la evidencia reciente por run 89 para simular vigencia ni tocar DB.
+
+No hubo commit, push, PR, merge, dispatch, SQL remoto, configuración ni deploy ejecutados por esta sesión. Aceptaciones E1–E6 6/6, R1–R4 4/4 y smoke histórico 1/1 se reutilizan intactas. La nota anterior era provisional; los resultados finales del paquete constan en «Revalidación final del paquete local run 91» inmediatamente debajo.
+
+### Revalidación final del paquete local run 91 — 2026-11-01
+
+Esta sección sustituye solo los resultados provisionales de validación local
+anotados antes de completar los objetos del fixture histórico. No modifica ni
+reinterpreta el resultado remoto autenticado de run 91.
+
+- Checkout: `/tmp/studiamatch-h3req1-run91-evidence-20261101`, rama
+  `codex/h3req1-run91-evidence-20261101`, base/HEAD local
+  `64c23fd8a9694f50a2728399bf8e35771bf56fad`; 10 paths, todos `.context/`.
+- El render del registro fuente-componente pasó en Docker sin red. `pytest` focal
+  de `tests/test_fase10_main_boundary.py`, `tests/test_h2_pro_migration_controls.py`
+  y `tests/test_security_flow.py`: 56/56 PASS. El cache `.pytest_cache` creado
+  por pytest fue retirado antes de comparar el checker integral.
+- `tests/test_protected_path_scope_guard.sh` pasó en Docker sin red después de
+  hidratar localmente los blobs del ref histórico PR #501 que faltaban en el
+  clon `blob:none`. El test informa manifest/scope 1196 paths, 13 catálogos y
+  1173 targets; caller PR/push de Certification y main PASS; baseline posterior
+  omite pins históricos; source/content drift falla cerrado; selectores
+  desarrollo→Certification y Certification→main PASS con union/digests y
+  entradas inválidas fail-closed. No se alteraron el guard ni las pruebas.
+- Scanner de credenciales de árbol y del diff: PASS. `git diff --check`: PASS.
+  Los 10 paths del paquete cumplen las regex/listas reales del guard; la
+  evidencia H2 se conserva como ruta exacta y los cambios `.context/` pasan la
+  regex real `disallowed_after_candidate`. Los paths vecinos de evidencia y de
+  estado no quedan admitidos. El check de rutas fue análisis de las reglas
+  locales, no una ejecución GitHub.
+- Verificador local del run 91: PASS para run/jobs, Apply NO-OP, Verify SUCCESS,
+  conteo/digest de cohorte, hashes ZIP/JSON, tres miembros y bytes JSON
+  idénticos. El artifact raw y cuerpos de advisors siguen fuera del repositorio.
+- Checker integral instrumentado solo en copias temporales fuera del repo para
+  imprimir todos los diagnósticos: baseline y candidato 348/348, 0 agregados y
+  0 removidos. `DOC_SELF_TEST_PASS` en ambos, pero exit 1 por el FAIL integral
+  heredado. El self-test candidate-aware del paquete exacto pasó (exit 0); no se
+  presenta como PASS integral. Logs reproducibles:
+  `/tmp/h3req1-run91-validation-20261101/logs/`.
+- La validación de seguridad del delta se limitó a un cambio documental: scanner
+  limpio, revisión de procedencia/JSON/DRAFT sin secretos ni contenido de
+  usuario, y sin cambios ejecutables. No es un scan global ni una revisión CI.
+  ShellCheck/CI remotos no se ejecutaron en este paquete.
+
+No hay SHA de candidato porque no se hizo commit. No existen aún los M/P reales:
+la ancestralidad `C→M`, `auth_base→P`, `P→M` y `diff(P,M)` de un solo archivo
+solo podrán acreditarse después de las integraciones protegidas. Run 91 valida
+H2 en C; no instala ni verifica H3 Pro. El DDL permanece
+`DRAFT_NOT_AUTHORIZED`; run 89 conserva valor histórico. No se repitieron CA
+aceptados ni se hicieron operaciones remotas.
+
+### Disposición documental para este paquete — propuesta pendiente
+
+El gate integral conserva FAIL en el baseline Development `64c23fd8a9694f50a2728399bf8e35771bf56fad` y en el paquete local de 10 paths: 348 diagnósticos idénticos, 0 nuevos y 0 resueltos. Causa demostrada: relaciones/referencias históricas a fuentes retiradas o ausentes que no se recuperan desde Git/copia autorizada. El candidate-aware self-test pasa por separado; no convierte el integral en PASS.
+
+Propuesta para decisión humana, no aprobada: disponer únicamente este residual para tramitar la integración protegida del paquete exacto de la rama local `codex/h3req1-run91-evidence-20261101` hacia Development, sobre la base indicada. Owner propuesto: Romel/TL. Vencimiento propuesto: 2026-11-03 23:59 America/Lima o antes de integrar este paquete, lo que ocurra primero. Riesgo: referencias históricas incompletas; no se identificó impacto funcional en un diff exclusivamente documental. No cubre Certification, main, Pro/H3 DDL, SQL, workflow, configuración, deploy ni checks/review; no habilita publicación, commit, push o merge y no extiende disposiciones anteriores.

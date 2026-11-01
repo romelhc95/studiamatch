@@ -81,6 +81,35 @@ autoriza SQL, workflow ni promoción.
 El borrador y su admisión exacta están enlazados desde el
 [checkpoint local](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
 
+### Evidencia H2 verificada después del guard — run 91 (2026-11-01)
+
+PR #521 quedó integrado en Certification y el run DB Sync `41338753002`
+(`#91`, ref `certificacion`) terminó SUCCESS para C
+`605a6ecca29e20ade8cac3874d380758d18e6a11`. Report pending migrations fue
+dry-run con cero pendientes; `Apply pending migrations` confirmó el NO-OP,
+`Apply migrations to Pro` quedó SKIPPED y `Verify target schema` fue SUCCESS.
+El ZIP autenticado `13096761150` tiene SHA-256
+`f7e3ac3a735013f2b3959b668b72913526e51c24dde063ee4c714613d69a5895`; su miembro
+JSON y el archivo canónico son idénticos, SHA-256
+`563de170bbce697408413a212f39d8592238749856a0c6652e0bea4ce8051195`. Cohorte
+H2: 224, digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
+Advisors: 12 seguridad y 17 rendimiento, fingerprints idénticos al baseline,
+sin HIGH/CRITICAL/ERROR; INFO/WARN permanecen. El JSON conserva `operation=apply`
+por el esquema histórico; la ejecución real fue `workflow_dispatch` con
+`operation=verify`, Apply NO-OP y sin aplicación SQL. Run 89 se mantiene como
+historia. Este resultado acredita H2 `h2-expand-compat` en C, no la instalación
+H3 ni su cierre en Pro.
+
+El JSON, DDL Draft, registro y documentos relacionados se preparan antes de
+congelar un futuro payload `P`; H2 payload/candidato `C` no equivale a H3 `P`.
+Los pins congelados de promociones pasadas permanecen intactos: el nuevo JSON
+usa una ruta ya admitida exactamente y el gate de contenido/artefacto es
+independiente. Para el cierre H2, `C` deberá ser ancestro de `M` y
+`diff(C,M)` respetar `disallowed_after_candidate`. Para H3, el contrato exige
+`auth_base` ancestro de `P`, `P` ancestro de `M` y que `diff(P,M)` cambie solo
+este archivo DDL; no se impone `C` ancestro de `P` sin una regla que lo exija.
+La aprobación humana sigue pendiente y no se declara aquí.
+
 **Estado de prueba:** selección/manifiesto, hashes, dependencias, rechazo de
 entradas inválidas y tests de controles corrieron offline en Docker; el resultado
 consolidado vigente está en el [checkpoint H3REQ1](../evidencia/h3req1_editorial_contract_2026-10-28.md).
