@@ -15410,7 +15410,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. Docker results do not prove Actions, installed hooks, secrets or remote branch protection.",
+        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. The 2026-11-01 run89 checkpoint links the authenticated verify artifact and records that the actual Apply job was a NO-OP; it does not prove H3 installation in Pro. Docker results do not prove Actions, installed hooks, secrets or remote branch protection.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
