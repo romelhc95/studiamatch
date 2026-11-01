@@ -6,7 +6,34 @@
 
 ## Corte vigente
 
-### Continuación 2026-10-31 — guard de scope para el candidato H3REQ1
+### Continuación 2026-11-01 — evidencia auténtica del verify H2 Pro y paquete documental
+
+PR #517 quedó integrado en Certification. Las refs remotas leídas en esta continuación son Desarrollo `9c2e227078ca75714a215f7f0f43be3b837bda69`, Certification `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee` y main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. Certification conserva el merge 15fdc8d con Desarrollo como ancestro y ambos tienen el árbol `8fd6932b81dfb2d86d355d13ebcf5bd98676bcce`; no existe conflicto de producto por la divergencia de main. Deployment normal de Certification `8960fc62-0fd8-4760-87c9-1c0b682c8e75` terminó SUCCESS en `certificacion.studiamatch-aty.pages.dev`.
+
+DB Sync to Production run 89 es `41274863913` ([enlace correcto](https://github.com/romelhc95/studiamatch/actions/runs/41274863913)); el run `41241415710` corresponde al reporte 88 y no se cita como verify 89. El run 89 tuvo 6 jobs SUCCESS y 1 SKIPPED: el modo verify fue confirmado como NO-OP por Apply pending migrations, Apply migrations to Pro quedó SKIPPED y Verify target schema fue SUCCESS. El workflow informó Target schema check PASSED para `h2-expand-compat`, candidato `15fdc8dc…`, cohorte 224 y digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`. H2 figura verificado en ese alcance; esta ejecución no acredita H3 instalado en Pro.
+
+El TL autenticó el artefacto 13070419512 (digest ZIP `sha256:2bc61bde47b79ae30876c3b1d71598e3a3fc70f56a22c90f4bc2be17f1c3ecef`) y conserva los tres miembros en `/tmp/h3req1-tl-audit-20261101/`. `.context/operaciones/h2_main_production_expand_evidence.json` fue reemplazado byte por byte desde el miembro auténtico, SHA-256 `d38900871fcdf075a9ce7111820cf27757c26cf854d439cada1bbb52750be41c`; los hashes de ambos informes advisors y su alcance están en la [sección verify 89 del checkpoint](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md). Se preserva `operation=apply` del schema histórico que consume el gate; no se editó el generador ni el workflow. El dispatch real fue `verify` y Apply fue NO-OP. No se versiona el ZIP ni los cuerpos crudos de advisors.
+
+Este checkout es `/tmp/studiamatch-h3req1-verify-evidence-20261101`, rama local `codex/h3req1-verify-evidence-20261101`, con HEAD `15fdc8dc97933dcc6a77dff65d6b293faadeb2ee`; se inició desde Desarrollo `9c2e227…` y avanzó por fast-forward local hasta Certification, conservando 15fd como ancestro. El checkout WIP original no se modificó. El paquete local tiene seis rutas, todas documentales, y permanece sin commit/publicación. Para los gates que requieren HEAD se usó un fixture Git desechable derivado de `15fd`, con el mismo contenido de las seis rutas documentales; su identidad temporal consta en los logs de `/tmp`, no es SHA candidato de PR.
+
+Se reutilizan sin repetición las aceptaciones vigentes: E1–E6 local 6/6, R1–R4 Development 4/4 y smoke histórico Certification 1/1. No se repitieron onboarding, cuotas ni UAT. No se volvió a ejecutar el reporte 88 ni verify 89; run 89 ocurrió antes de esta preparación documental. En este ciclo no hubo nuevas escrituras SQL, dispatch, push, PR, merge, cambios de configuración ni deploy.
+
+| Etapa | Estado de este corte | Siguiente acción |
+|---|---|---|
+| Verify H2 Pro | Acreditado para el candidato y cohorte registrados; Apply fue NO-OP. | Preservar el artefacto auténtico y no repetir verify sin invalidación concreta. |
+| H3 Pro / Pages-BFF | No instalado ni verificado por run 89. | Preparar JIT separados después de integrar el paquete y revisar el gate Certification→main. |
+| Documentación local | Scanner de árbol/diff, diff-check, render, guardas de las tres rutas, selectores, artefacto y candidate-aware main PASS; integral 348→348 FAIL, self-test PASS, sin delta. | Mantener visible el FAIL integral y someter la disposición limitada a decisión humana. |
+| Integración | Sin commit, push, PR ni merge. El TL crea los PRs. | El TL decide la disposición propuesta y solicita por separado la autorización de publicación del paquete exacto. |
+
+El checker normal usó el mismo código/configuración en baseline Desarrollo `9c2e227…` y candidato documental local: integral FAIL 348→348, cero diagnósticos introducidos y cero resueltos. `DOC_SELF_TEST_PASS` aparece en ambos; el comando sale 1 porque conserva el FAIL integral. La comparación no truncada confirma las mismas clases residuales de rutas históricas faltantes/retiradas y referencias incompletas. Candidate-aware para Certification→main: PASS separado; el selector vigente agregó cuatro paquetes/1.628 rutas al fixture local. No es prueba remota ni convierte el integral en PASS.
+
+En Docker `studiamatch-dev:local`, red deshabilitada: scanner de árbol y diff, `git diff --check`, render del registro, tres comparaciones del guard (feature→Development, Development→Certification, acumulado Certification→main), tres selectores y comprobación local del artefacto terminaron PASS. El ZIP de run 89 conserva digest GitHub `2bc61b…3ecef`, tres miembros y JSON idéntico al canónico (`d3890087…be41c`). El contrato de `security-audit.yml` mantiene las verificaciones de SHA/ancestría, metadatos del run, jobs y descarga/comparación del artefacto; los metadatos/jobs del run 89 se reutilizan del informe TL, sin nueva consulta ni dispatch.
+
+El inicio normal de la imagen abortó antes de pruebas porque sus manifests Node no coinciden con los manifests de la app. No se contó como test. Los checks exclusivamente documentales se ejecutaron después en la misma imagen con Bash/Node/Python, red deshabilitada, sin iniciar la app, sin volumen de dependencias ni secretos. Logs y comparación exacta: `/tmp/h3req1-run89-checks-20261101/`.
+
+Transición: expand = actualizar evidencia documental autenticada; compatibilidad = conservar el path y schema que consume el gate, sin cambiar código ni runtime; deploy = integración protegida independiente por ambiente; contract = no aplica hasta instalar y comprobar H3 en Pro y desplegar BFF/configuración; rollback = revertir solo los cambios documentales por PR protegido, conservando artefactos, auditoría y DB. No activar FG1/FG2/FG3, writers, schedules ni H4.
+
+### Corte histórico 2026-10-31 — guard de scope para el candidato H3REQ1
 
 Estado remoto reutilizado del informe TL `/tmp/h3req1-certification-audit-20261031/informe-tl.md` y de lecturas de refs: Desarrollo `965b4862341cb4550c7833677a9675d52404fb4b`, Certification `eddb5527817aa241801ee1477acb9eb1edd8a409`, main `70d0f4fee885be0f6780e5d14f466b2a6c897961`. El deployment normal de Certification corresponde a `eddb5527…`; el reporte #88/run `41241415710` terminó success para `h2-expand-compat`: 5/5 migraciones, 224 cursos elegibles/visibles y cero pendientes. `verify` y `apply` fueron skipped; no se afirma H3 instalado en Pro. Aceptaciones reutilizadas sin repetición: E1–E6 local 6/6, Development R1–R4 4/4 y smoke histórico Certification 1/1.
 
