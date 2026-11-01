@@ -42,6 +42,20 @@ La sección “Continuación main — 31-oct-2026” que sigue describe el basel
 anterior de este trabajo y se conserva solo como historia; sus pins y resultado
 no se trasladan automáticamente a un candidato sucesor.
 
+### Admisión exacta del borrador DDL H3 Pro — 01-nov-2026
+
+El scope guard añade una sola ruta literal:
+`.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md`.
+No admite el directorio ni IDs vecinos. El documento en esa ruta queda con
+`Status: DRAFT_NOT_AUTHORIZED`; su presencia en el payload no satisface el
+check del workflow que exige una autorización aprobada. El archivo solo podrá
+ser completado tras un report/verify H2 nuevo sobre el SHA real de Certification
+que ya incluya este guard. Run 89 precede al cambio y no se reutiliza para ese
+candidato. El flujo sigue exigiendo que, después del payload, el único archivo
+modificado sea el DDL authorization file; la prueba ejecuta las expresiones del
+guard y del apply gate existentes. Detalle local y resultados en el
+[checkpoint de admisión](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
+
 ## Límites del control local
 
 Remediación CI PR #512: el inventario de consumidores registra también los tests

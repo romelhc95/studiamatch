@@ -63,6 +63,24 @@ Rollback de aplicación: volver al deployment de código compatible y mantener e
 schema expandido; una corrección SQL requiere migration forward-only y JIT propio.
 Este candidato no ejecutó workflow, SQL ni PG17 con DDL.
 
+### Borrador de autorización H3 Pro — 2026-11-01
+
+La ruta `.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md`
+se conserva como `DRAFT_NOT_AUTHORIZED`. No habilita `apply`: el workflow exige
+el estado de aprobación exacto, el manifest `h3-editorial-expand`, payload y
+base ancestrales, digest de cohorte, digest no-auth y gates de Backup/PITR y
+Production. Los valores dependientes del candidato y de la revisión humana no
+se presentan como conocidos en el borrador. Deben fijarse después de integrar
+el guard a Certification y obtener un report/verify H2 autorizado sobre ese
+SHA; run 89 es anterior al guard y no acredita el candidato futuro. Todos los
+JSON, pins, relaciones y documentos de evidencia deben quedar integrados antes
+del payload `P`. Luego, la autorización humana podrá cambiar solo este archivo;
+el gate debe rechazar cualquier archivo adicional en `diff(P,M)`. Esta nota no
+autoriza SQL, workflow ni promoción.
+
+El borrador y su admisión exacta están enlazados desde el
+[checkpoint local](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
+
 **Estado de prueba:** selección/manifiesto, hashes, dependencias, rechazo de
 entradas inválidas y tests de controles corrieron offline en Docker; el resultado
 consolidado vigente está en el [checkpoint H3REQ1](../evidencia/h3req1_editorial_contract_2026-10-28.md).

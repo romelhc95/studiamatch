@@ -122,6 +122,7 @@ if [ -n "$changed" ]; then
 .context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json
 .context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md
 .context/operaciones/h2_main_production_expand_evidence.json
+.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md
 README.md
 .env.example
 .github/pull_request_template.md
