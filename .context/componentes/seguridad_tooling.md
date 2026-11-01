@@ -1,5 +1,34 @@
 # Controles de seguridad y tooling
 
+## Corrección de baseline de pins y evidencia H2 — 31-oct-2026
+
+El guard permite solo la ruta exacta
+`.context/operaciones/h2_main_production_expand_evidence.json`; su contenido
+sigue sujeto al gate H2 de `security-audit.yml`, que valida schema, manifest,
+operación, verify, cohortes, advisors, ancestry, ejecución y artifact. La
+allowlist de paths no acredita ni reemplaza esas validaciones.
+
+Los manifests congelados de Promotion Scope se consumen solo cuando el baseline
+real coincide con el SHA fijado en el manifest y en el caller. Esto se aplica
+igual a eventos PR y push. Ante un baseline posterior, el guard no agrega el
+scope histórico: usa las allowlists ordinarias y rechaza paths no autorizados.
+El validador conserva comprobaciones de fuente, ancestría, entradas únicas,
+blobs de baseline/source, tree de HEAD y ausencia de drift. Las pruebas cubren
+ambos callers, los dos eventos, baseline posterior, fuente forjada, drift de
+contenido y vecino del archivo de evidencia.
+
+Validación final local en Docker sin red: suite focal, contrato de límite main,
+ShellCheck v0.11.0, comparaciones de las tres rutas reales, scanner del árbol y
+checkpoint, diff-check y render PASS. El checker normal mantiene FAIL integral
+348→348 (delta cero); el self-test interno emitió `DOC_SELF_TEST_PASS`, mientras
+el proceso envolvente salió 1 por el FAIL integral. No se ejecutó Actions ni
+promoción y no se acredita H3 instalado en Pro. El detalle, la disposición
+documental pendiente y los límites se registran en el [checkpoint del fix](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
+
+La sección “Continuación main — 31-oct-2026” que sigue describe el baseline
+anterior de este trabajo y se conserva solo como historia; sus pins y resultado
+no se trasladan automáticamente a un candidato sucesor.
+
 ## Límites del control local
 
 Remediación CI PR #512: el inventario de consumidores registra también los tests
