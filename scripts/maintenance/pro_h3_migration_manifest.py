@@ -1,4 +1,7 @@
-"""Pinned, closed H3 Pro migration selection used by the existing DB Sync flow."""
+"""Pinned, closed H3 Pro migration selection used by the existing DB Sync flow.
+
+StudIAMatch-Docs: .context/componentes/database_migrations.md#h3-pro-promotion-manifest
+"""
 
 from __future__ import annotations
 
@@ -40,6 +43,7 @@ H3_PRO_MIGRATIONS = (
     "20261025_h3_admin_members_onboarding_forbidden_status",
     "20261028_h3_editorial_publication_snapshot",
     "20261028_h3_public_price_projection_empty_price_guard",
+    "20261102_h3_legacy_public_withdrawal_guard",
 )
 
 H3_PRO_MIGRATION_SHA256 = {
@@ -74,6 +78,7 @@ H3_PRO_MIGRATION_SHA256 = {
     "20261025_h3_admin_members_onboarding_forbidden_status": "11c46cebb640cc6e015926ac7ab6120ca9f0180e43e451909a94ea316960502d",
     "20261028_h3_editorial_publication_snapshot": "2c2bd2238f03a1b5bec2d47fb4bc8a9f0fe1650501378a8ff2dde8746b2a0fef",
     "20261028_h3_public_price_projection_empty_price_guard": "82b8eb0655779f0e82b979cb65a051f2b244b5c4bffb199c5e13c9473132987b",
+    "20261102_h3_legacy_public_withdrawal_guard": "a719310811dd9b5a992f4a0002931b4a6c9f6a84aac2f84cdd217daead97a7b6",
 }
 
 # Explicit non-lexical dependencies. The complete ordered list is also pinned above.
@@ -88,6 +93,10 @@ H3_PRO_MIGRATION_PRECEDENCE = (
     (
         "20261028_h3_editorial_publication_snapshot",
         "20261028_h3_public_price_projection_empty_price_guard",
+    ),
+    (
+        "20261028_h3_public_price_projection_empty_price_guard",
+        "20261102_h3_legacy_public_withdrawal_guard",
     ),
 )
 

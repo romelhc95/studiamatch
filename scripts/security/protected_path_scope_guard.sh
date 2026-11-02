@@ -223,6 +223,7 @@ db/migrations/20261010_h3_admin_members_service_select.sql
 db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql
 db/migrations/20261028_h3_editorial_publication_snapshot.sql
 db/migrations/20261028_h3_public_price_projection_empty_price_guard.sql
+db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql
 scripts/core/integrity_ping.py
 scripts/core/universal_harvester.py
 scripts/security/scan_credentials.sh
@@ -232,6 +233,12 @@ tests/h3_public_price_projection_pg17.sh
 tests/sql/h3_public_price_projection_pg17_setup.sql
 tests/sql/h3_public_price_projection_pg17_assert.sql
 tests/test_h3_public_price_projection_migration.py
+tests/h3_legacy_public_withdrawal_pg17.sh
+tests/sql/h3_legacy_public_withdrawal_pg17_setup.sql
+tests/sql/h3_legacy_public_withdrawal_pg17_reader_view.sql
+tests/sql/h3_legacy_public_withdrawal_pg17_assert.sql
+tests/test_h3_legacy_public_withdrawal_migration.py
+tests/h3req1_pr528_ui_regressions.test.mjs
 tests/test_h2_development_legacy_compat.py
 tests/test_h2_pro_migration_controls.py
 .githooks/pre-push

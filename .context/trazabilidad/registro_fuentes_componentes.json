@@ -126,10 +126,10 @@
       }
     },
     "integration_projection": {
-      "name": "candidato local H3REQ1 CA4.6 y promoción certificacion→main — 2026-10-29",
-      "source_set": "Fuentes del desarrollo integrado 6f059a0b más el delta local exacto de esta remediación; WIP no seleccionado permanece señalado por grupo y no se incorpora al candidato.",
-      "candidate_only_path_count_at_cut": 305,
-      "note": "Proyección recalculada en el checkout limpio desarrollo@6f059a0b más este delta local: 447 fuentes relevantes y 305 fuentes candidate-only registradas; incluye el lector H2/Pro y su test focal. Las omisiones del acumulado siguen sujetas a selección exacta y cobertura del diff completo.",
+      "name": "candidato local H3REQ1 PR #528 y sincronización main — 2026-11-02",
+      "source_set": "Desarrollo 571a81175f5b807251d6d266fa77b0c91c15d642 más los siete paths candidate-only exactos de la remediación PR #528; WIP no seleccionado permanece señalado por grupo y no se incorpora al candidato.",
+      "candidate_only_path_count_at_cut": 312,
+      "note": "Proyección recalculada en copias limpias baseline/candidato: 447 fuentes relevantes y 312 fuentes candidate-only registradas en el candidato (305 baseline + siete paths candidate-only de este delta). Incluye el lector H2/Pro y su test focal. Las omisiones del acumulado siguen sujetas a selección exacta y cobertura del diff completo.",
       "refresh": "Al reconciliar paso 3, recalcular todas las listas con el manifiesto combinado; no reutilizar estas listas si cambia el scope.",
       "projected_relevant_source_paths_at_cut": 447
     }
@@ -1191,12 +1191,13 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Auth UI, MFA, onboarding, queue/edit/publication contracts described in frontend/backend. CA4 candidate: active editors can re-edit the full 13-field allowlist; save updates draft only; Admin publication updates the public snapshot, and the preview labels both states. Audit rendering suppresses only the publish-action availability_status key omitted by the SQL contract; explicit nulls, editorial changes, and real removals remain visible.",
+        "note": "Auth UI, MFA, onboarding, queue/edit/publication contracts described in frontend/backend. CA4 candidate: active editors can re-edit the full 13-field allowlist; save updates draft only; Admin publication updates the public snapshot, and the preview labels both states. Audit rendering suppresses only the publish-action availability_status key omitted by the SQL contract; explicit nulls, editorial changes, and real removals remain visible. The local session guard enables activity only after validating a new authenticated session; generic assurance failures remain retryable and queue reads remain gated on AAL2.",
         "evidence": [
           "path:web/src/app/admin/accept-invite/page.tsx",
           "path:web/src/app/admin/auth/callback/page.tsx",
           "path:web/src/app/admin/edit/page.tsx",
-          "path:web/src/lib/admin-audit-changes.mjs"
+          "path:web/src/lib/admin-audit-changes.mjs",
+          "path:tests/h3req1_pr528_ui_regressions.test.mjs"
         ]
       },
       "consumers": {
@@ -1218,14 +1219,15 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Cada path tiene referencias de suite o ausencia de referencia literal dentro del scope `tests/` y extensiones descrito en .context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md. Una arista de test prueba que el test lee/asserta fuente, no que el test haya pasado ni que cubra todo el contrato. El test candidate-only tests/admin_header_responsive.test.mjs verifica las clases flex responsivas de web/src/app/admin/page.tsx; es una assertion source-level y no sustituye la medición real en viewport móvil.",
+        "note": "Cada path tiene referencias de suite o ausencia de referencia literal dentro del scope `tests/` y extensiones descrito en .context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md. Una arista de test prueba que el test lee/asserta fuente, no que el test haya pasado ni que cubra todo el contrato. El test candidate-only tests/admin_header_responsive.test.mjs verifica las clases flex responsivas de web/src/app/admin/page.tsx; es una assertion source-level y no sustituye la medición real en viewport móvil. The 2026-11-02 candidate-only test transpiles and executes the actual AdminSessionGuard and AdminCourseQueue TSX with mocks for relogin/expiry/cross-tab logout, invalid sessions, assurance retry, AAL1 and AAL2; it is component-level evidence, not browser UAT or remote runtime proof.",
         "evidence": [
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
           "path:tests/admin_audit_changes.test.mjs",
           "path:tests/admin_header_responsive.test.mjs",
           "path:tests/h3_local_uat.mjs",
-          "path:tests/test_h3_admin_queue_ux_contract.py"
+          "path:tests/test_h3_admin_queue_ux_contract.py",
+          "path:tests/h3req1_pr528_ui_regressions.test.mjs"
         ],
         "resolution": "Map the exact runner, case/assertion, fixture/input and dated result. Re-run only tests affected by changed inputs in Docker; historical results remain scoped to their recorded cut."
       },
@@ -1265,7 +1267,8 @@
         "web/src/lib/admin-auth.ts",
         "web/src/lib/admin-audit-changes.mjs",
         "tests/admin_header_responsive.test.mjs",
-        "tests/admin_audit_changes.test.mjs"
+        "tests/admin_audit_changes.test.mjs",
+        "tests/h3req1_pr528_ui_regressions.test.mjs"
       ],
       "source_document": {
         "path": ".context/componentes/admin_portal.md",
@@ -1273,7 +1276,8 @@
       },
       "candidate_only_paths": [
         "tests/admin_header_responsive.test.mjs",
-        "tests/admin_audit_changes.test.mjs"
+        "tests/admin_audit_changes.test.mjs",
+        "tests/h3req1_pr528_ui_regressions.test.mjs"
       ]
     },
     {
@@ -19998,7 +20002,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "La página /admin pasa el rol admin/user. Con AAL2 el componente consulta facets y la cola por RPC allowlisted; solicita page size 20, cursor opaco, estado editorial/calidad e institución, y muestra contador, navegación y errores. No ejecuta DML desde browser.",
+        "note": "La página /admin pasa el rol admin/user. Con AAL2 el componente consulta facets y la cola por RPC allowlisted; solicita page size 20, cursor opaco, estado editorial/calidad e institución, y muestra contador, navegación y errores. No ejecuta DML desde browser. Assurance errors remain visible and retryable; only a fresh AAL2 response allows queue/facet calls.",
         "evidence": [
           "path:web/src/components/AdminCourseQueue.tsx",
           "path:web/src/app/admin/page.tsx",
@@ -20026,14 +20030,15 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La matriz de relación identifica assertions en los dos contratos focales; R178 conserva el corte funcional y sus resultados/limitaciones. Este registro enlaza los casos, no afirma que toda suite haya pasado en este corte documental. Los tests candidate-only tests/admin_queue_request_guard.test.mjs cubren una respuesta diferida fuera de orden y que éxito/error/finally requieren la generación actual; la simulación no es una ejecución de PostgREST.",
+        "note": "La matriz de relación identifica assertions en los dos contratos focales; R178 conserva el corte funcional y sus resultados/limitaciones. Este registro enlaza los casos, no afirma que toda suite haya pasado en este corte documental. Los tests candidate-only tests/admin_queue_request_guard.test.mjs cubren una respuesta diferida fuera de orden y que éxito/error/finally requieren la generación actual; la simulación no es una ejecución de PostgREST. Candidate-only TSX regression verifies initial assurance errors stay visible, retry rechecks assurance, AAL1 does not call queue/facets, only the latest assurance response can enable reads, and an older AAL2 cannot supersede newer AAL1/error.",
         "evidence": [
           "path:tests/test_h3_admin_queue_ux_contract.py",
           "path:tests/test_mfa_compatibility_contract.py",
           "path:.context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
           "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
           "path:tests/admin_queue_request_guard.test.mjs",
-          "path:web/src/lib/admin-queue-request-guard.mjs"
+          "path:web/src/lib/admin-queue-request-guard.mjs",
+          "path:tests/h3req1_pr528_ui_regressions.test.mjs"
         ]
       },
       "operations": {
@@ -20665,6 +20670,152 @@
       }
     },
     {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261102-h3-legacy-public-withdrawal-guard",
+      "purpose": "H3 forward-only correction: explicit unpublish/archive events remove a course from the legacy-only public fallback while retaining cohort, course, snapshot and audit data.",
+      "paths": [
+        "db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+        "tests/sql/h3_legacy_public_withdrawal_pg17_setup.sql",
+        "tests/sql/h3_legacy_public_withdrawal_pg17_reader_view.sql",
+        "tests/sql/h3_legacy_public_withdrawal_pg17_assert.sql"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "migration-20261102-h3-legacy-public-withdrawal"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+        "tests/sql/h3_legacy_public_withdrawal_pg17_setup.sql",
+        "tests/sql/h3_legacy_public_withdrawal_pg17_reader_view.sql",
+        "tests/sql/h3_legacy_public_withdrawal_pg17_assert.sql"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Replaces only private.h3_legacy_public_course_cohort and filters IDs with append-only course_editorial_audit actions unpublish/archive. Legacy rows without those events retain fallback; current published state remains public through the strict snapshot path. No cohort or business rows are removed.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20260828_h3_admin_editorial_rpc.sql"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "Consumed by the existing private.h2_public_courses_effective() compatibility projection via private.h3_legacy_public_course_cohort; the public view and RPC signatures are unchanged.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Reads append-only unpublish/archive audit events; does not insert/update/delete courses, cohort, editorial state, snapshots or audit. The migration changes only a view definition and ACL.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:db/migrations/20260827_h2_pro_expand_schema_compat.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Static source and fixture contracts map legacy intact, strict published snapshot, explicit unpublish/archive exclusion, republication and data/audit preservation. The PostgreSQL 17 disposable replay harness was executed once under the exact approved JIT in a network-isolated container; it passed with the recorded marker. It covers synthetic projection states, ACL and idempotence, not editorial RPC end-to-end or remote Pro.",
+        "evidence": [
+          "path:tests/test_h3_legacy_public_withdrawal_migration.py",
+          "path:tests/h3_legacy_public_withdrawal_pg17.sh",
+          "path:tests/sql/h3_legacy_public_withdrawal_pg17_assert.sql"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Local forward-only SQL is prepared; one exact-JIT-authorized disposable PostgreSQL 17 fixture database was executed once and cleaned. No Supabase SQL, remote workflow dispatch or deployment was executed. Production apply requires a separate exact DDL JIT, manifest/hash validation, acceptable backup decision and protected Production gate. Recovery preserves cohort/audit/snapshots and uses a reviewed forward correction if projection regression occurs.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "New local candidate migration derived from the corroborated PR #528 reproduction and source RPC/view definitions; no remote schema adoption or course data is implied.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20260828_h3_admin_editorial_rpc.sql"
+        ]
+      }
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "required",
+      "comment_target": null,
+      "id": "database-migration-20261102-h3-legacy-public-withdrawal-guard-tests",
+      "purpose": "H3 withdrawal PG17 fixture runner and static migration contract tests.",
+      "paths": [
+        "tests/h3_legacy_public_withdrawal_pg17.sh",
+        "tests/test_h3_legacy_public_withdrawal_migration.py"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "migration-20261102-h3-legacy-public-withdrawal"
+      },
+      "candidate_only_paths": [
+        "tests/h3_legacy_public_withdrawal_pg17.sh",
+        "tests/test_h3_legacy_public_withdrawal_migration.py"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Replaces only private.h3_legacy_public_course_cohort and filters IDs with append-only course_editorial_audit actions unpublish/archive. Legacy rows without those events retain fallback; current published state remains public through the strict snapshot path. No cohort or business rows are removed.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20260828_h3_admin_editorial_rpc.sql"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "Consumed by the existing private.h2_public_courses_effective() compatibility projection via private.h3_legacy_public_course_cohort; the public view and RPC signatures are unchanged.",
+        "evidence": [
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Reads append-only unpublish/archive audit events; does not insert/update/delete courses, cohort, editorial state, snapshots or audit. The migration changes only a view definition and ACL.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:db/migrations/20260827_h2_pro_expand_schema_compat.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Static source and fixture contracts map legacy intact, strict published snapshot, explicit unpublish/archive exclusion, republication and data/audit preservation. The PostgreSQL 17 disposable replay harness was executed once under the exact approved JIT in a network-isolated container; it passed with the recorded marker. It covers synthetic projection states, ACL and idempotence, not editorial RPC end-to-end or remote Pro.",
+        "evidence": [
+          "path:tests/test_h3_legacy_public_withdrawal_migration.py",
+          "path:tests/h3_legacy_public_withdrawal_pg17.sh",
+          "path:tests/sql/h3_legacy_public_withdrawal_pg17_assert.sql"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Local forward-only SQL is prepared; one exact-JIT-authorized disposable PostgreSQL 17 fixture database was executed once and cleaned. No Supabase SQL, remote workflow dispatch or deployment was executed. Production apply requires a separate exact DDL JIT, manifest/hash validation, acceptable backup decision and protected Production gate. Recovery preserves cohort/audit/snapshots and uses a reviewed forward correction if projection regression occurs.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "New local candidate migration derived from the corroborated PR #528 reproduction and source RPC/view definitions; no remote schema adoption or course data is implied.",
+        "evidence": [
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20260828_h3_admin_editorial_rpc.sql"
+        ]
+      }
+    },
+    {
       "id": "pro-h3-migration-manifest",
       "component": "database",
       "purpose": "Closed, hash-pinned H3 Pro migration selection and compatibility preflight contract.",
@@ -20673,11 +20824,12 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Exact 31-file H3 inventory with SHA-256 pins and explicit precedence; shared six-manifest Pro registry imported by db_migrate and dependency-free workflow preflight. Rejects invalid registry/selection, missing SQL and H3 hash drift; validates aggregate H2 cohort inputs. Does not apply SQL.",
+        "note": "Exact 32-file H3 inventory with SHA-256 pins and explicit precedence; shared six-manifest Pro registry imported by db_migrate and dependency-free workflow preflight. Rejects invalid registry/selection, missing SQL and H3 hash drift; validates aggregate H2 cohort inputs. Does not apply SQL. The 2026-11-02 candidate appends the legacy-withdrawal guard migration with its byte-pinned SHA-256 and explicit dependency after the price projection guard.",
         "evidence": [
           "path:scripts/maintenance/pro_h3_migration_manifest.py",
           "path:db/migrations/20260828_h3_admin_auth.sql",
-          "path:tests/test_h3_pro_migration_manifest.py"
+          "path:tests/test_h3_pro_migration_manifest.py",
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql"
         ]
       },
       "consumers": {
@@ -20699,11 +20851,12 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Focused Docker tests execute the actual YAML preflight for all six manifests and reject invalid selection, registry drift, absent H2 SQL and altered H3 SQL; isolated stdlib-only import is tested. Inventory/order/hash pins, H2 inputs and main-only boundary remain covered; see current checkpoint.",
+        "note": "Focused Docker tests execute the actual YAML preflight for all six manifests and reject invalid selection, registry drift, absent H2 SQL and altered H3 SQL; isolated stdlib-only import is tested. Inventory/order/hash pins, H2 inputs and main-only boundary remain covered; see current checkpoint. The candidate extends the exact ordered inventory to 32 and rejects missing, reordered, extra, changed-SQL and invalid-environment selections; the new PG17 fixture was executed once under its exact JIT, with PASS recorded in the current checkpoint.",
         "evidence": [
           "path:tests/test_h3_pro_migration_manifest.py",
           "path:tests/test_h2_pro_migration_controls.py",
-          "path:tests/test_fase10_main_boundary.py"
+          "path:tests/test_fase10_main_boundary.py",
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql"
         ]
       },
       "operations": {

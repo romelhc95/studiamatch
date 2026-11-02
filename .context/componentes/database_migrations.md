@@ -16,7 +16,7 @@ del YAML con cada uno de los seis manifests, selección inválida, drift del
 registro, SQL ausente y hash H3 alterado. Una prueba con Python `-I -S` confirma
 que el registro no requiere dependencias instaladas. No se ejecutó SQL.
 
-### Candidate local del manifiesto H3 Pro — 2026-10-29
+### Candidate local del manifiesto H3 Pro — 2026-10-29 (histórico)
 
 El módulo [`pro_h3_migration_manifest.py`](../../scripts/maintenance/pro_h3_migration_manifest.py)
 declara el inventario ordenado y cerrado de **31** migrations H3, con SHA-256
@@ -113,6 +113,40 @@ La aprobación humana sigue pendiente y no se declara aquí.
 **Estado de prueba:** selección/manifiesto, hashes, dependencias, rechazo de
 entradas inválidas y tests de controles corrieron offline en Docker; el resultado
 consolidado vigente está en el [checkpoint H3REQ1](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
+### Remediación local de PR #528 — corte 2026-11-02
+
+El candidato local basado en Desarrollo `571a81175f5b807251d6d266fa77b0c91c15d642`
+añade la migration correctiva `20261102_h3_legacy_public_withdrawal_guard.sql`
+al final del manifest H3. El manifest queda en 32 migrations ordenadas y con
+SHA-256 fijado por bytes; la nueva arista de precedencia es
+`20261028_h3_public_price_projection_empty_price_guard` →
+`20261102_h3_legacy_public_withdrawal_guard`. La migration solo sustituye la
+vista privada de cohorte legacy y no escribe cursos, snapshots, auditoría ni
+filas de cohorte. El harness PG17 desechable se ejecutó una vez bajo JIT local
+exacto, con `postgres:17` fijado por digest; terminó PASS y limpió el contenedor.
+Prueba lector, ACL, idempotencia y estados sintéticos directos, no RPCs de punta
+a punta ni runtime Pro. No se aplicó SQL a Supabase.
+
+Este paquete cambia código UI, el manifest y SQL después del candidato H2
+`C=605a6ecca29e20ade8cac3874d380758d18e6a11`. El filtro real
+`disallowed_after_candidate` de `security-audit.yml` admite solo documentos,
+`AGENTS.md`, ese workflow y cuatro tests enumerados; este delta contiene rutas
+fuera de ese filtro. Run #91 no cubre el nuevo candidato. Tras integrar el paquete
+a Certification se necesita un report/verify H2 nuevo, con JIT propio, antes de
+preparar `P`; la cohorte y digest se deben volver a leer, no asumir que siguen
+siendo 224. La autorización DDL anterior corresponde a bytes/manifest anteriores
+y no se transfiere. La próxima autorización H3 se prepara para el candidato real
+después de integrar todos los documentos; tras congelar `P`, solo podrá cambiar
+el archivo DDL autorizado.
+
+Transición: expand conserva la vista H2 y la cohorte; compatibilidad retira solo
+legacy explícitamente despublicado/archivado mientras el camino snapshot publicado
+permanece activo; deploy sigue por promociones protegidas y apply H3 requiere JIT
+separado; contract no elimina datos ni historia. Rollback de aplicación conserva
+el schema expandido; una regresión de lectura requiere una corrección forward-only
+revisada, sin borrar cohortes, snapshots o auditoría. Este corte no modifica
+H2/Pro ni acredita runtime remoto.
 
 
 ## 202604
@@ -264,6 +298,28 @@ antes de revalidar el deployment compatible; no requiere rebuild ni deploy manua
 Rollback: preparar y aprobar un fix forward que restaure la lectura previa solo tras
 confirmar que ya no hay snapshots incompatibles; no borrar datos ni auditoría. Ver
 [checkpoint R1–R4 y fix](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
+<a id="migration-20261102-h3-legacy-public-withdrawal"></a>
+### Migration 20261102 — H3 legacy public withdrawal
+
+`20261102_h3_legacy_public_withdrawal_guard.sql` reemplaza únicamente la vista
+privada `private.h3_legacy_public_course_cohort`: conserva la cohorte H2 intacta,
+pero excluye del fallback legacy los cursos con un evento append-only `unpublish`
+o `archive`. La lectura publicada sigue la rama estricta existente y usa el
+snapshot aprobado; no se reponen valores del harvester. La migración es repetible,
+no modifica cursos, cohortes, snapshots o auditoría y no concede acceso directo a
+la vista privada. Su hash exacto forma parte del manifest H3 Pro de 32 migraciones.
+
+El harness preparado usa un contenedor PostgreSQL 17 fijado por digest, red
+deshabilitada, almacenamiento temporal y filas sintéticas. Comprueba legacy
+intacto, snapshot publicado, retiro por ambas acciones, republicación y
+conservación de filas/auditoría. El harness no se ejecutó en este corte: requiere
+JIT local separado para DDL en el fixture desechable. Las pruebas UI y los
+contratos de selección sí se ejecutaron en Docker; nada de esto prueba schema o
+runtime remoto. Rollback: no borrar historial ni cohortes; para recuperar una
+regresión del filtrado se requiere una corrección forward-only revisada que
+restablezca la vista compatible, seguida de lectura pública controlada. No se
+reescribe la migration ya aplicada en Free.
 
 ## Fichas exactas y relaciones por migration
 

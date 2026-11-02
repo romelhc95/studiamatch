@@ -222,6 +222,18 @@ price_projection_paths = {
 if not price_projection_paths.issubset(local_paths):
     raise SystemExit("protected path integration test: an exact public-price projection path is not allowlisted")
 
+legacy_withdrawal_paths = {
+    "db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql",
+    "tests/h3_legacy_public_withdrawal_pg17.sh",
+    "tests/sql/h3_legacy_public_withdrawal_pg17_setup.sql",
+    "tests/sql/h3_legacy_public_withdrawal_pg17_reader_view.sql",
+    "tests/sql/h3_legacy_public_withdrawal_pg17_assert.sql",
+    "tests/test_h3_legacy_public_withdrawal_migration.py",
+    "tests/h3req1_pr528_ui_regressions.test.mjs",
+}
+if not legacy_withdrawal_paths.issubset(local_paths):
+    raise SystemExit("protected path integration test: an exact H3 legacy-withdrawal path is not allowlisted")
+
 for unreviewed_editorial_neighbor in (
     ".context/evidencia/h3req1_editorial_contract_extra_2026-10-28.md",
     ".context/evidencia/h3req1_editorial_contract_candidate_scope_extra_2026-10-28.json",
@@ -237,6 +249,13 @@ for unreviewed_editorial_neighbor in (
     "tests/sql/h3_public_price_projection_pg17_setup_extra.sql",
     "tests/sql/h3_public_price_projection_pg17_assert_extra.sql",
     "tests/test_h3_public_price_projection_migration_extra.py",
+    "db/migrations/20261102_h3_legacy_public_withdrawal_guard_extra.sql",
+    "tests/h3_legacy_public_withdrawal_pg17_extra.sh",
+    "tests/sql/h3_legacy_public_withdrawal_pg17_setup_extra.sql",
+    "tests/sql/h3_legacy_public_withdrawal_pg17_reader_view_extra.sql",
+    "tests/sql/h3_legacy_public_withdrawal_pg17_assert_extra.sql",
+    "tests/test_h3_legacy_public_withdrawal_migration_extra.py",
+    "tests/h3req1_pr528_ui_regressions_extra.test.mjs",
 ):
     if unreviewed_editorial_neighbor in local_paths or any(
         re.search(pattern, unreviewed_editorial_neighbor) for pattern in patterns
