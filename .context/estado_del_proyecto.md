@@ -6,7 +6,83 @@
 
 ## Corte vigente
 
-### Preparación local de evidencia H2 — run 91 (2026-11-01)
+### Recepción H3REQ1 posterior a PR #523 — corte de evidencia 2026-11-01
+
+PR #523 está aprobado e integrado en Certification. Refs verificadas en este
+corte: Desarrollo `60ac3ca0fb51635eabe025499865187522c2ac90`, Certification
+`9232c13ef3dd80bfedb0c7e31408835cd767571c` y main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. Desarrollo y Certification tienen
+el árbol `d017d2fc59f1013466d4cad0e5cd0b4e1c8f1103`; el merge de Certification
+conserva los padres esperados. El CI propio del merge #523 terminó con 15
+success y 2 skipped, sin fallos ni ejecuciones pendientes según la revisión TL.
+El deployment normal de Certification
+`7abd38e1-8242-44c1-a61b-3c81ea70e2ae` terminó SUCCESS en
+`certificacion.studiamatch-aty.pages.dev`. Main no ha recibido esta promoción.
+
+Se conserva sin repetición la aceptación funcional: E1–E6 local 6/6,
+Development R1–R4 4/4 y smoke histórico de Certification 1/1. El verify H2
+run #91 (`41338753002`) permanece válido para `h2-expand-compat` y el candidato
+C=`605a6ecca29e20ade8cac3874d380758d18e6a11`: SUCCESS, 224 elegibles/visibles,
+digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`;
+Apply fue NO-OP y el paso de aplicar SQL quedó SKIPPED. El JSON autenticado
+conserva la etiqueta histórica `operation=apply`, mientras que el dispatch real
+fue `verify`. Esta evidencia no acredita H3 ni habilita Pro.
+
+Lecturas read-only de este ciclo: las consultas a Supabase Pro (`xwhtiqmboljkshrtviyw`)
+fueron SQL SELECT de metadatos; no se ejecutó DDL/DML ni se invocó `exec_sql` o
+RPC, y no se leyeron filas de negocio. PostgreSQL reportó versión 17.6. El ledger
+operativo `public.supabase_migrations` contiene 58 entradas: las cinco H2
+conocidas y cero H3; el conteo no sustituye al report del workflow.
+`course_editorial_state`, su auditoría y la vista `courses_public_effective`
+existen; `admin_members`, `admin_publish_course`, las tablas/funciones del
+gateway y las tres columnas snapshot están ausentes (0/3). El listado de Edge
+Functions de Pro muestra solo `send-lead-emails` ACTIVE v8 (`verify_jwt=false`);
+`admin-invite` no aparece. En Cloudflare Pages Production, la comparación
+booleana confirmó que `NEXT_PUBLIC_SUPABASE_URL` apunta al URL esperado de Pro;
+el valor no se imprimió. No están configurados `ADMIN_ALLOWED_HOSTS`, el binding
+`ADMIN_QUOTA` ni las claves HMAC BFF requeridas.
+
+La auditoría independiente TL de Cloudflare descargó dos respuestas multipart
+con envoltorios distintos (raw hashes distintos); ambas contenían el mismo
+módulo `index.js`, 7.013 bytes, SHA-256
+`8e535fd78f329095d127f17cfee5e93404b836f934ea54d68540c3e276be9dee`. Esto
+descarta interpretar el hash del envoltorio como drift del módulo, pero no prueba
+que el módulo corresponda al source certificado ni al runtime. El repositorio
+solo contiene `workers/admin-quota/index.ts` y `wrangler.jsonc`; no se encontró
+lockfile/build de Wrangler ni artefacto CI que vincule la versión desplegada
+`763c4992-d0c0-4ea8-8a3b-86a98d89da7d` con un commit/bundle certificado. El
+namespace Durable Object está compartido físicamente; una HMAC distinta solo
+separa lógicamente y no demuestra aislamiento físico.
+
+Pro continúa sin instalación ni verificación H3. El sitio público puede seguir
+sirviéndose desde main; el panel Admin permanece cerrado porque falta la
+allowlist de hosts. El gate integral documental sigue en FAIL. La revisión
+independiente TL comparó baseline Desarrollo `60ac3ca…` y candidato con solo
+estos dos documentos, en checkouts limpios creados desde `git archive` y con el
+mismo checker SHA-256 `f2a95870de748b2e59ee0d988abb0b16125da47c996a7f85841f1113fcebbb75`:
+348→348, listas idénticas, cero diagnósticos nuevos o resueltos; self-test
+PASS e integral exit 1. Los conteos 344 y la explicación previa por versión del
+checker son descartados: los cuatro diagnósticos aparentes de diferencia
+procedían de `.pytest_cache` ignorado que entró en los árboles anteriores.
+La comparación integral de main no está validada: el checkout anterior registró
+`Aborting` y main histórico no contiene el JSON de registro actual; no se fuerza
+igualdad entre esos árboles. La promoción se revisa por separado con guard,
+selector y simulaciones pertinentes, que no convierten el FAIL integral en PASS
+ni sustituyen CI remoto. Continúan pendientes el candidato y autorización DDL H3,
+Backup/PITR aceptable para el apply, el primer Admin Pro, gateway firmado,
+variables/binding BFF y el smoke productivo con recuperación. No se repiten los
+tests funcionales aceptados ni el verify H2 #91.
+
+Los logs comparativos anteriores afectados se conservan, marcados como
+descartados en el paquete externo; la nueva comparación usa checkouts
+independientes y registra HEAD/tree antes de cada comando. Este es un corte
+fechado, no una predicción de SHAs posteriores. Al integrar
+este mismo paquete, el TL debe leer el SHA real de las ramas y el deployment
+normal desde GitHub/Cloudflare; no se requiere otro PR solo para narrar ese
+merge, salvo que aparezca drift o un defecto verificable. Ninguna escritura,
+dispatch, configuración, deploy o promoción productiva se ejecutó aquí.
+
+### Corte histórico previo a PR #523 — preparación local de evidencia H2 run 91 (2026-11-01)
 
 PR #521 está integrado. Refs confirmadas en este corte: Desarrollo
 `64c23fd8a9694f50a2728399bf8e35771bf56fad`, Certification
