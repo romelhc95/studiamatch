@@ -6,37 +6,35 @@
 
 ## Corte vigente
 
-### Conciliación del P1 de #533 y secuencia DDL — corte pre-P 2026-11-03
+### Conciliación del P1 de #533 — paquete correctivo y secuencia DDL — corte 2026-11-03
 
 Este corte deja la regla vigente y registra el baseline comprobado para esta
 remediación. Los cortes bajo «Antecedentes y planes históricos» son evidencia
 de sus fechas, no instrucciones para repetir aprobaciones, editar documentación
 no-auth después de P o ejecutar operaciones remotas.
 
-La decisión humana DDL se lee del `Status` y la tupla exacta del
-[archivo versionado](operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md)
-que evalúa el workflow. `APPROVED_FOR_PRODUCTION_DDL` solo registra aprobación
-del contenido exacto de esa tupla; no se extiende a valores modificados. No
-autoriza publicar, mergear, despachar workflows, aplicar SQL ni cambiar
-ambientes. #532 aprobó una tupla anterior y no cubre la corrección de #533.
-En el snapshot pre-P de esta rama se restableció el archivo a
-`DRAFT_NOT_AUTHORIZED`, porque no había aprobación para los valores nuevos; los
-campos de esa copia aún son históricos. Este párrafo conserva ese corte y no
-predetermina el Status de la futura versión post-P: tras congelar P, cualquier
-actualización se limita al archivo DDL exacto y su Status/tupla concordarán con
-la decisión humana obtenida para esos bytes. Las notas fechadas que describen
-el borrador del 1 de noviembre son históricas y no sustituyen la aprobación
-posterior de #532.
+La decisión humana DDL se determina exclusivamente por el `Status` y la tupla
+exacta del [archivo versionado](operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md)
+que evalúa el workflow. `APPROVED_FOR_PRODUCTION_DDL` registra aprobación del
+contenido exacto; no autoriza publicar, mergear, despachar workflows, aplicar
+SQL ni cambiar ambientes. #532 aprobó una tupla anterior y no cubre la
+corrección de #533. En el árbol de este corte, el archivo está en
+`DRAFT_NOT_AUTHORIZED` y sus valores identifican aquella tupla histórica. Esa
+observación es fechada: en cada candidato se debe leer el archivo de ese SHA y
+comparar sus bytes e inputs, sin usar este corte para reemplazarlo. Para el
+nuevo payload, primero se congela P y se deriva la tupla; solo una decisión
+humana sobre el contenido exacto permite actualizar después la ruta DDL
+admitida. Las notas fechadas del borrador del 1 de noviembre son antecedentes.
 
-P es el commit que congela todo el contenido no-auth del candidato. Antes de
-crearlo se concilian estado, índice, ficha de migraciones, evidencia H2 y demás
-documentos operativos. La base/digest se calculan con el algoritmo literal del
-workflow y la aprobación humana cubre el archivo DDL completo con esos valores.
-Después de P, `diff(P,M)` debe contener solo la ruta DDL exacta. Una corrección
-no-auth invalida P y exige recalcular el conjunto antes de publicar; no se
-relaja el filtro. P debe quedar como ancestro mediante PRs protegidos con merge
-commits; no es necesario que sea el tip de Desarrollo. M solo existe tras el
-merge real a main.
+P es el commit que congela todo el contenido no-auth del candidato. Este
+paquete consolida estado, índice, ficha de migraciones, evidencia H2 y las
+relaciones operativas antes de fijarlo. La base/digest se calculan con el
+algoritmo literal del workflow sobre los SHAs reales; una aprobación humana
+cubrirá el archivo DDL completo con esos valores. Después de P, `diff(P,M`)
+debe contener solo la ruta DDL exacta. Una corrección no-auth invalida P y
+exige recalcular el conjunto antes de publicar; no se relaja el filtro. P debe
+quedar como ancestro mediante PRs protegidos con merge commits; no es necesario
+que sea el tip de Desarrollo. M solo existe tras el merge real a main.
 
 Snapshot remoto revalidado mediante GitHub MCP, 2026-11-03 (00:09 America/Lima): Desarrollo
 `b70008087d54fa7f0244bc101697b7f9318871ee`, Certification/H2 C
@@ -57,7 +55,8 @@ local. No es el tip de main. El digest no-auth literal cubre únicamente los
 cambios desde `auth_base` hasta P, excluyendo el archivo DDL exacto; no pretende
 resumir todo el acumulado desde main. El SHA P y la validación independiente del
 manifest cerrado verifican respectivamente el payload completo y los 32 SQL.
-Estos SHAs/digest siguen sujetos a relectura y cálculo sobre el P real.
+Los SHAs/digest del paquete se validan contra el commit real antes de cualquier
+publicación; todo cambio no-auth obliga a volver a fijarlos.
 
 El [verify H2 #93](https://github.com/romelhc95/studiamatch/actions/runs/41555682589)
 terminó SUCCESS sobre C: cero pendientes H2, Apply NO-OP, SQL real SKIPPED,
@@ -67,21 +66,21 @@ El [JSON auténtico](operaciones/h2_main_production_expand_evidence.json) y los
 advisors se conservan sin alterar; la etiqueta histórica operation=apply del
 generador no significa que se aplicó SQL. Esa evidencia no demuestra H3 en Pro.
 Se reutilizan E1–E6 local 6/6, Development R1–R4 4/4 y smoke histórico de
-Certification 1/1 sin repetirlos. Para este corte local (base Desarrollo
-`b70008087d54fa7f0244bc101697b7f9318871ee`, HEAD `9a6ee6fa310a273b01c92f7ad3df692a23a5e7f8` más los seis documentos editados),
-Docker sin red con la imagen `sha256:ebbf777792ee636179660638264c3d7b501f79e8efec731296d5ef41d07d18e6` pasó
-`git diff --check`, scanner de credenciales, sintaxis Bash del guard,
-self-test/candidate-aware, guard/selector de promoción y 45 pruebas Python
-focales (3 + 42). El entrypoint normal detectó que `web/package.json` y
-`package-lock.json` del checkout no coinciden con los staged en esa imagen y
-abortó antes de correr pruebas. Se creó una copia Git autocontenida y se
-invocaron directamente solo esos runners no dependientes de npm, con repo
-read-only y red desactivada; no se ejecutaron build, ESLint ni typecheck de la
-app. La comparación integral con el mismo checker en copias limpias terminó
-`DOC_GATE_FAIL` en ambos árboles: 348 diagnósticos, listas idénticas, SHA-256
-`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`, cero
-nuevos y cero resueltos. El integral sigue siendo FAIL; el gate acotado PASS no
-lo sustituye.
+Certification 1/1 sin repetirlos. Un snapshot anterior del paquete (HEAD
+`9a6ee6fa310a273b01c92f7ad3df692a23a5e7f8`) registró pruebas focales que no
+deben atribuirse al candidato actual. Sobre el candidato local anterior a esta
+corrección (HEAD `05fd9e249699bfdf6868fe047f663be388dd86cf`, tree
+`2dee2fbb6da005ad71e78dd0be9ee4e7aeced45e`), el runner Docker sin red
+`final-exact-validation-rerun/docker-docs-run.log` pasó diff-check, scanner,
+guard/selector, manifest 32/32, self-test y gate candidate-aware; el gate
+integral terminó FAIL 348→348 con listas idénticas, cero nuevos/resueltos y
+SHA-256 `738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`.
+El gate literal DDL aceptó solo el fixture positivo sintético y rechazó Draft,
+digest incorrecto y ruta adicional. Esta evidencia corresponde a esos bytes y
+no cubre la corrección posterior del corte operativo/índice. Antes de publicar,
+se vuelve a ejecutar el checker aplicable sobre el árbol final; sus resultados
+se registran en el paquete del PR y no se atribuyen retroactivamente al log
+anterior. Ninguna de estas pruebas locales equivale a CI ni a runtime Pro.
 
 Lecturas de Cloudflare Pages/Access del 2026-11-03 (00:10 America/Lima), sin
 leer valores de variables: Production apunta a `main`, raíz `web`, ejecuta
@@ -104,21 +103,27 @@ pero no se leyó su valor y el código bajo `web/src`/`web/functions` no la
 consume; el tipo por sí solo no demuestra exposición. La lista de Preview sí
 contiene nombres Admin, sin trasladarlos a Production.
 
-Compatibilidad pública: el código cliente mantiene lecturas anónimas del view
-existente `courses_public_effective` mediante `COURSE_PUBLIC_FIELDS`, consistente
-con el contrato H2 verificado por #93. Esto es inspección de código más verify
-H2, no una lectura pública de runtime Pro. El deployment Production actual no
-usa Functions, así que tampoco demuestra que el middleware esté activo en el
-nuevo main. Antes de GO main falta la verificación asistida de runtime del
-catálogo público y, una vez se produzca el deploy normal de un candidato
-aprobado, confirmar que ese deployment usa Functions y que Admin responde 404
-con el allowlist ausente. `chrome-devtools` está `disabled / Unsupported` en
-esta sesión. A petición del usuario se consultó MCP Playwright, que devolvió
-`Browser "chromium" is not installed`; no abrió pestañas ni produjo evidencia
-de runtime. La instalación del Chromium Linux fue rechazada por la revisión
-automática porque sustituiría el Chrome Windows visible exigido por AGENTS.md y
-el binario externo no estaba autorizado. No se afirma que catálogo o Admin se
-hayan comprobado en navegador.
+Compatibilidad pública: una lectura anónima con MCP Playwright del alias
+`https://studiamatch-aty.pages.dev/` el 2026-11-03 (aprox. 01:52 Lima) cargó el
+catálogo con 224 resultados/14 instituciones y registró `GET` a
+`courses_public_effective` en Pro con HTTP 200. Es una línea base pública
+anterior al deployment del candidato, no demuestra el runtime posterior a
+main. La navegación a `https://studiamatch.com/` en ese mismo entorno terminó
+`DNS_PROBE_FINISHED_NXDOMAIN`; solo describe esa consulta local y no demuestra
+una falla global del dominio. En código, el cliente conserva las lecturas
+anónimas mediante `COURSE_PUBLIC_FIELDS`, consistente con H2 #93.
+
+El deployment Production observado sigue siendo el SHA antiguo con
+`uses_functions=false`; no demuestra el middleware del candidato. El proyecto
+Pages sí tiene un deployment de Desarrollo con Functions, y el código del
+middleware del candidato devuelve 404 en rutas Admin cuando falta el host en
+`ADMIN_ALLOWED_HOSTS`. La configuración Production consultada no contiene ese
+allowlist ni el binding `ADMIN_QUOTA`; Access sigue limitado a Admin, pero no
+sustituye el cierre del middleware. Antes de abrir Admin se debe verificar tras
+el deploy normal que `uses_functions=true`, `ADMIN_ALLOWED_HOSTS` siga ausente y
+las rutas Admin/BFF devuelvan 404, a la vez que el catálogo anónimo conserva
+HTTP 200 contra Pro. No se infiere el estado del candidato por el deployment
+antiguo ni se declara runtime post-merge aprobado.
 
 Relectura Pro 2026-11-03 (00:18 America/Lima): el MCP
 `supabase-pro.get_project_url` respondió con el endpoint del proyecto
@@ -128,16 +133,17 @@ rechazado por falta de JIT específico. Por eso el snapshot de schema/ledger del
 2 de noviembre sigue siendo la última lectura SQL disponible, no una medición
 actual ni un error OAuth vigente.
 
-Secuencia: terminar las correcciones no-auth, crear P, recalcular base/digest,
-preparar y aprobar el archivo DDL exacto, y publicar el paquete consolidado por
-PR protegido. Revalidar y actualizar #533 y #528, conservar C/H2 y P como
-ancestros y esperar review/checks del SHA final. Antes del GO main se comprueba
-que el catálogo siga compatible con Pro y Admin permanezca cerrado. No se
-requiere un PR narrativo posterior por el mismo merge; cualquier cambio no-auth
-necesario después de P sí invalida el candidato y exige corregir/reconsolidar
-antes de promover. Instalación H3 Pro, backup, gateway, Auth, Edge, Pages/BFF/
-cuotas, activación y smoke con escritura conservan JIT independientes. No hay
-cierre productivo.
+Secuencia vigente: completar y validar el registro/índice corregidos, congelar
+el nuevo P real y recalcular base/digest; obtener disposición documental y
+aprobación del archivo DDL para la tupla exacta; después publicar un paquete
+consolidado por PR protegido. Revalidar/actualizar #533 y #528 con los SHAs
+reales, conservar C/H2 y P como ancestros y esperar review/checks del candidato
+final. El estado posterior al merge normal se confirma por lectura de
+deployment, funciones y catálogo antes de cambiar configuración. Cualquier
+cambio no-auth posterior a P invalida la tupla y obliga a reconsolidar antes de
+promover. Instalación H3 Pro, backup, gateway, Auth, Edge, Pages/BFF/cuotas,
+activación y smoke con escritura conservan JIT independientes. No hay cierre
+productivo.
 
 ## Antecedentes y planes históricos — subordinados al corte vigente
 

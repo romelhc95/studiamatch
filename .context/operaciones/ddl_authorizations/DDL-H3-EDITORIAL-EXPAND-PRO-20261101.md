@@ -2,11 +2,12 @@
 
 Status: DRAFT_NOT_AUTHORIZED
 
-**Corte pre-P:** los campos `Authorized ...` siguientes conservan la tupla
-histórica de #532 y no constituyen una autorización vigente para este candidato.
-Después de congelar P se sustituirán por los valores derivados del commit real;
-el Status seguirá en `DRAFT_NOT_AUTHORIZED` hasta que una persona apruebe esos
-bytes y esa tupla exactos.
+**Estado del borrador en este corte:** los campos `Authorized ...` siguientes
+conservan la tupla histórica de #532 y no constituyen una autorización vigente
+para el nuevo payload. Tras fijar P, se derivará la tupla desde los commits y
+el algoritmo real del workflow. El archivo seguirá en `DRAFT_NOT_AUTHORIZED`
+hasta la aprobación humana de los bytes y valores exactos; solo después podrá
+publicarse la versión aprobada de esta ruta.
 
 ## Identidad y campos del workflow; ejecución separada
 
