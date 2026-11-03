@@ -1,7 +1,6 @@
 -- H3REQ1: bind the Admin RPC gateway proof to the exact typed dispatch payload.
 -- Additive EXPAND only. Activation, key provisioning, and disposable PG17 execution
 -- each require their own JIT approval; this migration performs none of them.
-BEGIN;
 
 CREATE OR REPLACE FUNCTION private.h3_admin_rpc_gateway_fail(
   p_code TEXT,
@@ -582,5 +581,3 @@ REVOKE ALL ON FUNCTION public.h3_admin_rpc_signed_gateway_pre_request() FROM PUB
 GRANT EXECUTE ON FUNCTION public.h3_admin_rpc_signed_gateway_pre_request() TO anon, authenticated, service_role;
 COMMENT ON FUNCTION public.h3_admin_rpc_signed_gateway_pre_request() IS
   'H3REQ1 pre-request gate: authenticated users may reach only the signed payload-bound Admin dispatcher; gateway HMACs and nonce are verified by that dispatcher.';
-
-COMMIT;

@@ -2,6 +2,31 @@
 
 > Generado el 2026-10-12 desde nombres presentes en el checkout candidato. El orden lexicográfico coincide con el prefijo de fecha, no certifica orden de aplicación en ningún ambiente. Los cuerpos y comentarios de cada migration definen el cambio. No se ejecutó SQL.
 
+## Corrección del runner H3 Pro — corte local 2026-11-03
+
+`db_migrate.py` compone el SQL de una migration y su inserción en el ledger en
+una sola llamada a `public.exec_sql`. La función ejecuta SQL dinámico dentro de
+su propia transacción PostgreSQL; no admite ejecutar `BEGIN`/`COMMIT` de nivel
+superior como texto dinámico. El run Pro #95 falló en ese límite antes de
+completar el manifest y Verify quedó omitido. El reporte previo indicó 32
+pendientes/0 aplicadas; no hay una lectura del ledger/schema posterior al fallo,
+así que el estado remoto actual no se infiere.
+
+El fix local elimina solo los wrappers `BEGIN`/`COMMIT` de seis migrations H3,
+repina sus bytes en `pro_h3_migration_manifest.py` y añade una prueba de contrato
+que prohíbe esos comandos en el manifest seleccionado. La atomicidad queda en la
+llamada única a `exec_sql` que también inserta el ledger. Manifest: 32 entradas.
+La prueba sintética autorizada en PostgreSQL 17.11 pasó: aplicó 32/32 vía
+`exec_sql`, verificó ledger 32/32, lector anónimo de 224 y ACL, y eliminó el
+contenedor desechable. No conecta a Free/Pro ni prueba el runtime remoto.
+
+La evidencia autenticada del fixture está fuera del repositorio en
+`/tmp/h3req1-quota-pg17-jit-20261103/attempt-3-summary.md` y
+`retry-v3/run-result-v3/`. El texto de generación del 2026-10-12 y los cortes
+históricos que indican que no se ejecutó SQL describen sus fechas; la ejecución
+PG17 sintética de este corte no se debe confundir con una instalación remota.
+La aprobación DDL anterior está fijada a otros hashes y no cubre este cambio.
+
 ## h3-pro-promotion-manifest
 
 ### Preflight offline del registro compartido — corrección P1 de PR 514
