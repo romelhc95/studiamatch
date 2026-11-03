@@ -614,7 +614,7 @@ REGLAS CRÍTICAS:
 - La prioridad real de campos autoritativos se aplica después del LLM por código; tú solo debes completar campos faltantes o inferenciales.
 - REGLA ABSOLUTA: Si la página es un agradecimiento/thank-you, página de inicio (homepage), confirmation page, listado de facultades sin programa individual, o sede/campus sin programa → responde null en TODOS los campos. NO inventes datos de un programa que no existe.
 
-Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
+Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "target_audience": "", "objectives": "", "benefits": "", "certification": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
 
         result, provider_name = self.orchestrator.call_with_fallback(prompt, self._clean_json_response)
         if result is not None:
@@ -851,6 +851,10 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 metadata['extraction_trace'] = woo_data['extraction_trace']
             if pre_extracted.get('program_family'):
                 metadata['program_family'] = pre_extracted.get('program_family')
+            for field_name in ('target_audience', 'objectives', 'benefits', 'certification'):
+                value = enriched.get(field_name) or enriched.get(f'{field_name}s')
+                if value not in (None, ''):
+                    metadata[field_name] = value
             metadata = _mark_canary_metadata(metadata)
 
             save_data = {
@@ -864,6 +868,10 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 "requirements": normalize(enriched.get("requirements")),
                 "graduate_profile": enriched.get("graduate_profile"),
                 "curriculum_summary": normalize(enriched.get("curriculum_summary")) or '{}',
+                "target_audience": enriched.get("target_audience") or enriched.get("graduate_profile"),
+                "objectives": enriched.get("objectives") or enriched.get("learning_objectives"),
+                "benefits": enriched.get("benefits") or enriched.get("benefit_summary"),
+                "certifications": enriched.get("certifications") or enriched.get("certification"),
                 "modality": enriched.get("modality"),
                 "primary_campus": enriched.get("primary_campus"),
                 "degree_type": enriched.get("degree_type"),
@@ -890,6 +898,10 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 "requirements": save_data.get("requirements"),
                 "graduate_profile": save_data.get("graduate_profile"),
                 "curriculum_summary": save_data.get("curriculum_summary"),
+                "target_audience": save_data.get("target_audience"),
+                "objectives": save_data.get("objectives"),
+                "benefits": save_data.get("benefits"),
+                "certifications": save_data.get("certifications"),
                 "modality": save_data.get("modality"),
                 "primary_campus": save_data.get("primary_campus"),
                 "degree_type": save_data.get("degree_type"),
@@ -987,6 +999,10 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             "total_cost_est": None,
             "requirements": [],
             "graduate_profile": "",
+            "target_audience": "",
+            "objectives": "",
+            "benefits": "",
+            "certifications": "",
             "curriculum_summary": curriculum,
             "modality": modality,
             "primary_campus": "",

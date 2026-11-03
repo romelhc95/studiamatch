@@ -1,0 +1,69 @@
+psql:/candidate/db/migrations/20260825_h2_editorial_layer.sql:127: NOTICE:  policy "editorial_field_definitions_public_select" for relation "public.editorial_field_definitions" does not exist, skipping
+psql:/candidate/db/migrations/20260825_h2_editorial_layer.sql:135: NOTICE:  policy "editorial_field_definitions_service_all" for relation "public.editorial_field_definitions" does not exist, skipping
+psql:/candidate/db/migrations/20260825_h2_editorial_layer.sql:144: NOTICE:  policy "course_editorial_state_public_effective_select" for relation "public.course_editorial_state" does not exist, skipping
+psql:/candidate/db/migrations/20260825_h2_editorial_layer.sql:168: NOTICE:  policy "course_editorial_state_service_all" for relation "public.course_editorial_state" does not exist, skipping
+psql:/candidate/db/migrations/20260825_h2_editorial_layer.sql:177: NOTICE:  policy "course_editorial_audit_service_select" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/candidate/db/migrations/20260825_h2_editorial_layer.sql:185: NOTICE:  policy "course_editorial_audit_service_insert" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:85: NOTICE:  trigger "prevent_course_editorial_audit_update" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:91: NOTICE:  trigger "prevent_course_editorial_audit_delete" for relation "public.course_editorial_audit" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:205: NOTICE:  policy "Anyone can insert leads" for relation "public.leads" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:206: NOTICE:  policy "leads_insert_public" for relation "public.leads" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:207: NOTICE:  policy "leads_insert_authenticated" for relation "public.leads" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:214: NOTICE:  policy "Public read for courses" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:215: NOTICE:  policy "courses_select_public" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_editorial_layer_forward_fix.sql:216: NOTICE:  policy "courses_select_authenticated" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_security_advisor_remediation.sql:351: NOTICE:  policy "courses_h2_public_effective_select" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_security_advisor_remediation.sql:352: NOTICE:  policy "courses_exclude_release_canary" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_security_advisor_remediation.sql:353: NOTICE:  policy "Public read for courses" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_security_advisor_remediation.sql:354: NOTICE:  policy "courses_select_public" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260826_h2_security_advisor_remediation.sql:355: NOTICE:  policy "courses_select_authenticated" for relation "public.courses" does not exist, skipping
+psql:/candidate/db/migrations/20260828_h3_admin_auth.sql:24: NOTICE:  policy "admin_members_service_select" for relation "public.admin_members" does not exist, skipping
+psql:/candidate/db/migrations/20260828_h3_admin_auth.sql:31: NOTICE:  policy "admin_members_service_insert" for relation "public.admin_members" does not exist, skipping
+psql:/candidate/db/migrations/20260828_h3_admin_auth.sql:38: NOTICE:  policy "admin_members_service_update" for relation "public.admin_members" does not exist, skipping
+psql:/candidate/db/migrations/20260828_h3_admin_auth.sql:190: NOTICE:  trigger "admin_members_updated_at" for relation "public.admin_members" does not exist, skipping
+psql:/candidate/db/migrations/20260830_h3_expanded_contract.sql:72: NOTICE:  trigger "prevent_admin_membership_audit_update" for relation "public.admin_membership_audit" does not exist, skipping
+psql:/candidate/db/migrations/20260830_h3_expanded_contract.sql:77: NOTICE:  trigger "prevent_admin_membership_audit_delete" for relation "public.admin_membership_audit" does not exist, skipping
+psql:/candidate/db/migrations/20260918_h3_invitation_flow_persistence.sql:137: NOTICE:  trigger "prevent_admin_invitations_delete" for relation "public.admin_invitations" does not exist, skipping
+psql:/candidate/db/migrations/20260918_h3_invitation_flow_persistence.sql:142: NOTICE:  trigger "guard_admin_invitations_identity" for relation "public.admin_invitations" does not exist, skipping
+psql:/candidate/db/migrations/20260918_h3_invitation_flow_persistence.sql:147: NOTICE:  trigger "guard_admin_invitations_status" for relation "public.admin_invitations" does not exist, skipping
+psql:/candidate/db/migrations/20260918_h3_invitation_flow_persistence.sql:315: NOTICE:  trigger "admin_members_status_transition_guard" for relation "public.admin_members" does not exist, skipping
+psql:/candidate/db/migrations/20260918_h3_invitation_flow_persistence.sql:335: NOTICE:  trigger "admin_members_status_insert_guard" for relation "public.admin_members" does not exist, skipping
+psql:/candidate/db/migrations/20260919_h3_invitation_auth_token_delta.sql:17: NOTICE:  constraint "admin_invitations_token_hash_min_length" of relation "admin_invitations" does not exist, skipping
+psql:/candidate/db/migrations/20260919_h3_invitation_auth_token_delta.sql:19: NOTICE:  index "uq_admin_invitations_token_hash" does not exist, skipping
+psql:/candidate/db/migrations/20261001_h3_course_editorial_audit_availability.sql:27: NOTICE:  column "availability_override_status" of relation "course_editorial_state" already exists, skipping
+psql:/candidate/db/migrations/20261001_h3_course_editorial_audit_availability.sql:27: NOTICE:  column "availability_evidence_url" of relation "course_editorial_state" already exists, skipping
+psql:/candidate/db/migrations/20261001_h3_course_editorial_audit_availability.sql:27: NOTICE:  column "availability_observed_at" of relation "course_editorial_state" already exists, skipping
+psql:/candidate/db/migrations/20261001_h3_course_editorial_audit_availability.sql:27: NOTICE:  column "availability_valid_until" of relation "course_editorial_state" already exists, skipping
+psql:/candidate/db/migrations/20261001_h3_course_editorial_audit_availability.sql:27: NOTICE:  column "availability_override_by" of relation "course_editorial_state" already exists, skipping
+psql:/candidate/db/migrations/20261001_h3_course_editorial_audit_availability.sql:64: NOTICE:  relation "idx_course_editorial_state_availability_override_expiry" already exists, skipping
+              set_config              
+--------------------------------------
+ 30000000-0000-0000-0000-000000000001
+(1 row)
+
+ set_config 
+------------
+ aal2
+(1 row)
+
+psql:/candidate/tests/sql/h3_pg17_harness.sql:499: NOTICE:  constraint "h3_test_reject_update_audit" of relation "course_editorial_audit" does not exist, skipping
+               result                
+-------------------------------------
+ h3_invitation_onboarding_harness_ok
+(1 row)
+
+                 result                  
+-----------------------------------------
+ h3_onboarding_rbac_hardening_harness_ok
+(1 row)
+
+                result                 
+---------------------------------------
+ h3_invitation_edge_runtime_harness_ok
+(1 row)
+
+       result       
+--------------------
+ h3_pg17_harness_ok
+(1 row)
+

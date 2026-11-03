@@ -1,0 +1,83 @@
+TAP version 13
+# Subtest: integrated runner uses the manifest path consumed by the runtime
+ok 1 - integrated runner uses the manifest path consumed by the runtime
+  ---
+  duration_ms: 1.121588
+  type: 'test'
+  ...
+# Subtest: integrated fixture provides the configured PostgREST extra search path schema
+ok 2 - integrated fixture provides the configured PostgREST extra search path schema
+  ---
+  duration_ms: 0.215517
+  type: 'test'
+  ...
+# Subtest: every Docker image run forbids implicit pulls
+ok 3 - every Docker image run forbids implicit pulls
+  ---
+  duration_ms: 0.597647
+  type: 'test'
+  ...
+# Subtest: Docker operations stay on the attested endpoint after target verification
+ok 4 - Docker operations stay on the attested endpoint after target verification
+  ---
+  duration_ms: 0.327626
+  type: 'test'
+  ...
+# Subtest: foreground snapshot and cache verifier runs have individual deadlines
+ok 5 - foreground snapshot and cache verifier runs have individual deadlines
+  ---
+  duration_ms: 0.213216
+  type: 'test'
+  ...
+# Subtest: timeout-wrapped Docker helpers pin the attested endpoint outside the shell wrapper
+ok 6 - timeout-wrapped Docker helpers pin the attested endpoint outside the shell wrapper
+  ---
+  duration_ms: 0.288522
+  type: 'test'
+  ...
+# Subtest: Docker exec has host and in-container deadlines
+ok 7 - Docker exec has host and in-container deadlines
+  ---
+  duration_ms: 0.302123
+  type: 'test'
+  ...
+# Subtest: PostgREST probe separates sanitized HTTP and transport failures
+ok 8 - PostgREST probe separates sanitized HTTP and transport failures
+  ---
+  duration_ms: 0.795562
+  type: 'test'
+  ...
+# Subtest: HTTP error diagnosis reads only bounded JSON code values
+ok 9 - HTTP error diagnosis reads only bounded JSON code values
+  ---
+  duration_ms: 49.964904
+  type: 'test'
+  ...
+# Subtest: failure handling only stops this run after local daemon attestation
+ok 10 - failure handling only stops this run after local daemon attestation
+  ---
+  duration_ms: 0.700855
+  type: 'test'
+  ...
+# Subtest: failure handling also stops owned snapshot and cache verifier helpers
+ok 11 - failure handling also stops owned snapshot and cache verifier helpers
+  ---
+  duration_ms: 0.279622
+  type: 'test'
+  ...
+# Subtest: successful cleanup revalidates ownership once and removes immutable IDs only
+ok 12 - successful cleanup revalidates ownership once and removes immutable IDs only
+  ---
+  duration_ms: 0.225918
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 139.954234
+phase=R10-static-validation|error_code=PASS|exit=0

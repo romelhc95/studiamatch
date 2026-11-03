@@ -1,0 +1,14 @@
+{
+  "name": "studiamatch-pwi-verifier",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:runtime": "vitest run --config vitest.config.mjs",
+    "check": "node --check index.mjs && node --check github.mjs && node --check policy.mjs && node --check vitest.config.mjs && node --check test/pwi_worker.test.mjs && node --check runtime-test/pwi_worker.runtime.test.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.5",
+    "vitest": "4.1.12"
+  }
+}

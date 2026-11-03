@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Exact local publication candidate for the D04 onboarding-denial remediation and its CI/documentation scope; no push, PR, merge or deployment authorization implied.",
+  "worktree": "/home/romel/src/studiamatch-h3req1-d04-onboarding-denial-20261025",
+  "branch": "feat/h3req1-d04-onboarding-denial-20261025",
+  "baseSha": "6b3ec2d5cc647f81e05fe99cb1b48b39658a1e87",
+  "includedPaths": [
+    ".context/componentes/admin_runtime.md",
+    ".context/componentes/database_migrations.md",
+    ".context/componentes/pruebas_evidencia.md",
+    ".context/componentes/seguridad_tooling.md",
+    ".context/evidencia/h3req1_d04_candidate_docs_scope_2026-10-25.json",
+    ".context/evidencia/h3req1_d04_candidate_pr_scope_2026-10-25.json",
+    ".context/evidencia/h3req1_d04_onboarding_forbidden_2026-10-25.md",
+    ".context/indice.md",
+    ".context/trazabilidad/registro_fuentes_componentes.json",
+    ".context/trazabilidad/registro_fuentes_componentes.md",
+    ".github/workflows/security-audit.yml",
+    "db/migrations/20261025_h3_admin_members_onboarding_forbidden_status.sql",
+    "scripts/security/protected_path_scope_guard.sh",
+    "tests/h3_admin_bff_mock_uat.mjs",
+    "tests/sql/h3_admin_quota_harness.sql",
+    "tests/test_h3_admin_onboarding_denial_contract.py",
+    "tests/test_protected_path_scope_guard.sh",
+    "tests/test_security_flow.py",
+    "web/functions/_lib/admin-bff.ts"
+  ],
+  "excludedPaths": [
+    {
+      "path": "tests/h3_admin_quota_postgrest.mjs",
+      "reason": "WIP PostgREST runner is outside D04 approval and has no validated execution in the approved PG17 package."
+    },
+    {
+      "path": "tests/sql/h3_quota_postgrest_fixture.sql",
+      "reason": "WIP SQL fixture was explicitly excluded by the consumed addendum-1; no application or publication."
+    }
+  ],
+  "publicationState": "human authorization granted for additive commit, non-force push, and protected PR to desarrollo only; merge, manual deploy, workflow_dispatch, protection changes, and remote SQL remain unauthorized"
+}

@@ -1,3 +1,5 @@
+# StudIAMatch-Docs: .context/componentes/utilidades_compartidas.md#fuentes-y-relaciones
+
 SENIORITY_RULES = {
     "Doctorado": ((0, float("inf"), "Senior"),),
     "Maestria": ((500, float("inf"), "Senior"), (0, 500, "Mid")),

@@ -1,3 +1,5 @@
+# StudIAMatch-Docs: .context/componentes/canarios.md#manifest-de-certificacion-f99
+
 import argparse
 import json
 import os

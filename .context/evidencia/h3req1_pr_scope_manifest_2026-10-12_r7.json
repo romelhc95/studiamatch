@@ -1,0 +1,1977 @@
+{
+  "manifest": "H3REQ1 PR scope content manifest v7",
+  "candidate": {
+    "checkout": "/home/romel/src/studiamatch-h3req1-sync-20261002",
+    "branch": "feat/h3req1-sync-20261002",
+    "head_baseline": "4eb4d877a50b012bb630a129bd0c74482c33be9c"
+  },
+  "observed_working_tree": {
+    "tracked_modified_paths": 61,
+    "untracked_status_entries": 880,
+    "untracked_expanded_paths": 20374,
+    "staged_paths": 0,
+    "porcelain_all_sha256_excluding_generated_artifacts": "a5001b4ad74b21043f229d4e45155edf26e9459679cc9f64cdaad4145ea295e7",
+    "tracked_binary_diff_sha256": "eca21ca864980c4326c3f54e502277a32681dd9eaff4cd39e84b98f5ad9fbdf0",
+    "status_digest_exclusions": [
+      ".context/evidencia/h3req1_g09_final_review_r5_2026-10-11.md",
+      ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-11_r6.md",
+      ".context/evidencia/h3req1_pr_scope_manifest_2026-10-11_r6.json",
+      ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r7.md",
+      ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r7.json"
+    ],
+    "note": "Status digest is SHA-256 of git -c core.quotePath=false status --porcelain=v1 --untracked-files=all, LF-joined with final LF, excluding only status_digest_exclusions. Visible untracked count uses --untracked-files=normal; expanded count uses --untracked-files=all. Tracked diff digest hashes git diff --binary --no-ext-diff HEAD. R7 package/evidence remain separate from proposed scope unless listed."
+  },
+  "scope": {
+    "tracked_modified_paths": 61,
+    "untracked_proposed_paths": 30,
+    "total_paths": 91,
+    "scope_entries_digest_method": "SHA-256 of compact UTF-8 JSON for entries sorted lexicographically by path.",
+    "scope_entries_sha256": "73f2b9d66ee17b302a9e38d36d17fd14996b246009ea03fbb5432dd2dc59c93a",
+    "entries": [
+      {
+        "path": ".context/00_INDICE.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 36994,
+        "sha256": "5b93d4bf5dc97d1363a764f827d5e1bb82a77a537916c4b613a316e6741d451e"
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/_index.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7689,
+        "sha256": "7f68059a0fe60c57a4646d3497993c03ee8ef9c439fb7531aa6f1fee3baaba62"
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 9239,
+        "sha256": "93132fa9ecace173a09ea95db69444742a304101cf37ca2c675d51ebc2b08795"
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 12903,
+        "sha256": "2709ab8db8285727ed871f270f4c17f1aba7b1819a5bb72ed7df7c7ef2ced3c7"
+      },
+      {
+        "path": ".context/estado_del_proyecto.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 408869,
+        "sha256": "29903c6aac710459982e7dd11266b5a5a6114bc066d032b55f5d20e077504c61"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_bootstrap_transition_2026-10-12.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 12215,
+        "sha256": "fdfd57942d9e65d43d210d1832e75c1b69832fd159232f97416463035cc24cb4"
+      },
+      {
+        "path": ".context/hitos/h3req1_implementation_report.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 29651,
+        "sha256": "1747bc2b66454ff7f072302ea8d903ab79219ae29aff30afa2ba5db8794fcbab"
+      },
+      {
+        "path": ".context/hitos/hito_003.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 17888,
+        "sha256": "3ffa8d4dada43fe58250524099b85f7b4d178038ca7c0c2c24e9646fbf828a44"
+      },
+      {
+        "path": ".context/matrices/matriz_hito_003.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7460,
+        "sha256": "95737e812f36fadc4d04ad378b10835f4287c78ffae4e6c42a8de119e8397a76"
+      },
+      {
+        "path": ".context/operaciones/estandar_prompts_retroalimentados.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3439,
+        "sha256": "6663e67168e804bdf646a0dcb06d51ccf4d1158eb81b342c090b9c55068db878"
+      },
+      {
+        "path": ".context/operaciones/matriz_adopcion_db.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 10242,
+        "sha256": "884169d7c2cf9b1e4d1f300dcdc68dd828d1b1b13c4911fd3fb6dce74613dfe7"
+      },
+      {
+        "path": ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 31617,
+        "sha256": "a65407c034d823fcacbe4f59e2c0725bb53b58ed00f8979fdbddbf540c50dd5a"
+      },
+      {
+        "path": ".context/sistema_db_supabase.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 13481,
+        "sha256": "982bfd337d70e60f5c7bf892817bea7237b06c91116cd104a5507bdd54a65f24"
+      },
+      {
+        "path": ".env.example",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1018,
+        "sha256": "19dfecc69f532e2cde4b7a0afdb15fc70a4079c1eee46dd34d136af4e6fccf2a"
+      },
+      {
+        "path": ".githooks/pre-push",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0755",
+        "bytes": 446,
+        "sha256": "4be32e10efe343fad0c966abacb5fb46e9fd95909eac0e7099eb655d4d765cc4"
+      },
+      {
+        "path": ".github/pull_request_template.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 4275,
+        "sha256": "202d969b312f89539fe997b5fdafd4f6846f43769e89ad445b64e4f52cd8dbc3"
+      },
+      {
+        "path": ".github/workflows/protected-workflow-integrity.yml",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3090,
+        "sha256": "016551e6a6e280dcd515788ffcf93b18a6d48647079e3c0cd7be9c2d4f58864b"
+      },
+      {
+        "path": ".github/workflows/security-audit.yml",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 38357,
+        "sha256": "ddbb87677dfe7aed2da346ae9d4c139ede0af5b75a7c04372f6ec1b7bf2a473d"
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 31517,
+        "sha256": "be027857d883db2a6e824087da3e182e7f6a1d33ea07882dc9b1386cbb84b1d0"
+      },
+      {
+        "path": "Dockerfile",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2608,
+        "sha256": "241b149f521c8133fc2bed5f40eac16c6eaa16e63a2fbee7c81382f6c39d9012"
+      },
+      {
+        "path": "README.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3741,
+        "sha256": "acf7b6321d4e92ea3371dd0a2d4e2f4dcaa55433528535cb5ba1cb0c436a7fe4"
+      },
+      {
+        "path": "db/migrations/20260927_h3_admin_queue_facets_filter.sql",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7491,
+        "sha256": "efabbb35e5fc8b9dc28ce3159ed3ed2328f20c74e4d8e02d2a1a222e8351600b"
+      },
+      {
+        "path": "db/migrations/20260927_h3_publication_visibility_contract.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2977,
+        "sha256": "2b02df3f9ab5736da292d5b8653ca567111cd82705ada182b5baa8085b21e1aa"
+      },
+      {
+        "path": "db/migrations/20260928_h3_invitation_accept_email_regex_fix.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 9146,
+        "sha256": "a1b9eaa799d7cc760c84e1df2f66b362ebf1b0556a9f446222f2f9cbea99cd44"
+      },
+      {
+        "path": "db/migrations/20261001_h3_course_editorial_audit_availability.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 35015,
+        "sha256": "14e47f4ab4a50382bbea8453b84295bcb2f707e760c8c0a9ae5da4c1f71c3097"
+      },
+      {
+        "path": "db/migrations/20261001_h3_invitation_reservation_compensation.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 40970,
+        "sha256": "1001c059b951eaa907016e31be08bef9f3e0a7835f30ea2cac5227a123927270"
+      },
+      {
+        "path": "db/migrations/20261002_h3_admin_quota_expand.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 4066,
+        "sha256": "d839f7f760bdb12025297a24e09b547cf4f0b5989d3c0142835978083be9bb67"
+      },
+      {
+        "path": "db/migrations/20261002_h3_admin_quotas.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6535,
+        "sha256": "7ea746ca73f2acee31956e59d490083c4fbfcaebf51941d4c6cb52618c906619"
+      },
+      {
+        "path": "db/migrations/20261004_h3_admin_queue_first_null_guard.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2675,
+        "sha256": "012f994af8b44353e385e68b22dc1b15535e31f47f8f990716cbd726f1908711"
+      },
+      {
+        "path": "db/migrations/20261004_h3_admin_rpc_signed_gateway_expand.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 12741,
+        "sha256": "e80e236348c2eefe79035c6f6ea5e22bc5dea194555d07a1f1b5a8b41a02876c"
+      },
+      {
+        "path": "db/migrations/20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 26966,
+        "sha256": "c8a69e06e2d1d3a7f5e2245f6fb68ac6220deac3fd0b273edb5bcedafdba81a5"
+      },
+      {
+        "path": "db/migrations/20261010_h3_admin_members_service_select.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 295,
+        "sha256": "6a4d4476e5143537b51390becfe995ca5cb9340ed891c1232e7af2cb1cb9e49c"
+      },
+      {
+        "path": "db/rollback/h3req1_safe_resume.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 17428,
+        "sha256": "d47579a8e7c4fbf005b8bcca4b2261aa09a311b2606f167a7ee099b5b3339cd8"
+      },
+      {
+        "path": "db/rollback/h3req1_safe_suspend.sql",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 21104,
+        "sha256": "5236371a8bb2beec5434b49f60bf56e46509b58408a81ea471e6297b41769b2d"
+      },
+      {
+        "path": "db/seeds/h3_admin_seed_local.sql",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 5112,
+        "sha256": "4c90cbfc57d11ab34f60dc54d017c1b083d2cc606e0241b75e367e78412e89f6"
+      },
+      {
+        "path": "mock-server/server.js",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 43709,
+        "sha256": "ecedf9201c7fded9667d6ff3f5c9458ef2925673430660c414a6712eb05bd49f"
+      },
+      {
+        "path": "scripts/core/universal_harvester.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 68604,
+        "sha256": "8080093cdc8e04c824e173c0e917622dd43ec10d61f5c0204ac0dbedb8835f67"
+      },
+      {
+        "path": "scripts/security/h2_web_mock_smoke.sh",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3167,
+        "sha256": "a08af4ae1006358211e4dade55a25ae8849b0841b53ea65b637d3c688ac92596"
+      },
+      {
+        "path": "scripts/security/protected_path_scope_guard.sh",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 983,
+        "sha256": "9bf994166a9bbd2d43309c5d9b3e809b2c5ad8a537d2a69090b4a3c38cde5b88"
+      },
+      {
+        "path": "scripts/security/protected_workflow_review.py",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6907,
+        "sha256": "87ad479158a24fb528f0c58464ebb202858cdaea10e7badb2cb4b00ac5ee6827"
+      },
+      {
+        "path": "scripts/security/scan_credentials.sh",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0755",
+        "bytes": 9123,
+        "sha256": "5d74e61c3aa2afabea5da78c7d60504bfb154035204000e9469e3788bd28571e"
+      },
+      {
+        "path": "scripts/security/scan_worktree_file.py",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2372,
+        "sha256": "99d009129d7b407c48fb64c0a45a10ec6b479a62e1f6a85821c37212fc9fdf57"
+      },
+      {
+        "path": "supabase/functions/admin-invite/index.ts",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 32941,
+        "sha256": "1569b90394b313a4b42e4e50158da077cec42d26356c0d713b16535f47053a60"
+      },
+      {
+        "path": "supabase/templates/invite.html",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6570,
+        "sha256": "b4466f598edc65c8c3a9f117bd2180de805f7eb0417b9daf6cf6d065af8b8ff5"
+      },
+      {
+        "path": "supabase/templates/password-recovery.html",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6598,
+        "sha256": "d29ad2a0aafff8987b5997525b4b43f84a55b34a34e3e966207d04932cf5c4cb"
+      },
+      {
+        "path": "tests/h3_admin_bff_mock_uat.mjs",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 39438,
+        "sha256": "7c1fefd3f8743a1b3a898bf4a1b200b7c2f486380bc293045760435644065b40"
+      },
+      {
+        "path": "tests/h3_invitation_uat.mjs",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 18614,
+        "sha256": "73bb527b82e777f4968bf25fdbf14d6928795c45273252f68150bb1e24599648"
+      },
+      {
+        "path": "tests/h3_local_uat.mjs",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 230083,
+        "sha256": "04d00dc068994cfc9836132d9e5b1d3ed0676a9ad5fb2404cbb5f425133dd60f"
+      },
+      {
+        "path": "tests/sql/h2_pro_pg17_harness.sql",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 13055,
+        "sha256": "676a149546d8f3ff045d7d4332eedeefe343a8ef25375cd72e906ed6d1f26bfe"
+      },
+      {
+        "path": "tests/sql/h3_invitation_edge_runtime_harness.sql",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7179,
+        "sha256": "2233bf419c2e9c1a1367f34f915bbcb188cf7ba0e818a14abbf49cb4d44d5b5f"
+      },
+      {
+        "path": "tests/sql/h3_invitation_onboarding_harness.sql",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 15310,
+        "sha256": "6b956e63d0860f5bb2e9aa8fef98fe07223b891060245b11186f78d9d0f8e69b"
+      },
+      {
+        "path": "tests/sql/h3_pg17_harness.sql",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 69376,
+        "sha256": "4e9bfc5445c21039ef21c6584d831ebfc0c2c234b818c53901516dd8d9240845"
+      },
+      {
+        "path": "tests/test_admin_invite_edge_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 16020,
+        "sha256": "732b26cd4e226b143ab46cc6591dab8fcfc797de86a1e9be3e1fa33a4f5a0e98"
+      },
+      {
+        "path": "tests/test_fase09_9_certification_canary.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 10312,
+        "sha256": "36882c978d481030d1435c40e3b97c00d5d36841d805d0295ff543be2e114ba2"
+      },
+      {
+        "path": "tests/test_h3_admin_queue_ux_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 14002,
+        "sha256": "071c8647daf1a021ab8a1965b8e6650f1709c15adcb9ca2a4ffad2ee52d2df2b"
+      },
+      {
+        "path": "tests/test_h3_invitation_callback_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7742,
+        "sha256": "3264e39c0337e11ec7afc2642855add6067ed171baecb5f5fa7dfbc25198f5b9"
+      },
+      {
+        "path": "tests/test_h3_mock_invitation_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3524,
+        "sha256": "1ad5a5c9d7c96e001a67a50fc694d1f720bd38a39fd63b4c1da132a27ef530eb"
+      },
+      {
+        "path": "tests/test_h3_password_recovery_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1939,
+        "sha256": "67acb41264622b823903fc26efdbb96a651755362f74c2f89d95ea9e9d493842"
+      },
+      {
+        "path": "tests/test_h3req1_local_pipeline_walk.py",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 41028,
+        "sha256": "3e72ee4c846c3dbed16c23a19bd892ecc1998a5de017a10ad5a762f87895e4bb"
+      },
+      {
+        "path": "tests/test_mfa_compatibility_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3274,
+        "sha256": "d257cd8b1b508f919f202a27b5d11afce1ceb561fb0f7563d600f61f1ceb4add"
+      },
+      {
+        "path": "tests/test_password_policy_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3143,
+        "sha256": "c5e26f8c33ce38505013a6277d668f6f8c00e7239cf144314a8e9750cecaadab"
+      },
+      {
+        "path": "tests/test_protected_workflow_review.py",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6702,
+        "sha256": "1abd99e6130fed9e3df499e59252eb3a0de9f32d5b3019e34056dda4812ad4c6"
+      },
+      {
+        "path": "tests/test_scan_credentials.sh",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 21665,
+        "sha256": "d10547f9eca1fc63868459edada75f485edf38b05674fb14fac7ea92ef54092d"
+      },
+      {
+        "path": "tests/test_security_flow.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 9238,
+        "sha256": "9ced2cd912b05fd047643a2da7e273dad11c2ddef92333ff0ea3d764d48d82ba"
+      },
+      {
+        "path": "tests/test_supabase_credentials_contract.py",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 52160,
+        "sha256": "b7d567743d4aa5a8f22475929ce009400c16f560678b25267cbe87310d014992"
+      },
+      {
+        "path": "web/eslint.config.mjs",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 485,
+        "sha256": "820221bfc05bdcb3fbbb3a9f84153534e5f8a0b8a6bfa08ab95191603624a660"
+      },
+      {
+        "path": "web/functions/_lib/admin-bff.ts",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 43274,
+        "sha256": "0cf11ce7729dcd0f1a681c5faee81131456f2e1fb337c46611f76507a593dea7"
+      },
+      {
+        "path": "web/functions/_lib/admin-quota.ts",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3140,
+        "sha256": "738a3267d645fdca40b77b8d8fb9877c209992296031b0d670b6153c9a9134d6"
+      },
+      {
+        "path": "web/functions/_middleware.ts",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 5395,
+        "sha256": "237bc47043ed8a7f0604445d43c2ca2042e352373ee165a56cf669dd4821fd9b"
+      },
+      {
+        "path": "web/next.config.js",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 365,
+        "sha256": "97308c3b1736f0da28fa59f220487a91725a11daaafeb37a7093621130991cd3"
+      },
+      {
+        "path": "web/package-lock.json",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 365877,
+        "sha256": "d526163caba9300baf9329121979b9c9bc1bd24dfc10b1b4159d0ee8a36334db"
+      },
+      {
+        "path": "web/package.json",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1817,
+        "sha256": "dfdd9a7ea0ff192c7eda7c33d9a2141b5b761fb0c53c472d8209e4fa2c309ab2"
+      },
+      {
+        "path": "web/src/app/HomeContent.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 65750,
+        "sha256": "e4976d9649d5bcab29eafc59fc9571bde91dbbf7f159cc665ff624ed05f64b63"
+      },
+      {
+        "path": "web/src/app/admin/auth/callback/page.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3163,
+        "sha256": "fe0b3bdbe2ef6cf2180b479e3400061c0e03068de466d7dfbc95a23fddd4c252"
+      },
+      {
+        "path": "web/src/app/admin/edit/page.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 48254,
+        "sha256": "ed0319455a1abdb9e66865017a5a401e02f219329d3034e2c971be5fc30fec76"
+      },
+      {
+        "path": "web/src/app/admin/layout.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 434,
+        "sha256": "e8306b68d928de1551296d62c38d15e8750e03cdaf5cfe037a0293f1784288fd"
+      },
+      {
+        "path": "web/src/app/admin/login/page.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 4566,
+        "sha256": "cb2f623ab41c92ba8bc7acd8c61ad86ada308e0e9687e63b3e42882df1994810"
+      },
+      {
+        "path": "web/src/app/admin/page.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3050,
+        "sha256": "eb5d9ebbb26e8271de32ac2c445f95a84f6e6461c16b11f3af5646bbf6db8059"
+      },
+      {
+        "path": "web/src/app/admin/reset-password/page.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 8800,
+        "sha256": "2b0e13f3a07b5c16410c57fe9d0e0a61add7345e5a7ab3b354fca7d6936b3cb5"
+      },
+      {
+        "path": "web/src/app/admin/users/page.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 16979,
+        "sha256": "91b9b686f16fb85fe08bc53876b8888b4a28351df3bb88d1bea56222cfea4e16"
+      },
+      {
+        "path": "web/src/app/compare/CompareContent.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 16715,
+        "sha256": "635c4a6c34771f85203e112c818c2ef9d0ba8b7bdbd5ed3e1a9104f32ea10b3b"
+      },
+      {
+        "path": "web/src/app/page.tsx",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2904,
+        "sha256": "e745a4397c485dc44113e003643a154cbf57230223deabc3f4da072bc16eca99"
+      },
+      {
+        "path": "web/src/components/admin/AdminSessionGuard.tsx",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3823,
+        "sha256": "f2b4ba5cbc637640e6e43e12a7e0c84e63b2c7f72610ab0105f600681e327dc2"
+      },
+      {
+        "path": "web/src/lib/admin-auth.ts",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 14668,
+        "sha256": "fe4ba75379a20bd0eac4ff1ee365a7962390bc7f8429c854296f77fc831bca10"
+      },
+      {
+        "path": "web/src/lib/supabase-transport.ts",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7858,
+        "sha256": "b115c8f1c46f7c33c80f6ace8fc9d5c2409898ca1833851e58d1361d640571b0"
+      },
+      {
+        "path": "web/src/lib/supabase.ts",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 5082,
+        "sha256": "3bb06d8dc73660175e5a1738eca6227cb47b3c7c591b4cf1eeb067ca4deb4701"
+      },
+      {
+        "path": "web/tsconfig.json",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 869,
+        "sha256": "661b4cc82da6a8924e8e57c1ccf9ac2e8c3c4d1422d4ce664a45e44ddc4cdc9a"
+      },
+      {
+        "path": "web/vendor/README.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1378,
+        "sha256": "4e7f2700dcc37fe9db4b4fb3834ff7d4a4764e0f9ed3b8ea330e202d1b2ae62d"
+      },
+      {
+        "path": "web/vendor/braces-3.0.4-h3.1.tgz",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 14492,
+        "sha256": "a8c0b0223dc788781252f9b056207b5b053b8dd0896da861c305769b472f0819"
+      },
+      {
+        "path": "workers/admin-quota/index.ts",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7512,
+        "sha256": "392d0f9ad183ac871a16d01c6f6b5e6fd18edd26c18fd3221a1d16f8bb0a869f"
+      },
+      {
+        "path": "workers/admin-quota/wrangler.jsonc",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 338,
+        "sha256": "f90ffabbfe79c5ebf8f98da12b6604fc6a2961fa8b8811ce48dd2a23e855bbf5"
+      }
+    ]
+  },
+  "exclusions": [
+    "All unlisted untracked paths and raw/redundant evidence are excluded from proposed change scope.",
+    "Build output directories, .next, out, node_modules, caches, generated bundles and temporary runtime data are excluded.",
+    "Operational .env files, secrets, credentials, real accounts/data, Docker resources and unrelated work are excluded.",
+    "Only the explicitly listed paths in scope.entries are proposed for change; selected_evidence entries are supporting records, not automatic PR source inclusion.",
+    "The manifest does not hash itself or the local PR-body draft; their exact R7 paths, plus preserved generated R5/R6 draft paths, are excluded from the WIP status digest.",
+    "The Stage 2 patch is supporting evidence for a later separately authorized update; it is not an active Stage 1 source change."
+  ],
+  "selected_evidence": {
+    "selected_paths": 149,
+    "content_hashed_paths": 149,
+    "evidence_entries_digest_method": "SHA-256 of compact UTF-8 JSON for entries sorted lexicographically by path.",
+    "evidence_entries_sha256": "874cd6030646e90c4db1e1f859b8f86ea0acdca621d42298300b4449671fdab3",
+    "entries": [
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_r51_preparation_2026-10-10.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 3074,
+        "sha256": "e3e5063e8cf36476f22efa58060a872caa7cd29ee63234daa08c7f091db09640"
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_run_2026-10-10_r51.txt",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 12902,
+        "sha256": "777a9f240943e34687a18c7ed6aec4161312eb6a13cceacd7387c1247d46c2fc"
+      },
+      {
+        "path": ".context/evidencia/h3req1_ci_bootstrap_minimal.patch",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 19090,
+        "sha256": "033fe1263ceb86b1f609613de52de41b071153f7e8eabb6a11848b5b69c1a450"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_candidate_final_2026-10-11_r2/normal-mock-builds-r9-r10-reconciliation.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 288,
+        "sha256": "aead15eef0fe7a202f014617445798cb74ee2460f68b845f720c45eb4e567c2a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_credential_history_scan_r174_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 5980,
+        "sha256": "7c0c1d0d526fbd9132eb8ad69e3f0849a889b45ebb07826440ee2cc9bf7a377f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_credential_tree_symlink_r175_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 4258,
+        "sha256": "f17ba0213c9c2d7923c2e7408bfde230cf05d0573bf73f7b953aeb9183079a17"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_delta_r70/credential-scan-r70.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 23,
+        "sha256": "c907c408226ecdd488273b9af102a9201a0efaf17a8d58788658a67652ca1396"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_delta_r70/pytest-r70.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 826,
+        "sha256": "5d0154269669cb37c95ef1319df58b5c49e7734b733831368b6f14300335ff72"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_final_checks_reconciliation_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 18342,
+        "sha256": "2ba46878b245cfb0d872ef501e33fd1b4c22e482b3b1b8c8795bb6c1b970c60a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_final_r173_runner_precheck.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 432,
+        "sha256": "9151bd2c473c3004a12c4141f2bbe1bcacd920a85ff66bdcc3f0ffa5ad01700a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g08_scanner_named_credentials_ci_allowlist_r176_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 5975,
+        "sha256": "a86e85935275f666742ce219aa5c99f117df8dc51d54a16b1545ce95819b1a90"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_email_fallback_r170_r171_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 6630,
+        "sha256": "aee954bc198c0bb35211422747f37b48ba095e74e719b860768429657bfaf89b"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_email_fallback_r170_r173_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 6772,
+        "sha256": "259292a87e52bce523604a62265962891312ec7c4d8b3f0d01861f679b8b9a96"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_final_review_r5_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2226,
+        "sha256": "d313173ab76e2f2df5abce371daede5f0ecb0222a104a01a3d855782e0163760"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_delta_r64_r70_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 6769,
+        "sha256": "c5f498d462a383cf4a59c8a249a72849d14a9d322f7321e599243e61f1e4e964"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_delta_r71_r72_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 5503,
+        "sha256": "81d6d7301c8d433bb668dbb7e6d7cfed8991fc66d2afb053b8e27b51ab8c55ca"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_delta_r73_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2282,
+        "sha256": "42d955efdff341a7cca8c6cedac41f9eac2e2bf69dada4569c9848029e57013f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_delta_r74_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2463,
+        "sha256": "a8a6e0ae16862e935b58817d14e801f8a1e8df6c62f28ff0d86bba023766c680"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_delta_r75_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1920,
+        "sha256": "3fb4eac691cf7fb712b916ef8aa072e9ddd8d33ea532342736b5b11182c61737"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_delta_r76_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 3496,
+        "sha256": "a472a7dd354f69c279416ab806edc5803037793b28df8855a6a2ef21a4f21a72"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_matrix_reconciliation_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 37206,
+        "sha256": "81e5dc6e92b07334bdd8157dabc2fad9d7388fde6ad3f17b44c51bf2218d8c10"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_r73/pipeline-partial-recovery-r73.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 493,
+        "sha256": "98735134a140cecdab72ad0bda93bbdc6b64094d7e2a3b85038c9a13c06e855d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_r74/pg17-static-identity-r74.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 936,
+        "sha256": "8a3b8b3462abb5015f4492a83a83edee31efa2c6fb0351d23ea9ece109052934"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_acceptance_r74/windows-r12-public-detail-r74.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 315,
+        "sha256": "7f1bf4f2c0f1dd376e82f0c56d9ce41d9f6205d01a2c9cdbdf3bde089e921790"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_close_r159_r171_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 9954,
+        "sha256": "2480fffbf504f5af1566c1b5ae2547e3e3843c0251bbdcd760b0bc445360c0a6"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_close_r159_r173_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 10596,
+        "sha256": "6f6e358613e39638c383b1e80750fa9a93c72576f388c82dfdba3ee274009f34"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_close_r175_r177_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 6402,
+        "sha256": "925957f431a9b670b41fa0ceae70dc978a331150e72813aa640eff631589a639"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 5366,
+        "sha256": "a0a5c7a2244595d80fe521e895654e5fff9793103684c62a81aa1914d9459ac8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/H3-UAT-002-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 56060,
+        "sha256": "37b2d259e799bb0312af870784ba76c87e5a7a49cc01f70dc2d088b2a4644a51"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/H3-UAT-002-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 41451,
+        "sha256": "9e67e793bf97652a53acedbc09972add370d44cc4d0855c4a4f01253e9656f5f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/H3-UAT-002-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 51751,
+        "sha256": "c0499571e22eacdba7ac1cb55230609d6664770629e58b8a91d20b226c6d0e87"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/H3-UAT-003-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 56060,
+        "sha256": "37b2d259e799bb0312af870784ba76c87e5a7a49cc01f70dc2d088b2a4644a51"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/H3-UAT-003-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 41451,
+        "sha256": "9e67e793bf97652a53acedbc09972add370d44cc4d0855c4a4f01253e9656f5f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/H3-UAT-003-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 51751,
+        "sha256": "c0499571e22eacdba7ac1cb55230609d6664770629e58b8a91d20b226c6d0e87"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1397,
+        "sha256": "4346278c9d3e2ef303a3a237a83d58eb36d64e208d443de0ba4bd92038db31bc"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/h3-expanded-uat-executions.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 121369,
+        "sha256": "5ff35d8dfc55f928017653d9b4939e9e437ef9df0e6c42c0bd0b6596c1b2d55a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/h3-expanded-uat-manifest.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1282,
+        "sha256": "d16d738db9ad37c657485f7375d408207e4d90d6de37b94eeccb7f22b090ba96"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1560,
+        "sha256": "f396ff769261381e680c6a09a9b47e8909bf43e99f0a432db6c86caced0e155e"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/h3-expanded-uat-progress.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 121369,
+        "sha256": "5ff35d8dfc55f928017653d9b4939e9e437ef9df0e6c42c0bd0b6596c1b2d55a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/failed-r170/runner-summary.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 375,
+        "sha256": "c2fb66a263a01761336464b8ee9324e0d06b0f4ab3ae8bb51044a5cb1b71c098"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/H3-UAT-002-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 316765,
+        "sha256": "1cfaff4f42583a20b04d52eb1354e077c51a3a5692fcc2d92133d6bc37b5b5b5"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/H3-UAT-002-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 281710,
+        "sha256": "b096ceb4f0c56b8e50dd27da923d651653d5dcb53c5303e78e512b24fc47806a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/H3-UAT-002-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 308581,
+        "sha256": "9ba5f1067db7a327b9be63ca26d572649137e816996eb3df7a704e09ef4ace48"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/H3-UAT-003-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 321797,
+        "sha256": "bf513678cce2f6712643e3ace8eeb933b6afc382e85e089c38a9dba84c51680f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/H3-UAT-003-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 289683,
+        "sha256": "30972473f0e80bb24f33cb060b5caef6ea31a68f7e55bf5cb045b1165a89c555"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/H3-UAT-003-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 314109,
+        "sha256": "6d1bc7fbbe4f874554632e4b771b644526895fe3b24b59bb348cf83aaccd282c"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1397,
+        "sha256": "d5a8f1dd078e313680189e348e0fe153237c82412d83170e4d87c4e6e12bf6c5"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/h3-expanded-uat-executions.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 106921,
+        "sha256": "6c974580f824f4a82683c2f57047a1d769a027076291840fc069e1b18128869b"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/h3-expanded-uat-manifest.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1282,
+        "sha256": "d16d738db9ad37c657485f7375d408207e4d90d6de37b94eeccb7f22b090ba96"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1560,
+        "sha256": "2cddf6ee6d180d7578ef1cfd061b9ddc213b60a224bf86860f60161c7880f576"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/h3-expanded-uat-progress.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 106921,
+        "sha256": "6c974580f824f4a82683c2f57047a1d769a027076291840fc069e1b18128869b"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/run-inputs-r171.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1475,
+        "sha256": "c6d831de8689a1b82ab6bd8dd692923966004ea0a25bfccd75b228725afdbc78"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r171/runner-summary.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 375,
+        "sha256": "b6e49a4561e7d9a3a96d978c08bcade8f4b6d3480960d3cb66248377122c0aed"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/H3-UAT-002-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 316765,
+        "sha256": "1cfaff4f42583a20b04d52eb1354e077c51a3a5692fcc2d92133d6bc37b5b5b5"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/H3-UAT-002-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 281710,
+        "sha256": "b096ceb4f0c56b8e50dd27da923d651653d5dcb53c5303e78e512b24fc47806a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/H3-UAT-002-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 308581,
+        "sha256": "9ba5f1067db7a327b9be63ca26d572649137e816996eb3df7a704e09ef4ace48"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/H3-UAT-003-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 321797,
+        "sha256": "bf513678cce2f6712643e3ace8eeb933b6afc382e85e089c38a9dba84c51680f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/H3-UAT-003-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 289683,
+        "sha256": "30972473f0e80bb24f33cb060b5caef6ea31a68f7e55bf5cb045b1165a89c555"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/H3-UAT-003-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 314109,
+        "sha256": "6d1bc7fbbe4f874554632e4b771b644526895fe3b24b59bb348cf83aaccd282c"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1397,
+        "sha256": "f8ea4cf193d62400f69b07afb8c0084c06136f2479ea6acb340a6278e58dca3e"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/h3-expanded-uat-executions.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 108179,
+        "sha256": "3556daa810fbd3761afa99c4d152f3fbbe4934cff3caad5b6f8a4f60c08513d8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/h3-expanded-uat-manifest.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1282,
+        "sha256": "d16d738db9ad37c657485f7375d408207e4d90d6de37b94eeccb7f22b090ba96"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1560,
+        "sha256": "dc1d01f6a79a1d2f44063c78d53374e1a27bf823960ec19bbcda02449668336e"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/h3-expanded-uat-progress.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 108179,
+        "sha256": "3556daa810fbd3761afa99c4d152f3fbbe4934cff3caad5b6f8a4f60c08513d8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/runner-summary.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 375,
+        "sha256": "b6e49a4561e7d9a3a96d978c08bcade8f4b6d3480960d3cb66248377122c0aed"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r172/runtime-identity.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1273,
+        "sha256": "931ec30eefa6572e26890b6ae8c7b23dfc44888fcf144cf75335d81560745f5d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/H3-UAT-002-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 316765,
+        "sha256": "1cfaff4f42583a20b04d52eb1354e077c51a3a5692fcc2d92133d6bc37b5b5b5"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/H3-UAT-002-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 281710,
+        "sha256": "b096ceb4f0c56b8e50dd27da923d651653d5dcb53c5303e78e512b24fc47806a"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/H3-UAT-002-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 308581,
+        "sha256": "9ba5f1067db7a327b9be63ca26d572649137e816996eb3df7a704e09ef4ace48"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/H3-UAT-003-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 321797,
+        "sha256": "bf513678cce2f6712643e3ace8eeb933b6afc382e85e089c38a9dba84c51680f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/H3-UAT-003-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 289683,
+        "sha256": "30972473f0e80bb24f33cb060b5caef6ea31a68f7e55bf5cb045b1165a89c555"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/H3-UAT-003-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 314109,
+        "sha256": "6d1bc7fbbe4f874554632e4b771b644526895fe3b24b59bb348cf83aaccd282c"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/dispatch.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 380,
+        "sha256": "ac4a39af5518739c5c7d3f118f560aece7548a7a0105f2f750d93fe601a6de5d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1397,
+        "sha256": "c6213a227446ba7d91bf75b3b814c2a4c93a909eb4445edfc923c4ffa6ec01c2"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/h3-expanded-uat-executions.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 108433,
+        "sha256": "b95722d95976801bfc89c2bb45356bedeb775d5f2489cc1c9e523f4212b26582"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/h3-expanded-uat-manifest.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1282,
+        "sha256": "d16d738db9ad37c657485f7375d408207e4d90d6de37b94eeccb7f22b090ba96"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1560,
+        "sha256": "4347f6791deedbb72bb1592506ba03a9d12cba4c5ac184d55039169df19b4b11"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/h3-expanded-uat-progress.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 108433,
+        "sha256": "b95722d95976801bfc89c2bb45356bedeb775d5f2489cc1c9e523f4212b26582"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/runner-summary.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 375,
+        "sha256": "b6e49a4561e7d9a3a96d978c08bcade8f4b6d3480960d3cb66248377122c0aed"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/r173/runtime-identity.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1272,
+        "sha256": "c709a8cf7cfcf1121a908533ca51e052e1bc7bb559ae93f5f10e520c4e1eea65"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/run-artifacts-r172.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2218,
+        "sha256": "fb0148f559f0ccd3984c14addaaccc49ecc36e513fa17e139f5b8abc1586cc0f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/run-artifacts-r173.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2376,
+        "sha256": "fcb84a48ed69c839bc629f9564aa1ddf56bd8cd1e7899f0e8bcb71c73331bbbc"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/run-inputs-r172.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1476,
+        "sha256": "18afa8dd422150ac44fc06b94f96edf1058ffec3faeb9a218bc4b6b59f5da203"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/inputs-r170/run-inputs-r173.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1476,
+        "sha256": "6ffe16de87b1181e09f1aa679d01b524ec9de7730e4f3389c5316dd48d7cd944"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/onboarding-screenshots-r8.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 800,
+        "sha256": "22d134a9ea4f388a14847f6d52b772b8a94625dbf290de31aab6d0884d43fdcd"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/onboarding-summary-r8.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 925,
+        "sha256": "8121c7b4aa0c0afadcaf67385e3dfd876286f48f76ce2fb5d51910cf6b39bea9"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/onboarding-videos-r8.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 92,
+        "sha256": "c1d0c278775c6b5c2b5a69647808e337c2b663735815449384e647fdba7e94c5"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-001.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 68096,
+        "sha256": "f796802572ad4d90b47e449db6c99c4165dfe6275530edeea26b77520f6df4bd"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-002.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 65666,
+        "sha256": "6fbf32e6f50e8e2ee98bc07bb13632b58d04b31a5ec6b1c82627e55958451f64"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-003.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 13535,
+        "sha256": "a3d81942eeb32ce313de289600a853ab5f9008fc4d7a35aa84baf2549837b5b8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-004.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 13535,
+        "sha256": "a3d81942eeb32ce313de289600a853ab5f9008fc4d7a35aa84baf2549837b5b8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-005.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 57183,
+        "sha256": "79c0a0da98fa5edd1917f4af2ebd29c400b2ebeb574a1d650142f60918035b11"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-007.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 81120,
+        "sha256": "b98a2d626ee05a84badb0e3f63664ce48de025742a25f15d03f400dcf76ce886"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-008.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 57008,
+        "sha256": "95451e52018c36fb287de8d4d3c11b4802d9a27d54e83cc517e8ea2abdfae437"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-009.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 197389,
+        "sha256": "e9266e65b03ce3a74590a27f22e97ab7a334ebae407f34409e252bee3c698442"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-012.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 13535,
+        "sha256": "a3d81942eeb32ce313de289600a853ab5f9008fc4d7a35aa84baf2549837b5b8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/screenshots/INV-013.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 15420,
+        "sha256": "49d05852365b174fa6d1aacf690118243082694d3379cdcd9ddf20be3f3f4d7b"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_2026-10-11_r7/run-r7/onboarding-r8/videos/onboarding-user-flow.webm",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 366847,
+        "sha256": "d3bcc728cdac293c85a591edaf34d2b819038a3ba131cdb94ffbc1a917d142d3"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_onboarding_r8_inv008_topology_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 6950,
+        "sha256": "5fa00f2bdd5ff5c16a93277858af05b993c87a941a30433a6bab7e83501c1865"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_pipeline_postgrest_r161/exit.txt",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_pipeline_postgrest_r161/run-r10.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 6238,
+        "sha256": "1d8e17cb8525124450db4f778d42eb591c3e86b2ee44e8973d1532709e639ec9"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_security_review_r173_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1327,
+        "sha256": "fe99634d96c9d24fa2408735bcde2869a54cadfe83f8b5cfee8782601778bb71"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/compare-build-r69/normal-build-r69.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1610,
+        "sha256": "a021b519cace5a6d60aa679e03cafb7cf4fa4ce87a8ac1d19622a0946584e34f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/compare-build-r69/normal-fixture-r69.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 60,
+        "sha256": "515843815689c50f7d507f2c1fac5971d9a30b02b17ff1a8ddc43d13f1da79f0"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/compare-build-r69/normal-out-r69.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 22770,
+        "sha256": "5f50efc76f69e55b71c5a853d3c42f66910145eb87a9a999c606d9a7834c5274"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/compare-build-r69/normal-static-param-fixture-r69.mjs",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 4696,
+        "sha256": "5ace178faff62d8ef3b1592f2076666f94f47d3cf22b815e4442668bb9b41d05"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/credential-scan-r72.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 23,
+        "sha256": "c907c408226ecdd488273b9af102a9201a0efaf17a8d58788658a67652ca1396"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/h3req1_g09_uat_r72_exit.txt",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/h3req1_g09_uat_r72_runtime.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 161,
+        "sha256": "42705760b7ef3e83ebb2a86eaf9a677c7ff46e8034a50c93a0a35fac73adff45"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/h3req1_g09_uat_r72_stdout.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 138,
+        "sha256": "6348759a5aff435ac9ae248eac99fc9f4b81854171f160bf41873997fba926c7"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-walk-r2-handoff-2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 13849,
+        "sha256": "a994e38518ec6077821e357a427f405d0d373786587599370f4abdcb5e657284"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/r28_r29_catalog_reconciliation_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 4523,
+        "sha256": "5700b9cebd079d397021fd4c4acaa93fee3a83dacf6a035d8e5421121835fb35"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/site-out-r41-verify.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 5132,
+        "sha256": "ca7554dc0d6159dd526dfad877cac4e7e18f3e1155e39514ceca0382c6ee0ffc"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/H3-UAT-049-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 107265,
+        "sha256": "e7015ade5023fe6b255c6b97282c18ef2595c7462db15a84a96170411894d580"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/H3-UAT-049-desktop.webm",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2086158,
+        "sha256": "196acd796c6aa25499c20b12977cb5dfb7641293825275dbada7b3d12dfb2452"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/H3-UAT-049-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 90182,
+        "sha256": "4b400c07f54d7112b552271beeaf91b068aaeb1887b1a8931c56d1dd4e12722d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/H3-UAT-049-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 101052,
+        "sha256": "16c18681f8456689c6177b7845791e5f44b47b9a85ef2b03e38e9dea9970aebd"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/H3-UAT-064-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 140640,
+        "sha256": "0fb3aab9b10d4550643e39bab36d96f37fc90117be1cd53ea4328f36d5a1f550"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/H3-UAT-064-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 126609,
+        "sha256": "43f0000b492297706b07df630920da6139812f800351e61a75ea751ae17723bc"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/H3-UAT-064-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 122980,
+        "sha256": "44039c0d3ec40cab98fece84f75cdff4bcb7f5d2a99af69387121ce295b77c94"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1535,
+        "sha256": "1cbcdc6ae6b2f90d5cbb120e2a90ffa28ccd9fcc77d4b8e018d2c855cddf98c4"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-and-pipeline-r70/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1631,
+        "sha256": "c608aea62f7e50eb927893efabe0ed0c77b12d8443a40c4282427b386acc700c"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-missing-location-r63/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1340,
+        "sha256": "8559ce02079e4d58c62f67a1edf6fb3bd471194e9cc2f4bdc05fcbc68cf6620d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-missing-location-r64/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1340,
+        "sha256": "36e4a1e5c00c8f8f66c90b899a377442b012aab35067b8bbf5919175e3601eef"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-regression-r65/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1356,
+        "sha256": "f4cc5d808b51985a4a22b5fb7d017670c697568d7aceaaa163e7659fe8746875"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-regression-r66/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1356,
+        "sha256": "f4349a66ae8f03bc0a6fbbc5214d89827a64064ed1750c0e00b77f0bec69d22d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-compare-regression-r68/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1356,
+        "sha256": "5bbb14e632277fa45f0a846313559d37b96998391aca6426daa2a5a65f7b88ec"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-functional-targeted-r41-command.log",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 138,
+        "sha256": "6348759a5aff435ac9ae248eac99fc9f4b81854171f160bf41873997fba926c7"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-functional-targeted-r41-runner-exit.txt",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 14,
+        "sha256": "5934b80d2ca77509a72482c412422f3948c5ee5d34ee184212c79b79f893f7f6"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-functional-targeted-r41/H3-UAT-040-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 141590,
+        "sha256": "db4243b8e91a92ac63d24287f60c402e103979877f42a4ba018abee6adce5296"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-functional-targeted-r41/H3-UAT-040-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 83456,
+        "sha256": "4a969f86e144c40fa8de7a28938fcd9b86464bf5a168720ea1427754caee87fb"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-functional-targeted-r41/H3-UAT-040-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 106901,
+        "sha256": "38c4f493c693451a79e387eafcbd57cb81ce25d4b6a6ed26af21eb7c3b1654e3"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-functional-targeted-r41/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 981,
+        "sha256": "1993e197dd48983e8cf49396d902514f9430decd9115157827fb05f7aba82bef"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r71/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 946,
+        "sha256": "34de2b80802502d8f743b43400e3afaf6f6d92c80567fe974187c9b543f894e8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r71/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1333,
+        "sha256": "73f5b8be1a3f28b26447f09ad07756a1fa39cd0bb5f5241265f1396ca1932c4d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r72/H3-UAT-065-desktop.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 130938,
+        "sha256": "838d8b9536d7eb17713b64948f1db5b57fe5b25696c0b959d8ef2aba3b3d9513"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r72/H3-UAT-065-mobile.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 112911,
+        "sha256": "76e119a1c11483c8638a1a709ddcacfc7e1583c7a393498ad5302fd5004bece3"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r72/H3-UAT-065-tablet.png",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 121624,
+        "sha256": "507c04c83243e2d24f5fc9ef52ef5c65b1fc291119e0134c0b3a008d0417b15b"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r72/h3-expanded-uat-artifact-hashes.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 946,
+        "sha256": "973eab60d64a7f654bb713f0042b027850e35262c6032a94741c001254bcee94"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r72/h3-expanded-uat-manifest.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1109,
+        "sha256": "f84b6a4b5dc3b1e817b87d1b91d75f12e0eeeed0c9c18d2ca3f2aa8daf075637"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-10_r4/uat-static-details-r72/h3-expanded-uat-matrix.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 1333,
+        "sha256": "fd705fee338d252c99a62daea5c78ebf193cb495138a211ee2ec684308081501"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_uat_2026-10-11_r41_membership_keyboard.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 7262,
+        "sha256": "10824d6f95a871b3da809075a3f66751185b0f5918c9b8594da18b73bddabf6f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_windows_loopback_r41_postflight_2026-10-11.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 2701,
+        "sha256": "317476f9989201ed2f203bda0a4075ab8e8b9ebdca91f245a85942a84680dc64"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_security_audit_stage2_2026-10-12.patch",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 8102,
+        "sha256": "c522720a8bfd26b47c09036fdc69cf86d4a34065bfedc9abb11d66790e4b317d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-11_r5.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 17154,
+        "sha256": "66bfbe070714e4c762c6dbf8c216baeb0f86b1b2ed00494e1d991e142df6bdb1"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-11_r6.md",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 17391,
+        "sha256": "5541f60fe3dddab4c302d6de28dfb8116239d7e48666a909e4620a71b31deb09"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-11_r5.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 74918,
+        "sha256": "e8813e32e037d5b0306a9827b30b0f152654bf3d5515b0e13df3113295f2744f"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-11_r6.json",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 76140,
+        "sha256": "331aa3ccd9d3fbc6476637d929d69b853d44247bb91e5d75671174f1f9a056ac"
+      },
+      {
+        "path": "tests/h3req1-c03-integrated-r51.sha256",
+        "status": "untracked",
+        "selection": "canonical_evidence",
+        "mode": "0644",
+        "bytes": 14677,
+        "sha256": "912ce9ccc2d42bbe8ee0ca7b4dcb69991a924e5f788e0914b33c4a2ba4650277"
+      }
+    ]
+  },
+  "content_inventory": {
+    "change_paths": 91,
+    "selected_evidence_paths": 149,
+    "content_hashed_files": 240,
+    "manifest_self_hash_excluded": true,
+    "pr_body_hash_excluded": true,
+    "scope_and_evidence_overlap_paths": []
+  }
+}

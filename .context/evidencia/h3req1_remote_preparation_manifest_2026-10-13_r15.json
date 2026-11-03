@@ -1,0 +1,372 @@
+{
+  "manifest": "h3req1_remote_preparation_manifest_2026-10-13_r15",
+  "as_of_utc": "2026-10-13",
+  "package_kind": "supplemental_documentary_overlay_for_R14; no PR",
+  "candidate": {
+    "workspace": "/home/romel/src/studiamatch-h3req1-sync-20261002",
+    "branch": "feat/h3req1-sync-20261002",
+    "base_head": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
+    "head_alone_does_not_identify_wip": true
+  },
+  "parent": {
+    "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-13_r14_reconciled.json",
+    "sha256": "7c9a6ba29c260231a02f11167d9093cd7241e9779ddabb28fee8f508f0391851",
+    "preserved_unchanged": true,
+    "role": "R14 snapshot; not rewritten by this overlay"
+  },
+  "scope": {
+    "entry_count": 19,
+    "entries": [
+      {
+        "path": ".context/backend.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 26065,
+        "mode": "0644",
+        "sha256": "a110a14446790299ffc0abfaabe5374554d8d182b22f52a9623e66d84909d130",
+        "r14_pin": "f1b408ce95638b7d2a6bc93d91da6e8b1e7a032c5757ae2b0b764340f244e2f1",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/changelog.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 14364,
+        "mode": "0644",
+        "sha256": "bcb575065c2241cb26b1d58cdc07911d310b706b4337b85698c93b22377b800c",
+        "r14_pin": "dda82852959997ec52f120d77241b09d3785ae2fa0a8832439923ad819c08eaa",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/ci_cd.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 9667,
+        "mode": "0644",
+        "sha256": "2b8d209f2f94531935673b5e6fa8e830f474cdca6ee7e897d7c8d16b26827e1d",
+        "r14_pin": "01f41fe6af29b61dddb5d3c217891dd02cbc819a8bd9402a2e66dc2b1f95fd4d",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/componentes/admin_runtime.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 14705,
+        "mode": "0644",
+        "sha256": "4f38b51bedba2f306430edab0b3dbe1a14c7468962613478f030c799aaaebc6c",
+        "r14_pin": "594a89e7bd07419cbbf366fddcc5bf0de5575e8ef3a284598887e0ec4d68501f",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/componentes/database_migrations.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 201924,
+        "mode": "0644",
+        "sha256": "0d03478966398b1bc1c3cc5ee1a21a27b468d1d22b41c5b6d37cfe7e266968d3",
+        "r14_pin": "56b3719649d4ec9cb53f6ea25df1ed1c3c665031d92ab6ee6c08271a382ecc39",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/componentes/infra_release.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 15473,
+        "mode": "0644",
+        "sha256": "92616964bda2d71d9acbb54ce3594bcc34c04b4417b2c170347d88424dc064ee",
+        "r14_pin": "9323cb2ed017144bfca4a5e7b2c5486a4008a2e76c21cb8b3c8ad1c27fba7f5c",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/database.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 33448,
+        "mode": "0644",
+        "sha256": "f2fafa51cf8ac5c2c02fff4117f9cbf8fe19a9bbcc4bbcfad8e971324868bbad",
+        "r14_pin": "67cd19288d8a85913dfabe95847a6b3149d530330d6f8d5a448ed1a98fdd81d7",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/estado_del_proyecto.md",
+        "status": "modified",
+        "git_status": " M",
+        "bytes": 14489,
+        "mode": "0644",
+        "sha256": "879fc3b2e994b02917a9a426028038402d588958d4dd9a0a244dcb6205fe111c",
+        "r14_pin": "04b9518706a4287e54884f6e054b7cea3807b5cc0487a11aa984df335d4ff865",
+        "r14_status": "modified",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/evidencia/h3req1_development_integration_package_2026-10-13_r15.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 13083,
+        "mode": "0644",
+        "sha256": "77287c1d517457fc661df50f6337ce71df680fe9bfd85502560c3a618dc189b5",
+        "r14_pin": null,
+        "r14_status": "not_in_r14_scope",
+        "pin_relation": "new_overlay_path"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 14309,
+        "mode": "0644",
+        "sha256": "99b6ce9dbcf67d3b92a4b08c0a6231dc9c7aa34ff6d36e999677665c42256682",
+        "r14_pin": null,
+        "r14_status": "not_in_r14_scope",
+        "pin_relation": "new_overlay_path"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r15_remote_prep.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 9757,
+        "mode": "0644",
+        "sha256": "4fe59fc3ad49a4e4208e78b7041c7ca235dba3d4eed945ca3f511e741583014c",
+        "r14_pin": null,
+        "r14_status": "not_in_r14_scope",
+        "pin_relation": "new_overlay_path"
+      },
+      {
+        "path": ".context/evidencia/h3req1_remote_preparation_checks_2026-10-13_r15.txt",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 6462,
+        "mode": "0644",
+        "sha256": "f44c6ce158e62a645c973cd42610035d6fe7d52aa39b44290c7c77544fa7a59a",
+        "r14_pin": null,
+        "r14_status": "not_in_r14_scope",
+        "pin_relation": "new_overlay_path"
+      },
+      {
+        "path": ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 4066,
+        "mode": "0644",
+        "sha256": "bfae17045b624413a34b376f86d85676dec92b3dde099e52395ada1a9bd20b87",
+        "r14_pin": null,
+        "r14_status": "not_in_r14_scope",
+        "pin_relation": "new_overlay_path"
+      },
+      {
+        "path": ".context/indice.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 13172,
+        "mode": "0644",
+        "sha256": "a55b361e9b438d707e22ef2b138f1e3e2936b09ae818ee1b1d31cf9472205e72",
+        "r14_pin": "0f47282942593b3b1435b315ffb04a43a748281bc199dfa6852150564d3db2b0",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/operacion.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 6353,
+        "mode": "0644",
+        "sha256": "0d7e3037a72689ef5012dff7d3b609711ddf4eb80dfb18b05f8b501caf21463c",
+        "r14_pin": "392febef50c30230cdafb85827a494733ad5bca78476a5fef969bf80cac5f149",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/seguridad.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 10736,
+        "mode": "0644",
+        "sha256": "a2dcffc18fce5eb197abd2157ba1f86efac48389ab4a7b9249d5538d1f808ab3",
+        "r14_pin": "a36b6a0cb822aa58d08b90634f4492b1b17908157b795e3fb2ec00987cfe04bb",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/tecnologias.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 10309,
+        "mode": "0644",
+        "sha256": "7135cfe0e3470510d920518c077a29c45dd94dadd953cd7879f9d05621f4d6b1",
+        "r14_pin": "e21680ecdc32e70cbda3fb267ef49d1c5f5c171bea26c12fd0161726a6def95e",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.json",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 3015090,
+        "mode": "0644",
+        "sha256": "9ebe81fc205d60e6722f8a154288f88991da8f5674eadc60148b5b6fa9cecc45",
+        "r14_pin": "d9f722bd7b7bb9d417f0413155db852166133b9f5d107dd338cf523a36ef2bd7",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 1439017,
+        "mode": "0644",
+        "sha256": "d56bf1920af9878d60fe2b0ef271d941756a8885510e9921a6f6d651fdfec31e",
+        "r14_pin": "8f1b97c74d5ddba8658d36f8e5e6b3ce12c478b6db206f29fb229133a7c2b56b",
+        "r14_status": "untracked",
+        "pin_relation": "updated_from_r14"
+      }
+    ],
+    "entries_sha256": "de05bdf2375afded1abefc01fb02b85c761aeffcbf06949f4c251cd05d6ce234",
+    "digest_method": "SHA-256 of canonical UTF-8 JSON for sorted scope.entries with sorted keys and compact separators; overlay manifest itself is excluded.",
+    "selection_rule": "Only these explicitly listed documentary paths are added/updated over the immutable R14 package. All other WIP, caches, dependencies, secrets and backups are excluded."
+  },
+  "reconciliation": {
+    "r14_pins_updated": 14,
+    "new_overlay_paths": 5,
+    "same_as_r14": 0,
+    "r14_scope_is_not_redeclared": true,
+    "source_paths_are_explicit": true
+  },
+  "remote_read_cutoff_utc": "2026-10-13T18:30:52Z",
+  "remote_read_policy": {
+    "github": "read-only refs/rulesets/workflows/runs/checks; protection endpoint 403",
+    "supabase": "project/schema/ledger/Edge/Auth metadata only; no operational rows or secret values",
+    "cloudflare": "deployment/host/binding name and type metadata only; no values",
+    "braces": "public PR/commit/npm metadata; local tarball comparison"
+  },
+  "safety": {
+    "secret_values_read": false,
+    "operational_rows_read": false,
+    "users_or_mailboxes_read": false,
+    "mutating_sql_or_rpc": false,
+    "workflows_run": false,
+    "pull_request_created": false,
+    "push_merge_deploy_or_remote_configuration": false,
+    "D01_D14_executed": false,
+    "development_go": false,
+    "backup_included": false
+  },
+  "backup": {
+    "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r15_remote-preparation_2026-10-13",
+    "files": 19,
+    "hashes_verified": "19/19",
+    "captured": "before R15 remote preparation edits",
+    "excluded_from_package": true
+  },
+  "validation_status": "normal_and_self_test_PASS; credential_scan_19_paths_PASS; independent_review_local_GO; future_path_allowlist_17_of_20; DEVELOPMENT_NO_GO",
+  "self_hash_excluded": true,
+  "package_artifacts": {
+    "report": {
+      "path": ".context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md",
+      "role": "R15:remote_read_report",
+      "included": true,
+      "bytes": 14309,
+      "mode": "0644",
+      "sha256": "99b6ce9dbcf67d3b92a4b08c0a6231dc9c7aa34ff6d36e999677665c42256682",
+      "status": "untracked",
+      "git_status": "??"
+    },
+    "check_log": {
+      "path": ".context/evidencia/h3req1_remote_preparation_checks_2026-10-13_r15.txt",
+      "role": "R15:local_check_log",
+      "included": true,
+      "bytes": 6462,
+      "mode": "0644",
+      "sha256": "f44c6ce158e62a645c973cd42610035d6fe7d52aa39b44290c7c77544fa7a59a",
+      "status": "untracked",
+      "git_status": "??"
+    },
+    "independent_review": {
+      "path": ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt",
+      "role": "R15:independent_review_record",
+      "included": true,
+      "bytes": 4066,
+      "mode": "0644",
+      "sha256": "bfae17045b624413a34b376f86d85676dec92b3dde099e52395ada1a9bd20b87",
+      "status": "untracked",
+      "git_status": "??"
+    },
+    "body": {
+      "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r15_remote_prep.md",
+      "role": "R15:future_PR_body_draft",
+      "included": true,
+      "bytes": 9757,
+      "mode": "0644",
+      "sha256": "4fe59fc3ad49a4e4208e78b7041c7ca235dba3d4eed945ca3f511e741583014c",
+      "status": "untracked",
+      "git_status": "??"
+    },
+    "manifest": {
+      "path": ".context/evidencia/h3req1_remote_preparation_manifest_2026-10-13_r15.json",
+      "role": "R15:overlay_manifest",
+      "included": true,
+      "self_hash_excluded": true,
+      "reason": "The overlay manifest is packaged but cannot hash itself."
+    }
+  },
+  "additional_backups": [
+    {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r15_component_remote_notes_2026-10-13",
+      "files": 2,
+      "hashes_verified": "2/2",
+      "captured": "before R15 component page remote notes",
+      "excluded_from_package": true
+    },
+    {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r15_final_reconcile_2026-10-13",
+      "files": 19,
+      "hashes_verified": "19/19",
+      "captured": "current R15 state before final corrections; not a pre-R15 backup",
+      "excluded_from_package": true
+    }
+  ],
+  "checks": [
+    {
+      "gate": "documentation_integrity_normal",
+      "status": "pass",
+      "sources": "801/801",
+      "components": "14/14",
+      "active_documents": "100/100",
+      "historical_documents": "433/433",
+      "links": 9458,
+      "anchors": 4581
+    },
+    {
+      "gate": "documentation_integrity_self_test",
+      "status": "pass"
+    },
+    {
+      "gate": "credential_scan",
+      "status": "pass",
+      "explicit_inputs": 19,
+      "check_log_excluded_self_reference": true
+    },
+    {
+      "gate": "current_workflow_path_allowlist",
+      "status": "partial",
+      "accepted": 17,
+      "total_distinct_package_paths": 20,
+      "unaccepted_paths": [
+        ".context/evidencia/h3req1_remote_preparation_checks_2026-10-13_r15.txt",
+        ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt",
+        ".context/evidencia/h3req1_remote_preparation_manifest_2026-10-13_r15.json"
+      ]
+    },
+    {
+      "gate": "actionlint_and_shellcheck_focal",
+      "status": "reused_R14_pass_inputs_unchanged",
+      "rerun": false
+    }
+  ]
+}

@@ -121,7 +121,7 @@ La aprobacion cliente integral de `SRC-REQ-002` fue verificada de forma privada 
 
 1. [REQ-EST-001](./_index.md) adopta el mapa revisado como alcance vigente.
 2. [ADR-0026](../../decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md) fija cutoff y baseline Sprint 1.
-3. [ADR-0027](../../decisiones/ADR-0027_work_packages_y_convergencia.md) fija work packages y convergencia.
+3. ADR-0027 fijaba históricamente work packages y convergencia. La referencia no está disponible y esa autoridad operativa quedó supersedida; ver [estado vigente](../../estado_del_proyecto.md), el [registro de decisiones](../../decisiones/README.md) y la [historia Git local](../../evidencia/h3req1_historia_paths_local_2026-10-12.md). Esta aclaración de navegación no modifica los criterios cliente.
 4. Hitos 2 a 5 permanecen pendientes hasta su activacion individual.
 
 La aprobacion abarca integralmente el artifact privado `SRC-REQ-002`, incluido alcance, cronograma y condiciones revisadas. Ese detalle no se publica en Git.
@@ -132,4 +132,4 @@ La aprobacion abarca integralmente el artifact privado `SRC-REQ-002`, incluido a
 - [Plan Maestro Sprint 1 H2-H5](../../operaciones/plan_maestro_sprint1_h2_h5.md)
 - [Plan de cierre Hito 1](../../operaciones/plan_cierre_hito1_ca1_only.md)
 - [ADR-0026](../../decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md)
-- [ADR-0027](../../decisiones/ADR-0027_work_packages_y_convergencia.md)
+- [Registro de decisiones y retiro de ADR-0027](../../decisiones/README.md)

@@ -1,0 +1,2 @@
+[functions.admin-invite]
+verify_jwt = true

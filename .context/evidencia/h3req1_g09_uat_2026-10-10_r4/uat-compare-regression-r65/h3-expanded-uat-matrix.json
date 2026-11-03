@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "environment": "local-docker-mock",
+  "generatedAt": "2026-10-11T11:40:40.715Z",
+  "baseURL": "http://localhost:3370",
+  "mockURL": "http://localhost:3371",
+  "retries": 0,
+  "expected": {
+    "logicalCases": 1,
+    "viewportExecutions": 3,
+    "screenshots": 3
+  },
+  "actual": {
+    "logicalCases": 1,
+    "logicalCasesPassed": 0,
+    "viewportExecutions": 3,
+    "viewportExecutionsPassed": 0,
+    "screenshots": 3,
+    "videos": 1,
+    "videoCaptureFailures": 0
+  },
+  "distribution": {
+    "H3-CA4.1": 0,
+    "H3-CA4.2": 0,
+    "H3-CA4.3": 0,
+    "H3-CA4.4": 0,
+    "H3-CA4.5": 1,
+    "H3-CA4.6": 0,
+    "H3-CA4.7": 0,
+    "H3-CA4.8": 0,
+    "H3-CA4.9": 0,
+    "H3-CA4.10": 0,
+    "H3-CA4.11": 0
+  },
+  "byViewport": {
+    "desktop": {
+      "expected": 1,
+      "actual": 1,
+      "passed": 0
+    },
+    "tablet": {
+      "expected": 1,
+      "actual": 1,
+      "passed": 0
+    },
+    "mobile": {
+      "expected": 1,
+      "actual": 1,
+      "passed": 0
+    }
+  },
+  "fatalError": null,
+  "result": "FAIL",
+  "logicalCases": [
+    {
+      "id": "H3-UAT-049",
+      "title": "pipeline course completes Admin provenance availability publication and public journey",
+      "requirementId": "H3-CA4.5",
+      "expectedExecutions": 3,
+      "actualExecutions": 3,
+      "passedExecutions": 0,
+      "result": "FAIL"
+    }
+  ]
+}

@@ -1,0 +1,417 @@
+{
+  "schemaVersion": 1,
+  "canonicalRunner": "tests/h3_local_uat.mjs",
+  "retries": 0,
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "catalog": [
+    {
+      "id": "H3-UAT-001",
+      "title": "anonymous admin access redirects to login",
+      "requirementId": "H3-CA4.1",
+      "role": "anon",
+      "route": "/admin/",
+      "expected": "anonymous access is redirected to the local admin login"
+    },
+    {
+      "id": "H3-UAT-002",
+      "title": "active admin reaches the editorial dashboard",
+      "requirementId": "H3-CA4.1",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "active aal2 admin sees admin-only dashboard capability"
+    },
+    {
+      "id": "H3-UAT-003",
+      "title": "active user reaches the limited dashboard",
+      "requirementId": "H3-CA4.1",
+      "role": "user",
+      "route": "/admin/",
+      "expected": "active aal2 user sees the information-update dashboard"
+    },
+    {
+      "id": "H3-UAT-004",
+      "title": "user is denied membership administration",
+      "requirementId": "H3-CA4.1",
+      "role": "user",
+      "route": "/admin/users/",
+      "expected": "user cannot expose membership management"
+    },
+    {
+      "id": "H3-UAT-005",
+      "title": "logout clears the local session",
+      "requirementId": "H3-CA4.1",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "logout returns to login and removes browser session state"
+    },
+    {
+      "id": "H3-UAT-006",
+      "title": "admin editor exposes editorial fields",
+      "requirementId": "H3-CA4.2",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "admin can edit the editorial allowlist"
+    },
+    {
+      "id": "H3-UAT-007",
+      "title": "user editor limits ownership to missing fields",
+      "requirementId": "H3-CA4.2",
+      "role": "user",
+      "route": "/admin/edit/",
+      "expected": "user receives only missing fields as editable"
+    },
+    {
+      "id": "H3-UAT-008",
+      "title": "user read-only fields are disabled",
+      "requirementId": "H3-CA4.2",
+      "role": "user",
+      "route": "/admin/edit/",
+      "expected": "non-owned fields are disabled and read-only"
+    },
+    {
+      "id": "H3-UAT-009",
+      "title": "user receives an ownership explanation",
+      "requirementId": "H3-CA4.2",
+      "role": "user",
+      "route": "/admin/edit/",
+      "expected": "editor explains that only missing information is editable"
+    },
+    {
+      "id": "H3-UAT-010",
+      "title": "editor renders effective current values",
+      "requirementId": "H3-CA4.2",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "editor fields are hydrated with current/effective values"
+    },
+    {
+      "id": "H3-UAT-011",
+      "title": "independent enrichment fields remain distinct in pipeline code",
+      "requirementId": "H3-CA4.3",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "benefits, certification, objectives and target_audience are independently mapped"
+    },
+    {
+      "id": "H3-UAT-012",
+      "title": "all thirteen editorial transport fields are defined",
+      "requirementId": "H3-CA4.3",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "the complete 13-field editorial allowlist is represented in migration contracts"
+    },
+    {
+      "id": "H3-UAT-013",
+      "title": "queue count and rows agree",
+      "requirementId": "H3-CA4.4",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "queue exposes a numeric total and at least one result"
+    },
+    {
+      "id": "H3-UAT-014",
+      "title": "queue exposes both status filters",
+      "requirementId": "H3-CA4.4",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "editorial and quality filters are labeled controls"
+    },
+    {
+      "id": "H3-UAT-015",
+      "title": "page-local queue search filters visible rows",
+      "requirementId": "H3-CA4.4",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "search narrows the current page without navigation"
+    },
+    {
+      "id": "H3-UAT-016",
+      "title": "queue edit/public links follow editorial state",
+      "requirementId": "H3-CA4.4",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "every row is editable and pending rows do not expose public links"
+    },
+    {
+      "id": "H3-UAT-017",
+      "title": "cursor pagination contract exposes paired controls",
+      "requirementId": "H3-CA4.4",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "when pagination is available, previous and next controls are paired and stateful"
+    },
+    {
+      "id": "H3-UAT-018",
+      "title": "admin save control is enabled",
+      "requirementId": "H3-CA4.5",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "admin can initiate an editorial save"
+    },
+    {
+      "id": "H3-UAT-019",
+      "title": "admin publication control is state aware",
+      "requirementId": "H3-CA4.5",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "admin sees exactly one publish or unpublish action"
+    },
+    {
+      "id": "H3-UAT-020",
+      "title": "admin archive control is available",
+      "requirementId": "H3-CA4.5",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "admin can initiate archive according to current state"
+    },
+    {
+      "id": "H3-UAT-021",
+      "title": "admin quality transition is explicit",
+      "requirementId": "H3-CA4.5",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "quality selection and update action are separate controls"
+    },
+    {
+      "id": "H3-UAT-022",
+      "title": "user cannot invoke privileged mutations",
+      "requirementId": "H3-CA4.5",
+      "role": "user",
+      "route": "/admin/edit/",
+      "expected": "publish, archive and quality mutations are absent for user"
+    },
+    {
+      "id": "H3-UAT-023",
+      "title": "editor conflict recovery contract exists",
+      "requirementId": "H3-CA4.5",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "version conflict presents reload recovery and disables stale save"
+    },
+    {
+      "id": "H3-UAT-024",
+      "title": "editorial updates carry an audit reason",
+      "requirementId": "H3-CA4.6",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "save payload includes an explicit human-readable audit reason"
+    },
+    {
+      "id": "H3-UAT-025",
+      "title": "publication transitions carry audit reasons",
+      "requirementId": "H3-CA4.6",
+      "role": "admin",
+      "route": "/admin/edit/",
+      "expected": "publish and unpublish payloads carry explicit reasons"
+    },
+    {
+      "id": "H3-UAT-026",
+      "title": "membership changes carry action identity",
+      "requirementId": "H3-CA4.6",
+      "role": "admin",
+      "route": "/admin/users/",
+      "expected": "role and active-state updates identify their audit action"
+    },
+    {
+      "id": "H3-UAT-027",
+      "title": "audit tables are append-only by migration contract",
+      "requirementId": "H3-CA4.6",
+      "role": "admin",
+      "route": "/admin/login/",
+      "expected": "UPDATE, DELETE and TRUNCATE are rejected for both audit logs"
+    },
+    {
+      "id": "H3-UAT-028",
+      "title": "login form is labeled and password-protected",
+      "requirementId": "H3-CA4.7",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "email/password controls are labeled and password is masked"
+    },
+    {
+      "id": "H3-UAT-029",
+      "title": "invalid credentials are rejected",
+      "requirementId": "H3-CA4.7",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "invalid password remains on login with sanitized feedback"
+    },
+    {
+      "id": "H3-UAT-030",
+      "title": "invalid TOTP is rejected",
+      "requirementId": "H3-CA4.7",
+      "role": "admin",
+      "route": "/admin/login/",
+      "expected": "wrong six-digit MFA code does not create aal2 session"
+    },
+    {
+      "id": "H3-UAT-031",
+      "title": "admin session reaches aal2",
+      "requirementId": "H3-CA4.7",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "valid admin TOTP produces aal2"
+    },
+    {
+      "id": "H3-UAT-032",
+      "title": "user session reaches aal2",
+      "requirementId": "H3-CA4.7",
+      "role": "user",
+      "route": "/admin/",
+      "expected": "valid user TOTP produces aal2"
+    },
+    {
+      "id": "H3-UAT-033",
+      "title": "refresh contract preserves assurance",
+      "requirementId": "H3-CA4.7",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "refresh response preserves an established aal2 session"
+    },
+    {
+      "id": "H3-UAT-034",
+      "title": "admin users surface lists memberships",
+      "requirementId": "H3-CA4.8",
+      "role": "admin",
+      "route": "/admin/users/",
+      "expected": "admin sees existing admin/user memberships"
+    },
+    {
+      "id": "H3-UAT-035",
+      "title": "membership invitation form exposes email and role",
+      "requirementId": "H3-CA4.8",
+      "role": "admin",
+      "route": "/admin/users/",
+      "expected": "admin sees labeled email, role and add controls"
+    },
+    {
+      "id": "H3-UAT-036",
+      "title": "invalid membership email is rejected by protected RPC",
+      "requirementId": "H3-CA4.8",
+      "role": "admin",
+      "route": "/admin/users/",
+      "expected": "backend rejects malformed membership email"
+    },
+    {
+      "id": "H3-UAT-037",
+      "title": "duplicate membership is rejected",
+      "requirementId": "H3-CA4.8",
+      "role": "admin",
+      "route": "/admin/users/",
+      "expected": "backend rejects an existing member email"
+    },
+    {
+      "id": "H3-UAT-038",
+      "title": "invalid membership role is rejected",
+      "requirementId": "H3-CA4.8",
+      "role": "admin",
+      "route": "/admin/users/",
+      "expected": "backend rejects roles outside admin/user"
+    },
+    {
+      "id": "H3-UAT-039",
+      "title": "membership controls cover state and role changes",
+      "requirementId": "H3-CA4.8",
+      "role": "admin",
+      "route": "/admin/users/",
+      "expected": "each membership offers active-state and role actions with confirmation"
+    },
+    {
+      "id": "H3-UAT-040",
+      "title": "local administrative hostname serves admin",
+      "requirementId": "H3-CA4.9",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "configured local admin origin serves the login surface"
+    },
+    {
+      "id": "H3-UAT-041",
+      "title": "public hostname hides admin with 404",
+      "requirementId": "H3-CA4.9",
+      "role": "anon",
+      "route": "/admin/",
+      "expected": "Host studiamatch.com returns HTTP 404 for admin on the perimeter origin"
+    },
+    {
+      "id": "H3-UAT-042",
+      "title": "public routes remain available",
+      "requirementId": "H3-CA4.9",
+      "role": "anon",
+      "route": "/",
+      "expected": "all five public regression routes return HTTP 200"
+    },
+    {
+      "id": "H3-UAT-043",
+      "title": "PG17 harness carries convergence sentinel",
+      "requirementId": "H3-CA4.10",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "local PG17 harness includes authoritative H3 migrations and success sentinel"
+    },
+    {
+      "id": "H3-UAT-044",
+      "title": "migration contracts are idempotent for second run",
+      "requirementId": "H3-CA4.10",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "H3 expanded migration declares idempotent create/replace or guarded operations"
+    },
+    {
+      "id": "H3-UAT-045",
+      "title": "runtime resources and browser diagnostics are clean",
+      "requirementId": "H3-CA4.11",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "same-origin resources load without HTTP errors, console errors or failed requests"
+    },
+    {
+      "id": "H3-UAT-046",
+      "title": "layout has no horizontal overflow",
+      "requirementId": "H3-CA4.11",
+      "role": "admin",
+      "route": "/admin/",
+      "expected": "admin dashboard fits the active desktop/tablet/mobile viewport"
+    },
+    {
+      "id": "H3-UAT-047",
+      "title": "basic keyboard and accessible-name contract holds",
+      "requirementId": "H3-CA4.11",
+      "role": "anon",
+      "route": "/admin/login/",
+      "expected": "login controls have accessible names and keyboard focus order"
+    }
+  ],
+  "structuralValidation": {
+    "logicalCases": 47,
+    "viewportExecutions": 141,
+    "distribution": {
+      "H3-CA4.1": 5,
+      "H3-CA4.2": 5,
+      "H3-CA4.3": 2,
+      "H3-CA4.4": 5,
+      "H3-CA4.5": 6,
+      "H3-CA4.6": 4,
+      "H3-CA4.7": 6,
+      "H3-CA4.8": 6,
+      "H3-CA4.9": 3,
+      "H3-CA4.10": 2,
+      "H3-CA4.11": 3
+    }
+  }
+}

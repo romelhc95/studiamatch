@@ -1,0 +1,282 @@
+{
+  "manifest": "h3req1_remote_preparation_manifest_2026-10-14_r16",
+  "as_of_utc": "2026-10-14",
+  "package_kind": "R14_candidate_with_R16_sanitized_remote_preparation_overlay; no PR",
+  "candidate": {
+    "repository": "https://github.com/romelhc95/studiamatch",
+    "workspace": "/home/romel/src/studiamatch-h3req1-sync-20261002",
+    "branch": "feat/h3req1-sync-20261002",
+    "base_head": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
+    "head_alone_does_not_identify_wip": true
+  },
+  "parents": [
+    {
+      "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-13_r14_reconciled.json",
+      "sha256": "7c9a6ba29c260231a02f11167d9093cd7241e9779ddabb28fee8f508f0391851",
+      "preserved_unchanged": true,
+      "role": "R14 immutable candidate scope and R8/R13 reconciliation"
+    },
+    {
+      "path": ".context/evidencia/h3req1_remote_preparation_manifest_2026-10-13_r15.json",
+      "sha256": "1bf4dd992ff7feaa04e5051de9478b7db8974776fe8d9cac8e4aa5f91aee09b8",
+      "preserved_unchanged": true,
+      "role": "R15 historical remote preparation overlay"
+    }
+  ],
+  "scope_reconciliation": {
+    "functional_basis": "R14 preserves the R8 functional scope and evidence, with documentary scope from R13; R9/R12/R13 historical artifacts remain preserved according to the R14 parent manifest.",
+    "remote_read_basis": "R16 replaces temporal GitHub and Supabase observations where reread; Cloudflare deployments/settings remain R15 historical because safe filtered reads were unavailable.",
+    "overlay_entry_count": 10,
+    "package_path_count_including_manifest": 11,
+    "r14_scope_redeclared": false,
+    "unrelated_wip_automatically_included": false,
+    "reference_closure_delta": ".context/evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt is added because the current state directly links it and R14 package scope omitted it; no other WIP evidence is added."
+  },
+  "scope": {
+    "entry_count": 10,
+    "entries": [
+      {
+        "path": ".context/estado_del_proyecto.md",
+        "status": "modified",
+        "git_status": " M",
+        "bytes": 17636,
+        "mode": "0644",
+        "sha256": "8d641935ef315b2667a2d1a275dfeeb6ff1abba6f16f2603a494f504822ee0ac",
+        "role": "current_operational_state"
+      },
+      {
+        "path": ".context/evidencia/h3req1_development_integration_package_2026-10-14_r16.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 11686,
+        "mode": "0644",
+        "sha256": "b15b5f50e9ea42287623ae5f8845d18cb40c51abf6c5b568a914ed624c4f52c8",
+        "role": "development_transition_rollback_package"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_remote_preparation_2026-10-14_r16.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 12136,
+        "mode": "0644",
+        "sha256": "3ff2e455b6ae5ccb43fed156c4fb8522d69c3becd69d58a213540f8498ec1626",
+        "role": "sanitized_remote_read_report"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 2319,
+        "mode": "0644",
+        "sha256": "ebf64bb4ba02788080cbcf3e91d922676b26a32caa93668ae5949cdbd826797f",
+        "role": "directly_referenced_R181_evidence_required_for_package_closure",
+        "selection_reason": "The current state directly links this exact R181 evidence; added as a narrow reference-closure delta, not as automatic WIP inclusion."
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r16.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 10994,
+        "mode": "0644",
+        "sha256": "25e20148cadbcffb846f71a72d8639530df680f84d728febac861abb5578d7d3",
+        "role": "versioned_template_based_PR_body_draft"
+      },
+      {
+        "path": ".context/evidencia/h3req1_remote_preparation_checks_2026-10-14_r16.txt",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 9793,
+        "mode": "0644",
+        "sha256": "1969548ee4fd0f173c13c4ce84ed1d0bc70e82178f9228f3c1561adfe04ec7c9",
+        "role": "local_validation_record"
+      },
+      {
+        "path": ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-14_r16.txt",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 4307,
+        "mode": "0644",
+        "sha256": "571a7fb899e23bc90b747c561296760d860172acea538e82a68841806050889d",
+        "role": "independent_review_record"
+      },
+      {
+        "path": ".context/indice.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 13351,
+        "mode": "0644",
+        "sha256": "c40d1118b24095004a409bbf15fe2c60c7d0b154485c6e58b8af5f25737ac875",
+        "role": "Obsidian_entry_index"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.json",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 3016113,
+        "mode": "0644",
+        "sha256": "308496f03bdc3c026aa7a7ac667d6f20e49e596d4c6cea941ab527cf644b47e2",
+        "role": "canonical_source_component_registry"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+        "status": "untracked",
+        "git_status": "??",
+        "bytes": 1438470,
+        "mode": "0644",
+        "sha256": "fcaf115adb0211cc9e362f5d3bea04d99eb838bfcdc9280d5eae5d50984f9267",
+        "role": "generated_registry_projection"
+      }
+    ],
+    "entries_sha256": "14dd3c2af2c7d73e30b5a74705e7e17533b499676cfa2a48bf06a7191bbbfca0",
+    "digest_method": "SHA-256 over canonical UTF-8 JSON of sorted scope.entries, sorted keys and compact separators; overlay manifest itself is excluded.",
+    "selection_rule": "Only the listed R16 documentation and the single directly referenced R181 evidence log are added/updated over the immutable R14/R15 package. All other WIP, env files, outputs, caches, raw remote responses, private client documents and backups are excluded."
+  },
+  "remote_read_cutoff_utc": "2026-10-14T02:16:15Z",
+  "remote_read_policy": {
+    "github": "read-only refs, ruleset, branch protection attempt, checks, workflows and relevant runs; branch protection detail returned 403",
+    "supabase": "schema/ledger metadata Pro/Free, Edge inventory and non-secret Auth settings attempt; no operational rows or secret values",
+    "cloudflare": "safe Pages domain inventory and Worker/DO lists; deployment/settings calls omitted because responses could expose values",
+    "braces": "public PR/source/npm provenance and local tarball comparison; local bytes unchanged"
+  },
+  "checks": [
+    {
+      "gate": "documentation_integrity_normal",
+      "status": "pass",
+      "sources": "801/801",
+      "components": "14/14",
+      "groups": 262,
+      "verified_local_relations": "4715/4715",
+      "not_applicable": 91,
+      "remote_checks": "5/13",
+      "active_documents": "103/103",
+      "historical_documents": "433/433",
+      "links": 9500,
+      "anchors": 4583
+    },
+    {
+      "gate": "documentation_integrity_self_test",
+      "status": "pass"
+    },
+    {
+      "gate": "package_reference_closure",
+      "status": "pass",
+      "documents": 5,
+      "local_links": 166,
+      "markdown_references": 130,
+      "missing_targets": 0,
+      "scope": "base plus explicit R14/R15/R16 paths"
+    },
+    {
+      "gate": "credential_scan",
+      "status": "pass_final_overlay_snapshot",
+      "explicit_files": 10,
+      "check_log_excluded_self_reference": true,
+      "scope_entry_files_scanned": 9,
+      "scope_entries_total": 10,
+      "manifest_file_scanned": true
+    },
+    {
+      "gate": "protected_path_scope_regression",
+      "status": "fail",
+      "reason": "Immutable R14 pin for .context/componentes/admin_runtime.md differs from current R15 overlay content; exit before allowlist comparison."
+    },
+    {
+      "gate": "workflow_path_allowlist",
+      "status": "partial",
+      "accepted": 7,
+      "total": 11,
+      "unaccepted": [
+        ".context/evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt",
+        ".context/evidencia/h3req1_remote_preparation_checks_2026-10-14_r16.txt",
+        ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-14_r16.txt",
+        ".context/evidencia/h3req1_remote_preparation_manifest_2026-10-14_r16.json"
+      ]
+    },
+    {
+      "gate": "actionlint",
+      "status": "reused_R14_pass_inputs_unchanged",
+      "rerun": false
+    },
+    {
+      "gate": "shellcheck_focal",
+      "status": "reused_R14_pass_inputs_unchanged",
+      "rerun": false
+    },
+    {
+      "gate": "independent_review",
+      "status": "bounded_local_documentary_GO",
+      "high_critical_findings": 0,
+      "additional_local_findings": 0,
+      "previous_bounded_GO": true,
+      "scope_entries_confirmed": 10
+    },
+    {
+      "gate": "git_diff_check_selected_tracked",
+      "status": "pass"
+    },
+    {
+      "gate": "overlay_whitespace_newline",
+      "status": "pass",
+      "files": 11,
+      "issues": 0
+    },
+    {
+      "gate": "pr_template_headings",
+      "status": "pass",
+      "matched": 10,
+      "required": 10
+    },
+    {
+      "gate": "git_diff_cached_quiet",
+      "status": "pass",
+      "staged_paths": 0
+    }
+  ],
+  "validation_status": "documentation_PASS; package_references_PASS; credential_scan_PASS_final_overlay; scope_guard_FAIL; workflow_allowlist_7_of_11; independent_review_bounded_documentary_GO; DEVELOPMENT_NO_GO",
+  "safety": {
+    "secret_values_read": false,
+    "operational_rows_read": false,
+    "users_or_mailboxes_read": false,
+    "mutating_rpc_ddl_dml": false,
+    "workflows_run": false,
+    "pull_request_created": false,
+    "commit_or_push": false,
+    "merge_deploy_or_remote_configuration": false,
+    "purge_or_restore": false,
+    "D01_D14_executed": false,
+    "development_go": false,
+    "backup_included": false
+  },
+  "package_artifacts": {
+    "report": {
+      "path": ".context/evidencia/h3req1_g10_remote_preparation_2026-10-14_r16.md",
+      "included": true
+    },
+    "integration_package": {
+      "path": ".context/evidencia/h3req1_development_integration_package_2026-10-14_r16.md",
+      "included": true
+    },
+    "required_R181_reference": {
+      "path": ".context/evidencia/h3req1_g10_scope_scan_r181_2026-10-12.txt",
+      "included": true
+    },
+    "PR_body": {
+      "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r16.md",
+      "included": true
+    },
+    "check_log": {
+      "path": ".context/evidencia/h3req1_remote_preparation_checks_2026-10-14_r16.txt",
+      "included": true
+    },
+    "independent_review": {
+      "path": ".context/evidencia/h3req1_remote_preparation_independent_review_2026-10-14_r16.txt",
+      "included": true
+    },
+    "manifest": {
+      "path": ".context/evidencia/h3req1_remote_preparation_manifest_2026-10-14_r16.json",
+      "included": true,
+      "self_hash_excluded": true
+    }
+  },
+  "manifest_self_hash_excluded": true
+}

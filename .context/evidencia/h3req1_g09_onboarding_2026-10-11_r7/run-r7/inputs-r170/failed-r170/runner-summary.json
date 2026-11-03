@@ -1,0 +1,13 @@
+{
+  "result": "FAIL",
+  "exit": 1,
+  "logicalCases": 2,
+  "logicalCasesPassed": 0,
+  "viewportExecutions": 6,
+  "viewportExecutionsPassed": 0,
+  "screenshots": 6,
+  "retries": 0,
+  "server": "Pages/workerd normal R146, ports 3380/3381/3383, loopback only",
+  "browser": "Playwright Chromium 1228 headless",
+  "data": "synthetic Auth/PostgREST and PostgreSQL 17.11 fixture"
+}

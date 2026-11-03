@@ -1,0 +1,7 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+candidate-wip-entry-count=4465
+docker-target=PASS context=default endpoint=unix:///var/run/docker.sock engine=fc2115b2-c3c4-440e-89c6-26899eb7cb04 version=29.8.2
+r10-diagnostic-inputs=5/5 PASS manifest_sha256=471fcdebec354155459345b9477a406e2770af0052a30f959f3cb16b8cf2908d
+r9-integrated-manifest=64/64 PASS sha256=6b0a469325b466a59211b3f6e50f16bce49910d78cad994068daa51caba13de9
+r9-source-snapshot=64/64 noncandidate_extras=2 hash_pinned=2 symlinks=0 read_only=PASS
+NO-GO: PostgreSQL image version differs from pinned 17.11

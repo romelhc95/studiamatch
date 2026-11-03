@@ -1,4 +1,4 @@
-﻿# Documento Detallado: Massive Harvesting (FG2 - Fase 1)
+# Documento Detallado: Massive Harvesting (FG2 - Fase 1)
 
 ## 1. Visión Funcional y Objetivo de Negocio
 El objetivo principal de la fase **Massive Harvesting (FG2 - Fase 1)** es actuar como el motor de descubrimiento de contenido primario del sistema. Su misión es rastrear sistemáticamente las URLs \"semilla\" (instituciones registradas) y extraer el HTML crudo de cada programa educativo sin aplicar lógica de negocio pesada en esta etapa.

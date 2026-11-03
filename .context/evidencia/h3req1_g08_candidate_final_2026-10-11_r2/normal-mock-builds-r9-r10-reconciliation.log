@@ -1,0 +1,4 @@
+phase=normal-static-build|error_code=PASS|exit=0|pages=17/17|files=126
+phase=mock-static-build|error_code=PASS|exit=0|pages=17/17|files=126
+phase=r9-mock-dispatch-failure|error_code=HARNESS_CWD_FIXED|prior_exit=254
+phase=candidate-inputs|error_code=PASS|manifest_files=57|sha256=3894b6c5

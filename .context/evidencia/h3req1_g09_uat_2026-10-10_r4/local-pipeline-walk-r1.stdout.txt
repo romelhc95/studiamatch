@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/app/tests/test_h3req1_local_pipeline_walk.py", line 19, in <module>
+    import integrity_ping as integrity_ping_module
+  File "/app/scripts/core/integrity_ping.py", line 3, in <module>
+    import requests
+ModuleNotFoundError: No module named 'requests'

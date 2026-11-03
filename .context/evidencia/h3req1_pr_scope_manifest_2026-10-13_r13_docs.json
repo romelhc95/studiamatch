@@ -1,0 +1,2851 @@
+{
+  "manifest": "H3REQ1 R13 local historical navigation package scope manifest",
+  "as_of_utc": "2026-10-13T15:31:06Z",
+  "package_kind": "local_documentation_transfer_proposal_r13_historical_navigation",
+  "candidate": {
+    "checkout": "/home/romel/src/studiamatch-h3req1-sync-20261002",
+    "branch": "feat/h3req1-sync-20261002",
+    "head_baseline": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
+    "head_observed": "4eb4d877a50b012bb630a129bd0c74482c33be9c"
+  },
+  "original_checkout": {
+    "path": "/home/romel/src/studiamatch",
+    "mode": "read-only",
+    "head": "7650093b05a820e8e6faf9ec711e12fab8b50398",
+    "remote_reads": false
+  },
+  "observed_working_tree": {
+    "digest_method": "SHA-256 of raw `git status --porcelain=v1 --untracked-files=all -z`; complete working tree count, not package scope.",
+    "status_entries": 20561,
+    "tracked_changed_entries": 95,
+    "untracked_status_entries": 20466,
+    "staged_paths": 0,
+    "expanded_status_paths": 20561,
+    "porcelain_paths_status_sha256": "bb9ffdece209416c1477a4a4a251c13fcb83ac5e879a1046ca802768a3526cf6"
+  },
+  "source_coverage": {
+    "sources": 801,
+    "components": 14,
+    "groups": 262,
+    "active_documents": 95,
+    "integration_projection_sources": 434,
+    "candidate_only_wip_sources": 367,
+    "relation_slots": 4806,
+    "verified_local_slots": 4715,
+    "pending_local_slots": 0,
+    "unknown_local_slots": 0,
+    "invalid_local_slots": 0,
+    "remote_only_slots": 0,
+    "not_applicable_slots": 91,
+    "remote_checks_verified": 0,
+    "remote_checks_pending": 5,
+    "historical_documents": 433,
+    "historical_catalogs": 13,
+    "historical_status_counts": {
+      "historical": 430,
+      "superseded": 3,
+      "current": 0
+    }
+  },
+  "scope": {
+    "entry_count": 138,
+    "tracked_entries": 40,
+    "untracked_entries": 98,
+    "deleted_entries": 7,
+    "entries_sha256": "2e3b82d5aed435142cb9030500103a963f1ce25dc2d588c9106ad223ad373cd2",
+    "digest_method": "SHA-256 of compact UTF-8 JSON serialization of `entries` sorted by path, object property order retained. Manifest itself excluded to avoid circular hash.",
+    "entries": [
+      {
+        "path": ".context/00_INDICE.md",
+        "status": "deleted",
+        "selection": "retired_document_deletion_if_in_git_diff",
+        "current": null,
+        "baseline": {
+          "mode": "100644",
+          "bytes": 2243,
+          "sha256": "c0c359c0a9e8a7b15d29e7da74e90ddf0ca2fc6441d9d67077f6fc9facbcfcd9"
+        }
+      },
+      {
+        "path": ".context/arquitectura.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6714,
+        "sha256": "1330425e02b026713cb87a5df0334fbcb5cb7db53969bcf450fd904a613b965b",
+        "current": {
+          "mode": "0644",
+          "bytes": 6714,
+          "sha256": "1330425e02b026713cb87a5df0334fbcb5cb7db53969bcf450fd904a613b965b"
+        }
+      },
+      {
+        "path": ".context/backend.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 24978,
+        "sha256": "f1b408ce95638b7d2a6bc93d91da6e8b1e7a032c5757ae2b0b764340f244e2f1",
+        "current": {
+          "mode": "0644",
+          "bytes": 24978,
+          "sha256": "f1b408ce95638b7d2a6bc93d91da6e8b1e7a032c5757ae2b0b764340f244e2f1"
+        }
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/_index.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 7737,
+        "sha256": "f2ed163d6eac4b4f6d5015c0702ec699605767759be82832fb25d8dedd0211bd",
+        "current": {
+          "mode": "0644",
+          "bytes": 7737,
+          "sha256": "f2ed163d6eac4b4f6d5015c0702ec699605767759be82832fb25d8dedd0211bd"
+        }
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 9251,
+        "sha256": "3565298a83bafe6a434c244c57d4eaa200c494f2c054ae085b8bef8ee7f46ad6",
+        "current": {
+          "mode": "0644",
+          "bytes": 9251,
+          "sha256": "3565298a83bafe6a434c244c57d4eaa200c494f2c054ae085b8bef8ee7f46ad6"
+        }
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 1164,
+        "sha256": "a1d0f1d1383fcc896f23b376ce37f801be822e688414beba3d7029d6c8146685",
+        "current": {
+          "mode": "0644",
+          "bytes": 1164,
+          "sha256": "a1d0f1d1383fcc896f23b376ce37f801be822e688414beba3d7029d6c8146685"
+        }
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 3329,
+        "sha256": "2220a8904e3fc6ab8ca681cff8e770e30abc87f8782d83c080935399cb96d175",
+        "current": {
+          "mode": "0644",
+          "bytes": 3329,
+          "sha256": "2220a8904e3fc6ab8ca681cff8e770e30abc87f8782d83c080935399cb96d175"
+        }
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 13318,
+        "sha256": "93439233e72b1f0c31bba51c326d89ad348d0f0b94a121c7048a19f1cddc2dae",
+        "current": {
+          "mode": "0644",
+          "bytes": 13318,
+          "sha256": "93439233e72b1f0c31bba51c326d89ad348d0f0b94a121c7048a19f1cddc2dae"
+        }
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/tarea_004_hito_4.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 682,
+        "sha256": "466e32141b8f4b74735dcfdcd638295ebb67bca248cd18c3c552903ed9053ac6",
+        "current": {
+          "mode": "0644",
+          "bytes": 682,
+          "sha256": "466e32141b8f4b74735dcfdcd638295ebb67bca248cd18c3c552903ed9053ac6"
+        }
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/tarea_005_hito_5.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 905,
+        "sha256": "10a8c33f9c42a893b97dacdeb843f716cd78fc0278fe641eb13fed70e19106aa",
+        "current": {
+          "mode": "0644",
+          "bytes": 905,
+          "sha256": "10a8c33f9c42a893b97dacdeb843f716cd78fc0278fe641eb13fed70e19106aa"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/admin_auth_editorial.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 47596,
+        "sha256": "ad80fb6d2477d2595f8673fa72a17d01d197c1589e2c33328c9a9697526a66c9",
+        "current": {
+          "mode": "0644",
+          "bytes": 47596,
+          "sha256": "ad80fb6d2477d2595f8673fa72a17d01d197c1589e2c33328c9a9697526a66c9"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/c03_diagnosticos_runtime.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 142568,
+        "sha256": "2606669932cd350a0f7adf94f757be73d55fb21467d901b34fe044461050e17d",
+        "current": {
+          "mode": "0644",
+          "bytes": 142568,
+          "sha256": "2606669932cd350a0f7adf94f757be73d55fb21467d901b34fe044461050e17d"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/c03_inicio_runtime.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 114086,
+        "sha256": "bca95158753d15087aa6cbf5fbcbf722ee3753cfbba17c7e73432df645a44752",
+        "current": {
+          "mode": "0644",
+          "bytes": 114086,
+          "sha256": "bca95158753d15087aa6cbf5fbcbf722ee3753cfbba17c7e73432df645a44752"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/c03_integrado.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 190060,
+        "sha256": "0f63875e4c1b832e74800aa04982a9d7a0945934d94aacee54d12be94bb90a7a",
+        "current": {
+          "mode": "0644",
+          "bytes": 190060,
+          "sha256": "0f63875e4c1b832e74800aa04982a9d7a0945934d94aacee54d12be94bb90a7a"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/c03_snapshot_fuentes.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 57386,
+        "sha256": "99b0d7daf1bfaca321eaaceea6a47fe52b2447a5337088a755fccf8155680375",
+        "current": {
+          "mode": "0644",
+          "bytes": 57386,
+          "sha256": "99b0d7daf1bfaca321eaaceea6a47fe52b2447a5337088a755fccf8155680375"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/database_legacy.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 4227,
+        "sha256": "ab64e416746206b1ccc5a2bf437cd64722fca78889e5348ea23f7457ec58e919",
+        "current": {
+          "mode": "0644",
+          "bytes": 4227,
+          "sha256": "ab64e416746206b1ccc5a2bf437cd64722fca78889e5348ea23f7457ec58e919"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/documentacion_trazabilidad.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 142872,
+        "sha256": "3f347e553bb5553f695d2c23eb8d9bf13989c4926c483f304c1f3be4a7e7101f",
+        "current": {
+          "mode": "0644",
+          "bytes": 142872,
+          "sha256": "3f347e553bb5553f695d2c23eb8d9bf13989c4926c483f304c1f3be4a7e7101f"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/frontend_publico_uat.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 82950,
+        "sha256": "bc76589c350857e41f2bea71faaff74c244d5fd2a7431020f04e5c9b23d5a75a",
+        "current": {
+          "mode": "0644",
+          "bytes": 82950,
+          "sha256": "bc76589c350857e41f2bea71faaff74c244d5fd2a7431020f04e5c9b23d5a75a"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/infra_seguridad_ci.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 260246,
+        "sha256": "e349f8a8d17bd82dcdfa1a457f62215ea54e6099be67d255fda8ff2e6e62f3cb",
+        "current": {
+          "mode": "0644",
+          "bytes": 260246,
+          "sha256": "e349f8a8d17bd82dcdfa1a457f62215ea54e6099be67d255fda8ff2e6e62f3cb"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/operacion_jit.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 378989,
+        "sha256": "e12b2c24d755f7f85d753408c87e5d90c5bd983d58d2f7001c6f47cd79580d55",
+        "current": {
+          "mode": "0644",
+          "bytes": 378989,
+          "sha256": "e12b2c24d755f7f85d753408c87e5d90c5bd983d58d2f7001c6f47cd79580d55"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/pipeline_base_datos.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 50491,
+        "sha256": "a558544128169a2f50ec31fdfbd893bb674877116e0be60e2c0d4d66a50d0036",
+        "current": {
+          "mode": "0644",
+          "bytes": 50491,
+          "sha256": "a558544128169a2f50ec31fdfbd893bb674877116e0be60e2c0d4d66a50d0036"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/requerimientos_hitos.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 23595,
+        "sha256": "25fb04cd8ff4e044c586926112623677fc5c9bb52ddbf125899bfe7859cd308c",
+        "current": {
+          "mode": "0644",
+          "bytes": 23595,
+          "sha256": "25fb04cd8ff4e044c586926112623677fc5c9bb52ddbf125899bfe7859cd308c"
+        }
+      },
+      {
+        "path": ".context/catalogos_historicos/seguimiento_historico.md",
+        "status": "untracked",
+        "selection": "r13_historical_catalog",
+        "mode": "0644",
+        "bytes": 23806,
+        "sha256": "2d86b5a6bc5d9ec2b316140770fc71b2005ad5e6d3b67e758a343f104b2b6508",
+        "current": {
+          "mode": "0644",
+          "bytes": 23806,
+          "sha256": "2d86b5a6bc5d9ec2b316140770fc71b2005ad5e6d3b67e758a343f104b2b6508"
+        }
+      },
+      {
+        "path": ".context/changelog.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 12631,
+        "sha256": "dda82852959997ec52f120d77241b09d3785ae2fa0a8832439923ad819c08eaa",
+        "current": {
+          "mode": "0644",
+          "bytes": 12631,
+          "sha256": "dda82852959997ec52f120d77241b09d3785ae2fa0a8832439923ad819c08eaa"
+        }
+      },
+      {
+        "path": ".context/ci_cd.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 7753,
+        "sha256": "01f41fe6af29b61dddb5d3c217891dd02cbc819a8bd9402a2e66dc2b1f95fd4d",
+        "current": {
+          "mode": "0644",
+          "bytes": 7753,
+          "sha256": "01f41fe6af29b61dddb5d3c217891dd02cbc819a8bd9402a2e66dc2b1f95fd4d"
+        }
+      },
+      {
+        "path": ".context/componentes/admin_portal.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 11647,
+        "sha256": "3f1547dbb734f644567e69601d69c57137e0e6a80a64ab88c31f147e42dd9e6c",
+        "current": {
+          "mode": "0644",
+          "bytes": 11647,
+          "sha256": "3f1547dbb734f644567e69601d69c57137e0e6a80a64ab88c31f147e42dd9e6c"
+        }
+      },
+      {
+        "path": ".context/componentes/admin_runtime.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 14156,
+        "sha256": "594a89e7bd07419cbbf366fddcc5bf0de5575e8ef3a284598887e0ec4d68501f",
+        "current": {
+          "mode": "0644",
+          "bytes": 14156,
+          "sha256": "594a89e7bd07419cbbf366fddcc5bf0de5575e8ef3a284598887e0ec4d68501f"
+        }
+      },
+      {
+        "path": ".context/componentes/canarios.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 11099,
+        "sha256": "21ada75aa0f9b8990a177730e870ab0b4d48a41e215e908707a611ff1b5cb168",
+        "current": {
+          "mode": "0644",
+          "bytes": 11099,
+          "sha256": "21ada75aa0f9b8990a177730e870ab0b4d48a41e215e908707a611ff1b5cb168"
+        }
+      },
+      {
+        "path": ".context/componentes/database_migrations.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 201710,
+        "sha256": "56b3719649d4ec9cb53f6ea25df1ed1c3c665031d92ab6ee6c08271a382ecc39",
+        "current": {
+          "mode": "0644",
+          "bytes": 201710,
+          "sha256": "56b3719649d4ec9cb53f6ea25df1ed1c3c665031d92ab6ee6c08271a382ecc39"
+        }
+      },
+      {
+        "path": ".context/componentes/datos_pipeline.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 2477,
+        "sha256": "f94dc383da1619d8ba5ad13b5480db1f79c73276436b7303e8f9bb1df14bb82f",
+        "current": {
+          "mode": "0644",
+          "bytes": 2477,
+          "sha256": "f94dc383da1619d8ba5ad13b5480db1f79c73276436b7303e8f9bb1df14bb82f"
+        }
+      },
+      {
+        "path": ".context/componentes/infra_release.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 14895,
+        "sha256": "9323cb2ed017144bfca4a5e7b2c5486a4008a2e76c21cb8b3c8ad1c27fba7f5c",
+        "current": {
+          "mode": "0644",
+          "bytes": 14895,
+          "sha256": "9323cb2ed017144bfca4a5e7b2c5486a4008a2e76c21cb8b3c8ad1c27fba7f5c"
+        }
+      },
+      {
+        "path": ".context/componentes/legacy.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 11063,
+        "sha256": "0e862edfed6e12b316d6c886e49597bf10487cf8c1711798457810a15ecb4ed5",
+        "current": {
+          "mode": "0644",
+          "bytes": 11063,
+          "sha256": "0e862edfed6e12b316d6c886e49597bf10487cf8c1711798457810a15ecb4ed5"
+        }
+      },
+      {
+        "path": ".context/componentes/mantenimiento.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 94500,
+        "sha256": "15dad554def5242387b4561e8e63f48ad3860f5df98e0bbe0ad12afce65af0e0",
+        "current": {
+          "mode": "0644",
+          "bytes": 94500,
+          "sha256": "15dad554def5242387b4561e8e63f48ad3860f5df98e0bbe0ad12afce65af0e0"
+        }
+      },
+      {
+        "path": ".context/componentes/pipeline.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 11326,
+        "sha256": "011924eb30cda7aa9001ea38caf2ec573c3ca875fae30e1b8766ca7860e23f03",
+        "current": {
+          "mode": "0644",
+          "bytes": 11326,
+          "sha256": "011924eb30cda7aa9001ea38caf2ec573c3ca875fae30e1b8766ca7860e23f03"
+        }
+      },
+      {
+        "path": ".context/componentes/presentacion_web_compartida.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6969,
+        "sha256": "78920043ed5806570bc32c71138954e0cfb6ef44c87bc814f78fcdf75255868e",
+        "current": {
+          "mode": "0644",
+          "bytes": 6969,
+          "sha256": "78920043ed5806570bc32c71138954e0cfb6ef44c87bc814f78fcdf75255868e"
+        }
+      },
+      {
+        "path": ".context/componentes/pruebas_evidencia.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 38180,
+        "sha256": "0b633170f4b3da976e6ce83814ab97b18657449c60c2d7c81b2d2d6bf1df096b",
+        "current": {
+          "mode": "0644",
+          "bytes": 38180,
+          "sha256": "0b633170f4b3da976e6ce83814ab97b18657449c60c2d7c81b2d2d6bf1df096b"
+        }
+      },
+      {
+        "path": ".context/componentes/seguridad_tooling.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 9145,
+        "sha256": "2144351a47c167d4433bae2166fa0ab3bb80537486eeb865c437d6df8b84e013",
+        "current": {
+          "mode": "0644",
+          "bytes": 9145,
+          "sha256": "2144351a47c167d4433bae2166fa0ab3bb80537486eeb865c437d6df8b84e013"
+        }
+      },
+      {
+        "path": ".context/componentes/supabase_transport.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 8530,
+        "sha256": "c82a8f743380b6596c52192512b20fcd3317be86e882df53b4cc4e21de0c0ce1",
+        "current": {
+          "mode": "0644",
+          "bytes": 8530,
+          "sha256": "c82a8f743380b6596c52192512b20fcd3317be86e882df53b4cc4e21de0c0ce1"
+        }
+      },
+      {
+        "path": ".context/componentes/utilidades_compartidas.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 8821,
+        "sha256": "d846bf9320299ae0102e68ee9aa635ce04195281f10d1f50440b41fe470dd422",
+        "current": {
+          "mode": "0644",
+          "bytes": 8821,
+          "sha256": "d846bf9320299ae0102e68ee9aa635ce04195281f10d1f50440b41fe470dd422"
+        }
+      },
+      {
+        "path": ".context/componentes/web_publico.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 9265,
+        "sha256": "8dac1432b4a7514abbfdc90a785b647784b0c647fb4c95b33fd82b8941e3c061",
+        "current": {
+          "mode": "0644",
+          "bytes": 9265,
+          "sha256": "8dac1432b4a7514abbfdc90a785b647784b0c647fb4c95b33fd82b8941e3c061"
+        }
+      },
+      {
+        "path": ".context/database.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 31403,
+        "sha256": "67cd19288d8a85913dfabe95847a6b3149d530330d6f8d5a448ed1a98fdd81d7",
+        "current": {
+          "mode": "0644",
+          "bytes": 31403,
+          "sha256": "67cd19288d8a85913dfabe95847a6b3149d530330d6f8d5a448ed1a98fdd81d7"
+        }
+      },
+      {
+        "path": ".context/decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 1120,
+        "sha256": "8ac203513909c18fc909360f78ff72378a212cf62fdd3e6db8fde3017d1017ae",
+        "current": {
+          "mode": "0644",
+          "bytes": 1120,
+          "sha256": "8ac203513909c18fc909360f78ff72378a212cf62fdd3e6db8fde3017d1017ae"
+        }
+      },
+      {
+        "path": ".context/decisiones/ADR-0028_target_release_governance.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 3177,
+        "sha256": "cfb91c2ba8da41d426cc17b101c2f436e7d03458bdfe8f2bb199d3b135f2356d",
+        "current": {
+          "mode": "0644",
+          "bytes": 3177,
+          "sha256": "cfb91c2ba8da41d426cc17b101c2f436e7d03458bdfe8f2bb199d3b135f2356d"
+        }
+      },
+      {
+        "path": ".context/decisiones/README.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 2648,
+        "sha256": "15a9302ca317294e629ed5e46c7f7ff500b59db1f21f2efac2911f78429fdc7e",
+        "current": {
+          "mode": "0644",
+          "bytes": 2648,
+          "sha256": "15a9302ca317294e629ed5e46c7f7ff500b59db1f21f2efac2911f78429fdc7e"
+        }
+      },
+      {
+        "path": ".context/estado_del_proyecto.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6400,
+        "sha256": "205c25e789fee08aa87320566d74f17acb05f5c57e56e2a55d57801210c92cac",
+        "current": {
+          "mode": "0644",
+          "bytes": 6400,
+          "sha256": "205c25e789fee08aa87320566d74f17acb05f5c57e56e2a55d57801210c92cac"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_r36_preparation_2026-10-10.md",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 3002,
+        "sha256": "eb64e7950831352deeb45b2470e3e28ab64f886438a427a4a11edb7bd762f096",
+        "current": {
+          "mode": "0644",
+          "bytes": 3002,
+          "sha256": "eb64e7950831352deeb45b2470e3e28ab64f886438a427a4a11edb7bd762f096"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_r37_preparation_2026-10-10.md",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 3019,
+        "sha256": "53ece535211f87b86f62108393d6c89b6e4da0ad5f5a306d6dd28369760d8195",
+        "current": {
+          "mode": "0644",
+          "bytes": 3019,
+          "sha256": "53ece535211f87b86f62108393d6c89b6e4da0ad5f5a306d6dd28369760d8195"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_r38_preparation_2026-10-10.md",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 2642,
+        "sha256": "80ce63d0e971e6b7640f9789ecab62f6a7dac9ec1b9f754573d15db31db1455d",
+        "current": {
+          "mode": "0644",
+          "bytes": 2642,
+          "sha256": "80ce63d0e971e6b7640f9789ecab62f6a7dac9ec1b9f754573d15db31db1455d"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_r39_preparation_2026-10-10.md",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 2438,
+        "sha256": "b78d2866b0e116090e79aefd4910aefc26d4f41767251176539e04fd783093ab",
+        "current": {
+          "mode": "0644",
+          "bytes": 2438,
+          "sha256": "b78d2866b0e116090e79aefd4910aefc26d4f41767251176539e04fd783093ab"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_r40_preparation_2026-10-10.md",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 5629,
+        "sha256": "acde7f6dda00ecadf03baa3a29f66d72793bef2e3bbe4a7f97cf4acfb3e26aad",
+        "current": {
+          "mode": "0644",
+          "bytes": 5629,
+          "sha256": "acde7f6dda00ecadf03baa3a29f66d72793bef2e3bbe4a7f97cf4acfb3e26aad"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_run_2026-10-10_r36.txt",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 9405,
+        "sha256": "0ff2852831ea52f921d786311d408ef2c498e49ef2038e8de85db6412965310a",
+        "current": {
+          "mode": "0644",
+          "bytes": 9405,
+          "sha256": "0ff2852831ea52f921d786311d408ef2c498e49ef2038e8de85db6412965310a"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_run_2026-10-10_r37.txt",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 9510,
+        "sha256": "f5b4e9b7f099aa21dad4b73da6fa408c424bf0742548fc955b5bba691c96a3c8",
+        "current": {
+          "mode": "0644",
+          "bytes": 9510,
+          "sha256": "f5b4e9b7f099aa21dad4b73da6fa408c424bf0742548fc955b5bba691c96a3c8"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_run_2026-10-10_r38.txt",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 10164,
+        "sha256": "5bbd56dedf647ca7f391ef792b466f8cfdd8bb7b2ddc97bc65729178e5c6beee",
+        "current": {
+          "mode": "0644",
+          "bytes": 10164,
+          "sha256": "5bbd56dedf647ca7f391ef792b466f8cfdd8bb7b2ddc97bc65729178e5c6beee"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_run_2026-10-10_r39.txt",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 10361,
+        "sha256": "b526908cd89b0b30c440ac184a795a14c23244f31a264258f7b0f39c30ac79d3",
+        "current": {
+          "mode": "0644",
+          "bytes": 10361,
+          "sha256": "b526908cd89b0b30c440ac184a795a14c23244f31a264258f7b0f39c30ac79d3"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_c03_integrated_run_2026-10-10_r40.txt",
+        "status": "untracked",
+        "selection": "r37_adjacent_historical_evidence",
+        "mode": "0644",
+        "bytes": 10520,
+        "sha256": "76f9b2a975cff439d69893c71c7c3c85482ad378558edb8cb58e83d68a03871a",
+        "current": {
+          "mode": "0644",
+          "bytes": 10520,
+          "sha256": "76f9b2a975cff439d69893c71c7c3c85482ad378558edb8cb58e83d68a03871a"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt",
+        "status": "untracked",
+        "selection": "selected_documentation_evidence",
+        "mode": "0644",
+        "bytes": 33834,
+        "sha256": "c88d6c18ee71c829df140e9f762fabcc766d630f97684ea6fb09b4ad43fb29a5",
+        "current": {
+          "mode": "0644",
+          "bytes": 33834,
+          "sha256": "c88d6c18ee71c829df140e9f762fabcc766d630f97684ea6fb09b4ad43fb29a5"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_checks_2026-10-13_r12.txt",
+        "status": "untracked",
+        "selection": "selected_documentation_evidence",
+        "mode": "0644",
+        "bytes": 5967,
+        "sha256": "3fc6c8c7d4ccfb11d7144f6e23fec09d6e1c4fb9478abe01f363a6c1a5aff0cc",
+        "current": {
+          "mode": "0644",
+          "bytes": 5967,
+          "sha256": "3fc6c8c7d4ccfb11d7144f6e23fec09d6e1c4fb9478abe01f363a6c1a5aff0cc"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_checks_2026-10-13_r13.txt",
+        "status": "untracked",
+        "selection": "r13_check_log",
+        "mode": "0644",
+        "bytes": 5279,
+        "sha256": "71f6bcf8eabb92d8847752b60b8d17c3a9fd060e774cb36b62ebb8b140ee4f8c",
+        "current": {
+          "mode": "0644",
+          "bytes": 5279,
+          "sha256": "71f6bcf8eabb92d8847752b60b8d17c3a9fd060e774cb36b62ebb8b140ee4f8c"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_cierre_local_2026-10-13_r12.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 10435,
+        "sha256": "a4bf30ce53aef2cab9966f0fddd680a806cb2875b753d80f243d99554d797995",
+        "current": {
+          "mode": "0644",
+          "bytes": 10435,
+          "sha256": "a4bf30ce53aef2cab9966f0fddd680a806cb2875b753d80f243d99554d797995"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_consolidacion_trazabilidad_2026-10-13_r11.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 13654,
+        "sha256": "dcc8fe494903de60f9f6e81471467a6301a03e656ae3bf953f0b14a6e1177f21",
+        "current": {
+          "mode": "0644",
+          "bytes": 13654,
+          "sha256": "dcc8fe494903de60f9f6e81471467a6301a03e656ae3bf953f0b14a6e1177f21"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_estructura_2026-10-12.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 20832,
+        "sha256": "f7bb0f1aacc003fa8a200db2d71799f3ad88bed192e5446930611e5aaeebb068",
+        "current": {
+          "mode": "0644",
+          "bytes": 20832,
+          "sha256": "f7bb0f1aacc003fa8a200db2d71799f3ad88bed192e5446930611e5aaeebb068"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_estructura_2026-10-13_r10.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 12728,
+        "sha256": "65ddb56ae1d31dc4b1d5276c4dcc4004b15c7b39997ec1120fa80156b14fc09c",
+        "current": {
+          "mode": "0644",
+          "bytes": 12728,
+          "sha256": "65ddb56ae1d31dc4b1d5276c4dcc4004b15c7b39997ec1120fa80156b14fc09c"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_integral_2026-10-12.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 21341,
+        "sha256": "837bd038c13cb4f9e626fa4e7d34d9ca13aff7c6e597d0f973e4f1f7e98a5a82",
+        "current": {
+          "mode": "0644",
+          "bytes": 21341,
+          "sha256": "837bd038c13cb4f9e626fa4e7d34d9ca13aff7c6e597d0f973e4f1f7e98a5a82"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_navegacion_historica_2026-10-13_r13.md",
+        "status": "untracked",
+        "selection": "r13_transfer_report",
+        "mode": "0644",
+        "bytes": 11153,
+        "sha256": "08da582e9b52c9039f47e6d6295277935469fe986704034c595d1e6cd0023879",
+        "current": {
+          "mode": "0644",
+          "bytes": 11153,
+          "sha256": "08da582e9b52c9039f47e6d6295277935469fe986704034c595d1e6cd0023879"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_revision_independiente_2026-10-13_r12.txt",
+        "status": "untracked",
+        "selection": "selected_documentation_evidence",
+        "mode": "0644",
+        "bytes": 7066,
+        "sha256": "82cad635605b69f06539d0752f1a33c3274c5cb4fe30999590f5780e91a66411",
+        "current": {
+          "mode": "0644",
+          "bytes": 7066,
+          "sha256": "82cad635605b69f06539d0752f1a33c3274c5cb4fe30999590f5780e91a66411"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_revision_independiente_2026-10-13_r13.txt",
+        "status": "untracked",
+        "selection": "r13_independent_review",
+        "mode": "0644",
+        "bytes": 2114,
+        "sha256": "d20702e966c796d493e1ed7cc0cb5ab8393cc07a87edbbae3a9ebdbd925d9e58",
+        "current": {
+          "mode": "0644",
+          "bytes": 2114,
+          "sha256": "d20702e966c796d493e1ed7cc0cb5ab8393cc07a87edbbae3a9ebdbd925d9e58"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-12.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6373,
+        "sha256": "7f1095e6d691e26cfb56f993f392aff8bf8f4a82acdfa55adaa54060918a0333",
+        "current": {
+          "mode": "0644",
+          "bytes": 6373,
+          "sha256": "7f1095e6d691e26cfb56f993f392aff8bf8f4a82acdfa55adaa54060918a0333"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-13_r10.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6355,
+        "sha256": "81032eede543741d315d63a72fba2ba1b71dca2c8df02db778b61980af2f7a69",
+        "current": {
+          "mode": "0644",
+          "bytes": 6355,
+          "sha256": "81032eede543741d315d63a72fba2ba1b71dca2c8df02db778b61980af2f7a69"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-13_r11.md",
+        "status": "untracked",
+        "selection": "selected_documentation_evidence",
+        "mode": "0644",
+        "bytes": 9765,
+        "sha256": "fa816dd39eb48505c2d48218f03cdfe19d2b163436462cefff6c567cf7463eb2",
+        "current": {
+          "mode": "0644",
+          "bytes": 9765,
+          "sha256": "fa816dd39eb48505c2d48218f03cdfe19d2b163436462cefff6c567cf7463eb2"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 5366,
+        "sha256": "a0a5c7a2244595d80fe521e895654e5fff9793103684c62a81aa1914d9459ac8",
+        "current": {
+          "mode": "0644",
+          "bytes": 5366,
+          "sha256": "a0a5c7a2244595d80fe521e895654e5fff9793103684c62a81aa1914d9459ac8"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_bootstrap_transition_2026-10-12_r180.md",
+        "status": "untracked",
+        "selection": "selected_documentation_evidence",
+        "mode": "0644",
+        "bytes": 9559,
+        "sha256": "78cb06d966f087f37da53b9ad807ec1cb52f14f905733578bea138df4ea31082",
+        "current": {
+          "mode": "0644",
+          "bytes": 9559,
+          "sha256": "78cb06d966f087f37da53b9ad807ec1cb52f14f905733578bea138df4ea31082"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 7064,
+        "sha256": "51f6ba451815400bc2def82e8aa9c9690012fedea2213107288c2bb7795d6ff5",
+        "current": {
+          "mode": "0644",
+          "bytes": 7064,
+          "sha256": "51f6ba451815400bc2def82e8aa9c9690012fedea2213107288c2bb7795d6ff5"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_scope_scan_r182_2026-10-12.txt",
+        "status": "untracked",
+        "selection": "preserved_r9_selected_evidence",
+        "mode": "0644",
+        "bytes": 2465,
+        "sha256": "826f2158dd0f43868640afc74d603cb066d9f0f90be6295d15b6697730be5243",
+        "current": {
+          "mode": "0644",
+          "bytes": 2465,
+          "sha256": "826f2158dd0f43868640afc74d603cb066d9f0f90be6295d15b6697730be5243"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_historia_paths_local_2026-10-12.md",
+        "status": "untracked",
+        "selection": "selected_documentation_evidence",
+        "mode": "0644",
+        "bytes": 197609,
+        "sha256": "1c77bcac61a3ab2f8883c7e2176b0a730b5332e4527b11b43cb8fa4f45e8412d",
+        "current": {
+          "mode": "0644",
+          "bytes": 197609,
+          "sha256": "1c77bcac61a3ab2f8883c7e2176b0a730b5332e4527b11b43cb8fa4f45e8412d"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r8.md",
+        "status": "untracked",
+        "selection": "preserved_r9_selected_evidence",
+        "mode": "0644",
+        "bytes": 21598,
+        "sha256": "f6b76af7b7a327b2d492f773f61f555abdbdca8f162914f3cead27cfdd19f5fa",
+        "current": {
+          "mode": "0644",
+          "bytes": 21598,
+          "sha256": "f6b76af7b7a327b2d492f773f61f555abdbdca8f162914f3cead27cfdd19f5fa"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+        "status": "untracked",
+        "selection": "preserved_r9_selected_evidence",
+        "mode": "0644",
+        "bytes": 18070,
+        "sha256": "451419b0e9ec33568efe7c204b7304cd684a6f0e02c40723272c86646b9e4b7d",
+        "current": {
+          "mode": "0644",
+          "bytes": 18070,
+          "sha256": "451419b0e9ec33568efe7c204b7304cd684a6f0e02c40723272c86646b9e4b7d"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r12_docs.md",
+        "status": "untracked",
+        "selection": "r12_transfer_artifact",
+        "mode": "0644",
+        "bytes": 11982,
+        "sha256": "40659b8aeb23991d0f10ac3a903e7827f7c97cf0d94a5273a6717770b8d85f48",
+        "current": {
+          "mode": "0644",
+          "bytes": 11982,
+          "sha256": "40659b8aeb23991d0f10ac3a903e7827f7c97cf0d94a5273a6717770b8d85f48"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r13_docs.md",
+        "status": "untracked",
+        "selection": "r13_pr_body_draft",
+        "mode": "0644",
+        "bytes": 10854,
+        "sha256": "2181fcb78f44c75928cac7684b02b42bf5eba31f60701434efa95edcd217af96",
+        "current": {
+          "mode": "0644",
+          "bytes": 10854,
+          "sha256": "2181fcb78f44c75928cac7684b02b42bf5eba31f60701434efa95edcd217af96"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r8.json",
+        "status": "untracked",
+        "selection": "preserved_r9_selected_evidence",
+        "mode": "0644",
+        "bytes": 81640,
+        "sha256": "b3dbc3e7c1e2702d06100fb52b1c4c6663d2444b1a76ed456de1a07caaed6d87",
+        "current": {
+          "mode": "0644",
+          "bytes": 81640,
+          "sha256": "b3dbc3e7c1e2702d06100fb52b1c4c6663d2444b1a76ed456de1a07caaed6d87"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r9_docs.json",
+        "status": "untracked",
+        "selection": "preserved_r9_package_artifact",
+        "mode": "0644",
+        "bytes": 33567,
+        "sha256": "be0e9ac53fcd4e4e166853a32faef1f02350f48118ae3a3d4fb6494089e861ee",
+        "current": {
+          "mode": "0644",
+          "bytes": 33567,
+          "sha256": "be0e9ac53fcd4e4e166853a32faef1f02350f48118ae3a3d4fb6494089e861ee"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_reclasificacion_componentes_web_2026-10-13_r11.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 9792,
+        "sha256": "76a5a20fa06e3eac521c1e5d6857deda5ae2b1fde82164e083743fc4ac124332",
+        "current": {
+          "mode": "0644",
+          "bytes": 9792,
+          "sha256": "76a5a20fa06e3eac521c1e5d6857deda5ae2b1fde82164e083743fc4ac124332"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_relaciones_infra_local_2026-10-13.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 5468,
+        "sha256": "648d44bf999356d88d288fd186601d55398b54bc015e786d4894c04e6ea60587",
+        "current": {
+          "mode": "0644",
+          "bytes": 5468,
+          "sha256": "648d44bf999356d88d288fd186601d55398b54bc015e786d4894c04e6ea60587"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_relaciones_semanticas_c03_2026-10-13.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 11347,
+        "sha256": "ac567389adae2e00b02db842bf0ab57334491509845b42b01b5e5ee9a988b526",
+        "current": {
+          "mode": "0644",
+          "bytes": 11347,
+          "sha256": "ac567389adae2e00b02db842bf0ab57334491509845b42b01b5e5ee9a988b526"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
+        "status": "untracked",
+        "selection": "selected_documentation_evidence",
+        "mode": "0644",
+        "bytes": 97667,
+        "sha256": "0890beca4b3eed94d15034cd85960ea959d21ae4d25bff6a0b620e56cbdb58a3",
+        "current": {
+          "mode": "0644",
+          "bytes": 97667,
+          "sha256": "0890beca4b3eed94d15034cd85960ea959d21ae4d25bff6a0b620e56cbdb58a3"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_sem_admin_cuota_relaciones_locales_2026-10-13_r11.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 5628,
+        "sha256": "5c5f6dc16c540e734fd5ed658f2a3004b0bdddbd871e24d9d1123de6029e6b12",
+        "current": {
+          "mode": "0644",
+          "bytes": 5628,
+          "sha256": "5c5f6dc16c540e734fd5ed658f2a3004b0bdddbd871e24d9d1123de6029e6b12"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_sem_admin_validacion_local_2026-10-13_r10.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 5837,
+        "sha256": "8a91a952bec00c4be36f269014f499fb94a7677099c1f1a71d7f77dba8ac5e51",
+        "current": {
+          "mode": "0644",
+          "bytes": 5837,
+          "sha256": "8a91a952bec00c4be36f269014f499fb94a7677099c1f1a71d7f77dba8ac5e51"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 10170,
+        "sha256": "631dadbae8492a10953b27245b7bb67c5695c6875b57133e20f9c162723ad52c",
+        "current": {
+          "mode": "0644",
+          "bytes": 10170,
+          "sha256": "631dadbae8492a10953b27245b7bb67c5695c6875b57133e20f9c162723ad52c"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 24920,
+        "sha256": "45077e831609ffd002c4c6dc26807333b72bcae4c504f405195b337a90b9fcab",
+        "current": {
+          "mode": "0644",
+          "bytes": 24920,
+          "sha256": "45077e831609ffd002c4c6dc26807333b72bcae4c504f405195b337a90b9fcab"
+        }
+      },
+      {
+        "path": ".context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 16936,
+        "sha256": "190bef44594a55e03679d2de069da7a13abcf0105ef5c1e06e71f382372fa71b",
+        "current": {
+          "mode": "0644",
+          "bytes": 16936,
+          "sha256": "190bef44594a55e03679d2de069da7a13abcf0105ef5c1e06e71f382372fa71b"
+        }
+      },
+      {
+        "path": ".context/evidencia/planes_historicos/h3req1_remediation_plan_2026-09-24.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6366,
+        "sha256": "4dedc2e05d60d2267ac212eab99f7d4a02b7275dead7d8def3d98e3bf18b5f51",
+        "current": {
+          "mode": "0644",
+          "bytes": 6366,
+          "sha256": "4dedc2e05d60d2267ac212eab99f7d4a02b7275dead7d8def3d98e3bf18b5f51"
+        }
+      },
+      {
+        "path": ".context/evidencia/planes_historicos/h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 27574,
+        "sha256": "0d6d90ac9d6d3343960f414b8fa7aa9149c9f831856b95a00df1a0c4e5e4fc26",
+        "current": {
+          "mode": "0644",
+          "bytes": 27574,
+          "sha256": "0d6d90ac9d6d3343960f414b8fa7aa9149c9f831856b95a00df1a0c4e5e4fc26"
+        }
+      },
+      {
+        "path": ".context/evidencia/planes_historicos/plan_go_h3req1_local_development_2026-10-02.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 58713,
+        "sha256": "0c463d8183c559a1247483559757ef7d5aed986c0cdf327b6fc5e1b4076652c1",
+        "current": {
+          "mode": "0644",
+          "bytes": 58713,
+          "sha256": "0c463d8183c559a1247483559757ef7d5aed986c0cdf327b6fc5e1b4076652c1"
+        }
+      },
+      {
+        "path": ".context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 9124,
+        "sha256": "2f3f0376e42edc575bfe521d060339fe1d28699c274340c6717f359f2c2c8336",
+        "current": {
+          "mode": "0644",
+          "bytes": 9124,
+          "sha256": "2f3f0376e42edc575bfe521d060339fe1d28699c274340c6717f359f2c2c8336"
+        }
+      },
+      {
+        "path": ".context/frontend.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 7971,
+        "sha256": "c902d565402606cfb4a0cd3737e9d91be1c56469d449651168eeba9b9882f55c",
+        "current": {
+          "mode": "0644",
+          "bytes": 7971,
+          "sha256": "c902d565402606cfb4a0cd3737e9d91be1c56469d449651168eeba9b9882f55c"
+        }
+      },
+      {
+        "path": ".context/hitos/README.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 2764,
+        "sha256": "8424330a969b8b4b2f3a441147c8cf6f848836e1158e5de6f1982aff79e99e09",
+        "current": {
+          "mode": "0644",
+          "bytes": 2764,
+          "sha256": "8424330a969b8b4b2f3a441147c8cf6f848836e1158e5de6f1982aff79e99e09"
+        }
+      },
+      {
+        "path": ".context/hitos/h3req1_closure_review_final_2026-09-23.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 12494,
+        "sha256": "cdf74c3b767d1a92e0309d22269bb03c9f610ad866072a1f72b407178701f7ed",
+        "current": {
+          "mode": "0644",
+          "bytes": 12494,
+          "sha256": "cdf74c3b767d1a92e0309d22269bb03c9f610ad866072a1f72b407178701f7ed"
+        }
+      },
+      {
+        "path": ".context/hitos/h3req1_implementation_report.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 30174,
+        "sha256": "13142a95e7ef2420eff7c90cb34198b344eac908ab4e92e8d0a539adc3156402",
+        "current": {
+          "mode": "0644",
+          "bytes": 30174,
+          "sha256": "13142a95e7ef2420eff7c90cb34198b344eac908ab4e92e8d0a539adc3156402"
+        }
+      },
+      {
+        "path": ".context/hitos/hito_001.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 1698,
+        "sha256": "fc3b4a6493fbf29b4765d78a7a41886ac1820bf6828cc85687b933bf65367f8a",
+        "current": {
+          "mode": "0644",
+          "bytes": 1698,
+          "sha256": "fc3b4a6493fbf29b4765d78a7a41886ac1820bf6828cc85687b933bf65367f8a"
+        }
+      },
+      {
+        "path": ".context/hitos/hito_002.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 5566,
+        "sha256": "f569edfc0c0556323dbc2838cd835837453211e31e356be4205d41e7dd717e66",
+        "current": {
+          "mode": "0644",
+          "bytes": 5566,
+          "sha256": "f569edfc0c0556323dbc2838cd835837453211e31e356be4205d41e7dd717e66"
+        }
+      },
+      {
+        "path": ".context/hitos/hito_003.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 18356,
+        "sha256": "02eeed455e1b4dfd61bd6981dc111fd4ea75d95dafe4279b8a391cf4b570175a",
+        "current": {
+          "mode": "0644",
+          "bytes": 18356,
+          "sha256": "02eeed455e1b4dfd61bd6981dc111fd4ea75d95dafe4279b8a391cf4b570175a"
+        }
+      },
+      {
+        "path": ".context/hitos/hito_004.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 1204,
+        "sha256": "0cb5252ead02e48756bf529d1034cbb099d47c3c3dbb1059b12537190ec2f48c",
+        "current": {
+          "mode": "0644",
+          "bytes": 1204,
+          "sha256": "0cb5252ead02e48756bf529d1034cbb099d47c3c3dbb1059b12537190ec2f48c"
+        }
+      },
+      {
+        "path": ".context/hitos/hito_005.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 1410,
+        "sha256": "106f0e079d542393128d8875c46e774e21bedb84111c0e978e225fd25f325f51",
+        "current": {
+          "mode": "0644",
+          "bytes": 1410,
+          "sha256": "106f0e079d542393128d8875c46e774e21bedb84111c0e978e225fd25f325f51"
+        }
+      },
+      {
+        "path": ".context/indice.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 12180,
+        "sha256": "0f47282942593b3b1435b315ffb04a43a748281bc199dfa6852150564d3db2b0",
+        "current": {
+          "mode": "0644",
+          "bytes": 12180,
+          "sha256": "0f47282942593b3b1435b315ffb04a43a748281bc199dfa6852150564d3db2b0"
+        }
+      },
+      {
+        "path": ".context/matrices/matriz_hito_002.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6855,
+        "sha256": "76267079a70253a78ea1086f76760a8c39d1e9e3c33455224e62c1c341751874",
+        "current": {
+          "mode": "0644",
+          "bytes": 6855,
+          "sha256": "76267079a70253a78ea1086f76760a8c39d1e9e3c33455224e62c1c341751874"
+        }
+      },
+      {
+        "path": ".context/matrices/matriz_hito_003.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 7550,
+        "sha256": "47f3048093e5569187fe1307c168893c290013312014802eb0ab7629afb8782e",
+        "current": {
+          "mode": "0644",
+          "bytes": 7550,
+          "sha256": "47f3048093e5569187fe1307c168893c290013312014802eb0ab7629afb8782e"
+        }
+      },
+      {
+        "path": ".context/matrices/matriz_hito_004.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 738,
+        "sha256": "c4ba76224f116812c5c6dec34a8b5458ea7dbac999e1e762612b85d6a1e6c4ce",
+        "current": {
+          "mode": "0644",
+          "bytes": 738,
+          "sha256": "c4ba76224f116812c5c6dec34a8b5458ea7dbac999e1e762612b85d6a1e6c4ce"
+        }
+      },
+      {
+        "path": ".context/matrices/matriz_hito_005.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 894,
+        "sha256": "da8936e11ae2c4cfcd1fbebb9dfbbee883b5c74efc387a71b91619acab171922",
+        "current": {
+          "mode": "0644",
+          "bytes": 894,
+          "sha256": "da8936e11ae2c4cfcd1fbebb9dfbbee883b5c74efc387a71b91619acab171922"
+        }
+      },
+      {
+        "path": ".context/operacion.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 5103,
+        "sha256": "392febef50c30230cdafb85827a494733ad5bca78476a5fef969bf80cac5f149",
+        "current": {
+          "mode": "0644",
+          "bytes": 5103,
+          "sha256": "392febef50c30230cdafb85827a494733ad5bca78476a5fef969bf80cac5f149"
+        }
+      },
+      {
+        "path": ".context/operaciones/estandar_prompts_retroalimentados.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 3524,
+        "sha256": "8a0fb4a2fd54e438276955cd0db7262351be6f115ce6a17a1386934d605673a5",
+        "current": {
+          "mode": "0644",
+          "bytes": 3524,
+          "sha256": "8a0fb4a2fd54e438276955cd0db7262351be6f115ce6a17a1386934d605673a5"
+        }
+      },
+      {
+        "path": ".context/operaciones/h3req1_remediation_plan_2026-09-24.md",
+        "status": "deleted",
+        "selection": "retired_document_deletion_if_in_git_diff",
+        "current": null,
+        "baseline": {
+          "mode": "100644",
+          "bytes": 6366,
+          "sha256": "4dedc2e05d60d2267ac212eab99f7d4a02b7275dead7d8def3d98e3bf18b5f51"
+        }
+      },
+      {
+        "path": ".context/operaciones/matriz_adopcion_db.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 10239,
+        "sha256": "b4aa86bc338930c564ae3ad59c03fb9fe7a9c3a563f9e495041fd739507ccc23",
+        "current": {
+          "mode": "0644",
+          "bytes": 10239,
+          "sha256": "b4aa86bc338930c564ae3ad59c03fb9fe7a9c3a563f9e495041fd739507ccc23"
+        }
+      },
+      {
+        "path": ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6785,
+        "sha256": "645b398845e8b13075eb31b5c1280e72801d8de21762d5c4a7683c847e9ac8cf",
+        "current": {
+          "mode": "0644",
+          "bytes": 6785,
+          "sha256": "645b398845e8b13075eb31b5c1280e72801d8de21762d5c4a7683c847e9ac8cf"
+        }
+      },
+      {
+        "path": ".context/operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 17306,
+        "sha256": "389f38e50ac7abe686548dd749ca7ab978e7f27ad9c936c33885fee861a7c1bc",
+        "current": {
+          "mode": "0644",
+          "bytes": 17306,
+          "sha256": "389f38e50ac7abe686548dd749ca7ab978e7f27ad9c936c33885fee861a7c1bc"
+        }
+      },
+      {
+        "path": ".context/pruebas.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6299,
+        "sha256": "74d3cd2391b2f54a94d87d53320e8baf477955438cf416d8ad37de2761094a99",
+        "current": {
+          "mode": "0644",
+          "bytes": 6299,
+          "sha256": "74d3cd2391b2f54a94d87d53320e8baf477955438cf416d8ad37de2761094a99"
+        }
+      },
+      {
+        "path": ".context/requerimientos/README.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 6398,
+        "sha256": "2fd2fedb89b36b71eb11a5220377323c0b9fba8334a11f74671e50abcb6ca006",
+        "current": {
+          "mode": "0644",
+          "bytes": 6398,
+          "sha256": "2fd2fedb89b36b71eb11a5220377323c0b9fba8334a11f74671e50abcb6ca006"
+        }
+      },
+      {
+        "path": ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+        "status": "modified",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 31617,
+        "sha256": "a65407c034d823fcacbe4f59e2c0725bb53b58ed00f8979fdbddbf540c50dd5a",
+        "current": {
+          "mode": "0644",
+          "bytes": 31617,
+          "sha256": "a65407c034d823fcacbe4f59e2c0725bb53b58ed00f8979fdbddbf540c50dd5a"
+        }
+      },
+      {
+        "path": ".context/seguridad.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 9011,
+        "sha256": "a36b6a0cb822aa58d08b90634f4492b1b17908157b795e3fb2ec00987cfe04bb",
+        "current": {
+          "mode": "0644",
+          "bytes": 9011,
+          "sha256": "a36b6a0cb822aa58d08b90634f4492b1b17908157b795e3fb2ec00987cfe04bb"
+        }
+      },
+      {
+        "path": ".context/tecnologias.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 10026,
+        "sha256": "e21680ecdc32e70cbda3fb267ef49d1c5f5c171bea26c12fd0161726a6def95e",
+        "current": {
+          "mode": "0644",
+          "bytes": 10026,
+          "sha256": "e21680ecdc32e70cbda3fb267ef49d1c5f5c171bea26c12fd0161726a6def95e"
+        }
+      },
+      {
+        "path": ".context/transferencia.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 13445,
+        "sha256": "4b8c9fb6fdeabe7003f83b9bbf14e0ba4eb2aaa2bb6f8345683c94916c6fff4d",
+        "current": {
+          "mode": "0644",
+          "bytes": 13445,
+          "sha256": "4b8c9fb6fdeabe7003f83b9bbf14e0ba4eb2aaa2bb6f8345683c94916c6fff4d"
+        }
+      },
+      {
+        "path": ".context/trazabilidad/protocolo_constructor.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 9913,
+        "sha256": "6038b9d8a98acec09b121ab915c5bcd8bf82ca3f492bf33c5d229ea37694328d",
+        "current": {
+          "mode": "0644",
+          "bytes": 9913,
+          "sha256": "6038b9d8a98acec09b121ab915c5bcd8bf82ca3f492bf33c5d229ea37694328d"
+        }
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.json",
+        "status": "untracked",
+        "selection": "canonical_source_registry_json",
+        "mode": "0644",
+        "bytes": 3005688,
+        "sha256": "f3a33344827b8922979491d18786273f849c86e3b4fc6acfe7bc9829d9e5630d",
+        "current": {
+          "mode": "0644",
+          "bytes": 3005688,
+          "sha256": "f3a33344827b8922979491d18786273f849c86e3b4fc6acfe7bc9829d9e5630d"
+        }
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+        "status": "untracked",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 1432817,
+        "sha256": "86d6c25710567694386f313aeaaa44bc0143b83a57b8ca35f532e6fce2cf5a35",
+        "current": {
+          "mode": "0644",
+          "bytes": 1432817,
+          "sha256": "86d6c25710567694386f313aeaaa44bc0143b83a57b8ca35f532e6fce2cf5a35"
+        }
+      },
+      {
+        "path": ".context/waivers/waiver_h3_static_export.md",
+        "status": "unchanged",
+        "selection": "active_obsidian_document",
+        "mode": "0644",
+        "bytes": 3293,
+        "sha256": "e1137e17bebcb856bfbdc79676c7881ddc5a0cad3e9c4fe89a02a65026cacd62",
+        "current": {
+          "mode": "0644",
+          "bytes": 3293,
+          "sha256": "e1137e17bebcb856bfbdc79676c7881ddc5a0cad3e9c4fe89a02a65026cacd62"
+        }
+      },
+      {
+        "path": ".github/pull_request_template.md",
+        "status": "modified",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 4360,
+        "sha256": "7b72f4c646f78e632d47cfa95dbc61a9cd80092f828aa43817919da2a75f82bb",
+        "current": {
+          "mode": "0644",
+          "bytes": 4360,
+          "sha256": "7b72f4c646f78e632d47cfa95dbc61a9cd80092f828aa43817919da2a75f82bb"
+        }
+      },
+      {
+        "path": ".github/workflows/security-audit.yml",
+        "status": "modified",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 45035,
+        "sha256": "d61de7c3ad2c68f9e35c6dbe0412e33766dff8861abc49b69e6df33cd4f3c8df",
+        "current": {
+          "mode": "0644",
+          "bytes": 45035,
+          "sha256": "d61de7c3ad2c68f9e35c6dbe0412e33766dff8861abc49b69e6df33cd4f3c8df"
+        }
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "modified",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 32943,
+        "sha256": "6bb92bbe08719405e9e0fc41c9879647e2ccfa5732025b11f1ff96c68518616b",
+        "current": {
+          "mode": "0644",
+          "bytes": 32943,
+          "sha256": "6bb92bbe08719405e9e0fc41c9879647e2ccfa5732025b11f1ff96c68518616b"
+        }
+      },
+      {
+        "path": "IMPLEMENTATION_PLAN.md",
+        "status": "deleted",
+        "selection": "retired_document_deletion_if_in_git_diff",
+        "current": null,
+        "baseline": {
+          "mode": "100644",
+          "bytes": 298200,
+          "sha256": "b212f593477ff86bfc9771f5205d02746dbafcea052f08d4b91a1a89d4eb3dde"
+        }
+      },
+      {
+        "path": "README.md",
+        "status": "modified",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 303,
+        "sha256": "e986b37d144fe187f6e7724284a30d7e2d9efa037c6a611c96be2c61bb203ac1",
+        "current": {
+          "mode": "0644",
+          "bytes": 303,
+          "sha256": "e986b37d144fe187f6e7724284a30d7e2d9efa037c6a611c96be2c61bb203ac1"
+        }
+      },
+      {
+        "path": "docs/PLAN_REMEDIACION_DEFINITIVA.md",
+        "status": "deleted",
+        "selection": "retired_document_deletion_if_in_git_diff",
+        "current": null,
+        "baseline": {
+          "mode": "100644",
+          "bytes": 10934,
+          "sha256": "e8e657722cadb6816de6cb73ea304f0fb74d0217f32ee491e42bcfe0102f2559"
+        }
+      },
+      {
+        "path": "docs/architecture/PIPELINE_PLAN.md",
+        "status": "deleted",
+        "selection": "retired_document_deletion_if_in_git_diff",
+        "current": null,
+        "baseline": {
+          "mode": "100644",
+          "bytes": 2731,
+          "sha256": "efaf14327f79dc896b9c809ba1be7ba14119828206a8e4d0edeb12f2c438c614"
+        }
+      },
+      {
+        "path": "docs/orquestador-sdlc/01_BUSINESS_PLAN_INFRA.md",
+        "status": "deleted",
+        "selection": "retired_document_deletion_if_in_git_diff",
+        "current": null,
+        "baseline": {
+          "mode": "100644",
+          "bytes": 2118,
+          "sha256": "cc5902b131d84139ef460f5dfebbc0a2f9fe719b780a7acfc81b9ff618ea9106"
+        }
+      },
+      {
+        "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
+        "status": "untracked",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 85836,
+        "sha256": "1a119bbcdd6a4695f4ae10d28a222cef907cf8cfff6816bce293888b63aa8817",
+        "current": {
+          "mode": "0644",
+          "bytes": 85836,
+          "sha256": "1a119bbcdd6a4695f4ae10d28a222cef907cf8cfff6816bce293888b63aa8817"
+        }
+      },
+      {
+        "path": "scripts/security/protected_path_scope_guard.sh",
+        "status": "untracked",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 983,
+        "sha256": "9bf994166a9bbd2d43309c5d9b3e809b2c5ad8a537d2a69090b4a3c38cde5b88",
+        "current": {
+          "mode": "0644",
+          "bytes": 983,
+          "sha256": "9bf994166a9bbd2d43309c5d9b3e809b2c5ad8a537d2a69090b4a3c38cde5b88"
+        }
+      },
+      {
+        "path": "scripts/security/run_documentation_integrity.sh",
+        "status": "untracked",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 416,
+        "sha256": "1b46898b0e6b7cc4e0bc2c8c4ee02a94d23910739ade0fb2d5cddf6588d5a9a5",
+        "current": {
+          "mode": "0644",
+          "bytes": 416,
+          "sha256": "1b46898b0e6b7cc4e0bc2c8c4ee02a94d23910739ade0fb2d5cddf6588d5a9a5"
+        }
+      },
+      {
+        "path": "tests/test_admin_invite_edge_contract.py",
+        "status": "modified",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 18628,
+        "sha256": "11bc78cd338d500259b0acc0eb81c099dd3caba3d7cb88e7d10740e82e6ad9a4",
+        "current": {
+          "mode": "0644",
+          "bytes": 18628,
+          "sha256": "11bc78cd338d500259b0acc0eb81c099dd3caba3d7cb88e7d10740e82e6ad9a4"
+        }
+      },
+      {
+        "path": "tests/test_obsidian_context_state.py",
+        "status": "modified",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 8753,
+        "sha256": "69d703ccaae7df2e0af51e2c18ad0aa44a3472e134724de6cf41b5cf8b9d92b3",
+        "current": {
+          "mode": "0644",
+          "bytes": 8753,
+          "sha256": "69d703ccaae7df2e0af51e2c18ad0aa44a3472e134724de6cf41b5cf8b9d92b3"
+        }
+      },
+      {
+        "path": "tests/test_protected_path_scope_guard.sh",
+        "status": "untracked",
+        "selection": "navigation_gate_or_consumer",
+        "mode": "0644",
+        "bytes": 4694,
+        "sha256": "271993529fb5e5b20f1f91cceab9e364ab3118e685c91178830831f82349c347",
+        "current": {
+          "mode": "0644",
+          "bytes": 4694,
+          "sha256": "271993529fb5e5b20f1f91cceab9e364ab3118e685c91178830831f82349c347"
+        }
+      },
+      {
+        "path": "web/README.md",
+        "status": "deleted",
+        "selection": "retired_document_deletion_if_in_git_diff",
+        "current": null,
+        "baseline": {
+          "mode": "100644",
+          "bytes": 1556,
+          "sha256": "5ee0c8cf1d7fe995f619d54fee84d15c4bbb8f08e06f6437c060c748111a4497"
+        }
+      }
+    ]
+  },
+  "source_marker_overlays": {
+    "count": 26,
+    "interpretation": "These maintained paths carry required StudIAMatch-Docs comments in the candidate. Some files also contain functional WIP; hashes identify candidate bytes but do not make them an independently shippable documentation-only diff.",
+    "entries": [
+      {
+        "path": ".github/workflows/fg1_inventory.yml",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 3120,
+        "sha256": "af150359c5f069b6ecd9078535f8f050a2dacb55b02b36a7a589379d8ee35a10",
+        "component": "infra-release",
+        "document": {
+          "path": ".context/componentes/infra_release.md",
+          "anchor": "workflow-fg1-discovery"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": ".github/workflows/fg3_integrity.yml",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 3126,
+        "sha256": "f88292556d8269023a768a666272abb8557ceadc46ab953514f1d54a9de4ec33",
+        "component": "infra-release",
+        "document": {
+          "path": ".context/componentes/infra_release.md",
+          "anchor": "workflow-fg3-integrity"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": ".github/workflows/opencode.yml",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 899,
+        "sha256": "3b6f469cb4b8fedfe71441ec2790a8d2b928cb0073f4b66b4d678c7c6efa4b35",
+        "component": "infra-release",
+        "document": {
+          "path": ".context/componentes/infra_release.md",
+          "anchor": "workflow-opencode"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": ".github/workflows/production_canary.yml",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 26001,
+        "sha256": "869df2a60b6853a82eebae3d7fe3861efbb669d0407b60b9d98989fcc92f93a3",
+        "component": "canarios",
+        "document": {
+          "path": ".context/componentes/canarios.md",
+          "anchor": "workflow-manual-de-produccion-f10"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": ".github/workflows/production_pipeline.yml",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 10880,
+        "sha256": "3fdf6979fdb174a395653efd28b8aa1a1ee6c16de18a1482c25fe4ebafc85fdd",
+        "component": "infra-release",
+        "document": {
+          "path": ".context/componentes/infra_release.md",
+          "anchor": "workflow-fg2-pipeline"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": ".github/workflows/security-audit.yml",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 45035,
+        "sha256": "d61de7c3ad2c68f9e35c6dbe0412e33766dff8861abc49b69e6df33cd4f3c8df",
+        "component": "seguridad-tooling",
+        "document": {
+          "path": ".context/componentes/seguridad_tooling.md",
+          "anchor": "registro-de-fuentes-y-gate"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "scripts/core/certification_canary_manifest.py",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 7239,
+        "sha256": "c39f64a0cedadd150fbab69c62529689abc39331a0e192e3b302e32afa68a942",
+        "component": "canarios",
+        "document": {
+          "path": ".context/componentes/canarios.md",
+          "anchor": "manifest-de-certificacion-f99"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "scripts/core/certification_canary_state.py",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 17097,
+        "sha256": "a2fa1e7c97d54b4e805bcfc13e80ab7930368c33685b8c47d5f89d4de0d2a257",
+        "component": "canarios",
+        "document": {
+          "path": ".context/componentes/canarios.md",
+          "anchor": "state-de-certificacion-f99"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "scripts/core/production_canary_manifest.py",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 10840,
+        "sha256": "991cd436afc80123d1ee563aab7ddbfc89faa19e695d28f0dbe6aa749309f25a",
+        "component": "canarios",
+        "document": {
+          "path": ".context/componentes/canarios.md",
+          "anchor": "manifest-de-produccion-f10"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "scripts/core/production_canary_source_preflight.py",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 10378,
+        "sha256": "362e50e62f75a4720ca7d51c937f6b02a28ab583f74708a4917c4576cc20de56",
+        "component": "canarios",
+        "document": {
+          "path": ".context/componentes/canarios.md",
+          "anchor": "preflight-de-origen-f10"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "scripts/core/production_canary_state.py",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 18220,
+        "sha256": "745831455e399e3635755dbc35c5f6acdd530889ec0955dbebb35e35ee36fc53",
+        "component": "canarios",
+        "document": {
+          "path": ".context/componentes/canarios.md",
+          "anchor": "estado-de-produccion-f10"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 85836,
+        "sha256": "1a119bbcdd6a4695f4ae10d28a222cef907cf8cfff6816bce293888b63aa8817",
+        "component": "seguridad-tooling",
+        "document": {
+          "path": ".context/componentes/seguridad_tooling.md",
+          "anchor": "fuentes-y-relaciones"
+        },
+        "package_treatment": "R13 includes this maintained documentation checker source; other source marker overlays remain relation-only and are reconciled against the step-3 functional package."
+      },
+      {
+        "path": "scripts/security/run_documentation_integrity.sh",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 416,
+        "sha256": "1b46898b0e6b7cc4e0bc2c8c4ee02a94d23910739ade0fb2d5cddf6588d5a9a5",
+        "component": "seguridad-tooling",
+        "document": {
+          "path": ".context/componentes/seguridad_tooling.md",
+          "anchor": "registro-de-fuentes-y-gate"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "scripts/shared/roi_engine.py",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 3788,
+        "sha256": "bec1c595ff4aaa9d52c76147ac573868a0585175fff3af089b6a9607c937fec7",
+        "component": "utilidades-compartidas",
+        "document": {
+          "path": ".context/componentes/utilidades_compartidas.md",
+          "anchor": "fuentes-y-relaciones"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/functions/_lib/admin-bff.ts",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 43358,
+        "sha256": "691a996fe32c3d75aadece6cfd615ed7ec2230460cdfab4c30b8b7b859fbdeb9",
+        "component": "runtime-admin",
+        "document": {
+          "path": ".context/componentes/admin_runtime.md",
+          "anchor": "bff-cookie-y-rpc-firmada"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/AdminCourseQueue.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 21067,
+        "sha256": "84f08bcf087b673f20227643297ac2db03fa2679c61271e1728e62849264a198",
+        "component": "portal-admin",
+        "document": {
+          "path": ".context/componentes/admin_portal.md",
+          "anchor": "cola-editorial"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/courses/CoursePublicRenderer.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 24168,
+        "sha256": "5fe348e8aabad993b710e97aa12696693703c3d54656fa0b0b92e23e6396b5c6",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "renderizado-de-curso"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/ui/badge.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 1227,
+        "sha256": "49cb25466c1d0a4de2c1da03bd574d6c2884496cb56a47344b13cf03e45e6157",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "primitivas-ui"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/ui/button.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 3298,
+        "sha256": "775e054d35cb8bab139c79914a9205aec9c84a1f767b46bb9b7795689cd0c809",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "primitivas-ui"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/ui/card.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 1934,
+        "sha256": "22b139bcec4ec9d6dc8f1f475e0e33ef7be721c27f75f807cd244a11a8ab1d24",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "primitivas-ui"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/ui/input.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 873,
+        "sha256": "c2ff2e70bdacc5103c3e00bbfebd68f707f12761bbc5dcf4968acc2f9ea60d44",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "primitivas-ui"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/ui/label.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 819,
+        "sha256": "7a640aaf4bad759ab227656c43c2e3c887777a2e1f1b163fd51ef66d83a5ca81",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "primitivas-ui"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/components/ui/select.tsx",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 5736,
+        "sha256": "63a7af77759675b9a2893d6146565b1c4dedaceea15b1b5488d43e167f252ae8",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "primitivas-ui"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/lib/password-policy.ts",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 3160,
+        "sha256": "23fc00885e23d86078a3164e35e8b6daa1f8c41b97934e6b7d934cd05db5fcb3",
+        "component": "portal-admin",
+        "document": {
+          "path": ".context/componentes/admin_portal.md",
+          "anchor": "politica-de-contrasenas"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/lib/supabase-transport.ts",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 7948,
+        "sha256": "c852e765aa6ee6058473c6774fc171621085bff1747ced0ae2f0c40318395e0c",
+        "component": "supabase-transport",
+        "document": {
+          "path": ".context/componentes/supabase_transport.md",
+          "anchor": "contrato-api-key-y-sesion"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      },
+      {
+        "path": "web/src/lib/utils.ts",
+        "status": "modified",
+        "mode": "0644",
+        "bytes": 258,
+        "sha256": "7e7b7ed387a148543aed60a461924c788b3ad0ce7f0a4807cbcd7eb50967621b",
+        "component": "presentacion-web-compartida",
+        "document": {
+          "path": ".context/componentes/presentacion_web_compartida.md",
+          "anchor": "utilidad-de-clases"
+        },
+        "package_treatment": "source marker relationship only; full current source diff is deferred to step-3 functional package reconciliation"
+      }
+    ]
+  },
+  "selected_evidence": {
+    "entries": [
+      {
+        "path": ".context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "bytes": 5366,
+        "sha256": "a0a5c7a2244595d80fe521e895654e5fff9793103684c62a81aa1914d9459ac8",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_bootstrap_transition_2026-10-12_r180.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "bytes": 9559,
+        "sha256": "78cb06d966f087f37da53b9ad807ec1cb52f14f905733578bea138df4ea31082",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "bytes": 7064,
+        "sha256": "51f6ba451815400bc2def82e8aa9c9690012fedea2213107288c2bb7795d6ff5",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_scope_scan_r182_2026-10-12.txt",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "bytes": 2465,
+        "sha256": "826f2158dd0f43868640afc74d603cb066d9f0f90be6295d15b6697730be5243",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r8.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "bytes": 21598,
+        "sha256": "f6b76af7b7a327b2d492f773f61f555abdbdca8f162914f3cead27cfdd19f5fa",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+        "selection": "r9_pr_body",
+        "status": "untracked",
+        "bytes": 18070,
+        "sha256": "451419b0e9ec33568efe7c204b7304cd684a6f0e02c40723272c86646b9e4b7d",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r8.json",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "bytes": 81640,
+        "sha256": "b3dbc3e7c1e2702d06100fb52b1c4c6663d2444b1a76ed456de1a07caaed6d87",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md",
+        "selection": "sanitized_client_attestation",
+        "status": "untracked",
+        "bytes": 9124,
+        "sha256": "2f3f0376e42edc575bfe521d060339fe1d28699c274340c6717f359f2c2c8336",
+        "matches_r9_manifest": true,
+        "mode": "0644"
+      }
+    ],
+    "all_r9_selected_evidence_hashes_match": true
+  },
+  "retirements": {
+    "registry_records": [
+      {
+        "path": ".context/00_INDICE.md",
+        "kind": "duplicate Obsidian entry index",
+        "reason": "Merged navigation into the sole main index after migrating current markdown links and the local Obsidian open tab; no runtime consumer.",
+        "git_status": " D",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/.context/00_INDICE.md",
+        "backup_sha256": "b08491f227286fd10864ae56bc4240eb20d61bf505d625147c0bb2a91b293525",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/indice.md",
+            "anchor": "recorrido-por-el-sistema"
+          },
+          {
+            "path": ".context/indice.md",
+            "anchor": "historia-y-evidencia"
+          }
+        ]
+      },
+      {
+        "path": ".context/componentes/index.md",
+        "kind": "redundant component catalog",
+        "reason": "Its component list and domain links are now in the main index; individual module pages remain canonical.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/.context/componentes/index.md",
+        "backup_sha256": "7a265855f87e9aa17e91b73f95f6d6d60799e520c5080f8ece18ba7757163640",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/indice.md",
+            "anchor": "modulos-y-responsabilidades"
+          }
+        ]
+      },
+      {
+        "path": "IMPLEMENTATION_PLAN.md",
+        "kind": "obsolete root plan",
+        "reason": "Multi-phase plan was superseded by current source/domain docs, canonical requirement/hito records, and the state authority; its future proposals are not current facts.",
+        "git_status": " D",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/IMPLEMENTATION_PLAN.md",
+        "backup_sha256": "b212f593477ff86bfc9771f5205d02746dbafcea052f08d4b91a1a89d4eb3dde",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/indice.md",
+            "anchor": "recorrido-por-el-sistema"
+          },
+          {
+            "path": ".context/estado_del_proyecto.md",
+            "anchor": "corte-vigente"
+          }
+        ]
+      },
+      {
+        "path": "web/README.md",
+        "kind": "starter boilerplate",
+        "reason": "Generic create-next-app/Vercel instructions did not describe StudIAMatch routes, export, Pages Functions, or deployment.",
+        "git_status": " D",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/web/README.md",
+        "backup_sha256": "5ee0c8cf1d7fe995f619d54fee84d15c4bbb8f08e06f6437c060c748111a4497",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/componentes/web_publico.md",
+            "anchor": "fuentes-y-relaciones"
+          },
+          {
+            "path": ".context/frontend.md",
+            "anchor": "rutas"
+          }
+        ]
+      },
+      {
+        "path": "docs/PLAN_REMEDIACION_DEFINITIVA.md",
+        "kind": "stale remediation proposal",
+        "reason": "Plan’s data counts, RPC diagnosis and proposed operations are dated and were not evidence of current state; current behavior is documented from candidate sources.",
+        "git_status": " D",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/docs/PLAN_REMEDIACION_DEFINITIVA.md",
+        "backup_sha256": "e8e657722cadb6816de6cb73ea304f0fb74d0217f32ee491e42bcfe0102f2559",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/frontend.md",
+            "anchor": "rutas"
+          },
+          {
+            "path": ".context/database.md",
+            "anchor": "diccionario"
+          },
+          {
+            "path": ".context/componentes/pipeline.md",
+            "anchor": "fuentes-y-relaciones"
+          }
+        ]
+      },
+      {
+        "path": "docs/architecture/PIPELINE_PLAN.md",
+        "kind": "stale pipeline deployment proposal",
+        "reason": "Proposed workflow names, schedule and provider choices do not establish current configuration; candidate YAML/code are documented separately with remote status unknown.",
+        "git_status": " D",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/docs/architecture/PIPELINE_PLAN.md",
+        "backup_sha256": "efaf14327f79dc896b9c809ba1be7ba14119828206a8e4d0edeb12f2c438c614",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/componentes/pipeline.md",
+            "anchor": "fuentes-y-relaciones"
+          },
+          {
+            "path": ".context/ci_cd.md",
+            "anchor": "workflows-locales"
+          }
+        ]
+      },
+      {
+        "path": "docs/orquestador-sdlc/01_BUSINESS_PLAN_INFRA.md",
+        "kind": "obsolete infrastructure and pricing projection",
+        "reason": "Vendor, cost and schedule projections lack current verified sources; not migrated as facts. Current candidate runtime is described from code/config only.",
+        "git_status": " D",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/docs/orquestador-sdlc/01_BUSINESS_PLAN_INFRA.md",
+        "backup_sha256": "cc5902b131d84139ef460f5dfebbc0a2f9fe719b780a7acfc81b9ff618ea9106",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/arquitectura.md",
+            "anchor": "limites-y-runtimes"
+          },
+          {
+            "path": ".context/operacion.md",
+            "anchor": "ambientes-y-datos"
+          },
+          {
+            "path": ".context/tecnologias.md",
+            "anchor": "dependencias-y-locks"
+          }
+        ]
+      },
+      {
+        "path": ".context/operaciones/plan_go_h3req1_local_development_2026-10-02.md",
+        "kind": "superseded initial H3 local/Development plan",
+        "reason": "Replaced as a work route by the 2026-10-04 H3 closure plan. The historic note was moved to the archive; links in its body were rebased. Current state remains in estado_del_proyecto.md. La ruta del mapa de reorganización fue sustituida por la evidencia R11.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/.context/operaciones/plan_go_h3req1_local_development_2026-10-02.md",
+        "backup_sha256": "f064cf27473ab0f552992afc83f8443c8a8cef534476a7eb164d195755196ebc",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/evidencia/h3req1_documentacion_consolidacion_trazabilidad_2026-10-13_r11.md",
+            "anchor": "rutas-consolidadas"
+          },
+          {
+            "path": ".context/indice.md",
+            "anchor": "historia-y-evidencia"
+          }
+        ]
+      },
+      {
+        "path": ".context/operaciones/h3req1_remediation_plan_2026-09-24.md",
+        "kind": "superseded initial H3 remediation plan",
+        "reason": "Its checklist was superseded by the 2026-10-04 H3 closure plan. The historic note was moved to the archive; no present operation is authorized by it. La ruta del mapa de reorganización fue sustituida por la evidencia R11.",
+        "git_status": " D",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_structure_review_pretrim_20261013T025404Z/snapshot/.context/operaciones/h3req1_remediation_plan_2026-09-24.md",
+        "backup_sha256": "4dedc2e05d60d2267ac212eab99f7d4a02b7275dead7d8def3d98e3bf18b5f51",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/evidencia/h3req1_documentacion_consolidacion_trazabilidad_2026-10-13_r11.md",
+            "anchor": "rutas-consolidadas"
+          },
+          {
+            "path": ".context/indice.md",
+            "anchor": "historia-y-evidencia"
+          }
+        ]
+      },
+      {
+        "path": ".context/operaciones/h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06.md",
+        "kind": "obsolete H3 execution route archived as history",
+        "reason": "The route labels a 2026-10-08 NO-GO as the current continuation; R178/R181/R182 later closed the local H3 scope. The source remains preserved under the historical evidence folder, while current navigation returns to the main index and operational state.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-12/supplemental_before_h3_route_archive_20261013T044540Z/snapshot/.context/operaciones/h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06.md",
+        "backup_sha256": "cc875a57143c4dadfb9e177c1c6238e13c05312e00204846bb43f5fc92818570",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/evidencia/planes_historicos/h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06.md",
+            "anchor": "continuacion-del-candidato-en-el-corte-2026-10-08-no-go-historico"
+          },
+          {
+            "path": ".context/estado_del_proyecto.md",
+            "anchor": "transferencia-documental-local"
+          },
+          {
+            "path": ".context/indice.md",
+            "anchor": "historia-y-evidencia"
+          }
+        ]
+      },
+      {
+        "path": ".context/trazabilidad/00_entrada_tecnica.md",
+        "kind": "retired technical entry merged into the unique index and maintenance protocol",
+        "reason": "Its useful navigation, impact-preparation and evidence-grade rules were migrated to indice.md, protocolo_constructor.md, state authority and domain fiches; no active consumer remains.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z/snapshot/.context/trazabilidad/00_entrada_tecnica.md",
+        "backup_sha256": "26a78805da53e3e23ee9bb38dc883f3ee6bf4fe877ab8781381ad2aa0b414af0",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/indice.md",
+            "anchor": "recorrido-por-el-sistema"
+          },
+          {
+            "path": ".context/trazabilidad/protocolo_constructor.md",
+            "anchor": "antes-de-editar"
+          },
+          {
+            "path": ".context/estado_del_proyecto.md",
+            "anchor": "transferencia-documental-local"
+          }
+        ]
+      },
+      {
+        "path": ".context/trazabilidad/mapa_componentes.md",
+        "kind": "retired component map migrated to domain and module fiches",
+        "reason": "Current flows, responsibilities, consumers, data, failures and limits are maintained in architecture and module pages; its 2026-10-07 cut is not a second current component definition.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z/snapshot/.context/trazabilidad/mapa_componentes.md",
+        "backup_sha256": "39a1d770f4f688b9dbbdeff5160dd4d4b0853b9d4639056248d73833fe7753cd",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/arquitectura.md",
+            "anchor": "limites-y-runtimes"
+          },
+          {
+            "path": ".context/frontend.md",
+            "anchor": "rutas"
+          },
+          {
+            "path": ".context/backend.md",
+            "anchor": "mapa-de-endpoints-admin"
+          },
+          {
+            "path": ".context/database.md",
+            "anchor": "modelo-y-flujo"
+          },
+          {
+            "path": ".context/componentes/pipeline.md",
+            "anchor": "estaciones-y-contratos"
+          },
+          {
+            "path": ".context/componentes/admin_runtime.md",
+            "anchor": "limites-y-recorrido"
+          }
+        ]
+      },
+      {
+        "path": ".context/trazabilidad/contratos_dependencias.md",
+        "kind": "retired parallel contract and dependency catalog",
+        "reason": "Per-source assignments and relations are canonical in the registry JSON; executable contract behavior and inverse dependencies live in domain/module fiches.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z/snapshot/.context/trazabilidad/contratos_dependencias.md",
+        "backup_sha256": "2a4699b4924feaa3d4c08789738c504fea24c078ae04a49a76b7e0431b84b84b",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+            "anchor": "asignaciones-por-fuente"
+          },
+          {
+            "path": ".context/trazabilidad/protocolo_constructor.md",
+            "anchor": "despues-del-cambio"
+          },
+          {
+            "path": ".context/backend.md",
+            "anchor": "consumidores-pruebas-y-limites"
+          },
+          {
+            "path": ".context/database.md",
+            "anchor": "vistas-funciones-rls-e-indices"
+          }
+        ]
+      },
+      {
+        "path": ".context/trazabilidad/matriz_impacto.md",
+        "kind": "retired duplicate impact matrix",
+        "reason": "The maintenance protocol and each module's change instructions now identify affected contracts, consumers and tests without a second generic matrix.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z/snapshot/.context/trazabilidad/matriz_impacto.md",
+        "backup_sha256": "df0153d387720185bcd9633825718c10c9f1b1f4712c6afd1f76a654a0655072",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/trazabilidad/protocolo_constructor.md",
+            "anchor": "despues-del-cambio"
+          },
+          {
+            "path": ".context/pruebas.md",
+            "anchor": "revalidacion-por-impacto"
+          }
+        ]
+      },
+      {
+        "path": ".context/trazabilidad/cobertura_evidencia.md",
+        "kind": "retired parallel evidence coverage page merged into testing and maintenance protocol",
+        "reason": "Evidence grades and result-scope rules were migrated; live results and outstanding work belong only in estado_del_proyecto.md.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z/snapshot/.context/trazabilidad/cobertura_evidencia.md",
+        "backup_sha256": "5283371d51e6365772b6136d26f0f63e777438c37da1607b509dd745ffff1888",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/pruebas.md",
+            "anchor": "correspondencia-suite-componente-entorno-resultado"
+          },
+          {
+            "path": ".context/componentes/pruebas_evidencia.md",
+            "anchor": "fuentes-y-relaciones"
+          },
+          {
+            "path": ".context/trazabilidad/protocolo_constructor.md",
+            "anchor": "grado-de-evidencia"
+          }
+        ]
+      },
+      {
+        "path": ".context/h3req1_mapa_reorganizacion.md",
+        "kind": "retired duplicate active document map",
+        "reason": "Its current navigation and path treatment moved to the R11 consolidation report; the Obsidian index and registry remain the only navigational and assignment authorities.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z/snapshot/.context/h3req1_mapa_reorganizacion.md",
+        "backup_sha256": "28c4c720d6c4a27c46ceb522e9e1db7e1789c6956cb3c5d7a4ca78908bb0ed9a",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/evidencia/h3req1_documentacion_consolidacion_trazabilidad_2026-10-13_r11.md",
+            "anchor": "rutas-consolidadas"
+          },
+          {
+            "path": ".context/indice.md",
+            "anchor": "historia-y-evidencia"
+          }
+        ]
+      },
+      {
+        "path": ".context/h3req1_inventario_cobertura.md",
+        "kind": "retired manual duplicate source inventory and stale coverage snapshot",
+        "reason": "Source assignments now have one canonical JSON source and generated Markdown view; current denominator/result/pending status lives only in estado_del_proyecto.md.",
+        "git_status": "no_diff",
+        "present_in_candidate": false,
+        "backup_location": "/home/romel/backups/studiamatch-docs-2026-10-13/preserved_retired_docs_preconsolidation_20261013T070910Z/snapshot/.context/h3req1_inventario_cobertura.md",
+        "backup_sha256": "f6ea53a6694c075c1e913852815b4dc224dbb44d926e9ca908cca2c764754d1d",
+        "backup_verified_local": true,
+        "replacement": [
+          {
+            "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+            "anchor": "como-leer-y-mantener-el-registro"
+          },
+          {
+            "path": ".context/estado_del_proyecto.md",
+            "anchor": "transferencia-documental-local"
+          },
+          {
+            "path": ".context/pruebas.md",
+            "anchor": "correspondencia-suite-componente-entorno-resultado"
+          }
+        ]
+      }
+    ],
+    "meaning": "A missing path without a Git deletion is retained as a local-tree retirement backed outside the checkout, not a deletion payload for the future PR."
+  },
+  "external_preservation": {
+    "verified_supplemental_checkpoint": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_final_reconciliation_20261013T075643Z",
+      "inventory_files": 11,
+      "files_sha256": "3b96c60b8c4f915d56a52908d4c1695defddb694e93aac0b54504bc80b0496bb",
+      "source_copy_mismatches": 0,
+      "backup_manifest_self_hash_excluded": true
+    },
+    "invalid_attempt_preserved_but_not_used": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_final_component_docs_20261013T074033Z",
+    "backups_in_package": false,
+    "latest_pre_edit_single_doc_snapshot": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_security_allowlist_note_20261013T084450Z",
+      "captured_utc": "2026-10-13T08:44:50Z",
+      "source_path": ".context/componentes/seguridad_tooling.md",
+      "pre_edit_sha256": "b7c6a6fe578d0fa59cde7d3a59465f1d137250a771667e06cb93ba47b8816b9e",
+      "backup_sha256": "b7c6a6fe578d0fa59cde7d3a59465f1d137250a771667e06cb93ba47b8816b9e",
+      "files_manifest_sha256": "45fb2f3aa5db3648e59d7d332ecb6458ba80f0ab5497e7a78c106d39f2586450",
+      "inventory_sha256": "5f1cf4d32ba3d86dd2802107d4f38eaa094cdb900a4535408e178376c9ce6afb",
+      "snapshot_file_count": 1,
+      "source_copy_mismatches_at_capture": 0,
+      "backup_manifest_self_hash_excluded": true,
+      "backups_in_package": false
+    },
+    "latest_pre_final_reconciliation_snapshot": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r12_final_truth_reconciliation_20261013T090541Z",
+      "captured_utc": "2026-10-13T09:05:41Z",
+      "snapshot_file_count": 9,
+      "files_sha256": "b211ee5c00ddf52ef5c28cf47436e56a62b7b2738b31f8b40afad61c05cf55f3",
+      "inventory_sha256": "5eaecb4168615442333fd1aba80d2af20e5f4cfdeaaaf7e5716b1c6fd20b3c65",
+      "source_copy_mismatches_at_capture": 0,
+      "backup_manifest_self_hash_excluded": true,
+      "backups_in_package": false
+    },
+    "r13_pre_edit_backup": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_historical_navigation_2026-10-13",
+      "inventory_files": 517,
+      "inventory_sha256": "0eb02013a1ca71c868bfb0acfc3ae06fdb3b86fa7229fa0a54e835a9127c635b",
+      "files_manifest_sha256": "36fefd7c65d88e2416ca8263bfebae17b04b2553cffb92285cf0984a96c2f888",
+      "archive_sha256": "b93e15c48acf40aacc6f1b517b96961753fdea14117d9f14bd3c13d875a3cc8a",
+      "verification": "sidecar hashes rechecked; backup outside both checkouts; not in package"
+    },
+    "r13_pin_reconciliation_backup": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_pin_reconciliation_20261013T151642Z",
+      "captured_utc": "2026-10-13T15:16:42Z",
+      "snapshot_file_count": 6,
+      "source_copy_mismatches_at_capture": 0,
+      "inventory_sha256": "ac7abb31e9af1e2807e5900591cc8487eba9985086c7af96f74544cf1cbf421d",
+      "files_manifest_sha256": "304394b1018fddc2ffa38a8217b8f280e55e28af902f14a3a6bca106b3f805d3",
+      "backups_in_package": false
+    },
+    "r13_final_go_record_backup": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_final_go_20261013T152047Z",
+      "captured_utc": "2026-10-13T15:20:47Z",
+      "snapshot_file_count": 7,
+      "source_copy_mismatches_at_capture": 0,
+      "inventory_sha256": "601cccc6d3a3842a2c0f5e5e646fee51f370d5def8f2e2ab0c0c5d2cc662784c",
+      "files_manifest_sha256": "b015679089a19bac11b352bb67b4584bf49e92ca3ff23d7db2fc999c11f26be4",
+      "backups_in_package": false
+    },
+    "r13_body_status_fix_backup": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_body_status_fix_20261013T152525Z",
+      "snapshot_file_count": 1,
+      "source_copy_mismatches_at_capture": 0,
+      "inventory_sha256": "6a828ec23b822ee2acfc6c8b7d1e363e45977e1b4b9f7e4a49a6c6b18e2b1608",
+      "files_manifest_sha256": "13350ed1ee726e2f1ac27c4f5401b1d33f4b82636ecde300a86aaa7e21dcd03d",
+      "backups_in_package": false
+    },
+    "r13_last_consistency_backup": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_last_consistency_fix_20261013T152547Z",
+      "snapshot_file_count": 2,
+      "source_copy_mismatches_at_capture": 0,
+      "inventory_sha256": "2b4ab5aff5a100ee91e3b0ea874ef1038990645212a9715fa9722356ca249df6",
+      "files_manifest_sha256": "b78a0a2b11c7c773fdd67a039a1da378f27810e638a9c295b6d982c37f48feaa",
+      "backups_in_package": false
+    },
+    "r13_p2_reconciliation_backup": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_p2_reconciliation_20261013T152631Z",
+      "snapshot_file_count": 7,
+      "source_copy_mismatches_at_capture": 0,
+      "inventory_sha256": "134500b7f98ee52face09bfebc95c0fcc28bad2edc889f32ac310987691c974f",
+      "files_manifest_sha256": "52ab95af1e934282007629d54eecdea35895f3635e878bd0067bc663c9ca3374",
+      "backups_in_package": false
+    },
+    "r13_final_review_record_backup": {
+      "path": "/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_final_review_record_20261013T152959Z",
+      "captured_utc": "2026-10-13T15:29:59Z",
+      "snapshot_file_count": 7,
+      "source_copy_mismatches_at_capture": 0,
+      "inventory_sha256": "01de056fa86fd73b24c1a62497a47dc7a6093a7e8e2ffab07b7a566416bae10d",
+      "files_manifest_sha256": "8cb129d9ebfca681a773af3b521a7ff163b05d62cf6467cd69e0a63908589826",
+      "backups_in_package": false
+    }
+  },
+  "exclusions": [
+    {
+      "category": "candidate-only WIP",
+      "count": 367,
+      "reason": "Relevant source paths outside the projected R8/R9 documentation handoff are not proposed; the package does not include all untracked files."
+    },
+    {
+      "category": "source marker overlays",
+      "count": 26,
+      "reason": "Listed separately; full current source diff must be reconciled with functional package at step 3."
+    },
+    {
+      "category": "caches/dependencies/secrets/generated outputs/private documents/Docker data/backups",
+      "reason": "Retained in place or outside the checkout as classified by the registry; excluded from this package."
+    },
+    {
+      "category": "remote state",
+      "reason": "No GitHub/Supabase/Cloudflare reads, writes, deploys, schedules, secrets or SQL operations were performed."
+    }
+  ],
+  "checks": {
+    "documentation_gate": "PASS in studiamatch-dev after R13 changelog navigation refs: normal and --self-test; sources 801/801, components 14/14, 4,715/4,715 local applicable relations verified and 91 justified N/A; graph 9,340 links/4,567 anchors, active docs 95/95, historical docs 433/433 across 13 catalogs, zero excluded Markdown docs.",
+    "obsidian_consumer_test": "Previous R13 Docker run recorded 8 passed; current rerun unavailable because pytest is not installed in studiamatch-dev. No current PASS claimed.",
+    "node_syntax": "PASS in studiamatch-dev: node --check documentation checker; bash -n tests/test_protected_path_scope_guard.sh.",
+    "credential_scan": "PASS Docker exit 0; 155 explicit unique paths from R13 scope, source marker overlays, selected package artifacts and manifest; no secret values emitted.",
+    "protected_path_scope_regression": "PASS Docker: candidate_paths=125; 138 manifest entries (131 present, 7 deleted); ordinary=3, newline=1, controls=1, malformed=3.",
+    "scanner_regression": "PASS Docker tests/test_scan_credentials.sh; declared regression cases passed, including redaction.",
+    "independent_review": "GO: final independent reread found both prior P2 prose issues corrected; current scope digest, four package artifact hashes/sizes/modes, 138 scope entries (131 present/7 deleted), 8 pins, 26 overlays and self-hash exclusion agree. Gate metrics: 9340 links/4567 anchors, 95/95 active, 433/433 historical in 13 catalogs, zero exclusions. Remote checks remain 0/5.",
+    "remote_checks": "0/5 executed; separate session only.",
+    "package_reconciliation": "PASS: final 138 scope entries, 8 selected evidence pins, 26 source marker overlays and four package artifact pins reconciled and verified. Manifest self-hash excluded; final independent reread GO."
+  },
+  "base_antecedents": {
+    "r8_manifest": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r8.json",
+    "r8_body": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r8.md",
+    "r9_manifest": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r9_docs.json",
+    "r9_body": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+    "r9_check_log": ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt",
+    "r8_r9_files_remain_unmodified": true
+  },
+  "integration_follow_up": {
+    "full_integration_reconciled": false,
+    "required": "At the separate step 3, overlay the exact R12 documentation scope onto R8/R9, recheck changed consumers and manifests, reconcile all 434 projected source paths and 367 candidate-only WIP paths without dropping relevant source, and decide the R8 braces tarball conflict using an authorized option. No remote adoption is implied. R13 must compare the 433 historical target paths and relation targets against the authorized integration candidate in step 3 before PR; preserve R37 local evidence and resolve missing targets then.",
+    "historical_r9_scope_overlap_preserved": 10,
+    "r13_historical_targets_locally_present": 433,
+    "r13_historical_target_remote_availability": "not checked; no remote reads"
+  },
+  "package_artifacts": {
+    "check_log": {
+      "path": ".context/evidencia/h3req1_documentacion_checks_2026-10-13_r13.txt",
+      "included": true,
+      "sha256": "71f6bcf8eabb92d8847752b60b8d17c3a9fd060e774cb36b62ebb8b140ee4f8c",
+      "bytes": 5279,
+      "status": "untracked",
+      "mode": "0644"
+    },
+    "body": {
+      "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r13_docs.md",
+      "included": true,
+      "sha256": "2181fcb78f44c75928cac7684b02b42bf5eba31f60701434efa95edcd217af96",
+      "bytes": 10854,
+      "status": "untracked",
+      "mode": "0644"
+    },
+    "manifest": {
+      "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-13_r13_docs.json",
+      "included": true,
+      "self_hash_excluded": true,
+      "reason": "A manifest cannot hash itself; scope.entries_sha256 covers the selected package paths."
+    },
+    "report": {
+      "path": ".context/evidencia/h3req1_documentacion_navegacion_historica_2026-10-13_r13.md",
+      "included": true,
+      "sha256": "08da582e9b52c9039f47e6d6295277935469fe986704034c595d1e6cd0023879",
+      "bytes": 11153,
+      "status": "untracked",
+      "mode": "0644"
+    },
+    "independent_review": {
+      "path": ".context/evidencia/h3req1_documentacion_revision_independiente_2026-10-13_r13.txt",
+      "included": true,
+      "sha256": "d20702e966c796d493e1ed7cc0cb5ab8393cc07a87edbbae3a9ebdbd925d9e58",
+      "bytes": 2114,
+      "status": "untracked",
+      "mode": "0644"
+    }
+  },
+  "historical_navigation": {
+    "canonical_registry": ".context/trazabilidad/registro_fuentes_componentes.json",
+    "catalog_count": 13,
+    "historical_documents": 433,
+    "local_document_links_verified": 433,
+    "historic_status_counts": {
+      "historical": 430,
+      "superseded": 3,
+      "current": 0
+    },
+    "excluded_markdown_documents": 0,
+    "individual_navigation_is_not_content_review": true,
+    "ten_client_history_paths_content_review": "not_read; these paths are already tracked in candidate HEAD and original checkout; navigation does not mean content review",
+    "catalog_target_package_policy": "Includes all 13 new catalogs and selected R36–R40 preparation/log evidence. Other locally cataloged targets remain preserved in the candidate; their presence/inclusion on the integration base must be reconciled in step 3. This manifest does not claim remote availability."
+  },
+  "package_pins": {
+    "result": "PASS",
+    "scope_entries": 138,
+    "historical_sequence_entries": 10,
+    "source_marker_overlays": 26,
+    "self_hash_excluded": true
+  }
+}

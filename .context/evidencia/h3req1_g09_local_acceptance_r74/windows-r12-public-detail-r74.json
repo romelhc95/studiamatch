@@ -1,0 +1,10 @@
+{
+  "url": "http://localhost:3336/courses/ulima/analitica-aplicada-60000000/",
+  "loopback_only": true,
+  "retries": 0,
+  "http_status": 200,
+  "course_name_visible": true,
+  "course_slug_visible": true,
+  "title_visible": true,
+  "body_sha256": "23b963ea72f2139fdb3cf31cb7e0c49ee554985a39b1df414389d04381fecce7"
+}

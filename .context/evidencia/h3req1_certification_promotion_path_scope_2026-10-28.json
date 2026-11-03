@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "manifest_role": "protected promotion path pins; no execution authorization",
+  "baseline_sha": "03515dee69fc42b10808d1c67cc4e00ebacd0c40",
+  "source_sha": "2d3ed36b02ecb4056a2a7508be5c8f66c7cb3734",
+  "purpose": "Exact immutable Git blob pins for the current Development candidate against the current Certification baseline. The four candidate paths edited by this follow-up remain governed by existing exact-path allowlists; unchanged candidate paths, including the pin test, remain blob-pinned. The pin manifest itself is excluded to avoid self-referential drift.",
+  "entries": [
+    {
+      "path": ".context/componentes/admin_portal.md",
+      "baseline_blob": "1d4139958fc7d5ee9b1802951496b783a908aef0",
+      "source_blob": "5a449c4d59bae8d07e53c14a82954d9704b41c63"
+    },
+    {
+      "path": ".context/componentes/database_migrations.md",
+      "baseline_blob": "6a32fabd43b6e5e4e3cb48d89460ec1f1cdf2396",
+      "source_blob": "4b79c4c488ee827a1b35f8c0b4fb2bf6b4755c1e"
+    },
+    {
+      "path": ".context/componentes/mantenimiento.md",
+      "baseline_blob": "ec11fe83f8979171856c18f0bbbbdb28d17fbe8f",
+      "source_blob": "a5277da64bfe3d4ef7c065082af47e5e7a0d6e42"
+    },
+    {
+      "path": ".context/componentes/seguridad_tooling.md",
+      "baseline_blob": "23f8e5ef69810e3fb78a6133b3e3e0d284de0955",
+      "source_blob": "118f572c883b67c338402050f78c8ca2f39cc383"
+    },
+    {
+      "path": ".context/database.md",
+      "baseline_blob": "d1b235a617d6e627a1d1a721b41d1c8f8aeb5837",
+      "source_blob": "c436ead85af60afa6b5ce6b3a202a0f53146f558"
+    },
+    {
+      "path": ".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
+      "baseline_blob": "3910f9f1db46ea217be7a6cf8576c997a29ae733",
+      "source_blob": "ce3734f9d446e39ee1ab8d74e03e8e7a868f95fb"
+    },
+    {
+      "path": ".context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json",
+      "baseline_blob": null,
+      "source_blob": "a2dd8544551e51ff208f0f97d988f373e4192ee4"
+    },
+    {
+      "path": ".context/hitos/hito_001.md",
+      "baseline_blob": "22fd34cdecfcd29903a9c323c8df31c048a030eb",
+      "source_blob": "ff2598413f7096dd3d69a02d9747e0de30939cd5"
+    },
+    {
+      "path": ".context/hitos/hito_004.md",
+      "baseline_blob": "0ff2705a4f2b7de08b8feb88b012020933acb5de",
+      "source_blob": "52b5c91dbcffce8a3de39f1103a996e41bd5c41a"
+    },
+    {
+      "path": ".context/pruebas.md",
+      "baseline_blob": "50e06800972fe9cdaa154e30a0a76127ab73f8ff",
+      "source_blob": "65d791e743f096d3db5445b069c23c9f679c4598"
+    },
+    {
+      "path": ".context/trazabilidad/registro_fuentes_componentes.json",
+      "baseline_blob": "38eb7b7233caa1809f8572001ff4b94dac18be9a",
+      "source_blob": "876373c049e4e2d3714f11974f8f7827b94b9c23"
+    },
+    {
+      "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+      "baseline_blob": "e89b3382e6d5b9ee157dbddea30294f882a4dc6a",
+      "source_blob": "2fb9b6ae3cd3d022aec8dc1cfa2715fc5fa08831"
+    },
+    {
+      "path": ".github/workflows/db-sync-to-pro.yml",
+      "baseline_blob": "50bc37a6f06a8c8a065be37b10afa67b98964dc0",
+      "source_blob": "bcbda59d95f78153fa09305b39aacfd12895685e"
+    },
+    {
+      "path": ".github/workflows/security-audit.yml",
+      "baseline_blob": "8722469480796e64c6385f4ce4a4fd2f62d46b7e",
+      "source_blob": "9c85e10c3ec14f901583cd1128ce0eecb1937c59"
+    },
+    {
+      "path": "scripts/maintenance/check_db_parity.py",
+      "baseline_blob": "c587da570c272f18643e5b2b2e5a8581881887f2",
+      "source_blob": "2595d8224c030769128a259f8fe6a5df24c781f9"
+    },
+    {
+      "path": "scripts/maintenance/db_migrate.py",
+      "baseline_blob": "07bad4cefd36611610d244ff42d4a23f01a32bc4",
+      "source_blob": "bc9d16d68db712ea0bb422815eab386085d2c3ae"
+    },
+    {
+      "path": "scripts/maintenance/h2_pro_preflight_report.py",
+      "baseline_blob": "2e54d6c859f5851e2c89c77deb24c6610fd512d3",
+      "source_blob": "fb6273ad4a2b40b617d81501fdacaa83929e9b1d"
+    },
+    {
+      "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
+      "baseline_blob": "92b4182ba838670c2108d9962081d7225fcb25ec",
+      "source_blob": "1e858062e9a0b1d32f2adc2550f48f2943efbdf7"
+    },
+    {
+      "path": "scripts/maintenance/pro_h3_migration_manifest.py",
+      "baseline_blob": null,
+      "source_blob": "7e14349c4e16895d33c5e0e20335b708ce3b1feb"
+    },
+    {
+      "path": "tests/admin_audit_changes.test.mjs",
+      "baseline_blob": null,
+      "source_blob": "b427eb6018609845aee45fff50bb8646cb8ec433"
+    },
+    {
+      "path": "tests/test_fase10_main_boundary.py",
+      "baseline_blob": "92c74d6ab9297fa1cee9eb889665e6c959a20913",
+      "source_blob": "697efec6687e909025206c78cb0bd9e0b7e6e574"
+    },
+    {
+      "path": "tests/test_h2_pro_migration_controls.py",
+      "baseline_blob": "330e7f30a2d6f81d173d5f0f023c9e0b953ddc30",
+      "source_blob": "52064290ffaee2ecc8c68a622b738ee9bab97861"
+    },
+    {
+      "path": "tests/test_h2_pro_preflight_report.py",
+      "baseline_blob": null,
+      "source_blob": "9a8bcd8081fcc9b7114a0feef8b748238f7f85ef"
+    },
+    {
+      "path": "tests/test_h3_pro_migration_manifest.py",
+      "baseline_blob": null,
+      "source_blob": "d246bfb37df475bd51516664dd61d406dea15113"
+    },
+    {
+      "path": "tests/test_protected_path_scope_guard.sh",
+      "baseline_blob": "84a26ec9c9c25e020ce7ee46e4ab0bb4a37d67b3",
+      "source_blob": "fcaa7c213578baa5a7665af18372ff4cfb85ada1"
+    },
+    {
+      "path": "tests/test_supabase_credentials_contract.py",
+      "baseline_blob": "103d9064ae4ef06a231541387c72e40e14a185bd",
+      "source_blob": "fbf0e81a8ead43e5a7c48e30b57dad9cfa0296ac"
+    },
+    {
+      "path": "web/src/app/admin/edit/page.tsx",
+      "baseline_blob": "3f7ff6fb7f14b1f1179e269aadda27eb28b5c84d",
+      "source_blob": "abd3a10b55007000b8ab0c201fdcbb8fb8d9c656"
+    },
+    {
+      "path": "web/src/lib/admin-audit-changes.mjs",
+      "baseline_blob": null,
+      "source_blob": "2aa733ef369153ca958d207c112cbf12846aa8e1"
+    }
+  ]
+}

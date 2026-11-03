@@ -1,0 +1,24 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+candidate-wip-entry-count=4468
+docker-target=PASS context=default endpoint=unix:///var/run/docker.sock engine=fc2115b2-c3c4-440e-89c6-26899eb7cb04 version=29.8.2
+r10-diagnostic-inputs=7/7 PASS manifest_sha256=a86b240ddb1cbe51b3c3c14bc58ff61c38fc9d46699b55f69e749901a2a2b048
+r9-integrated-manifest=64/64 PASS sha256=6b0a469325b466a59211b3f6e50f16bce49910d78cad994068daa51caba13de9
+r9-source-snapshot=64/64 noncandidate_extras=2 hash_pinned=2 symlinks=0 read_only=PASS
+postgresql-image=17.11 PASS
+network=h3req1-c03-diagnostic-data-20261010-r10 internal=true created=PASS
+container=h3req1-c03-diagnostic-pg17-20261010-r10 metadata=0ed86b61cb0421518b7b750c3d226c2bb9358779c3753400110274a360f1d296|sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f|running|2147483648|2000000000|512
+phase=postgres-local-readiness|error_code=OK
+sql-fixture=tests/sql/h3_from_h2_pro_pg17_harness.sql exit=0
+sql-fixture=tests/sql/h3req1_c03_integrated_extension_setup.sql exit=0
+sql-fixture=tests/sql/h3req1_c03_integrated_setup.sql exit=0
+phase=postgres-tcp-auth-before|error_code=OK
+container=h3req1-c03-diagnostic-postgrest-20261010-r10 metadata=b92f48aba0fb08f116bb5ede02f44012f41e12bc8ee124ed69e4cb5cf7f34467|sha256:0a46780309a604cdc8b56c776c6e5e15788ce58174d709e40459ab5a2d44d228|running|536870912|1000000000|256
+postgrest-state=running|0|false
+phase=postgrest-probe|error_code=HTTP_503_PGRST002 probe_exit=1
+phase=postgres-tcp-auth-after|error_code=OK
+phase=postgres-log|error_code=NO_SCHEMA_CACHE_SQLSTATE
+phase=postgrest-log|error_code=NO_SCHEMA_CACHE_SQLSTATE
+removed-fixture=h3req1-c03-diagnostic-postgrest-20261010-r10 id=b92f48aba0fb08f116bb5ede02f44012f41e12bc8ee124ed69e4cb5cf7f34467
+removed-fixture=h3req1-c03-diagnostic-pg17-20261010-r10 id=0ed86b61cb0421518b7b750c3d226c2bb9358779c3753400110274a360f1d296
+removed-network=h3req1-c03-diagnostic-data-20261010-r10 id=c448e5ead0a7b4732b9b21eca16e1d03a3e25f4ad68ed8a5985f090d949a1203 internal=true attached=0
+phase=r10-diagnostic|error_code=COMPLETE exit=0 raw_logs_persisted=false edge_started=false

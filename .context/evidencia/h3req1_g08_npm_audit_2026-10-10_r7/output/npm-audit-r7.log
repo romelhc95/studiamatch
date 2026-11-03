@@ -1,0 +1,4 @@
+phase=preflight|error_code=LOCK_PROXY_TLS_AND_ZERO_RETRIES_PINNED
+phase=npm-audit-full|error_code=RESULT_READY|command_exit=0|total=0|critical=0|high=0|moderate=0|low=0|info=0
+phase=npm-audit-production|error_code=RESULT_READY|command_exit=0|total=0|critical=0|high=0|moderate=0|low=0|info=0
+phase=npm-audit-summary|error_code=FULL_AND_PRODUCTION_ZERO|registry=PINNED|proxy=PINNED|retries=0

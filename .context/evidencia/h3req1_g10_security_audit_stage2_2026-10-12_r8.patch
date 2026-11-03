@@ -1,0 +1,181 @@
+--- a/.github/workflows/security-audit.yml
++++ b/.github/workflows/security-audit.yml
+@@ -7,6 +7,8 @@
+       - desarrollo
+       - certificacion
+       - main
++  pull_request_review:
++    types: [submitted, dismissed]
+   push:
+     branches:
+       - desarrollo
+@@ -30,6 +32,141 @@
+   cancel-in-progress: true
+ 
+ jobs:
++  trusted-workflow-integrity:
++    name: Trusted Protected Workflow Integrity
++    if: (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') && (github.event.pull_request.base.ref == 'desarrollo' || github.event.pull_request.base.ref == 'certificacion' || github.event.pull_request.base.ref == 'main')
++    runs-on: ubuntu-latest
++    timeout-minutes: 20
++    permissions:
++      actions: read
++      pull-requests: read
++    steps:
++      - name: Require the trusted protected-workflow check for this PR event and head
++        env:
++          GH_TOKEN: ${{ github.token }}
++          REPOSITORY: ${{ github.repository }}
++          PR_NUMBER: ${{ github.event.pull_request.number }}
++          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
++          EVENT_NAME: ${{ github.event_name }}
++          REVIEW_ACTION: ${{ github.event.action }}
++          REVIEW_SUBMITTED_AT: ${{ github.event.review.submitted_at }}
++          REVIEW_DISMISSED_AT: ${{ github.event.review.dismissed_at }}
++          PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
++        shell: bash
++        run: |
++          set -euo pipefail
++          check_name='Protected Workflow Integrity'
++          export CHECK_NAME="$check_name"
++          export RUNS_FILE="$RUNNER_TEMP/protected-workflow-runs.json"
++          export JOBS_FILE="$RUNNER_TEMP/protected-workflow-jobs.json"
++          for attempt in $(seq 1 90); do
++            if (( attempt % 15 == 0 )); then
++              echo "Still waiting for the trusted workflow check (${attempt}/90)"
++            fi
++            current_head_sha="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
++            if [ "$current_head_sha" != "$PR_HEAD_SHA" ]; then
++              echo "::error::PR head changed while waiting for Protected Workflow Integrity"
++              exit 1
++            fi
++            gh api --paginate --slurp \
++              "repos/${REPOSITORY}/actions/workflows/protected-workflow-integrity.yml/runs?per_page=100" > "$RUNS_FILE"
++            run_state="$(python3 - <<'PY'
++          import json
++          import os
++          from datetime import datetime, timezone
++          from pathlib import Path
++
++          def parse_time(value):
++              if not value:
++                  return None
++              return datetime.fromisoformat(value.replace('Z', '+00:00')).astimezone(timezone.utc)
++
++          pages = json.loads(Path(os.environ['RUNS_FILE']).read_text(encoding='utf-8'))
++          runs = [run for page in pages for run in page.get('workflow_runs', [])]
++          pr_number = int(os.environ['PR_NUMBER'])
++          event_name = os.environ['EVENT_NAME']
++          if event_name == 'pull_request_review':
++              review_action = os.environ['REVIEW_ACTION']
++              timestamp_key = 'REVIEW_DISMISSED_AT' if review_action == 'dismissed' else 'REVIEW_SUBMITTED_AT'
++              event_at = parse_time(os.environ.get(timestamp_key, ''))
++              if event_at is None:
++                  raise SystemExit(f'{review_action} review event is missing its trusted timestamp')
++          else:
++              event_at = parse_time(os.environ.get('PR_UPDATED_AT', ''))
++              if event_at is None:
++                  raise SystemExit('pull request event is missing its trusted timestamp')
++          expected_event = 'pull_request_review' if event_name == 'pull_request_review' else 'pull_request_target'
++          matches = [
++              run for run in runs
++              if run.get('event') == expected_event
++              and any(
++                  int(pr.get('number', -1)) == pr_number
++                  and (pr.get('head') or {}).get('sha') == os.environ['PR_HEAD_SHA']
++                  for pr in run.get('pull_requests', [])
++              )
++              and parse_time(run.get('created_at')) is not None
++              and parse_time(run.get('created_at')) >= event_at
++          ]
++          if not matches:
++              print('pending')
++          else:
++              latest = max(matches, key=lambda run: run.get('created_at') or '')
++              print(f"{latest.get('id')}|{latest.get('status')}|{latest.get('conclusion') or ''}")
++          PY
++          )"
++            if [ "$run_state" = 'pending' ]; then
++              sleep 10
++              continue
++            fi
++            IFS='|' read -r run_id run_status run_conclusion <<< "$run_state"
++            if [ "$run_status" != 'completed' ]; then
++              sleep 10
++              continue
++            fi
++            if [ "$run_conclusion" != 'success' ]; then
++              echo "::error::trusted Protected Workflow Integrity run concluded ${run_conclusion} for ${PR_HEAD_SHA}"
++              exit 1
++            fi
++            gh api --paginate --slurp \
++              "repos/${REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > "$JOBS_FILE"
++            job_conclusion="$(python3 - <<'PY'
++          import json
++          import os
++          from pathlib import Path
++
++          pages = json.loads(Path(os.environ['JOBS_FILE']).read_text(encoding='utf-8'))
++          jobs = [job for page in pages for job in page.get('jobs', [])]
++          expected_name = os.environ['CHECK_NAME']
++          matching = [job for job in jobs if job.get('name') == expected_name]
++          if not matching:
++              print('missing')
++          else:
++              latest = max(matching, key=lambda job: job.get('started_at') or job.get('completed_at') or '')
++              print(latest.get('conclusion') or latest.get('status') or 'failure')
++          PY
++          )"
++            case "$job_conclusion" in
++              success)
++                current_head_sha="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
++                if [ "$current_head_sha" != "$PR_HEAD_SHA" ]; then
++                  echo "::error::PR head changed after Protected Workflow Integrity completed"
++                  exit 1
++                fi
++                echo "trusted Protected Workflow Integrity passed for ${PR_HEAD_SHA} (${check_name}; workflow run ${run_id})"
++                exit 0
++                ;;
++              queued|in_progress)
++                sleep 10
++                ;;
++              *)
++                echo "::error::trusted Protected Workflow Integrity job concluded ${job_conclusion} for ${PR_HEAD_SHA} (${check_name})"
++                exit 1
++                ;;
++            esac
++          done
++          echo "::error::timed out waiting for trusted Protected Workflow Integrity (${check_name})"
++          exit 1
++
+   credential-scan:
+     name: Credential Scan
+     runs-on: ubuntu-latest
+@@ -618,12 +755,24 @@
+   security-audit:
+     name: security-audit
+     runs-on: ubuntu-latest
+-    needs: [credential-scan, protected-paths, python-check, lint, typecheck, static-build, workflow-lint, db-gate, h2-main-production-expand-gate]
++    needs: [trusted-workflow-integrity, credential-scan, protected-paths, python-check, lint, typecheck, static-build, workflow-lint, db-gate, h2-main-production-expand-gate]
+     if: always()
+     steps:
+       - name: Aggregate required checks
+-        run: |
+-          set -euo pipefail
++        env:
++          EVENT_NAME: ${{ github.event_name }}
++          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
++          WORKFLOW_CHECK_RESULT: ${{ needs.trusted-workflow-integrity.result }}
++        run: |
++          set -euo pipefail
++          if [ "$EVENT_NAME" = 'pull_request' ] || [ "$EVENT_NAME" = 'pull_request_review' ]; then
++            case "$PR_BASE_REF" in
++              desarrollo|certificacion|main) test "$WORKFLOW_CHECK_RESULT" = 'success' ;;
++              *) test "$WORKFLOW_CHECK_RESULT" = 'skipped' ;;
++            esac
++          else
++            test "$WORKFLOW_CHECK_RESULT" = 'skipped'
++          fi
+           test '${{ needs.credential-scan.result }}' = 'success'
+           test '${{ needs.protected-paths.result }}' = 'success'
+           test '${{ needs.python-check.result }}' = 'success'

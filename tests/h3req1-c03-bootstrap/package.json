@@ -1,0 +1,10 @@
+{
+  "name": "h3req1-c03-bootstrap",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "miniflare": "4.20260730.0",
+    "typescript": "5.9.3"
+  }
+}

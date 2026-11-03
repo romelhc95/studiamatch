@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "canonicalRunner": "tests/h3_local_uat.mjs",
+  "retries": 0,
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "catalog": [
+    {
+      "id": "H3-UAT-058",
+      "title": "public listing and detail fit the active viewport",
+      "requirementId": "H3-CA4.11",
+      "role": "anon",
+      "route": "/",
+      "expected": "candidate list and detail remain usable without horizontal overflow at each UAT viewport"
+    },
+    {
+      "id": "H3-UAT-059",
+      "title": "public filters apply independently and career goal matches eligible courses",
+      "requirementId": "H3-CA4.9",
+      "role": "anon",
+      "route": "/",
+      "expected": "category, institution, modality, type, duration, career goal and text search each constrain visible public results; empty state can be reset"
+    }
+  ],
+  "structuralValidation": {
+    "logicalCases": 2,
+    "viewportExecutions": 6,
+    "distribution": {
+      "H3-CA4.1": 0,
+      "H3-CA4.2": 0,
+      "H3-CA4.3": 0,
+      "H3-CA4.4": 0,
+      "H3-CA4.5": 0,
+      "H3-CA4.6": 0,
+      "H3-CA4.7": 0,
+      "H3-CA4.8": 0,
+      "H3-CA4.9": 1,
+      "H3-CA4.10": 0,
+      "H3-CA4.11": 1
+    }
+  }
+}

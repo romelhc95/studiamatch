@@ -5,8 +5,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$ROOT_DIR/web"
 
-mock_file="/tmp/h2_web_mock.js"
-build_log="/tmp/h2_web_smoke_build.log"
+mock_file="$(mktemp /tmp/h2_web_mock.XXXXXX.js)"
+build_log="$(mktemp /tmp/h2_web_smoke_build.XXXXXX.log)"
+
+if curl --silent --output /dev/null --max-time 1 http://127.0.0.1:3210/; then
+  echo "Refusing to use an existing listener on fixture port 3210" >&2
+  rm -f "$mock_file"
+  exit 1
+fi
 
 cat > "$mock_file" <<'JS'
 const http = require("http");
@@ -75,8 +81,23 @@ node "$mock_file" &
 mock_pid=$!
 trap cleanup EXIT
 
+ready=false
+for _ in $(seq 1 30); do
+  kill -0 "$mock_pid" || exit 1
+  if curl --silent --fail --output /dev/null http://127.0.0.1:3210/rest/v1/institutions; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+if [ "$ready" != true ]; then
+  echo "Local fixture did not start" >&2
+  exit 1
+fi
+
 NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:3210" \
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="sb_publishable_test" \
+NEXT_PUBLIC_H3_MOCK_URL="" \
 npm run build > "$build_log"
 
 test -f out/index.html

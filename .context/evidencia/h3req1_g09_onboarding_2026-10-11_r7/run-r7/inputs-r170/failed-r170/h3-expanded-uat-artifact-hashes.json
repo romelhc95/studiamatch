@@ -1,0 +1,12 @@
+{
+  "../evidence/uat-auth-email-fallback-r170/H3-UAT-002-desktop.png": "37b2d259e799bb0312af870784ba76c87e5a7a49cc01f70dc2d088b2a4644a51",
+  "../evidence/uat-auth-email-fallback-r170/H3-UAT-002-mobile.png": "9e67e793bf97652a53acedbc09972add370d44cc4d0855c4a4f01253e9656f5f",
+  "../evidence/uat-auth-email-fallback-r170/H3-UAT-002-tablet.png": "c0499571e22eacdba7ac1cb55230609d6664770629e58b8a91d20b226c6d0e87",
+  "../evidence/uat-auth-email-fallback-r170/H3-UAT-003-desktop.png": "37b2d259e799bb0312af870784ba76c87e5a7a49cc01f70dc2d088b2a4644a51",
+  "../evidence/uat-auth-email-fallback-r170/H3-UAT-003-mobile.png": "9e67e793bf97652a53acedbc09972add370d44cc4d0855c4a4f01253e9656f5f",
+  "../evidence/uat-auth-email-fallback-r170/H3-UAT-003-tablet.png": "c0499571e22eacdba7ac1cb55230609d6664770629e58b8a91d20b226c6d0e87",
+  "../evidence/uat-auth-email-fallback-r170/h3-expanded-uat-executions.json": "5ff35d8dfc55f928017653d9b4939e9e437ef9df0e6c42c0bd0b6596c1b2d55a",
+  "../evidence/uat-auth-email-fallback-r170/h3-expanded-uat-manifest.json": "d16d738db9ad37c657485f7375d408207e4d90d6de37b94eeccb7f22b090ba96",
+  "../evidence/uat-auth-email-fallback-r170/h3-expanded-uat-matrix.json": "f396ff769261381e680c6a09a9b47e8909bf43e99f0a432db6c86caced0e155e",
+  "../evidence/uat-auth-email-fallback-r170/h3-expanded-uat-progress.json": "5ff35d8dfc55f928017653d9b4939e9e437ef9df0e6c42c0bd0b6596c1b2d55a"
+}

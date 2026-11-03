@@ -1,0 +1,18 @@
+BEGIN
+CREATE TABLE
+INSERT 0 1
+DO
+INSERT 0 1
+INSERT 0 1
+UPDATE 1
+UPDATE 1
+UPDATE 9
+UPDATE 14
+UPDATE 1
+DO
+COMMIT
+              marker               
+-----------------------------------
+ h3_uat_functional_catalog_seed_ok
+(1 row)
+

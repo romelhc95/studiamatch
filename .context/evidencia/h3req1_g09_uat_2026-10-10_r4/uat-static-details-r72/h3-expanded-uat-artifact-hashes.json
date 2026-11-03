@@ -1,0 +1,9 @@
+{
+  "../evidence/uat-static-details-r72/H3-UAT-065-desktop.png": "838d8b9536d7eb17713b64948f1db5b57fe5b25696c0b959d8ef2aba3b3d9513",
+  "../evidence/uat-static-details-r72/H3-UAT-065-mobile.png": "76e119a1c11483c8638a1a709ddcacfc7e1583c7a393498ad5302fd5004bece3",
+  "../evidence/uat-static-details-r72/H3-UAT-065-tablet.png": "507c04c83243e2d24f5fc9ef52ef5c65b1fc291119e0134c0b3a008d0417b15b",
+  "../evidence/uat-static-details-r72/h3-expanded-uat-executions.json": "4e0ede40b8c2cb14089877c24d7b4ad9eac78faf669ca62010c3fd012f5248e3",
+  "../evidence/uat-static-details-r72/h3-expanded-uat-manifest.json": "f84b6a4b5dc3b1e817b87d1b91d75f12e0eeeed0c9c18d2ca3f2aa8daf075637",
+  "../evidence/uat-static-details-r72/h3-expanded-uat-matrix.json": "fd705fee338d252c99a62daea5c78ebf193cb495138a211ee2ec684308081501",
+  "../evidence/uat-static-details-r72/h3-expanded-uat-progress.json": "4e0ede40b8c2cb14089877c24d7b4ad9eac78faf669ca62010c3fd012f5248e3"
+}

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, normalizeCourseNumbers, type Course, type Institution } from "@/lib/supabase";
 import HomeContent from "./HomeContent";
 
 export const metadata: Metadata = {
@@ -52,12 +52,12 @@ type CourseApiRecord = {
   category: string;
 };
 
-    return cData.map((course: CourseApiRecord) => ({
+    return cData.map((course: CourseApiRecord) => normalizeCourseNumbers({
       ...course,
       institution_name: iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
       institution_slug: iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
       category: catData.find((c: { id: string; name: string }) => c.id === course.category_id)?.name || course.category
-    })) as unknown as Course[];
+    } as unknown as Course));
   } catch {
     return [];
   }

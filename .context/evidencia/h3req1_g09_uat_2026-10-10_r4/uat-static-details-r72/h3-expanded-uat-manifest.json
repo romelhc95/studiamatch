@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "canonicalRunner": "tests/h3_local_uat.mjs",
+  "retries": 0,
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "catalog": [
+    {
+      "id": "H3-UAT-065",
+      "title": "static public details resolve representative institution routes",
+      "requirementId": "H3-CA4.9",
+      "role": "anon",
+      "route": "/courses/",
+      "expected": "representative static detail routes across five institutions resolve their own course, institution and related-course data from synthetic REST fixtures without external egress"
+    }
+  ],
+  "structuralValidation": {
+    "logicalCases": 1,
+    "viewportExecutions": 3,
+    "distribution": {
+      "H3-CA4.1": 0,
+      "H3-CA4.2": 0,
+      "H3-CA4.3": 0,
+      "H3-CA4.4": 0,
+      "H3-CA4.5": 0,
+      "H3-CA4.6": 0,
+      "H3-CA4.7": 0,
+      "H3-CA4.8": 0,
+      "H3-CA4.9": 1,
+      "H3-CA4.10": 0,
+      "H3-CA4.11": 0
+    }
+  }
+}

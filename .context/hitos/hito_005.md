@@ -35,3 +35,7 @@ Resultados publicos fieles a `SRC-UI-RESULTS-001`: search sticky, chips removibl
 - Fecha `Sin confirmar` cuando falte fecha.
 - Ruta de detalle canonica `/programas/[slug]`.
 - Cero captura de leads y cero egress.
+
+## Navegación
+
+[Matriz del hito](../matrices/matriz_hito_005.md) · [Filtros, búsqueda y comparación](../frontend.md#catalogo-busqueda-y-comparacion) · [Estado operativo](../estado_del_proyecto.md)

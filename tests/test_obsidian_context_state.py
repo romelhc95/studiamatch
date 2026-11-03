@@ -11,6 +11,7 @@ H2_CERTIFICATION_MERGE_COMMIT = "0ed6afeec741c698f1111c2ea27357160fa77279"
 H2_COMPAT_DEVELOPMENT_MERGE_COMMIT = "e8376035d8d5c3e1b7893cbb1ede14f735ccd05d"
 H2_COMPAT_CERTIFICATION_MERGE_COMMIT = "2d499324bb21e750d9bc7c94cb80e7a193062b50"
 NEXT_GATE = "H3_READY_FOR_PROMPT_CONTINUA"
+HISTORIC_STATE = ".context/evidencia/h3req1_estado_historico_2026-10-12_public_sanitized_r18.md"
 
 OBSOLETE_POST_MERGE_TOKENS = [
     "DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED",
@@ -44,14 +45,17 @@ def read(relative_path: str) -> str:
 
 def test_obsidian_context_graph_records_h2_post_merge_state() -> None:
     state = read(".context/estado_del_proyecto.md")
+    index = read(".context/indice.md")
+    historic_state = read(HISTORIC_STATE)
     hito = read(".context/hitos/hito_002.md")
     task = read(".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md")
     evidence = read(".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md")
     matrix = read(".context/matrices/matriz_hito_002.md")
     tracking = read(".context/seguimiento/seguimiento_sprint_1_h2_h5.md")
 
-    assert POST_H2_PHASE_STATE in state
-    assert f"| `HITO-002` | `{POST_H2_MERGE_STATE}` | `TASK-H2-001` |" in state
+    assert POST_H2_PHASE_STATE in historic_state
+    assert f"| `HITO-002` | `{POST_H2_MERGE_STATE}` | `TASK-H2-001` |" in historic_state
+    assert "evidencia/h3req1_estado_historico_2026-10-12_public_sanitized_r18.md" in index
     assert f"| Estado | `{POST_H2_MERGE_STATE}` |" in hito
     assert f"| Estado | `{POST_H2_MERGE_STATE}` |" in task
     assert "Estado: `CLOSED_H2_PRO_EXPAND_VERIFIED_MAIN`" in evidence
@@ -65,11 +69,11 @@ def test_obsidian_context_graph_records_h2_post_merge_state() -> None:
     assert H2_MERGE_COMMIT in tracking
     assert H2_CONTEXT_GATE_COMMIT in tracking
     assert H2_CERTIFICATION_MERGE_COMMIT in tracking
-    assert H2_COMPAT_DEVELOPMENT_MERGE_COMMIT in state
+    assert H2_COMPAT_DEVELOPMENT_MERGE_COMMIT in historic_state
     assert H2_COMPAT_DEVELOPMENT_MERGE_COMMIT in tracking
-    assert H2_COMPAT_CERTIFICATION_MERGE_COMMIT in state
+    assert H2_COMPAT_CERTIFICATION_MERGE_COMMIT in historic_state
     assert H2_COMPAT_CERTIFICATION_MERGE_COMMIT in tracking
-    assert NEXT_GATE in state
+    assert NEXT_GATE in historic_state
     assert NEXT_GATE in tracking
 
 
@@ -88,10 +92,31 @@ def test_obsidian_context_graph_has_no_obsolete_post_h2_states() -> None:
 def test_obsidian_context_graph_links_are_existing_files() -> None:
     state = read(".context/estado_del_proyecto.md")
 
-    assert "backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md" in state
+    assert ".context/indice.md" in state
+    assert "evidencia/h3req1_documentacion_estructura_2026-10-13_r10.md" in state
     assert (ROOT / ".context/hitos/hito_002.md").exists()
     assert (ROOT / ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md").exists()
     assert (ROOT / ".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md").exists()
+
+
+def test_single_obsidian_entry_and_brief_root_readme() -> None:
+    readme = read("README.md")
+    index = read(".context/indice.md")
+    state = read(".context/estado_del_proyecto.md")
+
+    assert readme.count(".context/indice.md") == 1
+    assert "[índice Obsidian](.context/indice.md)" in readme
+    assert "única entrada principal de Obsidian" in index
+    assert "única autoridad operativa" in index
+    assert "Autoridad operativa única" in state
+    assert not (ROOT / ".context/00_INDICE.md").exists()
+    assert not (ROOT / ".context/componentes/index.md").exists()
+    for path in (
+        ".context/decisiones/README.md",
+        ".context/hitos/README.md",
+        ".context/requerimientos/README.md",
+    ):
+        assert (ROOT / path).is_file()
 
 
 def test_certification_readonly_qa_is_defined_before_main_promotion() -> None:
@@ -116,7 +141,7 @@ def test_certification_readonly_qa_is_defined_before_main_promotion() -> None:
     for term in required_terms:
         assert term in qa
 
-    assert "operaciones/h2_h3_certification_readonly_qa.md" in state
+    assert "read-only" in qa
     assert "QA read-only H2/H3" in tracking
 
 
@@ -141,7 +166,8 @@ def test_h2_production_remediation_plan_blocks_main_until_expand() -> None:
     for term in required_terms:
         assert term in plan
 
-    assert "operaciones/h2_production_remediation_plan.md" in state
+    hito = read(".context/hitos/hito_002.md")
+    assert "h2_production_remediation_plan.md" in hito
     assert "Pro, `main`, writers, schedules" in plan
 
 
@@ -160,16 +186,15 @@ def test_prompt_retroalimentado_standard_is_authoritative() -> None:
         "waiver requiere causa",
     ]
 
-    for text in (agents, state, standard):
+    for text in (agents, standard):
         for term in required_terms:
             assert term in text
 
-    assert "operaciones/estandar_prompts_retroalimentados.md" in state
+    assert ".context/indice.md" in state
 
 
 def test_pull_request_template_is_authoritative_and_evidence_driven() -> None:
     agents = read("AGENTS.md")
-    state = read(".context/estado_del_proyecto.md")
     standard = read(".context/operaciones/estandar_prompts_retroalimentados.md")
     template = read(".github/pull_request_template.md")
 
@@ -198,7 +223,7 @@ def test_pull_request_template_is_authoritative_and_evidence_driven() -> None:
         "security-auditor",
     ]
 
-    for text in (agents, state, standard):
+    for text in (agents, standard):
         for term in required_authority_terms:
             assert term in text
 

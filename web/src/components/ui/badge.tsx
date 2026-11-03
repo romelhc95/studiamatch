@@ -1,3 +1,4 @@
+// StudIAMatch-Docs: .context/componentes/presentacion_web_compartida.md#primitivas-ui
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 

@@ -1,0 +1,717 @@
+{
+  "manifest": "H3REQ1 R9 documentation-only transfer package manifest",
+  "candidate": {
+    "checkout": "/home/romel/src/studiamatch-h3req1-sync-20261002",
+    "branch": "feat/h3req1-sync-20261002",
+    "head_baseline": "4eb4d877a50b012bb630a129bd0c74482c33be9c"
+  },
+  "package_kind": "documentation_delta_only; step_3_functional_package_reconciliation_pending",
+  "observed_working_tree": {
+    "tracked_modified_paths": 61,
+    "untracked_status_entries": 917,
+    "untracked_expanded_paths": 20419,
+    "staged_paths": 0,
+    "porcelain_all_sha256_excluding_generated_artifacts": "f5bcd41cdd422031a0417a22c2085c485680bef5903e010eb3352d8bc1b4f5b5",
+    "tracked_binary_diff_sha256": "4a91cdbd472a61e22bc56c3f748f26fadfffd65ca84993651d4e3744a3759cc6",
+    "status_digest_exclusions": [
+      ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt",
+      ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+      ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r9_docs.json"
+    ],
+    "note": "HEAD does not identify WIP. Status counts describe the full candidate worktree; only explicit R9 documentation scope paths are proposed. Status digest excludes the check log, R9 body and its manifest to avoid self-reference. Tracked diff digest covers local staged-independent diff against HEAD. Current final path/status-only cut is recorded at observed_working_tree.current_cut_2026_10_12; no paths or file contents are included in that digest.",
+    "current_cut_2026_10_12": {
+      "tracked_changed_paths": 68,
+      "untracked_status_entries": 918,
+      "untracked_expanded_paths": 20427,
+      "staged_paths": 0,
+      "porcelain_expanded_entries": 20495,
+      "porcelain_paths_status_sha256": "f281e3590b0444593ada6adaf37dd9f5b10544a91934af5dde5445971a6742f8",
+      "digest_method": "SHA-256 of raw git status --porcelain=v1 --untracked-files=all -z path/status bytes; filenames are not printed."
+    }
+  },
+  "scope": {
+    "tracked_modified_paths": 9,
+    "untracked_proposed_paths": 42,
+    "total_paths": 51,
+    "scope_entries_digest_method": "SHA-256 of compact UTF-8 JSON serialization of entries sorted by path using Unicode code point order; object fields retain insertion order.",
+    "scope_entries_sha256": "42fa68597b7ce26ff114a04bb9060ba82c5ed05a7293e78f359e4a229daeb514",
+    "entries": [
+      {
+        "path": ".context/00_INDICE.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 38349,
+        "sha256": "5e64cc610ef59d504496e98d98a989a2e8604c92697d858c1950457936cc6442"
+      },
+      {
+        "path": ".context/arquitectura.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6748,
+        "sha256": "55fc349ddf4ba45fb73124b53089007e9e538326bc424d04c966ce1377f64727"
+      },
+      {
+        "path": ".context/backend.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 24598,
+        "sha256": "15776df9394968598796f8d6a6c16455872e8f47a3379af78d677a027e3b2dfb"
+      },
+      {
+        "path": ".context/backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 13318,
+        "sha256": "93439233e72b1f0c31bba51c326d89ad348d0f0b94a121c7048a19f1cddc2dae"
+      },
+      {
+        "path": ".context/changelog.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3536,
+        "sha256": "2252471ae1e3a0dded4518d50a86be86f1983f32e5745b17452d0398aaa6b358"
+      },
+      {
+        "path": ".context/ci_cd.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7116,
+        "sha256": "71d9c2d0fc8f773927f5bc3952fecfad810d1b9bf780a58ad044b2b5327dac00"
+      },
+      {
+        "path": ".context/componentes/admin_portal.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1980,
+        "sha256": "64350ba6eee4b139ed82e19e437234b45b8db5bfd630c7c72a0cf9d9e8825fe1"
+      },
+      {
+        "path": ".context/componentes/admin_runtime.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2830,
+        "sha256": "4bcac3c0f19a20594dccf42595108b7eac9f6c4a45fbf77911ea5d839e61703f"
+      },
+      {
+        "path": ".context/componentes/canarios.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3645,
+        "sha256": "c3282f7276808adaeaba36bb857e54ec608802f69b2b55a06f3c054d3ef4ebd8"
+      },
+      {
+        "path": ".context/componentes/database_migrations.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 12065,
+        "sha256": "03b95439e6e9f41f833d0697d443bcff931f0f290489d64fc791e53ea3a3eff9"
+      },
+      {
+        "path": ".context/componentes/datos_pipeline.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2456,
+        "sha256": "e98d1e7be7ab11c0897c51b444bd6215f321fa8a538c328a9ea4b3beaee38b67"
+      },
+      {
+        "path": ".context/componentes/index.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1994,
+        "sha256": "7a265855f87e9aa17e91b73f95f6d6d60799e520c5080f8ece18ba7757163640"
+      },
+      {
+        "path": ".context/componentes/infra_release.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2302,
+        "sha256": "37568ef980d7b8211b0ccdf87d8d37fe80820b29a98e1cd7ccc9ac92c31375eb"
+      },
+      {
+        "path": ".context/componentes/legacy.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2821,
+        "sha256": "762d53a161e23dd466997b9ff68306d6fe87330b200051981898433e64c97693"
+      },
+      {
+        "path": ".context/componentes/mantenimiento.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 5620,
+        "sha256": "fc01da7b5059776cc12bc82d423dd36a2ee2d712914c4b9c46a333c3fc6ad25b"
+      },
+      {
+        "path": ".context/componentes/pipeline.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 5517,
+        "sha256": "2492c214d779ec54b00770056397edb7d2c2ee58073db96b855f69660da7ede3"
+      },
+      {
+        "path": ".context/componentes/pruebas_evidencia.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 7764,
+        "sha256": "443fce50c7dd1281f9b438374d32b68ad8028353cd16bec6190250d538f789f8"
+      },
+      {
+        "path": ".context/componentes/seguridad_tooling.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 5759,
+        "sha256": "e1e6492b3aa0d014e262d48f8019b3d6da21dce692c832acf7466977c8aeadac"
+      },
+      {
+        "path": ".context/componentes/utilidades_compartidas.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 3607,
+        "sha256": "700ff8701f33b02e64104d93da7d4eac5dd98b2df9cf86dc677e98f4c0d89281"
+      },
+      {
+        "path": ".context/componentes/web_publico.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2031,
+        "sha256": "67cef17d1a56f77777e4b60d61c90dcded5b7a713bfdb77b59adc037507f8864"
+      },
+      {
+        "path": ".context/database.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 31403,
+        "sha256": "67cd19288d8a85913dfabe95847a6b3149d530330d6f8d5a448ed1a98fdd81d7"
+      },
+      {
+        "path": ".context/decisiones/README.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2630,
+        "sha256": "a4f5cc56f0afc6e98a4c52b283e58d4f091985657fe6d9c1b1028d047c4832d6"
+      },
+      {
+        "path": ".context/estado_del_proyecto.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 417251,
+        "sha256": "d1cb86f1f4a91670aa1bcf8a3afc4e95ffd18e94facf629ba60d8a727c69d36c"
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "bytes": 33834,
+        "sha256": "c88d6c18ee71c829df140e9f762fabcc766d630f97684ea6fb09b4ad43fb29a5",
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_documentacion_integral_2026-10-12.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 21341,
+        "sha256": "837bd038c13cb4f9e626fa4e7d34d9ca13aff7c6e597d0f973e4f1f7e98a5a82"
+      },
+      {
+        "path": ".context/frontend.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6414,
+        "sha256": "55a5140f87e3177769a9cef2be7b477645939b47a1e6083a23fffff2346e2055"
+      },
+      {
+        "path": ".context/h3req1_inventario_cobertura.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 18864,
+        "sha256": "525c8c964ac88fd7d2073a7848a24502048729687d8ff07f592daa45995d6abd"
+      },
+      {
+        "path": ".context/h3req1_mapa_reorganizacion.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 14349,
+        "sha256": "214ffedc7e86e505d03175a9395dc89bbfd986263d9a157615db9d006f010db0"
+      },
+      {
+        "path": ".context/hitos/README.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 2687,
+        "sha256": "d0500df40e47fd7d89c08d37ddc5827021ce3566e932fe71e6dea1d6afdf919b"
+      },
+      {
+        "path": ".context/hitos/h3req1_implementation_report.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 30088,
+        "sha256": "eb06f191640e15bd404da5ec0e68c5a6b8b6b9f94e0f7e44b4fb6ac694e9a0a6"
+      },
+      {
+        "path": ".context/hitos/hito_003.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 18356,
+        "sha256": "02eeed455e1b4dfd61bd6981dc111fd4ea75d95dafe4279b8a391cf4b570175a"
+      },
+      {
+        "path": ".context/indice.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6270,
+        "sha256": "45b8e8f066509acf44a73c3016bad2d3358e84652de0ddc807ab0e88f2a589ca"
+      },
+      {
+        "path": ".context/operacion.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 5103,
+        "sha256": "392febef50c30230cdafb85827a494733ad5bca78476a5fef969bf80cac5f149"
+      },
+      {
+        "path": ".context/pruebas.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6252,
+        "sha256": "939fae528d8cc9b1896163ff71e4167a58bfe03b2f7e4610e947dc09b0e11214"
+      },
+      {
+        "path": ".context/requerimientos/README.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 6398,
+        "sha256": "2fd2fedb89b36b71eb11a5220377323c0b9fba8334a11f74671e50abcb6ca006"
+      },
+      {
+        "path": ".context/seguridad.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 8657,
+        "sha256": "2765bebbf8c053f5e3969eba909dfd30e617383fbc4b7c5fdd8d2529b8ff9dc9"
+      },
+      {
+        "path": ".context/sistema_db_supabase.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 13882,
+        "sha256": "58088a25081a8a6e5059bf86208b88ab3c918fda4f8962f617ad0b6e869bcbf0"
+      },
+      {
+        "path": ".context/tecnologias.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 9860,
+        "sha256": "3fd45cfd455ce6659b1c3853b50b4e8003429fc88d922195be98c23d04306975"
+      },
+      {
+        "path": ".context/trazabilidad/00_entrada_tecnica.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 10079,
+        "sha256": "0b6343a6cdd4b0770936fc2713d8982ab04276b53721d5daab882ff09f23b559"
+      },
+      {
+        "path": ".context/trazabilidad/cobertura_evidencia.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 11210,
+        "sha256": "5283371d51e6365772b6136d26f0f63e777438c37da1607b509dd745ffff1888"
+      },
+      {
+        "path": ".context/trazabilidad/contratos_dependencias.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 8149,
+        "sha256": "2a4699b4924feaa3d4c08789738c504fea24c078ae04a49a76b7e0431b84b84b"
+      },
+      {
+        "path": ".context/trazabilidad/mapa_componentes.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 16659,
+        "sha256": "b8d07e718841a7d3bd889cc8949dcaa9cc2a4be7f39a57eeac0c2c974a7b760d"
+      },
+      {
+        "path": ".context/trazabilidad/matriz_impacto.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 10777,
+        "sha256": "df0153d387720185bcd9633825718c10c9f1b1f4712c6afd1f76a654a0655072"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.json",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 289863,
+        "sha256": "7d59d7b77a9f90086fb388c6e50a53878fa7d43ab089af8fe3d4ab46b940213e"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 634689,
+        "sha256": "a2a1326da2566c6533438e53a615ab91699985e263b7bb698f0e79f7732279b0"
+      },
+      {
+        "path": ".github/pull_request_template.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 4346,
+        "sha256": "7e202d0d5a9b47cd4be13ec63f943c5f6cb15c4442992db9f303485d9e7eb40c"
+      },
+      {
+        "path": ".github/workflows/security-audit.yml",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 40975,
+        "sha256": "b6a2fa9600935832139987229e8508d3ec0aa2dfd912b9648523e4c324ed2a4c"
+      },
+      {
+        "path": "README.md",
+        "status": "tracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1549,
+        "sha256": "7f6c796f4b88a9e85a4fa92c2aa41fa9d611a4c77e8d40a1bb5a0d30f1a871fa"
+      },
+      {
+        "path": "scripts/maintenance/h3req1_documentation_integrity.mjs",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 48745,
+        "sha256": "4a65857c4f316686dbf984c699e9868bf30236886e7c965d8ab312378a21681e"
+      },
+      {
+        "path": "scripts/security/run_documentation_integrity.sh",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 416,
+        "sha256": "1b46898b0e6b7cc4e0bc2c8c4ee02a94d23910739ade0fb2d5cddf6588d5a9a5"
+      },
+      {
+        "path": "web/vendor/README.md",
+        "status": "untracked",
+        "selection": "proposed_change",
+        "mode": "0644",
+        "bytes": 1378,
+        "sha256": "4e7f2700dcc37fe9db4b4fb3834ff7d4a4764e0f9ed3b8ea330e202d1b2ae62d"
+      }
+    ]
+  },
+  "exclusions": [
+    "R9 is a documentation/tooling delta only; it does not absorb the R8 functional package.",
+    "web/vendor/braces-3.0.4-h3.1.tgz is excluded as a dependency; R8 body, manifest and result evidence remain historical, while the nine current R9 versions listed under base_antecedent.r8_r9_scope_overlap replace overlapping current file contents only at step 3.",
+    "Caches, generated output, node_modules, .next, out, Docker resources, operational env files, secrets and private client documents are excluded.",
+    "All untracked files not explicitly listed in scope/evidence are excluded; worktree counts do not imply package inclusion.",
+    "External backups/checkpoints are preservation records only and are not selected evidence or package files.",
+    "Only explicit scope.entries are proposed changes. selected_evidence entries are supporting records unless the same path is separately declared in package_artifacts; package artifact inclusion is always explicit.",
+    "The R9 manifest excludes its own hash; the body is hashed as evidence and does not embed the manifest hash."
+  ],
+  "selected_evidence": {
+    "selected_paths": 8,
+    "content_hashed_paths": 8,
+    "evidence_entries_digest_method": "SHA-256 of compact UTF-8 JSON serialization of entries sorted by path using Unicode code point order; object fields retain insertion order.",
+    "evidence_entries_sha256": "456f4b68e37a6c81554d07f54aa476d5a4a5b39a3da094e1fca5a6781bf72483",
+    "entries": [
+      {
+        "path": ".context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 5366,
+        "sha256": "a0a5c7a2244595d80fe521e895654e5fff9793103684c62a81aa1914d9459ac8"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_bootstrap_transition_2026-10-12_r180.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 9559,
+        "sha256": "78cb06d966f087f37da53b9ad807ec1cb52f14f905733578bea138df4ea31082"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 7064,
+        "sha256": "51f6ba451815400bc2def82e8aa9c9690012fedea2213107288c2bb7795d6ff5"
+      },
+      {
+        "path": ".context/evidencia/h3req1_g10_scope_scan_r182_2026-10-12.txt",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 2465,
+        "sha256": "826f2158dd0f43868640afc74d603cb066d9f0f90be6295d15b6697730be5243"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r8.md",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 21598,
+        "sha256": "f6b76af7b7a327b2d492f773f61f555abdbdca8f162914f3cead27cfdd19f5fa"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+        "selection": "r9_pr_body",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 18070,
+        "sha256": "451419b0e9ec33568efe7c204b7304cd684a6f0e02c40723272c86646b9e4b7d"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r8.json",
+        "selection": "historical_evidence",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 81640,
+        "sha256": "b3dbc3e7c1e2702d06100fb52b1c4c6663d2444b1a76ed456de1a07caaed6d87"
+      },
+      {
+        "path": ".context/evidencias_cliente/sprint_1/atestado_aceptacion_plan_ingesta_editorial_auditoria_2026-10-01.md",
+        "selection": "sanitized_client_attestation",
+        "status": "untracked",
+        "mode": "0644",
+        "bytes": 9124,
+        "sha256": "2f3f0376e42edc575bfe521d060339fe1d28699c274340c6717f359f2c2c8336"
+      }
+    ]
+  },
+  "content_inventory": {
+    "change_paths": 51,
+    "selected_evidence_paths": 8,
+    "content_hashed_files": 59,
+    "manifest_self_hash_excluded": true,
+    "pr_body_hash_excluded": false,
+    "scope_and_evidence_overlap_paths": [],
+    "package_artifact_paths": 3,
+    "package_artifact_scope_overlap_paths": [
+      ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt"
+    ],
+    "package_artifact_evidence_overlap_paths": [
+      ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md"
+    ],
+    "package_artifact_unhashed_paths": [
+      ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r9_docs.json"
+    ]
+  },
+  "package_metadata": {
+    "manifest_path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r9_docs.json",
+    "manifest_self_hash_excluded": true,
+    "pr_body_path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+    "pr_body_sha256_is_selected_evidence": true,
+    "pr_body_embeds_manifest_sha256": false,
+    "check_log_path": ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt",
+    "manifest_included_in_package": true,
+    "pr_body_included_as_package_artifact": true,
+    "check_log_included_in_scope": true
+  },
+  "base_antecedent": {
+    "manifest_path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r8.json",
+    "manifest_sha256": "b3dbc3e7c1e2702d06100fb52b1c4c6663d2444b1a76ed456de1a07caaed6d87",
+    "body_path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r8.md",
+    "body_sha256": "f6b76af7b7a327b2d492f773f61f555abdbdca8f162914f3cead27cfdd19f5fa",
+    "proposed_scope_paths": 92,
+    "selected_evidence_paths": 158,
+    "byte_identical_to_pre_edit_backup": true,
+    "r8_body_manifest_byte_identical_to_pre_edit_backup": true,
+    "r8_r9_scope_overlap": {
+      "shared_paths": 10,
+      "changed_current_contents": 9,
+      "changed_paths": [
+        ".context/00_INDICE.md",
+        ".context/backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md",
+        ".context/estado_del_proyecto.md",
+        ".context/hitos/h3req1_implementation_report.md",
+        ".context/hitos/hito_003.md",
+        ".context/sistema_db_supabase.md",
+        ".github/pull_request_template.md",
+        ".github/workflows/security-audit.yml",
+        "README.md"
+      ],
+      "unchanged_current_contents": 1,
+      "unchanged_paths": [
+        "web/vendor/README.md"
+      ],
+      "step_3_treatment": "Overlay the nine current R9 versions over the R8 functional package, recheck consumers, and regenerate combined package pins; preserve R8 historical body, manifest, and result evidence without edits."
+    }
+  },
+  "external_preservation": {
+    "backup_directory": "/home/romel/backups/studiamatch-docs-2026-10-12",
+    "included_in_package": false,
+    "source_copy_manifests_verified": true,
+    "current_documentation_checkpoint": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_before_database_dictionary_fix_2026-10-12",
+    "source_copy_manifests_verified_for_checkpoint": true,
+    "vendor_readme_recovery_sha256": "4e7f2700dcc37fe9db4b4fb3834ff7d4a4764e0f9ed3b8ea330e202d1b2ae62d",
+    "incremental_checkpoint": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_pre_digest_fix_delta_2026-10-12",
+    "incremental_checkpoint_source_copy_manifests_verified": true,
+    "prior_incremental_checkpoint": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_pre_final_review_delta_2026-10-12",
+    "supplemental_non_markdown_docs": "/home/romel/backups/studiamatch-docs-2026-10-12/supplemental_docs_inventory_current_2026-10-12",
+    "package_inclusion_checkpoint": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_pre_package_inclusion_delta_2026-10-12",
+    "current_checkpoint_inventory_paths": 18607,
+    "current_checkpoint_source_manifest_sha256": "a754e7674ff7ff563f8a499d1a9c6a046cdd743165b0f30ea680a4b9f12f7fe2",
+    "current_checkpoint_tar_sha256": "64049be85c706c93b51204ef5b9a6fb2420e72e66c888f89ee777cf838a33ff5",
+    "current_checkpoint_note": "Verified full snapshot immediately before the local database dictionary correction; post-edit R9 checkpoint, not a pre-edit backup. Final post-reconciliation checkpoint is separately recorded outside the package.",
+    "final_documentation_checkpoint_path": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_final_candidate_documentation_filtered_2026-10-12",
+    "final_documentation_checkpoint_included_in_package": false,
+    "final_documentation_checkpoint_inventory_paths": 18312,
+    "final_documentation_checkpoint_excluded_cache_paths": 283,
+    "final_documentation_checkpoint_exclusion": "Exclude 283 .next/cache paths; 10 braces dependency tarballs; and two G08 source-candidate tarballs embedding that dependency. Retain 4,422 non-cache .next outputs as dated historical build evidence, not current runtime/build/deploy.",
+    "final_documentation_checkpoint_status": "External filtered documentation checkpoint; authoritative inventory, exclusions and source/copy/archive hashes live in external sidecars, outside the proposed package.",
+    "final_documentation_checkpoint_excluded_dependency_bearing_paths": 12,
+    "final_documentation_checkpoint_excluded_total_paths": 295,
+    "final_documentation_checkpoint_retained_noncache_next_generated_paths": 4422,
+    "final_documentation_checkpoint_pem_classification": "Four edge_transport_ca PEM paths parsed as X.509 certificates with openssl x509 -noout; no fields or content values printed.",
+    "superseded_expanded_checkpoint_path": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_final_candidate_documentation_2026-10-12",
+    "superseded_expanded_checkpoint_inventory_paths": 18324,
+    "superseded_expanded_checkpoint_tar_sha256": "fb7531628419da616ce60575e4cb76e7c317768d1b195360b8cf9070643e07d8",
+    "superseded_expanded_checkpoint_reason": "Integrity verified, then independently rejected as the filtered final copy because it includes ten duplicate dependency tarballs and two historical source tarballs embedding the dependency; it is preserved unchanged and outside the PR.",
+    "pre_final_reconciliation_checkpoint_path": "/home/romel/backups/studiamatch-docs-2026-10-12/checkpoint_before_final_registry_manifest_reconciliation_filtered_2026-10-12",
+    "pre_final_reconciliation_checkpoint_source_inventory_paths": 18607,
+    "pre_final_reconciliation_checkpoint_retained_paths": 18312,
+    "pre_final_reconciliation_checkpoint_excluded_cache_paths": 283,
+    "pre_final_reconciliation_checkpoint_excluded_dependency_bearing_paths": 12,
+    "pre_final_reconciliation_checkpoint_excluded_total_paths": 295,
+    "pre_final_reconciliation_checkpoint_retained_bytes": 1094384610,
+    "pre_final_reconciliation_checkpoint_source_copy_manifests_verified": true,
+    "pre_final_reconciliation_checkpoint_manifest_sha256": "d712156b3dec847dbb4b7a959947119b8832bb1b528203605fbe4eac12569679",
+    "pre_final_reconciliation_checkpoint_tar_sha256": "c0033d07ee7a17a88f1f0cd398099ced461dba866845e0a39927c5070f278d97",
+    "pre_final_reconciliation_checkpoint_retained_noncache_next_paths": 4422
+  },
+  "documentation_validation": {
+    "cut_local": "2026-10-12",
+    "backup_and_r8_preservation": "PASS: original pre-edit backup/R8 and all prior checkpoints remain preserved; filtered pre-final checkpoint source/copy/tar verified externally; final filtered checkpoint and exact hashes remain external and excluded from the package.",
+    "documentation_integrity": "PASS in Docker after artifact-family and backup exclusion reconciliation: 808/808 source assignments, 12/12 components, 69/69 active docs reachable (orphan check), 25 artifact families, 26 justified exclusions; weighted relation slots 2,093/4,848 verified, 1,236 pending, 1,517 unknown, 2 N/A.",
+    "document_state_assertions": "PASS; 7/7 test functions invoked directly in Docker; pytest unavailable.",
+    "sanitized_client_assertions": "PASS; 10/10 test functions invoked directly in Docker; STUDIAMATCH_PRIVATE_SOURCE_DIR unset, so optional private-source hash test returned without reading private documents.",
+    "protected_path_scope_regressions": "PASS after checker change; ordinary=3; newline=1; controls=1; malformed=3.",
+    "workflow_yaml": "PASS; Docker js-yaml parsed security-audit.yml (11 jobs) and production_canary.yml (1 job); asserted documentation-integrity directly invokes the checker self-test. Local runner bash -n and Node syntax checks pass. No GitHub execution/configuration; actionlint remains pending for G10.",
+    "scope_allowlist": "PASS; proposed=51; regex=6; exact=45; review_fixes=6/6; missing=0.",
+    "credential_scan": "PASS; Docker scan after parser fix on exactly 51 scope + 8 selected evidence + manifest (60 unique paths).",
+    "actionlint": "NOT_RUN; unavailable in studiamatch-dev; workflow semantic lint remains a G10-before-PR action owned by integration responsible.",
+    "independent_review": "GO for source registry, 25 artifact families, exclusions, bidirectional graph/checker and filtered pre-final checkpoint. R178/R8 history and remote-adoption limits were confirmed. Final checkpoint hashes are preserved externally, not in this package.",
+    "manifest_package_integrity": "PASS after current refresh: scope=51/51, selected evidence=8/8, content hashes=59, package artifacts=3, manifest self-hash excluded; Docker verifier and credential scanner over 60 exact paths passed.",
+    "shellcheck": "NOT_RUN; unavailable in studiamatch-dev; local runner passed bash -n; ShellCheck remains a G10-before-PR action owned by integration responsible.",
+    "database_dictionary_review": "PASS; nine columns, final 12-action CHECK and corrected invitation RPC migration provenance match local SQL; Pro remote schema not consulted."
+  },
+  "integration_follow_up": {
+    "r9_documentation_only": true,
+    "combined_package_reconciled": false,
+    "dependency_conflict": "R8 includes a local braces tarball required by current package.json/lock; R9 excludes dependencies. G10 must choose an explicitly authorized exception with renewed gates, a verified official release with refreshed lock/build, or keep R9 separate.",
+    "remote_adoption": "NOT_VERIFIED; no remote reads in this session.",
+    "r8_historical_artifacts_preserved": true,
+    "r8_r9_scope_overlap": {
+      "shared_paths": 10,
+      "changed_current_contents": 9,
+      "changed_paths": [
+        ".context/00_INDICE.md",
+        ".context/backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md",
+        ".context/estado_del_proyecto.md",
+        ".context/hitos/h3req1_implementation_report.md",
+        ".context/hitos/hito_003.md",
+        ".context/sistema_db_supabase.md",
+        ".github/pull_request_template.md",
+        ".github/workflows/security-audit.yml",
+        "README.md"
+      ],
+      "unchanged_current_contents": 1,
+      "unchanged_paths": [
+        "web/vendor/README.md"
+      ],
+      "step_3_treatment": "Overlay the nine current R9 versions over the R8 functional package, recheck consumers, and regenerate combined package pins; preserve R8 historical body, manifest, and result evidence without edits."
+    },
+    "source_registry_package_projection": {
+      "candidate_relevant_source_paths": 808,
+      "projected_relevant_source_paths": 441,
+      "candidate_only_wip_source_paths": 367,
+      "reconciled": false,
+      "required_action": "In step 3 reconcile the 367 candidate-only assignments against the combined R8/R9 package, remove stale registry rows only when paths are actually outside the final project cut or include their sources explicitly, regenerate the registry/package manifest, and run the prepared gate in CI only after separate authorization."
+    }
+  },
+  "package_artifacts": {
+    "count": 3,
+    "included_paths": [
+      ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt",
+      ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+      ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r9_docs.json"
+    ],
+    "entries": [
+      {
+        "path": ".context/evidencia/h3req1_documentacion_checks_2026-10-12.txt",
+        "role": "docker_validation_log",
+        "included_in_package": true,
+        "inclusion_mode": "proposed_scope_change",
+        "sha256": "c88d6c18ee71c829df140e9f762fabcc766d630f97684ea6fb09b4ad43fb29a5",
+        "bytes": 33834,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-12_r9_docs.md",
+        "role": "pull_request_body_attachment",
+        "included_in_package": true,
+        "inclusion_mode": "PR_metadata",
+        "sha256": "451419b0e9ec33568efe7c204b7304cd684a6f0e02c40723272c86646b9e4b7d",
+        "bytes": 18070,
+        "mode": "0644"
+      },
+      {
+        "path": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-12_r9_docs.json",
+        "role": "scope_and_evidence_manifest",
+        "included_in_package": true,
+        "inclusion_mode": "package_control_artifact",
+        "self_hash_excluded": true,
+        "exclusion_reason": "A manifest cannot hash itself; no circular hash is emitted."
+      }
+    ]
+  }
+}

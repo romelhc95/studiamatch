@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, normalizeCourseNumbers, parseDurationToMonths, isUpdateCareerGoalCourse, type Course, type Institution } from "@/lib/supabase";
 
 export default function HomeContent({ initialCourses = [] }: { initialCourses: Course[] }) {
   const searchParams = useSearchParams();
@@ -59,6 +59,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     if (selectedType !== "Todos") params.set('tipo', selectedType);
     if (activeFilters.selectedInstitution !== "Todas") params.set('inst', activeFilters.selectedInstitution);
     if (activeFilters.modes.length > 0) params.set('modalidad', activeFilters.modes.join(','));
+    if (activeFilters.priceMin) params.set('min', activeFilters.priceMin);
     if (activeFilters.priceMax) params.set('max', activeFilters.priceMax);
     if (sortOrder) params.set('sort', sortOrder);
     if (durationFilter) params.set('duration', durationFilter);
@@ -66,6 +67,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
     const queryString = params.toString();
     const url = queryString ? `${pathname}?${queryString}` : pathname;
+    if (url === `${window.location.pathname}${window.location.search}`) return;
     router.replace(url, { scroll: false });
   }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router, durationFilter, priceRange]);
 
@@ -83,10 +85,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       if (careerGoal === 'tech') {
         result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
       } else if (careerGoal === 'update') {
-        result = result.filter(c => {
-          const months = c.duration ? parseInt(c.duration.match(/\d+/)?.[0] || '12') : 12;
-          return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
-        });
+        result = result.filter(c => isUpdateCareerGoalCourse(c.duration, c.mode));
       } else if (careerGoal === 'postgrad') {
         result = result.filter(c => c.course_type === 'Maestría' || c.course_type === 'Doctorado' || c.course_type === 'Especialización');
       } else if (careerGoal === 'fast-job') {
@@ -271,12 +270,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
       if (Array.isArray(cData) && Array.isArray(iData) && Array.isArray(catData)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const enriched = cData.map((course: any) => ({
+        const enriched = cData.map((course: any) => normalizeCourseNumbers({
           ...course,
           institution_name: iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
           institution_slug: iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
           category: catData.find((c: { id: string; name: string }) => c.id === course.category_id)?.name || course.category
-        }));
+        } as Course));
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const uniqueMap = new Map<string, any>();
@@ -314,7 +313,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_TTL && Array.isArray(data) && data.length > 0) {
           // eslint-disable-next-line react-hooks/set-state-in-effect
-          setAllCourses(data);
+          setAllCourses(data.map((course: Course) => normalizeCourseNumbers(course)));
           setLoading(false);
           setLastUpdated(new Date(timestamp));
           return;
@@ -344,10 +343,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     if (careerGoal === 'tech') {
       result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
     } else if (careerGoal === 'update') {
-      result = result.filter(c => {
-        const months = c.duration ? parseInt(c.duration.match(/\d+/)?.[0] || '12') : 12;
-        return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
-      });
+      result = result.filter(c => isUpdateCareerGoalCourse(c.duration, c.mode));
     } else if (careerGoal === 'postgrad') {
       result = result.filter(c => c.course_type === 'Maestría' || c.course_type === 'Doctorado' || c.course_type === 'Especialización');
     } else if (careerGoal === 'fast-job') {
@@ -538,7 +534,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
           {/* Filtros y búsqueda personalizada */}
           <div className="mt-5 space-y-3">
             {/* Filtros primarios (3 visibles) */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex flex-wrap items-center gap-2">
               {[
                 { id: 'area', label: 'Área', icon: LayoutGrid, current: selectedCategory, setter: setSelectedCategory, options: activeCategories },
                 { id: 'modalidad', label: 'Modalidad', icon: Globe, current: activeFilters.modes.length ? activeFilters.modes.join(", ") : "Todas", setter: (val: string) => setActiveFilters({ ...activeFilters, modes: val === "Todas" ? [] : [val] }), options: activeModes },
@@ -602,7 +598,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               ))}
 
               {/* Más filtros collapsible */}
-              <div className="relative">
+              <div className="relative max-sm:static">
                 <button
                   onClick={() => setShowMoreFilters(!showMoreFilters)}
                   className={cn(
@@ -617,7 +613,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </button>
 
                 {showMoreFilters && (
-                  <div className="absolute top-full left-0 mt-2 w-[320px] bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                  <div className="absolute top-full left-0 mt-2 w-[320px] max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:w-[min(320px,calc(100vw_-_2rem))] bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
                     <div className="p-3 space-y-3">
                       <div className="flex flex-wrap gap-2">
                         {[
@@ -674,7 +670,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                           {[
                             { id: 'short', label: 'Cortos (<3m)' },
                             { id: 'medium', label: 'Estándar (3-6m)' },
-                            { id: 'long', label: 'Largos (6+m)' },
+                            { id: 'long', label: 'Largos (>6m)' },
                           ].map((d) => (
                             <button
                               key={d.id}
@@ -809,7 +805,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-brand-slate">Catálogo de Programas</h2>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 min-w-0">
               <p className="text-[13px] text-slate-400 font-medium">{filteredCourses.length} resultados encontrados</p>
               <span className="text-slate-300 mx-0.5">·</span>
               <p className="text-[13px] text-slate-400 font-medium tabular-nums">
@@ -820,30 +816,33 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   · Actualizado {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               )}
-              {(searchTerm || selectedCategory !== "Todos" || selectedType !== "Todos" || activeFilters.selectedInstitution !== "Todas" || activeFilters.modes.length > 0 || activeFilters.priceMax || sortOrder) && (
+              {(searchTerm || selectedCategory !== "Todos" || selectedType !== "Todos" || activeFilters.selectedInstitution !== "Todas" || activeFilters.modes.length > 0 || activeFilters.priceMin || activeFilters.priceMax || sortOrder || careerGoal || durationFilter || priceRange) && (
                 <>
-                  <span className="text-slate-300">·</span>
-                  <button 
-                    onClick={() => {
-                      setSearchTerm("");
-                      setSelectedCategory("Todos");
-                      setSelectedType("Todos");
-                      setSortOrder(null);
-                      setCareerGoal(null);
-                      setDurationFilter(null);
-                      setPriceRange(null);
-                      setActiveFilters({
-                        priceMin: "",
-                        priceMax: "",
-                        modes: [],
-                        selectedInstitution: "Todas",
-                      });
-                    }}
-                    className="text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 uppercase tracking-wider flex items-center gap-1 transition-colors group"
-                  >
-                    <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
-                    Limpiar todo
-                  </button>
+                  <span className="inline-flex shrink-0 items-center gap-2">
+                    <span className="text-slate-300">·</span>
+                    <button
+                      onClick={() => {
+                        setSearchInput("");
+                        setSearchTerm("");
+                        setSelectedCategory("Todos");
+                        setSelectedType("Todos");
+                        setSortOrder(null);
+                        setCareerGoal(null);
+                        setDurationFilter(null);
+                        setPriceRange(null);
+                        setActiveFilters({
+                          priceMin: "",
+                          priceMax: "",
+                          modes: [],
+                          selectedInstitution: "Todas",
+                        });
+                      }}
+                      className="shrink-0 whitespace-nowrap text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 uppercase tracking-wider flex items-center gap-1 transition-colors group"
+                    >
+                      <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
+                      Limpiar todo
+                    </button>
+                  </span>
                 </>
               )}
             </div>

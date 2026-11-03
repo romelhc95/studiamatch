@@ -1,0 +1,192 @@
+H3REQ1 R17 — INDEPENDENT REVIEW RECORD
+Review cycle 1: NO-GO Development. Read-only review; no changes, tests, or remote reads by reviewer.
+
+Findings
+- HIGH — Package C proposed setting `accepted_user_id = NULL` while the invitation remains `accepted`. The SQL contract requires `accepted_user_id IS NOT NULL`; the FK to `auth.users` has `NO ACTION`, and the status trigger only permits transitions from `pending`. The operation would fail before Auth deletion.
+- MEDIUM — The preflight has three active admins including Outlook and preserves two other admins, but the postcondition said “2 besides Gmail.” Exact expected hypothetical total is two: Gmail and the other preserved admin.
+- MEDIUM — `h3_[^/]+\.md` and `h3req1[^/]*\.md` admitted any matching H3 evidence Markdown. The test accepted candidate routes but did not reject an unmanifested H3 document.
+
+Corrections made locally
+- C is now explicitly blocked and contains no executable unbind/delete instructions. It documents the CHECK/FK/trigger constraints and asks for a decision: preserve the model and leave D03 pending, or authorize a new local model proposal that preserves accepted-invitation history and audit without weakening constraints. No JIT is implied or consumed.
+- The package states that a hypothetical removal would leave exactly two active admins total, Gmail and one other preserved admin.
+- The broad H3 Markdown regex alternatives were removed. The exact manifest paths are listed individually in the workflow allowlist and the scope test requires rejection of two unmanifested H3 Markdown paths.
+- The reviewer found the updated Pages Preview global-config, Certification snapshot, exact host allowlist, and shared quota handling consistent with the observed R17 snapshot, subject to the documented re-read before configuration.
+
+Review cycle 2 (read-only; reviewed manifest digest `6e63288fb6e7ee43e744aedf4d22161dae908cf57ddb9a018fa61652d8f56e72): no HIGH/CRITICAL findings and no blocking local issue. The reviewer recomputed all 1,132 entry pins and 24 included artifact pins, verified R14/R15/R16 parent pins, and found all 1,173 catalog targets available. All cycle-1 findings are resolved. Two LOW discrepancies were identified before final repin: the PR body said 9,552 links while checks/manifest say 9,553; package A said no `DROP` despite migration 3 replacing one named constraint. The reviewer requested precise, hash-scoped wording for that migration.
+
+Corrections prepared after cycle 2: body link total changed to 9,553; package A now identifies migration 3's exact `DROP CONSTRAINT IF EXISTS admin_membership_audit_action_allowed` plus replacement constraint as part of the pending JIT scope, and excludes any additional DROP, down, restore, or rollback SQL. These changes require final pin reconciliation and a narrow independent reread.
+
+Review cycle 3 (read-only): PASS local for the content checked at scope digest `ca2e0d078ff6e3c13b61d3a8045c731567688f1a191e9b29551c0ee2675c258e`. The reviewer verified all 1,132 entries, 24 included artifacts, R14/R15/R16 parent pins, 13 catalogs and 1,173 direct targets. Both cycle-2 LOW findings are resolved: the body reports 9,553 links, and package A limits the one DROP to migration 3's exact constraint replacement. No HIGH/CRITICAL or local block remained in the reviewed content.
+
+Post-review package audit identified a new packaging defect: 35 selected historical `.log` files were Git-ignored, including 28 direct catalog targets. Their local presence did not prove inclusion in a commit. The manifest now defines an exact force-add set; the scope guard and package instructions were changed to require that set and the local sanitized scan found no email or Auth/user/invitation/session UUID context. Cycle-4 independent review and affected checks are pending. This does not authorize staging/commit, push, PR, or remote operations until the exact package is revalidated.
+
+Review cycle 4 (read-only): the reviewer recomputed 1,132 scope pins and 24 included artifact pins, confirmed parent R14/R15/R16 pins, and verified 13 catalogs with 1,173 targets. The exact 35-path force-add set is constrained by the guard and package instructions: 28 catalog targets plus 7 R8 evidence paths. No HIGH/CRITICAL finding was found. One blocking consistency issue remained: the PR body declared Credential scan PASS while the R17 check record and manifest correctly said PENDING. The body and check record were reconciled, and the exact current union then passed the Docker scanner: 1,128 files, 19 batches, zero findings. The final independent review and staging audit remain pending; repeat the scanner after final review bytes and pins are fixed.
+
+Review cycle 5 (read-only; reviewed scope digest `cfa917ec4afa750977b22e314ba0d64f68f537de08864d5672bea443f7ee7b19`): all package pins and the 1,128-file credential-scan status were consistent; no HIGH/CRITICAL finding was found. One LOW consistency issue remained: the PR body checklist claimed independent review was complete while the review row and manifest still said pending. The checklist is now unchecked until the final reread is incorporated. Staging was not reviewed or authorized.
+
+Review cycle 6 (read-only; reviewed scope digest `826ac6d8e3c548f5b4bb5d05c7a84bbc1b351ad6553eef2de6a20200930ea8b2`): PASS local. The reviewer confirmed 1,132 scope entries and 24 included artifact pins with no stale entries; R14/R15/R16 parents remain intact; the 13 catalogs resolve 1,173 references; and the exact 35-path force-add set is valid. The body/check/manifest credential status agrees at PASS for 1,128 files, 19 batches, zero findings, with only the R17 check log excluded. The cycle-5 checklist issue is corrected. No HIGH/CRITICAL or blocking issue remains in the reviewed scope. Staging and all remote actions were explicitly outside this review.
+
+Review cycle 7 (read-only; reviewed exact staged R17 snapshot; scope digest `b104634a1f6430fcc9622062bb972a5395eb0e72374908d4d58c920c8e56d0ea`, tree `4ed5e40993aaebee42476f36fa29327b816b672b`): PASS for that snapshot, with no HIGH/CRITICAL or blocking local finding. The reviewer verified 1,137 staged paths (1,130 blobs, 7 deletions), byte/mode pins, exact 35 force-adds, 13 catalogs/1,173 references, and preserved CRLF evidence. `git diff --cached --check` was WARN with 125 diagnostics in historical/documentation/evidence paths. One LOW template gap remained: the body did not explicitly state the HIGH/CRITICAL criterion. The body was changed afterward. C package, body, state, and report were edited after this review, so cycle 7 does not certify the current snapshot; the next independent review is pending.
+
+Review cycle 8 (read-only targeted review of C/D03; no tests or remote reads): no HIGH/CRITICAL and no blocker for preparing a narrowly scoped C JIT. The reviewer confirmed that A migration 3 and the pinned Edge handler reserve by current email and pending status, allowing a new invitation while retaining the accepted invitation's Auth FK and audit. One MEDIUM was found for D03: after C, Outlook is inactive, so it cannot act as the AAL2 admin sending the invite; the package had not named that actor. Correction: D03 now requires the other already-existing preserved admin (not Outlook or Gmail), verified as `admin/active/ready` with AAL2 immediately before the case, authenticated directly by the responsible; JIT D must authorize that actor and one invite. If unavailable, stop; no new identity/alias or Gmail use. The final package/body/manifest snapshot still requires exact repins, affected gates, and independent review.
+
+Review cycle 9 — exact staged snapshot, read-only. Branch `feat/h3req1-sync-20261002`, base `4eb4d877a50b012bb630a129bd0c74482c33be9c`; staged diff digest `998e6f39fb192feda0f8cc920c2d5415d1ba366ff7720bbefb6dab100eaf2653`; scope digest `ea3959f69b729f2f8281f789bcf81eee5ae2be600f33ac19a30f02da3bacdf98`. Review coverage: 1,137 staged paths (1,130 blobs + 7 deletions), parent pins R14/R15/R16, R8/R9/R12/R13 preservation, 13 catalogs/1,173 destinations, exact 35 ignored force-adds, byte/mode/CRLF pins, workflow allowlist and negatives, PR template, braces decision, package A–D, C/D03 boundary. No HIGH/CRITICAL and no blocking package defect found.
+
+MEDIUM — manifest checks showed PASS for `ea3959f…`, while the last check-log section still ended at older scope digests and said those checks remained pending. The review is PASS on package content with this one traceability correction outstanding; it is not the final reconciliation signoff. Task R17-TRACE-01: append the actual revalidation output to the checks log, state that its exact bytes are pinned by the final manifest, repin, rerun affected gates and obtain an independent read of the corrected digest. The reviewer made no edits, ran no tests and performed no remote reads or Git operations.
+
+
+Review cycle 10 — follow-up del exact staged snapshot R17, read-only.
+- Digest del diff revisado: `5e9965181e225e868d674b7158c3450de9218a16f0c2a5d679dbea8aad879b24`; scope: `eb5b5280f69eae9e81499916678b6c063da257349d7cffb289a0559de71217f4`.
+- PASS: R17-TRACE-01 resuelto. El check log marca los resultados previos como pre-addendum y el manifest vincula los PASS actuales a `eb5b528…`; no hay mismatch restante.
+- Cobertura: 1.137 rutas staged exactas sin extras/faltantes, pins padres R14/R15/R16, 23 pins de artefactos no-manifest, catálogos/destinos, byte/mode/CRLF, workflow y negativos, plantilla, braces y paquetes A–D/C/D03.
+- Hallazgos restantes: 0 HIGH, 0 CRITICAL, 0 MEDIUM y 0 bloqueos. Sigue documentado `git diff --cached --check` WARN histórico.
+- El dictamen revisa el snapshot indicado, no declara GO Development ni autoriza efectos remotos. El manifest requiere registrar este resultado, repinar y repetir la auditoría final afectada. El revisor no editó, ejecutó pruebas ni hizo lecturas remotas o acciones Git.
+
+
+R17-DOC-02 — FINDING POSTERIOR AL CICLO 10, 2026-10-14
+- Después del ciclo 10, una extensión de contrato en Docker detectó cinco aserciones fallidas en `tests/test_requirement_client_source_validation.py` porque el estado candidato omitía el contrato transversal cliente/pilares/transición y el marcador histórico H3.
+- Se restauró el contenido canónico faltante en `.context/estado_del_proyecto.md` sin editar el checkout original ni reabrir la reorganización. La prueba y los gates afectados requieren repetición; la revisión ciclo 10 certifica solo su digest citado.
+- Review cycle 11 of the corrected exact staged snapshot is PENDING. No final zero-finding claim applies until reread and current pins are reconciled.
+
+
+R17-DOC-02 — PREPARACIÓN DE REVIEW CYCLE 11, 2026-10-14
+- Remediación local posterior: `tests/test_requirement_client_source_validation.py` y las suites focales afectadas pasan 45/45 en Docker; docs normal/self-test, scope guard/negativos, plantilla, exact-stage y scanner staged pasan en la fotografía pre-addendum del check log. `git diff --cached --check` mantiene WARN cuantificado; actionlint/ShellCheck se reutilizan por hashes intactos.
+- La fotografía de ciclo 10 no cubre el arreglo. La revisión independiente de los bytes corregidos se solicita tras repinar y repetir gates afectados; hasta esa lectura, cycle 11 sigue PENDING y no hay cierre local final.
+
+
+REVISIÓN INDEPENDIENTE CICLO 11 — HALLAZGO MEDIUM EN EL BODY, 2026-10-14
+- Snapshot revisado: scope `fa3cae7596b0d8efdb1951765553499c9fb249e9b9e9eac1ac3d9d1238dc924a`; diff staged `591ca64a51677c0494b50be06f8191997ce66377808a41866553cbb8161d0536`, según la auditoría entregada al revisor.
+- R17-DOC-02 está corregido y sus validaciones registradas pasan 45/45; el estado conserva NO-GO Development. El revisor confirmó pins/manifiesto, 1.137 rutas, 23 pins de artefactos no-manifest, catálogos y 1.173 destinos; scanner staged PASS. No encontró HIGH/CRITICAL.
+- Hallazgo MEDIUM: el body aún marcaba el test de DOC-02 pendiente, indicaba 9.528 frente a 9.529 enlaces y no separaba el PASS actual de scanner/repin de la revalidación que corresponde después del dictamen. Se corrigió el body; los bytes corregidos requieren nueva plantilla/docs/scope/stage/scanner y lectura de seguimiento ciclo 12.
+- El revisor no editó, ejecutó pruebas, hizo operaciones Git ni lecturas remotas. Esta revisión no es aprobación de PR ni GO Development.
+
+
+REVISIÓN INDEPENDIENTE CICLO 12 — HALLAZGO MEDIUM EN EL REPORTE, 2026-10-14
+- Snapshot revisado: scope `e4be87ca7319607ece9683acf12ebc1d4c6cca6ad2fadf4dce9499f92fab11cc`; diff staged `a002b963ec8cb308c76e3003d71dc425e8b6db9c091024044a8f3ee0747c7cbc` según la auditoría compartida para revisión.
+- PASS de cobertura: R17-TRACE-02 del body, 45/45 tests y 9.529 enlaces coinciden; scope, log y manifiesto registran el mismo resultado. Los pins R14/R15/R16, 1.137 paths, 13 catálogos/1.173 destinos, 18/18 enlaces del body, scanner staged, modos/bytes/CRLF y scope guard/negativos son consistentes. No hay HIGH/CRITICAL ni bloqueos en este snapshot.
+- MEDIUM: el reporte decía que los bytes de checks/estado aún requerían repin/revalidación, aunque el log y el manifiesto muestran que los gates se ejecutaron después de incorporarlos y pasan en el snapshot `e4be87ca…`. Corrección: declarar válidos esos resultados para dicho snapshot y reservar la siguiente revalidación para los cambios que incorporan este dictamen.
+- La corrección del reporte y el registro de este dictamen requieren repin y revalidación afectada, seguidos por lectura independiente ciclo 13. Development sigue NO-GO.
+- El revisor no editó, ejecutó pruebas, hizo operaciones Git ni lecturas remotas. Esta revisión no es aprobación de PR ni GO Development.
+
+
+REVISIÓN INDEPENDIENTE CICLO 13 — HALLAZGOS MEDIUM DE ESTADO, 2026-10-14
+- Snapshot revisado: scope `bdd1276c95c77e2560cf625d5faf4a8c8f357dc6ff6b11a45ed8b2a906c10e16`; diff staged provisto `2b5a65e19ef060e77be3579b1f6e2519d323862092a28a05ca606a555b2341ea`. El revisor no recalculó el diff mediante Git.
+- Cobertura: pins R14/R15/R16, preservación R8/R9/R12/R13, 1.137 rutas, 13 catálogos/1.173 destinos, body/template, braces, packages A–D/C/D03, allowlist y negativos. No halló defectos funcionales, HIGH ni CRITICAL.
+- MEDIUM 1: `candidate_stage_audit` del manifest decía digest `e4be87…` y gates pendientes tras ciclo 12, aunque el scope actual `bdd127…` y R17-TRACE-03 ya tenían PASS. MEDIUM 2: el checklist del body aún marcaba repin/revalidación actual como pendiente.
+- Correcciones locales: alinear `candidate_stage_audit` al scope vigente, limpiar el estado de gates y distinguir el snapshot validado de la siguiente revisión; el body registra corregidos los estados obsoletos. Las validaciones afectadas deben repetirse sobre estos bytes.
+- El cotejo A–D/C-D03, la lista exacta de rutas/negativos, catálogos y decisión braces terminó sin hallazgos adicionales. `git diff --cached --check` conserva el WARN histórico cuantificado. Este resultado no es aprobación de PR ni GO Development. Ciclo independiente 14 pendiente tras revalidación. No hubo cambios, pruebas, comandos Git ni lecturas remotas por el revisor.
+
+
+REVISIÓN INDEPENDIENTE CICLO 14 — HALLAZGO LOW EDITORIAL, 2026-10-14
+- Snapshot revisado: scope `ccdf9cf9e0a5c95bd71646f4be318ef6c9f5380b02c249ea8cfbb8c33788faf1`; staged diff SHA-256 informado para la lectura `36f5f17ff567148906318966e7e13f882a6f3a355c0ad881b9f61d3050975508`.
+- PASS de cobertura: manifiesto y pins R14/R15/R16, preservación R8/R9/R12/R13, 1.137 rutas (1.130 blobs/7 deletes), 13 catálogos/1.173 destinos, force-adds exactos, negativos, plantilla, braces, paquetes A–D/C-D03 y controles de no ejecución. Los dos MEDIUM del ciclo 13 están corregidos.
+- No encontró defectos funcionales, HIGH, CRITICAL, MEDIUM ni bloqueos. Un LOW editorial: la frase WARN de `git diff --cached --check` se repetía dos veces en la fila Calidad del body PR.
+- Corrección local: se eliminó una repetición y se actualiza el resultado C14 en estado/reporte/body/logs. Los gates afectados, pins y lectura independiente ciclo 15 quedan pendientes; C14 no certifica los bytes posteriores a su lectura.
+- El revisor no editó, ejecutó pruebas, hizo Git ni lecturas remotas. Development permanece NO-GO; este dictamen no aprueba PR ni autoriza operaciones protegidas.
+
+
+REVISIÓN INDEPENDIENTE CICLO 15 — MEDIUM DE TRAZABILIDAD, 2026-10-14
+- Snapshot revisado: scope `ec5c60e7b42968ec38e9f0006477ea337fff9db84672de789d1aa8e77075387`; el diff staged y su variante sin manifest fueron valores entregados para la revisión, no recalculados por el revisor.
+- Cobertura: recalculó 1.133 pins de scope, revisó los 23 pins de artefactos y los manifests padres R14/R15/R16, los 13 catálogos/1.173 destinos, los 1.137 paths staged descritos, force-adds, braces, A–D, body y plantilla. Confirmó que el LOW de ciclo 14 se corrigió y que Development permanece NO-GO.
+- MEDIUM: el log final decía que había que repetir scope/stage/diff/scanner después de actualizarlo, mientras el manifest marcaba stage/scanner PASS pero conservaba `candidate-package-staging.scope_digest=ccdf9cf9…` y razones de validación futura. Reporte y body afirmaban gates ya revalidados. El cierre local queda impedido hasta registrar los valores medidos del índice actual, reconciliar digest/estado y releer el snapshot corregido.
+- Resultado: 0 HIGH, 0 CRITICAL, 1 MEDIUM, 1 bloqueo de reconciliación. La revisión no dio PASS final ni evaluó operaciones remotas. El revisor no editó, ejecutó tests, leyó remoto ni realizó comandos Git.
+
+
+REVISIÓN INDEPENDIENTE CICLO 16 — CORRECCIÓN DE PINS BASELINE; NO-GO EXTERNO, 2026-10-14
+- Snapshot leído en el checkout /home/romel/src/studiamatch-h3req1-sync-20261002, rama feat/h3req1-sync-20261002, base 4eb4d877a50b012bb630a129bd0c74482c33be9c: 1.137 rutas staged (1.130 blobs, 7 deletes), scope 976620b88452e7069d1d43b272f4402b0783eb0ffb507f12d0aaff42f23c4832, diff SHA excluyendo manifest 13965208aabadf939c8080ccbcaa964339ac9ff4e6ed03b99d1109ebf078f600; SHA completo del snapshot leído bc5bb5283f2e3a224c26b615face742b04b3507ddb5a05fd68caff4129642075.
+- Cobertura: pins y preservación R8/R9/R12/R13/R14/R15/R16, cierres de 13 catálogos/1.173 destinos, 35 force-adds, plantilla/body, braces y paquetes A–D/C-D03. Confirmó manifests padres y artefactos; no encontró referencias a los tres .github/agents/*.md desde código, workflows ni runtime.
+- MEDIUM detectado y corregido durante la review: tres targets baseline estaban correctamente excluidos del stage, pero sus bytes/SHA del closure correspondían al WIP del worktree y decían clean_baseline. El manifest ahora separa pins HEAD/index del hash/bytes observados del worktree y dice explícitamente que el delta local se excluye. Revisión de seguimiento confirmó esta corrección y que los 1.173 destinos pasan contra sus pins.
+- Veredicto del contenido local tras la corrección: 0 HIGH, 0 CRITICAL, 0 MEDIUM y 0 bloqueantes. No recomienda abrir PR: PWI pull_request_target falta en main default y branch-protection detail devolvió 403, por lo que no se acreditan required checks/approvals. Cloudflare Preview global requiere A/B JIT antes de push; plain_text en Production requiere seguimiento separado. No se usó bypass.
+- El DELETE literal de Outlook sigue bloqueado por invitación accepted/FK/CHECK/trigger. C retentivo es una operación distinta y no aprobada; D03 espera decisión y JIT. No hubo mutaciones remotas, lecturas nuevas, writes, operaciones Git por el reviewer ni pruebas con efectos. Esta revisión no es approval GitHub ni GO Development.
+
+
+REVISIÓN INDEPENDIENTE CICLO 17 — PASS LOCAL CON LOW EDITORIAL, 2026-10-14
+- Snapshot exacto read-only: rama `feat/h3req1-sync-20261002`, HEAD base `4eb4d877a50b012bb630a129bd0c74482c33be9c`, scope `4513da925f7ff667bb66e037acb2e0423133881502f947011941e333b1b63515`, diff staged SHA-256 sin manifest `7de593d26a349a7e787ddd5186961cda411611c670b539fe7160b6c15ade8af8`.
+- PASS de contenido: 1.137 rutas staged (1.130 blobs/7 deletes), 23 artifact pins y 1.126 pins no-delete verificados, 13 catálogos/1.173 destinos y 35 force-adds exactos. Coinciden los gate rows finales y candidate_stage_audit. No hay HIGH, CRITICAL, MEDIUM ni bloqueos locales. La revisión confirma que el cuerpo conserva plantilla completa y no declara review/GO prematuro; A–D conservan límites y Outlook DELETE sigue bloqueado.
+- LOW editorial: las razones de `documentation-integrity`, `documentation-integrity-self-test`, `protected-path-scope-regressions`, `candidate-package-staging`, `staged-byte-preservation` y `staged-credential-scan` dicen “rerun ... before final review” pese a status PASS del scope actual.
+- Corrección R17-TRACE-09: esas razones se actualizaron para afirmar PASS del resultado medido, preservando el texto anterior en `previous_reason`. El ajuste del manifiesto no cambia scope/diff excluyendo su self-path. El seguimiento independiente del cierre documental y los gates afectados queda pendiente.
+- El revisor no editó, ejecutó pruebas ni hizo lecturas remotas. El dictamen no es review GitHub, permiso de efectos ni GO Development.
+
+
+REVISIÓN INDEPENDIENTE CICLO 21 — PASS LOCAL CON LOW EDITORIAL, 2026-10-14
+- Snapshot read-only: rama `feat/h3req1-sync-20261002`, HEAD `ac4a6c9b233ed450202ae9e6b09a84281fd3d8c5`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`; scope `9f84950fe65c83852141dd748c85c7d979c1496806367c0649d8f2889fd4f3ab`; diff baseline→índice sin manifest `4ead770eaa78c2f797b059f683424db5f88c30499bc84abcaee460b5f5bcdb30`.
+- Cobertura y PASS: 1.137 rutas (1.130 blobs/7 eliminaciones), R14/R15/R16 y R8/R9/R12/R13, cierre de catálogos, manifest/pins, plantilla, resultado TRACE-11 que sustituye TRACE-10, gates locales reconciliados y límites remotos. No HIGH, CRITICAL, MEDIUM ni bloqueos.
+- LOW editorial: [paquete R17] presenta ciclo 19 como vigente y [estado del proyecto] destaca su resultado como revisión actual, mientras el manifiesto deja pendiente la revisión del snapshot agregado. El body limita sus afirmaciones a los ciclos 10–19 y no fue hallado inconsistente.
+- Corrección R17-TRACE-12: ciclo 19 queda explícitamente histórico en paquete y estado; el estado de revisión actual se toma del manifiesto. Gates afectados se repiten y se solicitará follow-up independiente del digest corregido.
+- El revisor no editó, ejecutó pruebas, hizo Git ni lecturas remotas. No es aprobación de PR, permiso de efectos ni GO Development.
+
+
+REVISIÓN INDEPENDIENTE CICLO 23 — PASS LOCAL CON LOW DE TRAZABILIDAD, 2026-10-14
+- Snapshot proporcionado para lectura: scope `69d224a6f5cb53ec290a1ab5e35e20e8763d9234e9e48b8c34c63ec5bde58ed5`; diff baseline→índice sin manifest `df783bf2a39cd06e91ad80323003fb8009a92ceda94c7b36e362ec7e4fb9d031`; 1.137 rutas, 1.130 blobs y 7 eliminaciones. La revisión se limitó al contenido y los pins declarados; no ejecutó pruebas, Git ni lecturas remotas.
+- PASS local sin hallazgos HIGH, CRITICAL, MEDIUM ni bloqueantes. Un LOW de trazabilidad contenía dos puntos: (1) el manifiesto atribuía 45 pruebas focales al digest histórico `100e211b9ba469d241a6863b50cdcd248a343c1d6ad72ea5cbb4b0303dd18efc`, mientras el 8/8 de `tests/test_obsidian_context_state.py` estaba registrado solo en el log; (2) el cuerpo PR llamaba candidato comprometido al commit funcional `ac4a6c9b…` aunque el alcance agregado también contenía el checkpoint documental posterior.
+- Corrección acordada: mantener 45/45 con su scope histórico y agregar un gate separado para 8/8 sobre el input de estado vigente; describir `ac4a6c9b…` como commit funcional inicial y remitir al manifest para el árbol agregado completo. Los cambios y la repetición focal de 8/8 se registran en R17-TRACE-13 y en el manifest reconciliado.
+- El resultado no certifica el snapshot posterior a esas correcciones, no es review GitHub ni aprobación de operaciones. Development sigue NO-GO; no hubo acceso o efectos remotos.
+
+
+REVISIÓN INDEPENDIENTE CICLO 24 — NO-PASS POR LOW DE TRAZABILIDAD, 2026-10-14
+- Snapshot revisado: scope `0b0789b0ae78a0c788467f001917cf18e26b7320d33cd2a7f0a4c18efffe0801`; diff baseline→índice sin manifest `570886b272a24b787aeb4fd2bd98eae7197424ef6787b38949bf08be99b6d445`; 1.137 rutas, 1.130 blobs, 7 eliminaciones. El revisor verificó el recálculo del scope, 23 pins de artefactos, manifests padres R14/R15/R16 y preservación R8/R9/R12/R13.
+- Un LOW accionable: el cuerpo PR decía `PASS, 45 tests` en la fila Python, mientras el manifest clasificaba 45/45 como histórico del scope `100e211b…` y registraba por separado el contrato actual de estado 8/8. No se reportaron otros hallazgos; conteo: 0 HIGH, 0 CRITICAL, 0 MEDIUM, 1 LOW, 0 bloqueantes.
+- Corrección ciclo 25: la fila Python ahora identifica 8/8 como vigente y limita 45/45 al resultado histórico; se actualizan pins y gates del nuevo snapshot y se solicita seguimiento independiente. Cycle 24 no aprueba ese snapshot posterior, no es review GitHub ni GO Development.
+
+
+REVISIÓN INDEPENDIENTE CICLO 25 — NO-PASS POR DOS LOW DOCUMENTALES, 2026-10-14
+- Snapshot revisado: scope `9dc83b43433762b89a0dee3cc9a041424de7a96d57595530136cb3002da530b1`; 1.137 rutas (1.130 blobs, 7 eliminaciones), 35 force-adds; 13 catálogos/1.173 destinos. El diff sin manifest registrado fue `5ab4c94e60f8e4589fed477fc6d45372f02a5368dedc1d841db052ec80b7b34b`; se cotejó con el valor del manifiesto, no se recalculó contra el índice. El review encontró padres R14/R15/R16 y R8/R9/R12/R13 preservados, plantilla completa y ningún HIGH/CRITICAL/MEDIUM/bloqueo.
+- LOW 1: el reporte y dos campos de reconciliación aún presentaban C como pendiente/no aprobado; dos metadatos de artefacto aún mostraban ciclo 19 vigente. Corrección: marcar cortes previos como históricos, conservar la autorización C aprobada condicional/no consumida y actualizar los estados de artefactos actuales.
+- LOW 2: el body PR citaba SHA `50c659…` para `tests/test_obsidian_context_state.py` 8/8, pero el manifiesto y el archivo de estado en la revisión eran `a4f468…`. Corrección: repetir el test después de actualizar el estado y alinear el body al nuevo input SHA `88a55859c2991b6df4114e0f297396ab2d4410c01c76631ec22b9bd82861a57d`.
+- No se usó Git ni se ejecutaron tests durante esta revisión. El resultado no es aprobación de PR ni autoriza operaciones remotas. La revisión independiente ciclo 26 debe cubrir el nuevo scope exacto después de las validaciones afectadas; Development sigue NO-GO.
+
+
+REVISIÓN INDEPENDIENTE CICLO 26 — NO-PASS LOCAL POR UN LOW, 2026-10-14
+
+Snapshot leído: scope `b67966e459e1d921ab83da5a5b918d9acb3c21cf13b1a93bd2e56cba7996c34c`; diff sin manifiesto informado `51f956c705a8df0331d75835d34fab571e8d8ba2c0df588f43d081763ac25384`. Se recalculó el scope, no el diff mediante Git. Confirmé que los dos LOW de ciclo 25 estaban corregidos, que cuerpo/manifiesto/input de estado coincidían en `1ca98a…`, y que dicho SHA coincidía con el estado actual.
+
+Cobertura: 1.137 rutas, 1.130 blobs, 7 eliminaciones, 35 force-adds, modos 1.102 `100644`/28 `100755`; 24 pins de artefactos y tres manifiestos padre R14/R15/R16; preservación R8/R9/R12/R13 en cantidades 158/2/3/5/5 sin fallas; 13 catálogos/1.173 destinos sin faltantes ni mismatch; plantilla 10/10 encabezados, 15 filas, 18 enlaces a 10 destinos y cero placeholders. No encontré otros residuos accionables.
+
+Hallazgos: 0 HIGH, 0 CRITICAL, 0 MEDIUM, 1 LOW y 0 bloqueantes. El LOW accionable fue la última frase de R17-TRACE-18: decía que los gates finales se repetirían antes de ciclo 26, aunque el manifiesto registraba PASS en el scope citado. Se corrige en R17-TRACE-19; los gates afectados se vuelven a ejecutar sobre el registro corregido y sus resultados exactos se reconcilian en el manifiesto. El WARN `git diff --cached --check` sigue cuantificado en 125 diagnósticos/63 rutas preservadas. PWI/default-main, protección GitHub 403 y JIT A/B siguen impidiendo filing; C está aprobado condicionalmente y sin consumir.
+
+La revisión fue de solo lectura; el revisor no editó, ejecutó pruebas, usó Git ni hizo lecturas remotas. No es aprobación de PR ni permiso de efectos. Development sigue NO-GO; D01–D14 0/14 y regresión adicional 0/11.
+
+
+REVISIÓN INDEPENDIENTE CICLO 27 — LOW DE ESTADO DE VALIDACIÓN, 2026-10-14
+- Snapshot exacto: scope `88aff23304013d2433b4db501fde78e58b610a1646dc8b6727bfd0907a2660da`; diff staged sin manifest `a436f9f3de41df145d1abe97499f5676bbea86157aa2eee855bd42334e58ce90`. Rama/base: `feat/h3req1-sync-20261002`, `4eb4d877a50b012bb630a129bd0c74482c33be9c`; 1.137 rutas, 1.130 blobs y 7 eliminaciones.
+- Confirmé pins R14/R15/R16, preservación R8/R9/R12/R13, 13 catálogos/1.173 destinos, 35 force-adds, body/plantilla y los límites aprobados A/B/C/D. Los 17 enlaces del body llegan a 10 destinos disponibles; el cambio de 18 a 17 elimina una repetición del mismo destino y no omite una referencia necesaria.
+- Un LOW accionable: el último párrafo de R17-TRACE-21 en el check log y el checklist/security-auditor del body aún describían una revalidación ya completada como pendiente/futura aunque el manifiesto reflejaba PASS/WARN. Corrección: dejar constancia de la repetición post-log ya realizada, el dictamen ciclo 27 y el estado del seguimiento en el manifiesto; repinar y volver a ejecutar únicamente gates afectados.
+- Resultado: 0 HIGH, 0 CRITICAL, 0 MEDIUM, 1 LOW, 0 bloqueos. No es aprobación GitHub, permiso de efectos ni GO Development; D01–D14 siguen 0/14 y regresión adicional 0/11.
+- La revisión fue read-only; el revisor no editó, ejecutó pruebas, usó comandos Git ni hizo lecturas remotas.
+
+
+REVISIÓN INDEPENDIENTE CICLO 28 — NO-PASS POR RECONCILIACIÓN MEDIUM/LOW, 2026-10-14
+- Snapshot read-only: scope `41c98fd2f53e536fc0fe562cb47d6540422a23c0e4733b1234c5bf7d87c3b822`; diff baseline→índice sin manifest reportado en la auditoría canónica `aba9e9e65221bf80985bfb3a262fb6af999087c418d4a4634fe2f2c701ff1b27`; 1.137 rutas (1.130 blobs/7 eliminaciones). El campo duplicado `baseline_to_index_diff_sha256_excludes_manifest` estaba desactualizado como `51f956c705a8df0331d75835d34fab571e8d8ba2c0df588f43d081763ac25384`.
+- Cobertura: 23 pins, padres R14/R15/R16, R8/R9/R12/R13 preservados (158/2/3/5/5), 13 catálogos/1.173 destinos, 35 force-adds, plantilla 10/10 encabezados, 15 filas y 17 enlaces a 10 destinos. No se encontraron HIGH ni CRITICAL.
+- MEDIUM: desajuste del digest duplicado del audit del árbol candidato. Corrección: alinear el campo stale con el digest baseline→índice registrado por la auditoría canónica y volver a calcularlo en la validación del nuevo snapshot.
+- LOW: el inicio del paquete/estado aún describía como pendiente la revisión ciclo 28 ya realizada. Corrección: registrar el resultado ciclo 28 y referir el estado vigente al manifiesto reconciliado.
+- Conteo del dictamen: 0 HIGH, 0 CRITICAL, 1 MEDIUM, 1 LOW, 1 bloqueo de reconciliación. La revisión fue de solo lectura: sin edición, tests, Git ni lecturas remotas; no es aprobación GitHub, permiso de efectos ni GO Development. Requiere follow-up independiente tras correcciones y gates afectados.
+
+
+REVISIÓN INDEPENDIENTE CICLO 29 — NO-PASS POR LOW DE ESTADO HISTÓRICO, 2026-10-14
+- Snapshot exacto: scope `773d4b85b1b755f5ed32bfe571a56789da6039c25e662b8058cd3803d61ba656`; diff baseline→índice sin manifest `ef2c4e8fe4c596f869c3a536abcbcc801d510cf490f8846b8639b5921ceeb158`. Rama `feat/h3req1-sync-20261002`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`, 1.137 rutas (1.130 blobs/7 eliminaciones).
+- Verifiqué cero diferencias índice/worktree, cero paths fuera del scope/artefactos incluidos, 23 pins, R14/R15/R16, preservación R8/R9/R12/R13, 13 catálogos/1.173 destinos y plantilla 10/10 encabezados, 15 filas, 17 enlaces a 10 destinos y cero placeholders. Los gates actuales del manifiesto pasan excepto el WARN de diff check preservado y cuantificado.
+- Un LOW accionable: `reconciliation.r17_review_corrections.review_status` todavía decía que ciclo 27 estaba pendiente. Corrección: marcar ese estado como histórico/cerrado y conservar el estado actual solo en el audit/fila de revisión vigentes del manifiesto.
+- Conteo: 0 HIGH, 0 CRITICAL, 0 MEDIUM, 1 LOW, 0 bloqueos locales. Revisión de solo lectura; no ejecuté pruebas ni hice lecturas remotas. No es approval GitHub, permiso de efectos ni GO Development; requiere ciclo 30 tras corrección y gates afectados.
+
+REVISIÓN INDEPENDIENTE CICLO 30 — PASS LOCAL, 2026-10-14
+- Snapshot revisado: scope `decfafc84b5048447a16d6035b631c1184e8d287c74e978c54ec475dad436b20`; diff baseline→índice sin manifest `938e23bab710cc4e3c382eeb90eef38653ca8249fb52666c5d6536527cab5257`; HEAD `a57bc415257ab8154d40d7c71d34c69d0bdaeb0d`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`.
+- Alcance comprobado: 1.137 rutas (1.130 blobs, 7 eliminaciones), 23 pins de artefactos, padres R14/R15/R16 y preservación R8/R9/R12/R13, 13 catálogos/1.173 destinos, cuerpo PR (10 encabezados, 15 filas, 17 enlaces/10 destinos), braces y paquetes A–D. La corrección de estado histórico de ciclo 29 está aplicada.
+- Resultado: 0 HIGH, 0 CRITICAL, 0 MEDIUM, 0 LOW y 0 bloqueantes. PASS local; no es aprobación de GitHub, GO Development ni autorización para efectos.
+- Límite del revisor: no ejecutó Git ni recalculó índice/diff; la auditoría local inmediatamente anterior cotejó el índice/worktree, scope y diff exactos antes de la revisión. No hubo cambios, pruebas ni lecturas remotas por el revisor.
+- Incorporar este dictamen cambia los bytes del paquete; la reconciliación R17-TRACE-25 y revisión independiente del agregado actualizado (ciclo 31) quedan pendientes antes de iniciar lecturas remotas.
+
+REVISIÓN INDEPENDIENTE CICLO 31 — NO-PASS POR DOS LOW DE RECONCILIACIÓN, 2026-10-14
+- Snapshot revisado: scope `f9b833ace50f1286f9a04007f31a591d5d38b494be794478e05ccd3b07f099d9`; diff baseline→índice sin manifiesto registrado `b09b124754912a27692814c08732416efbd2c5962e2069d2043572b130504a01`; HEAD `a57bc415257ab8154d40d7c71d34c69d0bdaeb0d`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`.
+- Cobertura: 1.133 rutas de scope y 4 artefactos incluidos = 1.137 rutas agregadas; 1.130 blobs y 7 eliminaciones. El revisor cotejó pins sin comandos Git, 23 pins de artefactos, padres R14/R15/R16, R8/R9/R12/R13, 13 catálogos/1.173 destinos, plantilla y estado/gates del ciclo 30.
+- LOW 1: R17-TRACE-26 decía que las validaciones “se repiten” después de actualizar la nota, aunque el manifiesto registraba PASS para el scope revisado. Corrección: marcar el resultado como completado y acreditar la revalidación posterior a la nota.
+- LOW 2: la fila `credential-scan` excluía el log de checks pero registraba `files=1130`, `blobs=1129`, `blobs_scanned=1130`. Corrección: declarar 1.130 blobs/archivos escaneados o separar explícitamente un resultado histórico; alinear todas las filas de scanner.
+- Conteo: 0 HIGH, 0 CRITICAL, 0 MEDIUM, 2 LOW y 0 bloqueos funcionales. NO-PASS de reconciliación hasta corregir y revalidar; Development permanece NO-GO. No es aprobación GitHub ni permiso de efectos.
+- Límite: no ejecutó Git ni recalculó el diff. No hubo ediciones, pruebas, lecturas remotas o efectos del revisor. Los cambios de R17-TRACE-27 requieren un follow-up independiente ciclo 32.
+
+REVISIÓN INDEPENDIENTE CICLO 32 — PASS LOCAL, 2026-10-14
+- Snapshot prerregistro revisado: scope `1372b557063216ded0a8bcfd54fcdd68ee13b5f9e33919fb3fbb1c8f2c999f4c`; diff baseline→índice sin manifiesto `89b9e5ecf971455c051149700944d4f17e4a3fddf866e4bf476525e40485b0fd`; HEAD `a57bc415257ab8154d40d7c71d34c69d0bdaeb0d`, baseline `4eb4d877a50b012bb630a129bd0c74482c33be9c`.
+- Alcance: 1.133 entradas de manifest + 4 artefactos incluidos = 1.137 rutas; 1.130 blobs y 7 eliminaciones. El revisor cotejó bytes/tamaños/modos de las rutas presentes, 23 pins de artefactos distintos del manifest, padres R14/R15/R16, preservación R8/R9/R12/R13, 13 catálogos/1.173 destinos, plantilla/cuerpo 10 encabezados/15 filas/17 enlaces a 10 destinos y las tres filas de scanner (1.130 archivos/blobs, 23 lotes, cero hallazgos; solo se excluyen las 7 eliminaciones sin blob).
+- Confirma que R17-TRACE-27 corrige los dos LOW de ciclo 31 y que el manifiesto conserva cycle 31 actioned y cycle 32 como revisión vigente. A/B/C/D siguen aprobados solo para sus paquetes exactos y sin consumir; C es retentivo, no DELETE físico. Gmail permanece intacta. Development sigue NO-GO.
+- Resultado: 0 HIGH, 0 CRITICAL, 0 MEDIUM, 0 LOW, 0 bloqueantes. PASS local; el dictamen no aprueba GitHub, GO Development ni efectos.
+- Límite: revisión read-only; no ejecutó Git, tests, linters ni lecturas remotas. El scope y diff coinciden con la auditoría exacta previa. Incorporar el dictamen cambia los bytes del paquete; manifest y gates locales afectados se reconcilian antes de iniciar lecturas remotas autorizadas.

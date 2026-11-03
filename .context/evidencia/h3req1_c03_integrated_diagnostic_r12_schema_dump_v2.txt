@@ -1,0 +1,23 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+candidate-wip-entry-count=4480
+docker-target=PASS context=default endpoint=unix:///var/run/docker.sock engine=fc2115b2-c3c4-440e-89c6-26899eb7cb04 version=29.8.2
+r12-diagnostic-inputs=4/4 PASS manifest_sha256=e5db63624797c78e3015e839f51fde787ee4f0947d13d8c1639c1dc8518e90a7
+phase=r12-classifier-synthetics|error_code=OK tests=15
+r9-integrated-manifest=64/64 PASS sha256=6b0a469325b466a59211b3f6e50f16bce49910d78cad994068daa51caba13de9
+r9-source-snapshot=64/64 noncandidate_extras=2 hash_pinned=2 symlinks=0 read_only=PASS
+postgresql-image=17.11 PASS
+postgrest-image=13.0.7 PASS
+network=h3req1-c03-diagnostic-data-20261010-r12-dump internal=true created=PASS
+container=h3req1-c03-diagnostic-pg17-20261010-r12-dump metadata=59e03932991b5b42d10ddfd51893fc86cad8594fd99e432b6880f5a82f0b7894|sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f|running|2147483648|2000000000|512
+phase=postgres-local-readiness|error_code=OK
+sql-fixture=tests/sql/h3_from_h2_pro_pg17_harness.sql exit=0
+sql-fixture=tests/sql/h3req1_c03_integrated_extension_setup.sql exit=0
+sql-fixture=tests/sql/h3req1_c03_integrated_setup.sql exit=0
+phase=postgres-tcp-auth-before|error_code=OK
+phase=postgres-postgrest-prerequisites|error_code=EXTENSIONS_SCHEMA_ABSENT
+phase=postgrest-schema-dump|error_code=SQLSTATE_3F000 exit=1 bytes=LE_8192
+phase=postgres-tcp-auth-after|error_code=OK
+removed-fixture=h3req1-c03-diagnostic-pg17-20261010-r12-dump id=59e03932991b5b42d10ddfd51893fc86cad8594fd99e432b6880f5a82f0b7894
+removed-fixture=h3req1-c03-diagnostic-postgrest-dump-20261010-r12 id=620373c44186edf68825883cfe8ee364e6b1e3376dd1949c6858e56f7a811e00
+removed-network=h3req1-c03-diagnostic-data-20261010-r12-dump id=273e7545c678502b5225b9178d555fe751da38be7625fad46623c3d50b0372bd internal=true attached=0
+phase=r12-schema-dump-diagnostic|error_code=COMPLETE exit=0 raw_logs_persisted=false edge_started=false

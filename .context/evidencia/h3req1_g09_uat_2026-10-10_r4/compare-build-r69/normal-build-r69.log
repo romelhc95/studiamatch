@@ -1,0 +1,49 @@
+
+> web@0.2.0 build
+> rm -rf .next/* out && NODE_ENV=production next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.js took 14ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.4s
+  Skipping validation of types
+  Finished TypeScript config validation in 11ms ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/33) ...
+  Generating static pages using 11 workers (8/33) 
+  Generating static pages using 11 workers (16/33) 
+  Generating static pages using 11 workers (24/33) 
+✓ Generating static pages using 11 workers (33/33) in 726ms
+  Finalizing page optimization ...
+
+Route (app)                                Revalidate  Expire
+┌ ○ /                                              1h      1y
+├ ○ /_not-found
+├ ○ /admin
+├ ○ /admin/accept-invite
+├ ○ /admin/auth/callback
+├ ○ /admin/edit
+├ ○ /admin/login
+├ ○ /admin/reset-password
+├ ○ /admin/setup-password
+├ ○ /admin/users
+├ ○ /compare
+├ ○ /courses
+├   /courses/[institution]/[slug]
+│ ├ ● /courses/ulima/programa-local-h3-11
+│ ├ ● /courses/ulima/programa-local-h3-16
+│ ├ ● /courses/ulima/programa-local-h3-21
+│ └ ● [+14 more paths]
+├ ○ /privacidad
+└ ○ /terminos
+
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

@@ -10,7 +10,7 @@ import {
   ChevronLeft, MapPin, Clock, TrendingUp, GraduationCap, Plus, Star, DollarSign, X, ArrowRight
 } from "lucide-react";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, normalizeCourseNumbers, type Course } from "@/lib/supabase";
 
 // Componente Skeleton para Feedback Inmediato
 const ComparisonSkeleton = () => (
@@ -93,13 +93,14 @@ export default function CompareContent() {
         const categoryArray = Array.isArray(categories) ? categories : [];
 
         const enriched = dataArray.map(c => {
-          const investment = typeof c.price_pen === "number" && c.price_pen > 0 ? c.price_pen : null;
-          const salary = typeof c.expected_monthly_salary === "number" && c.expected_monthly_salary > 0 ? c.expected_monthly_salary : null;
+          const normalized = normalizeCourseNumbers(c);
+          const investment = normalized.price_pen && normalized.price_pen > 0 ? normalized.price_pen : null;
+          const salary = normalized.expected_monthly_salary && normalized.expected_monthly_salary > 0 ? normalized.expected_monthly_salary : null;
           const calculatedRoi = investment && salary ? investment / salary : null;
 
           return {
-            ...c,
-            roi_months: c.roi_months || calculatedRoi,
+            ...normalized,
+            roi_months: normalized.roi_months || calculatedRoi,
             institution_name: institutionArray.find((i: { id: string; name: string }) => i.id === c.institution_id)?.name || "StudIAMatch",
             institution_slug: institutionArray.find((i: { id: string; slug: string }) => i.id === c.institution_id)?.slug || "general",
             category: categoryArray.find((category: { id: string; name: string }) => category.id === c.category_id)?.name || c.category
@@ -263,7 +264,7 @@ export default function CompareContent() {
                       </div>
                       <div>
                         <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Ubicación</div>
-                        <div className="text-sm font-bold line-clamp-1">{course.address}</div>
+                        <div className="text-sm font-bold line-clamp-1">{course.address || "Por confirmar"}</div>
                       </div>
                     </div>
 

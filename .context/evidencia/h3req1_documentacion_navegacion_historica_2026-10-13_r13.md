@@ -1,0 +1,55 @@
+# Navegación histórica y nomenclatura — R13
+
+> Corte local: 2026-10-13 UTC. Revisión del candidato, sin lecturas remotas. Esta nota describe navegación histórica y su evidencia; no es autoridad operativa ni acredita adopción.
+
+## Alcance y propósito
+
+R13 cierra la brecha observada en el grafo histórico: cada uno de los 433 documentos preservados queda enlazado individualmente desde un catálogo subordinado por proceso/módulo. El índice principal enlaza los 13 catálogos; las fichas de componente enlazan los catálogos aplicables. Las entradas describen propósito, componente, requerimiento, fuentes, runner, tests, manifiestos, resultados, estado y secuencia anterior/posterior cuando hay evidencia local. Los catálogos no sustituyen `.context/estado_del_proyecto.md` ni elevan historia a estado actual.
+
+Esta extensión también protege el resumen del índice: su tabla de conteos se genera desde el JSON canónico y el checker falla si el bloque visible diverge. No se renombraron archivos históricos ni fuentes; el R37 mantiene su path original y obtiene una entrada navegable externa.
+
+## Navegación implementada
+
+- Entrada única: [.context/indice.md](../indice.md); autoridad operativa: [estado del proyecto](../estado_del_proyecto.md).
+- Registro canónico de asignaciones: [registro de fuentes y componentes](../trazabilidad/registro_fuentes_componentes.md) y JSON fuente de verdad `../trazabilidad/registro_fuentes_componentes.json`.
+- Catálogo C03: [sesiones, invitación y recuperación](../catalogos_historicos/c03_integrado.md#documentos-preservados). Los demás catálogos aparecen en la tabla generada del índice y en las fichas enlazadas desde el registro.
+- Convención y procedimiento: [protocolo del constructor](../trazabilidad/protocolo_constructor.md#nomenclatura-y-cambios-de-ruta).
+- [Checks R13](h3req1_documentacion_checks_2026-10-13_r13.txt), [revisión independiente R13](h3req1_documentacion_revision_independiente_2026-10-13_r13.txt), [manifiesto propuesto](h3req1_pr_scope_manifest_2026-10-13_r13_docs.json) y [cuerpo PR propuesto](h3req1_pr_body_draft_local_review_2026-10-13_r13_docs.md) completan el paquete local. No se abrió PR.
+
+## Cifras del grafo y clasificación
+
+El registro contiene 13 catálogos y 433 rutas históricas únicas: 430 `historical`, 3 `superseded`, 0 `current`. El último gate normal/self-test en Docker reporta 801/801 fuentes asignadas, 14/14 componentes con ficha, 95/95 documentos activos alcanzables desde el índice, y 433/433 documentos históricos enlazados individualmente desde catálogo; hay 0 documentos Markdown excluidos. Verificó 9,340 links y 4,567 anchors. La prueba negativa modifica un conteo del índice y exige que el gate lo rechace. La clasificación JSON sola no satisface el gate de navegación.
+
+Diez entradas de evidencia de cliente conservan solo path, clasificación y límites de relación; su contenido no se inspeccionó. Sus vínculos resuelven en el checkout y no significan lectura, verificación contractual ni inclusión automática en el paquete. El cotejo de disponibilidad en la rama de integración queda para la reconciliación posterior.
+
+## Caso histórico R37
+
+La preparación [C03 integrado R37, 2026-10-10](../evidencia/h3req1_c03_integrated_r37_preparation_2026-10-10.md) describe el propósito del drill de invitación/cancelación, reporta contrato local 29/29 y enlaza el [log R37](../evidencia/h3req1_c03_integrated_run_2026-10-10_r37.txt) con SHA-256 `f5b4e9b7f099aa21dad4b73da6fa408c424bf0742548fc955b5bba691c96a3c8`. El log indica H3S11 PASS y H3S12 FAIL (`psql exit=3`) antes de finalizar Auth; es resultado histórico del harness y no una afirmación de fallo vigente de producto. La preparación enlaza R36 como antecedente y R38 como continuación; las preparaciones R38–R40 y sus logs permiten recorrer la secuencia descrita.
+
+La preparación registra un digest de manifiesto R37 `a7ad6a667a43764a974f2e5aac0a3eb0054a9898731212b641cd9d371a63190b` y afirma 107/107, pero no se encontró el artefacto del manifiesto R37 en el candidato. El archivo consumido no se puede cotejar de forma independiente en este corte. Esto no invalida el log preservado ni prueba adopción remota. La historia Git local de ambos checkouts no contiene un commit que incorpore la preparación y el runner R37; esos materiales son WIP local, no evidencia de commit.
+
+R39 y R40 citan `tests/h3req1_c03_integrated_runtime.mjs` y `tests/h3req1_c03_login_result.mjs` como módulos modificados del harness. El catálogo los relaciona como fuentes de prueba con sus runners/contracts; no los presenta como cambios de producto.
+
+## Fuentes, cambios y consumidores
+
+El inventario de rutas históricas y los estados por relación viven únicamente en `.context/trazabilidad/registro_fuentes_componentes.json`. El checker lee esa fuente y genera la vista Markdown, 13 catálogos y la tabla marcada del índice. Los consumidores directos de la tabla son quien navega `.context/indice.md` y el checker local `scripts/maintenance/h3req1_documentation_integrity.mjs`; el wrapper `scripts/security/run_documentation_integrity.sh` lo ejecuta en Docker. `security-audit.yml` conserva el job `documentation-integrity` y ejecuta `tests/test_protected_path_scope_guard.sh` en `python-check`; ese test compara el scope R13 y sus artefactos incluidos con las expresiones y la lista literal del propio workflow. No se configuró ni ejecutó GitHub.
+
+Si se cambia una ruta o contrato, actualizar la asignación del JSON, las secciones de la ficha afectada, enlaces de catálogo/índice y evidencia por impacto; regenerar vistas y correr el gate normal/self-test. Si cambia una fuente ejecutable, renovar solo sus validaciones dependientes. Antes de mover, eliminar o renombrar, buscar enlaces, anchors, imports, tests, runners, workflows, manifests y lectores en ambos checkouts. R13 modifica el allowlist documental de `.github/workflows/security-audit.yml`, su regresión consumidora y las fichas/relaciones afectadas; no altera runtime, DB ni evidencia sellada.
+
+## Nomenclatura
+
+Los documentos Obsidian usan nombres por dominio/responsabilidad. Evidencia nueva específica puede usar `h3req1_<proposito>_YYYY-MM-DD.<ext>`. Fuentes mantenidas conservan convenciones del runtime; los `.mjs`, rutas especiales de framework, migraciones, contratos y artefactos consumidos por runners no se renombran por estética. El marcador breve `StudIAMatch-Docs: ruta#anchor` apunta a la ficha; el registro sigue siendo la fuente canónica. No se propone ningún renombre. El documento R37 mantiene su nombre original.
+
+## Preservación, límites y resultado
+
+El backup externo previo a R13 está en `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_historical_navigation_2026-10-13`. Sus sidecars verificados: `INVENTORY.txt` SHA-256 `0eb02013a1ca71c868bfb0acfc3ae06fdb3b86fa7229fa0a54e835a9127c635b`, `FILES.sha256` SHA-256 `36fefd7c65d88e2416ca8263bfebae17b04b2553cffb92285cf0984a96c2f888`, `documentation_snapshot.tar` SHA-256 `b93e15c48acf40aacc6f1b517b96961753fdea14117d9f14bd3c13d875a3cc8a`. Contiene 517 entradas inventariadas y quedó fuera del paquete.
+
+R8, R9, R12, R178, R181/R182, logs y manifiestos sellados no se reescribieron. No se consultaron GitHub, Supabase ni Cloudflare. Cinco verificaciones remotas siguen pendientes. Los 433/433 y 95/95 describen el grafo local; no acreditan que cada target esté presente en la rama de integración ni adopción remota. Esa reconciliación se prepara para el paso separado siguiente.
+
+## Estado de cierre R13
+
+La revisión independiente confirmó que los hallazgos de allowlist/estado se corrigieron y los pins de su snapshot concordaban. Después se añadieron cuatro enlaces de referencia a la fila R13 del changelog; el grafo actualizado registra 9,340 links y 4,567 anchors. El gate documental y su self-test pasaron de nuevo en Docker: 801/801 fuentes asignadas y con dimensiones locales aplicables verificadas, 14/14 componentes, 95/95 documentos activos accesibles y 433/433 documentos históricos enlazados individualmente desde 13 catálogos. La revisión independiente dio GO al snapshot de 9,340 links. Una rerevisión halló dos frases P2 en body/estado; ambas se corrigieron y una última lectura confirmó el cierre sin bloqueantes. Las cinco verificaciones remotas continúan pendientes.
+
+El scanner de credenciales, su suite de regresión, el scope guard, las comprobaciones de sintaxis y la reconciliación de hashes del paquete se registran en [checks R13](h3req1_documentacion_checks_2026-10-13_r13.txt). La revisión independiente es [navegable aquí](h3req1_documentacion_revision_independiente_2026-10-13_r13.txt). `actionlint`, `shellcheck` y la repetición de `pytest` no estuvieron disponibles en el contenedor; sus límites están detallados en esos checks y en el cuerpo propuesto. Ninguna de estas limitaciones se presenta como ejecución satisfactoria.
+
+La navegación histórica está implementada y los gates locales del snapshot actual pasaron. El GO independiente corresponde al snapshot previo de 9,336 links. Para el snapshot final de 9,340 links/4,567 anchors, el revisor verificó digest y pins y dio GO tras corregir cinco frases sobre refresh. Una rerevisión detectó luego la celda de mantenimiento y la frase de siguiente paso; se corrigieron y la última rerelectura dio GO. El historial de dictámenes está en la nota de revisión. Esto no cierra la reconciliación del paquete funcional R8/R9/WIP ni acredita que los 433 targets estén en la rama de integración o adoptados remotamente. El manifiesto R37 consumido sigue sin estar disponible localmente para cotejo independiente. Backup complementario previo a esta corrección: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_pin_reconciliation_20261013T151642Z`; contiene 6 documentos, con 6/6 hashes fuente/copia coincidentes. `INVENTORY.json` SHA-256 `ac7abb31e9af1e2807e5900591cc8487eba9985086c7af96f74544cf1cbf421d`; `FILES.sha256` SHA-256 `304394b1018fddc2ffa38a8217b8f280e55e28af902f14a3a6bca106b3f805d3`. Queda fuera del paquete. Backup adicional antes de registrar el dictamen final: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_final_go_20261013T152047Z` (7 documentos; 7/7 copias verificadas); `INVENTORY.json` SHA-256 `601cccc6d3a3842a2c0f5e5e646fee51f370d5def8f2e2ab0c0c5d2cc662784c`; `FILES.sha256` SHA-256 `b015679089a19bac11b352bb67b4584bf49e92ca3ff23d7db2fc999c11f26be4`. Backup verificado antes de registrar el GO final: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_final_review_record_20261013T152959Z` (7 archivos; `INVENTORY.json` SHA-256 `01de056fa86fd73b24c1a62497a47dc7a6093a7e8e2ffab07b7a566416bae10d`; `FILES.sha256` SHA-256 `8cb129d9ebfca681a773af3b521a7ff163b05d62cf6467cd69e0a63908589826`). Los backups permanecen fuera del paquete. R8, R9, R12, R178, R181/R182, los logs y manifiestos sellados permanecen sin cambios. El siguiente trabajo tras este gate será la reconciliación local del paso 3; lecturas remotas, PR y pruebas Development requieren instrucciones separadas.

@@ -62,3 +62,15 @@ scripts/maintenance/test_select.py
 .context/backlog_tareas/req_est_001_sprint_1/studiamatch_home.html
 .context/backlog_tareas/req_est_001_sprint_1/studiamatch_resultados.html
 
+# H3 local-only: git worktrees and mock server are never part of the deliverable
+.worktrees/
+mock-server/node_modules/
+mock-server/*.log
+
+# H3 stale evidence runs (the canonical evidence set lives in .context/evidencia/h3-expanded/)
+.context/evidencia/h3-expanded-run-pass*/
+.context/evidencia/h3-uat-public-/
+.context/evidencia/h3-final/
+.context/evidencia/*.png
+.context/evidencia/h3-uat-*.json
+

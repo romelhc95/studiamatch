@@ -1,0 +1,770 @@
+[
+  {
+    "executionId": "H3-UAT-071:desktop",
+    "id": "H3-UAT-071",
+    "title": "public listing matches PG17 eligibility and traverses every paginated identity",
+    "requirementId": "H3-CA4.9",
+    "role": "anon",
+    "assurance": "none",
+    "hostname": "127.0.0.1",
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    "route": "/",
+    "expected": "the visible public listing contains exactly the sixteen synthetic PG17 eligible identities across pages and excludes ineligible rows",
+    "observed": "PG17 eligibility identities=16; cards=16; pages=12+4; external origins=0",
+    "assertions": [
+      {
+        "name": "first listing page displays twelve eligible rows with detail links",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "first page links belong to the PG17 public eligibility set",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "second listing page contains the remaining four eligible identities",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all eligible identities appear exactly once across both pages",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all ineligible inventory rows remain excluded from the public listing",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no non-local origin was requested",
+        "passed": true,
+        "detail": "blockedOrigins=0"
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1c6eqp4pq30mu.css",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/3mc6dra1m0098.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/11jq0c2_zavac.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/2c8ke6w3dt0qk.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1rj7ns8rte9vc.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/turbopack-0xqaxx3i8dior.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1cj_etj8m2g97.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0xw9t4b0u2181.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1gln4skv1smvz.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/24y3uhr1t8c2q.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/427cqvbky5mn1.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/favicon.ico?favicon.2vob68tjqpejf.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-13/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-13/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-12/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-11/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next.__PAGE__.txt?_rsc=8nTjltbQWvg6NcbE",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next.compare.__PAGE__.txt?_rsc=d6gsQpXOX6Qck2s5",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-12/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-13/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0tcp2f1rpzwp2.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/usil/programa-local-h3-14/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-15/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1h20hpautnpbx.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-12/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-16/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-17/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-18/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-23/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/usil/programa-local-h3-24/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-25/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": null,
+    "startedAt": "2026-10-11T20:02:05.831Z",
+    "finishedAt": "2026-10-11T20:02:08.951Z",
+    "durationMs": 3120,
+    "retry": 0,
+    "result": "PASS",
+    "artifact": "../tmp/h3req1_g09_uat_r142/H3-UAT-071-desktop.png",
+    "artifactBytes": 329874,
+    "artifactSha256": "af7df2c30bd2da0f838bd04b4c2bb412d37cb8cc665d3c9f224cba2ce0a167d4",
+    "videoArtifact": {
+      "path": "../tmp/h3req1_g09_uat_r142/H3-UAT-071-desktop.webm",
+      "bytes": 281196,
+      "sha256": "38ee47265dafd92b3221331930e01f45e1ab8245353fdd4c0aa67ef06172c4e8"
+    },
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/",
+      "/"
+    ]
+  },
+  {
+    "executionId": "H3-UAT-071:tablet",
+    "id": "H3-UAT-071",
+    "title": "public listing matches PG17 eligibility and traverses every paginated identity",
+    "requirementId": "H3-CA4.9",
+    "role": "anon",
+    "assurance": "none",
+    "hostname": "127.0.0.1",
+    "viewport": {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    "route": "/",
+    "expected": "the visible public listing contains exactly the sixteen synthetic PG17 eligible identities across pages and excludes ineligible rows",
+    "observed": "PG17 eligibility identities=16; cards=16; pages=12+4; external origins=0",
+    "assertions": [
+      {
+        "name": "first listing page displays twelve eligible rows with detail links",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "first page links belong to the PG17 public eligibility set",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "second listing page contains the remaining four eligible identities",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all eligible identities appear exactly once across both pages",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all ineligible inventory rows remain excluded from the public listing",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no non-local origin was requested",
+        "passed": true,
+        "detail": "blockedOrigins=0"
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1c6eqp4pq30mu.css",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/3mc6dra1m0098.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/11jq0c2_zavac.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1rj7ns8rte9vc.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/2c8ke6w3dt0qk.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/turbopack-0xqaxx3i8dior.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1gln4skv1smvz.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1cj_etj8m2g97.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0xw9t4b0u2181.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/24y3uhr1t8c2q.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/427cqvbky5mn1.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/favicon.ico?favicon.2vob68tjqpejf.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/compare/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-13/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-13/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-12/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-11/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next.__PAGE__.txt?_rsc=8nTjltbQWvg6NcbE",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/compare/__next.compare.__PAGE__.txt?_rsc=d6gsQpXOX6Qck2s5",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-12/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-11/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-13/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1h20hpautnpbx.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/usil/programa-local-h3-14/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-12/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-11/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0tcp2f1rpzwp2.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-15/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-16/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/pucp/programa-local-h3-17/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-18/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/upc/programa-local-h3-23/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/usil/programa-local-h3-24/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-25/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": null,
+    "startedAt": "2026-10-11T20:02:08.962Z",
+    "finishedAt": "2026-10-11T20:02:10.155Z",
+    "durationMs": 1193,
+    "retry": 0,
+    "result": "PASS",
+    "artifact": "../tmp/h3req1_g09_uat_r142/H3-UAT-071-tablet.png",
+    "artifactBytes": 309812,
+    "artifactSha256": "a7198a55c702f36298cbc43a96d2949bdea9c913548cccafedcba8a75d6a2236",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/",
+      "/"
+    ]
+  },
+  {
+    "executionId": "H3-UAT-071:mobile",
+    "id": "H3-UAT-071",
+    "title": "public listing matches PG17 eligibility and traverses every paginated identity",
+    "requirementId": "H3-CA4.9",
+    "role": "anon",
+    "assurance": "none",
+    "hostname": "127.0.0.1",
+    "viewport": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    },
+    "route": "/",
+    "expected": "the visible public listing contains exactly the sixteen synthetic PG17 eligible identities across pages and excludes ineligible rows",
+    "observed": "PG17 eligibility identities=16; cards=16; pages=12+4; external origins=0",
+    "assertions": [
+      {
+        "name": "first listing page displays twelve eligible rows with detail links",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "first page links belong to the PG17 public eligibility set",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "second listing page contains the remaining four eligible identities",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all eligible identities appear exactly once across both pages",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "all ineligible inventory rows remain excluded from the public listing",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no non-local origin was requested",
+        "passed": true,
+        "detail": "blockedOrigins=0"
+      }
+    ],
+    "http": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1c6eqp4pq30mu.css",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/3mc6dra1m0098.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/11jq0c2_zavac.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1rj7ns8rte9vc.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/2c8ke6w3dt0qk.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/turbopack-0xqaxx3i8dior.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1gln4skv1smvz.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/1cj_etj8m2g97.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0xw9t4b0u2181.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/24y3uhr1t8c2q.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/427cqvbky5mn1.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/favicon.ico?favicon.2vob68tjqpejf.ico",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-20/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "HEAD",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-11/",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/__next.__PAGE__.txt?_rsc=8nTjltbQWvg6NcbE",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-11/__next._tree.txt?_rsc=5CB68i4pnAekjehf",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/programa-local-h3-11/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/_next/static/chunks/0tcp2f1rpzwp2.js",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/utp/programa-local-h3-25/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:3330/courses/ulima/analitica-aplicada-60000000/__next.courses.$d$institution.$d$slug.__PAGE__.txt?_rsc=KlKDzieDP7IIDCKd",
+        "status": 200
+      }
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "error": null,
+    "startedAt": "2026-10-11T20:02:10.165Z",
+    "finishedAt": "2026-10-11T20:02:11.139Z",
+    "durationMs": 974,
+    "retry": 0,
+    "result": "PASS",
+    "artifact": "../tmp/h3req1_g09_uat_r142/H3-UAT-071-mobile.png",
+    "artifactBytes": 255853,
+    "artifactSha256": "1331ce5de943c141bdcac54e977f7d55126a5fdea7b2f177810c5ae2a137e01f",
+    "videoArtifact": null,
+    "videoErrorCode": null,
+    "navigationTrace": [
+      "/",
+      "/"
+    ]
+  }
+]

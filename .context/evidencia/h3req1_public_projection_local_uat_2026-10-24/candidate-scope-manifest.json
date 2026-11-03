@@ -1,0 +1,1204 @@
+{
+  "schema_version": 1,
+  "manifest_role": "candidate-aware documentation integrity selection; successor to R19; not the PR exact-path manifest",
+  "scope": {
+    "entries": [
+      {
+        "path": "tests/h3_send_lead_error_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_from_h2_pro_pg17_harness.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_admin_quota_harness.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_admin_rpc_signed_gateway_harness.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_safe_suspend_harness.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_invitation_reservation_concurrency.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_quota_postgrest_assert.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_quota_postgrest_fixture.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_uat_functional_catalog_seed.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_uat_pipeline_course_seed.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3_uat_synthetic_identity_fixup.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_assert_completed_suspended.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_assert_final.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_assert_inflight.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_assert_recovered.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_assert_suspended.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_extension_setup.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_extension_setup_r10.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_extension_setup_r11.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_extension_setup_r12.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_extension_setup_r13.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_c03_integrated_setup.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_pipeline_persistence_recovery_pg17_r1.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/h3req1_pipeline_postgrest_pg17_setup_r1.sql",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/run_h3req1_pipeline_persistence_recovery_pg17_r1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/sql/run_h3req1_pipeline_postgrest_pg17_r1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_taxonomy_roi_audit_privacy.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_site_diagnostics_security.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_protected_path_scope_guard.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1-c03-bootstrap/deno.lock",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_auth_error_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_invite_edge_typecheck.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_invite_edge_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_quota_postgrest.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_quota_runtime.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_quota_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_safe_suspend_runtime_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_admin_safe_suspend_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_local_runtime_quota_fixture.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_local_runtime_server.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_local_uat_http_diagnostics.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_local_uat_sanitizer.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_supabase_sdk_headers_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_uat_http_diagnostics.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_uat_sanitizer.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_pipeline_postgrest_pg17_integration.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/docker_candidate_cleanup_v6.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/docker_candidate_cutover_v4.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/docker_candidate_cutover_v5.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/docker_candidate_dispatch_v2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/docker_candidate_dispatch_v3.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/v3_npm_audit/run_candidate_npm_audit_v3_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/v3_npm_audit_classifier_v2/run_candidate_npm_audit_classifier_v2_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/v3_npm_audit_classifier_v3/run_candidate_npm_audit_classifier_v3_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/v8_tmpfs_pair/run_wsl_f1_tmpfs_pair_diagnostic_v8_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1-c03-bootstrap/package-lock.json",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1-c03-bootstrap/package.json",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_docker_daemon_identity_f2d.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_docker_inspect_projection.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_h3req1_c03_docker_daemon_identity_f2d.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_h3req1_c03_docker_inspect_projection.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1-c03-edge-lock-resolver/deno.json",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1-c03-edge-main/index.ts",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_edge_lock_resolver_r3.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_edge_transport_probe_r20.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_edge_transport_probe_r21.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_edge_transport_probe_r22.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_edge_transport_probe_r23.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_edge_transport_probe_r24.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_f1_diagnostic_f2b.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_f1_diagnostic_f2c.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_f1_diagnostic_f2d.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_r10_diag/postgres_log_classifier.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_r10_diag/postgres_version_classifier.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_r10_diag/postgres_version_classifier.test.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_r10_diag/v14_comparator_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_r12_diag/schema_dump_classifier.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_snapshot_diagnostic_d3.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_snapshot_diagnostic_d4.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_atomicity_pg17/read_pinned_image_version_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_atomicity_pg17/run_editorial_atomicity_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_atomicity_pg17/run_editorial_atomicity_v2_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_atomicity_pg17/run_editorial_atomicity_v3_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_atomicity_pg17/run_editorial_atomicity_v4_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_atomicity_pg17/run_editorial_atomicity_v5_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_atomicity_pg17/run_editorial_atomicity_v6_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_cache_digest.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_r10_diag/source_snapshot_verifier.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_f1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_f1_v2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_f1_v3.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_projection_v2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s10.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s11.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s12.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s13.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s14.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s15.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s16.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s17.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s17_recovery_selftest.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s18.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_source_snapshot_s9.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_h3req1_c03_source_snapshot_projection_v2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_healthz_probe.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_output_filter_s6.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_output_filter_s7.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_output_filter_s8.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_contract_s15.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_diagnostic_s12.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_diagnostic_s13.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_diagnostic_s14.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_diagnostic_s15.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_diagnostic_s16.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_recovery_s13_selftest.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_recovery_s14_selftest.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_runtime_recovery_s15_selftest.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s10.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s11.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s3.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s3_resume_s4.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s5.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s6.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s7.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s8.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_startup_smoke_s9.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-actionlint-continuation-v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-actionlint-continuation-v2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-actionlint-continuation-v3.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-actionlint-continuation-v4.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-actionlint-inner-v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-actionlint-inner-v2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-shellcheck-continuation-inner-v3.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-shellcheck-continuation-v5.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-shellcheck-diagnostic-inner-v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-shellcheck-diagnostic-v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-shellcheck-diagnostic-v2-inner.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-shellcheck-diagnostic-v2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-tsc-heap-continuation-host-v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-tsc-heap-continuation-inner-v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_r9_tsc_diagnostic_dispatch_v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_r9_tsc_diagnostic_host_v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_r9_tsc_diagnostic_inner_v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-in-container-r9-sanitized.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-r3-sanitized.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run-r9-r4-candidate-image-sanitized.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_host_admin_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_desktop_attestation_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_classifier_v2_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_classifier_v3_assertions_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_classifier_v4_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_classifier_v5_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_classifier_v6_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_read_classification_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_read_classification_v2_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_socket_classifier_v1_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_socket_classifier_v2_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_socket_classifier_v3_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_split_pair_v7_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_split_pair_v7_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_template_expression_probe_v10_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_template_expression_probe_v8_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_template_expression_probe_v9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_template_smoke_v7_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_v11_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_v12_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_v13_label_classifier_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_v14_output_capture_then_r9_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_v15_minimal_subset_diagnostic_consumed_v1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_v15_minimal_subset_diagnostic_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/run_wsl_f1_v15_output_contract_v3_once.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/classifier_synthetic_runner_v2.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/classifier_synthetic_runner_v3.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/classifier_synthetic_runner_v4.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/classifier_synthetic_runner_v5.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/classifier_synthetic_runner_v6.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/classifier_synthetic_runner_v7.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/classifier_synthetic_runner_v7_split_pair.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/template_expression_probe_runner_v10.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/template_expression_probe_runner_v8.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/template_expression_probe_runner_v9.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/r9_tsc_config_filter_v1.js",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_docker_peer_substep_diag/r9_tsc_config_filter_v2.js",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_diagnostic_r10.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_diagnostic_r11_v14_comparator.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_diagnostic_r12_schema_dump.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r10.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r11.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r12.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r13.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r14.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r15.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r16.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r17.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r18.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r19.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r20.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r21.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r22.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r23.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r24.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r25.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r26.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r27.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r28.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r29.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r30.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r31.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r32.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r33.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r34.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r35.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r36.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r37.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r38.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r39.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r40.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r41.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r42.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r43.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r44.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r45.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r46.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r47.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r48.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r49.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r5.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r50.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r51.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r6.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r7.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r8.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r9.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_runtime_diag_d1.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_runtime_diag_d2.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r10_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r11_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r12_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r13_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r14_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r15_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r16_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r17_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r18_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r19_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r20_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r21_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r22_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r23_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r24_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r25_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r26_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r27_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r28_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r29_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r30_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r31_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r32_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r33_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r34_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r35_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r36_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r37_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r38_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r39_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r40_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r41_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r42_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r43_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r44_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r45_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r46_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r47_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r48_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r49_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r50_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r51_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r5_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r6_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r7_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r8_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_drill_r9_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_r10_diag/integrated_diagnostic_contract.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_integrated_runtime.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_login_result.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_postgrest_probe.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_replay_state_diagnostic.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3req1_c03_safe_postgrest_error_code.mjs",
+        "status": "included"
+      },
+      {
+        "path": ".context/componentes/web_publico.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/indice.md",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_local_uat.mjs",
+        "status": "included"
+      },
+      {
+        "path": "tests/h3_duration_parser.test.mjs",
+        "status": "included"
+      },
+      {
+        "path": "web/src/app/HomeContent.tsx",
+        "status": "included"
+      },
+      {
+        "path": "web/src/lib/supabase.ts",
+        "status": "included"
+      }
+    ]
+  },
+  "package_artifacts": {},
+  "manifest_id": "R20-candidate-aware-docs-selection-2026-10-24",
+  "successor_of": {
+    "manifest": ".context/evidencia/h3req1_pr_scope_manifest_2026-10-19_r19_pwi_r3_reconciled.json",
+    "preservation": "R19 remains immutable historical evidence; R20 selects current candidate-aware sources for the documentation integrity gate only."
+  },
+  "purpose": "Exact candidate-aware documentation source selection for #503 and its local docs gate; no path permission or publication authorization is implied.",
+  "cycle_policy": "This selection manifest does not pin its own hash; candidate PR paths and selected documentation sources are maintained separately to avoid hash cycles."
+}

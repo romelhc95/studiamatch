@@ -55,6 +55,28 @@ def test_sync_vector_preserves_technical_visibility_flags_without_editorial_publ
     assert text.index("editorial_status') == 'archived'") < text.index("self.db.upsert('courses'")
 
 
+def test_sync_preserves_independent_h3_editorial_transport_fields() -> None:
+    text = read("scripts/core/sync_vector_worker.py")
+
+    assert '"objectives": enriched_field(\'objectives\', \'learning_objectives\')' in text
+    assert '"target_audience": enriched_field(\'target_audience\') or enriched.get(\'graduate_profile\')' in text
+    assert '"certification": enriched_field(\'certification\', \'certifications\')' in text
+    assert '"benefits": enriched_field(\'benefits\', \'benefit_summary\')' in text
+    assert '"objectives": enriched.get(\'graduate_profile\')' not in text
+    assert '"certification": ""' not in text
+
+
+def test_enrichment_preserves_independent_h3_editorial_transport_fields() -> None:
+    text = read("scripts/core/enrichment_worker.py")
+
+    for field in ("target_audience", "objectives", "benefits", "certification"):
+        assert f'"{field}": ""' in text or f'"{field}"' in text
+    assert '"target_audience": enriched.get("target_audience") or enriched.get("graduate_profile")' in text
+    assert '"objectives": enriched.get("objectives") or enriched.get("learning_objectives")' in text
+    assert '"benefits": enriched.get("benefits") or enriched.get("benefit_summary")' in text
+    assert '"certifications": enriched.get("certifications") or enriched.get("certification")' in text
+
+
 def test_frontend_public_fields_do_not_select_private_editorial_state() -> None:
     text = read("web/src/lib/supabase.ts")
     fields = text.split("export const COURSE_PUBLIC_FIELDS = '", 1)[1].split("';", 1)[0].split(",")

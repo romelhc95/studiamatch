@@ -1,0 +1,6 @@
+phase=uat-runner-precheck|result=PASS|credential_scan=PASS|node_syntax=PASS
+exit=0
+candidate_runner=tests/h3_local_uat.mjs
+candidate_runner_sha256=04d00dc068994cfc9836132d9e5b1d3ed0676a9ad5fb2404cbb5f425133dd60f
+container=studiamatch-dev
+command=docker exec studiamatch-dev /bin/bash -lc 'set -euo pipefail; /app/scripts/security/scan_credentials.sh /app/tests/h3_local_uat.mjs; node --check /app/tests/h3_local_uat.mjs >/dev/null'

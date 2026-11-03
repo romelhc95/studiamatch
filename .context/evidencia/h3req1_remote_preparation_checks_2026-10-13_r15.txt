@@ -1,0 +1,53 @@
+H3REQ1 R15 remote preparation — local validation log
+Date: 2026-10-13 UTC
+Candidate: /home/romel/src/studiamatch-h3req1-sync-20261002
+Branch/HEAD: feat/h3req1-sync-20261002 @ 4eb4d877a50b012bb630a129bd0c74482c33be9c (baseline; WIP is separate)
+Docker: studiamatch-dev, candidate checkout mounted at /app; shared containers/volumes preserved
+Remote read cutoff: 2026-10-13T18:30:52Z
+
+Documentation integrity — normal
+Command: docker exec -w /app studiamatch-dev bash scripts/security/run_documentation_integrity.sh
+Result: PASS, exit 0.
+Coverage: sources 801/801 assigned and all locally applicable relation dimensions verified; components 14/14; groups 262; local relation slots 4,715/4,715 verified; 91 justified N/A; remote checks 7/13 verified, 6 pending; integration projection 434 sources; candidate-only WIP 367.
+Graph: 9,458 links; 4,581 anchors; active documents 100/100 reachable; historical documents 433/433 linked individually from 13 catalogs; excluded Markdown documents 0; generated artifact families 28; source exclusion families 29.
+
+Documentation integrity — self-test
+Command: docker exec -w /app studiamatch-dev bash scripts/security/run_documentation_integrity.sh --self-test
+Result: PASS, exit 0. The checker rejected synthetic unassigned source, generic unknown/incomplete remote relation, unlinked history, stale catalog index, missing path/anchor, marker/registry mismatch, duplicate entry/index, unregistered source roots/extensions and retired documents reintroduced in the tree.
+Coverage and graph repeated the normal PASS totals above: 9,458 links and 4,581 anchors.
+
+Credential scan — 19 explicit documentary inputs
+Command: docker exec -w /app studiamatch-dev bash scripts/security/scan_credentials.sh followed by these 19 paths:
+- `.context/estado_del_proyecto.md`
+- `.context/indice.md`
+- `.context/backend.md`
+- `.context/database.md`
+- `.context/ci_cd.md`
+- `.context/operacion.md`
+- `.context/seguridad.md`
+- `.context/tecnologias.md`
+- `.context/changelog.md`
+- `.context/componentes/infra_release.md`
+- `.context/componentes/admin_runtime.md`
+- `.context/componentes/database_migrations.md`
+- `.context/trazabilidad/registro_fuentes_componentes.json`
+- `.context/trazabilidad/registro_fuentes_componentes.md`
+- `.context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md`
+- `.context/evidencia/h3req1_development_integration_package_2026-10-13_r15.md`
+- `.context/evidencia/h3req1_pr_body_draft_local_review_2026-10-13_r15_remote_prep.md`
+- `.context/evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt`
+- `.context/evidencia/h3req1_remote_preparation_manifest_2026-10-13_r15.json`
+Result: PASS, exit 0 (`credential scan passed`) after the final local review/body updates. The log itself is the scan output record and was excluded to avoid self-reference; no operational env file or unrelated WIP was scanned, and no credential values were emitted.
+
+Diff/preservation
+`git diff --check`: PASS. `git diff --cached --quiet`: PASS; 0 staged paths at the final check. Explicit whitespace check over the 19 manifest inputs plus this R15 check log: 20 files checked; five trailing-whitespace lines found in `.context/componentes/database_migrations.md` at lines 270, 298, 1068, 1180, and 1390. Each exact line matches the pre-final backup byte for byte, so no R15-introduced whitespace was found. No historical text was rewritten. The immutable R14 parent manifest SHA-256 remains `7c9a6ba29c260231a02f11167d9093cd7241e9779ddabb28fee8f508f0391851`.
+Backups are outside both checkouts and excluded from the package. Original pre-R15 documentary snapshot: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r15_remote-preparation_2026-10-13` (19/19). Module-note snapshot: `supplemental_before_r15_component_remote_notes_2026-10-13` (2/2). Current R15 pre-final-reconcile snapshot: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r15_final_reconcile_2026-10-13` (19/19 at capture time; it intentionally represents the state before the last corrections).
+
+Path-scope comparison for R15 overlay
+Read-only comparison against the current workflow allowlist: 17/20 distinct package paths accepted. The three unaccepted exact paths are `.context/evidencia/h3req1_remote_preparation_checks_2026-10-13_r15.txt`, `.context/evidencia/h3req1_remote_preparation_independent_review_2026-10-13_r15.txt`, and `.context/evidencia/h3req1_remote_preparation_manifest_2026-10-13_r15.json`. The versioned regression consumes the immutable R14 manifest, not this overlay. No workflow/test allowlist was changed under this documentation/preparation scope. Before a future PR, extend the protected-path manifest/allowlist and regression for all three exact paths and rerun that gate.
+
+Validation reuse / non-execution
+R14 final supplement: actionlint v1.7.12 passed all workflows and ShellCheck 0.11.0 `-x` passed the two focused scripts. Their inputs did not change, so they were not rerun. The broad 181-script ShellCheck scan had historical/evidence diagnostics documented in R14 and was not repeated or cleaned in bulk. No functional suite/build was rerun because inputs did not change. No remote CI/workflow, smoke, SQL, RPC mutation, deployment, PR, push, merge or D01–D14 was executed. Development GO is not declared.
+
+Independent review
+The reviewer found stale pins, a body/check credential-scan contradiction, the path-scope gap above, and stale pre-R15 claims in CI/CD/Database plus the braces owner/date statement. Those textual contradictions and body wording were corrected. An initial snapshot had 9,453 graph links; after documentation updates the current gate and manifest reconcile to 9,458. The final independent reread gives local GO for the current snapshot: 19/19 paths, digest, four artifacts and R14 parent verified; current chronology and metrics agree. The reviewer found no remaining local documentary blocker. After recording the verdict, the review record and state were repinned and the normal/self-test/scanner gates rerun. The subsequent local manifest pin check matched 19/19 scope paths and four artifacts; the R14 parent is intact, and the manifest excludes its own hash. The canonical digest is recorded only in the overlay manifest to avoid self-reference. The whitespace check is closed: five unchanged lines match the pre-final backup. The 17/20 path-scope gap remains explicit and blocks future PR filing; no Development GO is granted.

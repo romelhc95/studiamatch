@@ -1,0 +1,30 @@
+H3REQ1 R181 — final scope guard and credential scanner
+Date: 2026-10-12
+Candidate: feat/h3req1-sync-20261002 @ 4eb4d877a50b012bb630a129bd0c74482c33be9c (baseline; WIP separately inventoried)
+Image: studiamatch-h3req1:20261009-v3
+Image ID: sha256:5a1c95a749ec56d332265bc161c3d0b9da497d31349911d4f19abfeacc12ca63
+
+Scope allowlist checker
+Container: h3req1-r181-scope-allowlist-final-go-20261012
+Container ID: ec724d1b5398654fd1e7981f7e6caf6790e144b990fbc9516eaf8209a084ab62
+Inputs: final security-audit.yml, scope checker, and candidate manifest, all mounted read-only
+Isolation: network=none; read-only rootfs; cap-drop=ALL; no-new-privileges; 256 MiB; 1 CPU
+Exit: 0
+Output: scope_allowlist=PASS|proposed=92|regex=72|exact=20|review_fixes=6/6|missing=0
+
+Credential scan
+Container: h3req1-r181-credential-scan-final-go-20261012
+Container ID: 071db8909bd8838abfeed7bd22c58c3eb967936fb62105ae95432fd09975efc4
+Input: final allowlisted 92-path candidate snapshot, 2,385,920 bytes
+Snapshot SHA-256: e5206b50b6fbb0d245b92de57061b920158591c5a81417dc489616d15771385f
+Isolation: network=none; read-only rootfs; cap-drop=ALL; no-new-privileges; user=65534:65534; 256 MiB; 1 CPU; archive and scanner mounted read-only; extracted files in container tmpfs
+Exit: 0
+Output: credential_scan=PASS|files=92|archive_sha256=e5206b50b6fbb0d245b92de57061b920158591c5a81417dc489616d15771385f
+
+Before packing, all 92 proposed paths matched the candidate manifest by SHA-256, byte count, and mode. This final run followed the R181 state/index reconciliation that records the independent review verdict. It supersedes the preceding provisional scan of the review-pending state; that provisional result remains documented in R181 history and is not used as final evidence.
+
+The snapshot contained no operational .env files, secrets, caches, dependencies, .next, out, or unlisted WIP. It included only the explicitly proposed sanitized client attestation in addition to the 91 prior scope paths.
+
+The negative scope fixture remains preserved in h3req1-r181-scope-allowlist-negative-v2-20261012: synthetic foreign-untracked.ts, exit 1, with no PASS line. An earlier README.md fixture was invalid because Stage 1 permits that path and is not counted as validation.
+
+No workflow, product, database, remote configuration, or operational data changed.

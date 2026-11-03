@@ -1,3 +1,5 @@
+# StudIAMatch-Docs: .context/componentes/canarios.md#state-de-certificacion-f99
+
 import argparse
 import hashlib
 import json

@@ -1,0 +1,4 @@
+result=PASS
+pg17_eligible=16
+static_artifact=16
+diff_rows=0

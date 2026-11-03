@@ -1,0 +1,3 @@
+phase=candidate-wip|error_code=OK
+phase=cleanup-preflight|error_code=CONTAINER_MISMATCH
+phase=runner-exit|error_code=EXIT_1

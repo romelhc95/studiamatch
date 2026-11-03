@@ -1,0 +1,29 @@
+R13 · 2026-10-13 UTC · validación local en Docker `studiamatch-dev`.
+
+Candidato: `feat/h3req1-sync-20261002` @ `4eb4d877a50b012bb630a129bd0c74482c33be9c` (HEAD baseline; WIP completo no se identifica por HEAD). El original `/home/romel/src/studiamatch` permaneció solo lectura. No hubo fetch/pull, GitHub, Supabase, Cloudflare, secretos, SQL operativo, deploy, PR, commit ni push.
+
+## Gates ejecutados
+
+- `bash scripts/security/run_documentation_integrity.sh`: PASS. Fuentes `801/801`; componentes `14/14`; grupos `262`; slots locales `4715/4715 verified`, `91 N/A` justificados y `0 pending/unknown/invalid`; cinco comprobaciones remotas pendientes. Grafo: `9,340` links, `4,567` anchors, documentos activos `95/95`, historia `433/433` enlazada individualmente desde `13` catálogos, documentos Markdown excluidos `0`.
+- `bash scripts/security/run_documentation_integrity.sh --self-test`: PASS. Incluye negativos para fuente sin asignación, relación desconocida genérica, enlace histórico ausente, conteo del índice obsoleto, path/anchor inexistente, marcador divergente/malformado/duplicado, índice duplicado y documento retirado que reaparece.
+- `bash tests/test_protected_path_scope_guard.sh`: PASS. `protected-path-manifest-integration=PASS|candidate_paths=125`; el test procesó 138 entradas del manifiesto (131 presentes, 7 eliminadas) y el set de 125 paths únicos. Regresiones: `ordinary=3`, `newline=1`, `controls=1`, `malformed=3`.
+- `bash tests/test_scan_credentials.sh`: PASS. Casos declarados de texto/secretos nombrados/binarios/lockfile/prefijos/rutas con newline/tree/history/I/O/concurrencia/redacción.
+- `bash scripts/security/scan_credentials.sh <paths explícitos R13>`: PASS, exit 0 en `155` rutas únicas: paths presentes del scope, overlays de marcadores fuente, artefactos seleccionados y manifiesto R13. No se incluyeron `.env`, secretos operativos, todos los untracked ni datos privados.
+- `node --check scripts/maintenance/h3req1_documentation_integrity.mjs` y `bash -n tests/test_protected_path_scope_guard.sh`: PASS.
+- `git diff --check`: PASS.
+- Backup R13 externo: sidecars verificados (`INVENTORY.txt` SHA-256 `0eb02013a1ca71c868bfb0acfc3ae06fdb3b86fa7229fa0a54e835a9127c635b`; `FILES.sha256` `36fefd7c65d88e2416ca8263bfebae17b04b2553cffb92285cf0984a96c2f888`; `documentation_snapshot.tar` `b93e15c48acf40aacc6f1b517b96961753fdea14117d9f14bd3c13d875a3cc8a`). El archivo tar se leyó con 517 miembros. Ruta: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_historical_navigation_2026-10-13`; fuera del paquete.
+
+## Limitaciones declaradas
+
+- `pytest`, `actionlint` y `shellcheck` no están disponibles en el contenedor actual. `tests/test_obsidian_context_state.py` pasó `8/8` en una ejecución previa de R13; su repetición actual no arrancó por falta del módulo `pytest`, por lo que no se atribuye un PASS vigente. Los inputs ejecutables de esa prueba no cambiaron.
+- El workflow se modificó localmente para admitir el scope R13, pero no se ejecutó GitHub ni se valida adopción remota. Las cinco comprobaciones remotas permanecen `0/5`.
+- Revisión independiente final: GO para el snapshot corregido de `9,340` links/`4,567` anchors después de corregir dos frases de estado P2. No implica adopción remota.
+- No se repitieron suites funcionales del producto porque sus inputs no cambiaron. R178/R181/R182 y evidencia histórica sellada se preservan.
+
+## Evidencia histórica
+
+La preparación R37 y su log preservado coinciden por SHA-256 `f5b4e9b7f099aa21dad4b73da6fa408c424bf0742548fc955b5bba691c96a3c8`. El log acredita H3S11 PASS y H3S12 FAIL (`psql exit=3`) en ese corte histórico. El manifiesto R37 consumido no se encontró en el checkout ni se pudo cotejar localmente; la preparación no demuestra adopción remota.
+
+## Paquete
+
+El manifiesto R13 excluye su propio hash para evitar circularidad. La reconciliación final está en PASS con 138 entradas de scope, 8 pins de evidencia seleccionada, 26 overlays de marcadores y 4 artefactos. Digest, hashes, tamaños y modos del paquete corregido verifican localmente; el self-hash del manifiesto se excluye. La rerevisión independiente detectó dos frases P2, corregidas en este ciclo; la relectura final confirmó la versión y no encontró bloqueantes. Backup previo completo: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_historical_navigation_2026-10-13` (517 entradas; hashes indicados arriba). Backup complementario antes de esta corrección: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_pin_reconciliation_20261013T151642Z` (6 documentos, 6/6 hashes fuente/copia coincidentes; INVENTORY.json SHA-256 `ac7abb31e9af1e2807e5900591cc8487eba9985086c7af96f74544cf1cbf421d`; FILES.sha256 SHA-256 `304394b1018fddc2ffa38a8217b8f280e55e28af902f14a3a6bca106b3f805d3`). Backup adicional antes del registro del GO final: `/home/romel/backups/studiamatch-docs-2026-10-13/supplemental_before_r13_final_go_20261013T152047Z` (7 documentos, 7/7 hashes fuente/copia coincidentes; INVENTORY.json SHA-256 `601cccc6d3a3842a2c0f5e5e646fee51f370d5def8f2e2ab0c0c5d2cc662784c`; FILES.sha256 SHA-256 `b015679089a19bac11b352bb67b4584bf49e92ca3ff23d7db2fc999c11f26be4`). Los tres backups quedan fuera del paquete.

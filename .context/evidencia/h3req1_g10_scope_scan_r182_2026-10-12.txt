@@ -1,0 +1,30 @@
+H3REQ1 R182 — scope guard and credential scanner after historical-heading reconciliation
+Date: 2026-10-12
+Candidate: feat/h3req1-sync-20261002 @ 4eb4d877a50b012bb630a129bd0c74482c33be9c (baseline; WIP separately inventoried)
+Image: studiamatch-h3req1:20261009-v3
+Image ID: sha256:5a1c95a749ec56d332265bc161c3d0b9da497d31349911d4f19abfeacc12ca63
+
+Scope allowlist checker
+Container: h3req1-r182-scope-allowlist-final-20261012
+Container ID: 73d44a3e59ba757efcdf05d241ae65ecdb9df9fa282ce3da25349fa1d2b29d27
+Input manifest SHA-256 at execution: a33830d4ee26d14dbbd92af2a1abf6f8fcb8fa7d933828ab6dff6e2ab398ed56
+Scope entries digest: c507a3708d854904419ddb55bee9198d45a5bf1fad17a8c9d09a92c737a514e9
+Inputs: Stage 1 security-audit.yml, scope checker, and candidate manifest, mounted read-only
+Isolation: network=none; read-only rootfs; cap-drop=ALL; no-new-privileges; 256 MiB; 1 CPU; user=1000:1000
+Exit: 0
+Output: scope_allowlist=PASS|proposed=92|regex=72|exact=20|review_fixes=6/6|missing=0
+
+Credential scan
+Container: h3req1-r182-credential-scan-final-20261012
+Container ID: fadafd2502a4a7ae444bc34ab79af09208c855a94464aac15488da43b4f9d7c3
+Input: 92 proposed paths from the candidate manifest; 2,308,630 bytes
+Archive SHA-256: 555bb261e29e0865d1ed5b768dc2ed9800ba274f56d58786af1b6afbc980326e
+Isolation: network=none; read-only rootfs; cap-drop=ALL; no-new-privileges; user=65534:65534; 256 MiB; 1 CPU; archive and scanner mounted read-only; extraction in container tmpfs
+Exit: 0
+Output: credential_scan=PASS|files=92|archive_sha256=555bb261e29e0865d1ed5b768dc2ed9800ba274f56d58786af1b6afbc980326e
+
+The allowlisted snapshot was built only after checking every proposed path against its current manifest SHA-256, byte count, and mode. It contains no operational `.env` files, secrets, caches, dependencies, `.next`, `out`, or unlisted WIP. `studiamatch-dev` remained running and healthy on the candidate image `studiamatch-h3req1:20261009-v3`; this validation did not restart or alter it.
+
+The R181 checker rejection fixture `foreign-untracked.ts` remains preserved with exit 1 and no PASS line. The earlier invalid `README.md` fixture is not counted. R181 scanner evidence remains historical and preserved; this R182 run renews the scan after the status/index heading edits. Both validation containers are exited and retained; no cleanup command ran.
+
+No workflow, product, database, remote configuration, operational data, commit, PR, push, merge, or deploy changed.

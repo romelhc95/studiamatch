@@ -1,3 +1,5 @@
+# StudIAMatch-Docs: .context/componentes/canarios.md#manifest-de-produccion-f10
+
 import argparse
 import json
 import os

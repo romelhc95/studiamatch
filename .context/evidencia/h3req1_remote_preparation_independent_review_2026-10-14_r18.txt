@@ -1,0 +1,29 @@
+H3REQ1 R18 — REGISTRO DE REVISIÓN INDEPENDIENTE
+
+Estado: revisión independiente final R18 PASS; 0 Critical, 0 High, 0 Medium, 0 Low y 0 bloqueos. La revisión es local/read-only; no es aprobación de GitHub ni GO remoto.
+
+Alcance revisado: paquete local R18, delta respecto de R17, manifest, body basado en plantilla, estado/índice/registro documental y resultados locales/remotos incluidos. Inspección local de solo lectura, sin Git, pruebas, linters, red ni lecturas remotas; no se inspeccionaron datos operativos, usuarios, buzones, tokens o secretos.
+
+Ciclo 1 — snapshot anterior a corregir enlaces y pin R17
+- Scope digest 9220a63e261555764326a45ea58818d8c741e809715e46a63e0b8800cedb3069; diff SHA excluyendo manifest ec16411df45f5fbdc2fa50976ce46ba70fd3a69b99956aca6a09711d0f880da2. Conteo: 0 Critical, 0 High, 1 Medium, 1 Low, 0 bloqueos locales de contenido.
+- MEDIUM: 16 links del cuerpo no resolvían desde la raíz al copiarse en un PR. Corrección aplicada: URLs GitHub blob absolutas al repo romelhc95/studiamatch y ref candidata.
+- LOW: R18 marcaba indebidamente el manifiesto R17 incluido como autoexcluido, con SHA null. Corrección aplicada: R17 se fija por bytes, modo y SHA; solo R18 excluye su propio hash.
+
+Seguimiento 1 — snapshot corregido antes de reconciliar filas de estado
+- Scope digest 63b46c7c6a2adadd1e7000430bfc42ac0dd4f0d4a1c64f9fd6950511e4eff51c; diff declarado por el audit local b03fcb3e8acba9f64262ca42767a9877a00e8210c35472ae0e7240fc7909b7f3. El revisor no recalculó el diff con Git.
+- Confirmó que las 16 URLs y el fragmento local resolvían a paths/anchor seleccionados, el SHA R17 coincidía, y los pins R18 principales eran coherentes.
+- MEDIUM: la fila R18-scope-guard del manifest decía PENDING_FINAL_AUDIT aunque el check log documentaba PASS con el scope digest revisado. Corrección registrada como PASS tras reejecutar el gate sobre el digest de alcance del manifest.
+- LOW: la primera línea de este registro aún decía que no había revisión, pese a registrar ciclo 1 y seguimiento 1. Corrección aplicada: este registro enumera los ciclos y conserva como pendiente solo la verificación focal final.
+- Resultado del seguimiento 1: 0 Critical, 0 High, 1 Medium, 1 Low, 0 bloqueos locales nuevos. Development permanece NO-GO. Las URLs son sintácticamente válidas y sus paths/fragmento existen en el candidato local; no se verificó resolución HTTP porque el ref remoto sanitizado aún no existe.
+
+Verificación focal final 1
+- Scope digest 3335d448fd2f03a0ac0309f4bfdbdf11aa8ad92d3eed53fbacf0e6c05d40675d; diff registrado 056b761619125e0d799ff89ff0d4a5124df45e788c191c3881717bdf52f4a65e. El revisor confirmó PASS de scope guard y coherencia de pins/decisiones; no ejecutó Git ni validaciones.
+- Conteo: 0 Critical, 0 High, 0 Medium, 1 Low, 0 bloqueos.
+- LOW: este registro aún decía que las correcciones estaban en validación y que el PASS del scope guard estaba pendiente de registrar. Corrección aplicada arriba: las correcciones del ciclo 2 se revalidaron y scope guard quedó PASS; la verificación read-only final queda pendiente.
+- Inspección sin Git, tests, linters, red, lecturas remotas, datos operativos o secretos.
+
+Cierre de revisión: el digest de scope y los tres campos de diff de la fila `R18-candidate-tree-audit` coinciden con los pins del audit agregado; 1,143 rutas, 1,136 blobs y 7 eliminaciones. El paquete y el body conservan NO-GO Development. No se usaron Git, pruebas, red, lecturas remotas ni acciones con efectos.
+
+R18-TRACE-05 — SEGUIMIENTO FINAL
+- El seguimiento final confirmó que los LOW de scope digest y diff SHA quedaron corregidos; scope `1b3749d99cf62795705eb8ef996a3e7bbbe97f26cac2c7197faa1001f2d1770c`, diff `e124614dd9ff08deae4e00f35c20d281c445e5e626f15e3877b607714b9a3384`.
+- Conteo final: 0 Critical, 0 High, 0 Medium, 0 Low, 0 bloqueos. El reviewer validó pins R18, PASS del scope guard, 1,143 rutas/1,136 blobs/7 eliminaciones y NO-GO remoto. Revisión read-only; no ejecutó Git, pruebas ni consultas remotas.

@@ -19,8 +19,18 @@ esac
 
 event_name="${GITHUB_EVENT_NAME:-}"
 ref_name="${GITHUB_REF_NAME:-}"
-automation_enabled="${AUTOMATION_ENABLED:-}"
-writers_paused="${PRODUCTION_WRITERS_PAUSED:-}"
+raw_automation_enabled="${AUTOMATION_ENABLED:-}"
+raw_writers_paused="${PRODUCTION_WRITERS_PAUSED:-}"
+case "$raw_automation_enabled" in
+  true|false) automation_enabled="$raw_automation_enabled" ;;
+  "") automation_enabled="unset" ;;
+  *) automation_enabled="invalid" ;;
+esac
+case "$raw_writers_paused" in
+  true|false) writers_paused="$raw_writers_paused" ;;
+  "") writers_paused="unset" ;;
+  *) writers_paused="invalid" ;;
+esac
 allow_writer="false"
 reason="unsupported_ref"
 
@@ -56,12 +66,24 @@ case "$ref_name" in
       reason="production_writer_allowed"
     fi
     ;;
-  certificacion|desarrollo)
+  certificacion)
     if [ "$event_name" = "schedule" ]; then
       reason="non_main_schedule_blocked"
     else
       allow_writer="true"
       reason="non_production_manual_allowed"
+    fi
+    ;;
+  desarrollo)
+    if [ "$event_name" = "schedule" ]; then
+      reason="non_main_schedule_blocked"
+    elif [ "$event_name" != "workflow_dispatch" ]; then
+      reason="development_requires_manual_dispatch"
+    elif [ "$writers_paused" != "false" ]; then
+      reason="development_writers_paused_or_unset"
+    else
+      allow_writer="true"
+      reason="development_manual_allowed"
     fi
     ;;
 esac

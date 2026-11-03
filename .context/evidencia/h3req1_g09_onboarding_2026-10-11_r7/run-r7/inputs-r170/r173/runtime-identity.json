@@ -1,0 +1,21 @@
+{
+  "run": "R173",
+  "candidate": {
+    "checkout": "/home/romel/src/studiamatch-h3req1-sync-20261002",
+    "branch": "feat/h3req1-sync-20261002",
+    "head_baseline": "4eb4d877a50b012bb630a129bd0c74482c33be9c",
+    "runner_sha256": "04d00dc068994cfc9836132d9e5b1d3ed0676a9ad5fb2404cbb5f425133dd60f"
+  },
+  "app": {
+    "name": "h3req1-g09-onboarding-app-20261011-r8",
+    "container_id": "9921c96524bf6b97e567248a77198651caf1199b143d9af1ed2327b6032fab07",
+    "image": "studiamatch-h3req1:20261009-v3",
+    "image_id": "sha256:5a1c95a749ec56d332265bc161c3d0b9da497d31349911d4f19abfeacc12ca63",
+    "preflight_state": "running"
+  },
+  "server": "Pages/workerd normal R146 via existing isolated local helper; ports 3380, 3381 and 3383 bound to 127.0.0.1; /admin/login/ returned HTTP 200 before test",
+  "browser": "Playwright Chromium 1228, headless, inside the pinned Docker app container; no visible window",
+  "data": "Synthetic Auth/PostgREST fixture and local disposable PostgreSQL 17.11 fixture; no real account or operational service",
+  "execution": "H3-UAT-002 and H3-UAT-003; three viewports each; timeout 240 seconds; retries 0",
+  "privacy": "No .env file read, copied, printed, or loaded by the runner. Synthetic fixture values are not included in outputs."
+}

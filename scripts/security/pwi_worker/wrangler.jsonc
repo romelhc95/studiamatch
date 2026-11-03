@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "studiamatch-pwi-verifier",
+  "main": "index.mjs",
+  "compatibility_date": "2026-10-19",
+  "durable_objects": {
+    "bindings": [
+      { "name": "PWI_COORDINATOR", "class_name": "PwiCoordinator" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PwiCoordinator"] }
+  ],
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

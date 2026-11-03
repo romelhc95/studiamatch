@@ -1,0 +1,120 @@
+candidate=/home/romel/src/studiamatch-h3req1-sync-20261002 branch=feat/h3req1-sync-20261002 head=4eb4d877a50b012bb630a129bd0c74482c33be9c
+manifest-sha256=fe748e5608d1f281f7dfb7bf320e826038ce02ba8a5c369a597302741db2b83d lines=65
+manifest=65/65 PASS
+TAP version 13
+# Subtest: integrated runner uses the manifest path consumed by the runtime
+ok 1 - integrated runner uses the manifest path consumed by the runtime
+  ---
+  duration_ms: 2.245561
+  type: 'test'
+  ...
+# Subtest: integrated fixture provides the configured PostgREST extra search path schema
+ok 2 - integrated fixture provides the configured PostgREST extra search path schema
+  ---
+  duration_ms: 0.619845
+  type: 'test'
+  ...
+# Subtest: login diagnostics classify each strict acceptance predicate without exposing values
+not ok 3 - login diagnostics classify each strict acceptance predicate without exposing values
+  ---
+  duration_ms: 1.891336
+  type: 'test'
+  location: '/tests/h3req1_c03_integrated_drill_r12_contract.test.mjs:27:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'LOGIN_AUTH_COOKIE_MISSING'
+    - 'LOGIN_AAL_NOT_AAL2'
+              ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'LOGIN_AAL_NOT_AAL2'
+  actual: 'LOGIN_AUTH_COOKIE_MISSING'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tests/h3req1_c03_integrated_drill_r12_contract.test.mjs:34:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: runtime emits only an allowlisted login check code on classified failure
+ok 4 - runtime emits only an allowlisted login check code on classified failure
+  ---
+  duration_ms: 0.549939
+  type: 'test'
+  ...
+# Subtest: every Docker image run forbids implicit pulls
+ok 5 - every Docker image run forbids implicit pulls
+  ---
+  duration_ms: 1.042275
+  type: 'test'
+  ...
+# Subtest: Docker operations stay on the attested endpoint after target verification
+ok 6 - Docker operations stay on the attested endpoint after target verification
+  ---
+  duration_ms: 0.284121
+  type: 'test'
+  ...
+# Subtest: foreground snapshot and cache verifier runs have individual deadlines
+ok 7 - foreground snapshot and cache verifier runs have individual deadlines
+  ---
+  duration_ms: 0.241017
+  type: 'test'
+  ...
+# Subtest: timeout-wrapped Docker helpers pin the attested endpoint outside the shell wrapper
+ok 8 - timeout-wrapped Docker helpers pin the attested endpoint outside the shell wrapper
+  ---
+  duration_ms: 0.507736
+  type: 'test'
+  ...
+# Subtest: Docker exec has host and in-container deadlines
+ok 9 - Docker exec has host and in-container deadlines
+  ---
+  duration_ms: 0.886564
+  type: 'test'
+  ...
+# Subtest: PostgREST probe separates sanitized HTTP and transport failures
+ok 10 - PostgREST probe separates sanitized HTTP and transport failures
+  ---
+  duration_ms: 1.751326
+  type: 'test'
+  ...
+# Subtest: HTTP error diagnosis reads only bounded JSON code values
+ok 11 - HTTP error diagnosis reads only bounded JSON code values
+  ---
+  duration_ms: 40.994842
+  type: 'test'
+  ...
+# Subtest: failure handling only stops this run after local daemon attestation
+ok 12 - failure handling only stops this run after local daemon attestation
+  ---
+  duration_ms: 0.623945
+  type: 'test'
+  ...
+# Subtest: failure handling also stops owned snapshot and cache verifier helpers
+ok 13 - failure handling also stops owned snapshot and cache verifier helpers
+  ---
+  duration_ms: 0.304722
+  type: 'test'
+  ...
+# Subtest: successful cleanup revalidates ownership once and removes immutable IDs only
+ok 14 - successful cleanup revalidates ownership once and removes immutable IDs only
+  ---
+  duration_ms: 0.484235
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 13
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 190.923005

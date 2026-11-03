@@ -1,0 +1,8 @@
+phase=candidate-wip|error_code=OK
+phase=preflight|error_code=OK
+phase=cutover|error_code=COMMANDS_OK
+phase=candidate-health|error_code=OK
+phase=cutover-complete|error_code=OK
+phase=cleanup-preflight|error_code=VOLUME_MAP_MISMATCH
+phase=historical-cleanup|error_code=COMMAND_FAILED
+phase=runner-exit|error_code=EXIT_1
