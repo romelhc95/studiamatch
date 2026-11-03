@@ -1,33 +1,72 @@
 # DDL-H3-EDITORIAL-EXPAND-PRO-20261101
 
-Status: DRAFT_NOT_AUTHORIZED
+Status: APPROVED_FOR_PRODUCTION_DDL
 
-## Campos del workflow pendientes de congelar
+**Alcance del estado:** esta marca registra aprobación humana del contenido
+exacto de este archivo para la tupla indicada abajo. Solo acredita la decisión
+sobre contenido DDL; no autoriza commit, push, PR, review, merge, workflow
+`dispatch`, SQL, configuración, secretos, backup/restore ni deploy. La ejecución
+requiere las aprobaciones separadas de publicación y del workflow Production,
+además de un punto de recuperación vigente y aceptado.
+
+## Identidad y campos del workflow; ejecución separada
 
 - Ambiente: Supabase Pro `xwhtiqmboljkshrtviyw`.
 - Workflow: `DB Sync to Production`, solo desde `main`.
 - ID de autorización: `DDL-H3-EDITORIAL-EXPAND-PRO-20261101`.
-- Candidato final M: pendiente del SHA real de `main` tras la promoción protegida.
+- Candidato final M: lo define el merge protegido real a `main` y se verifica contra la rama justo antes del workflow; esta autorización pre-merge no asigna ni anticipa ese SHA.
 
 Authorized manifest: h3-editorial-expand
-Authorized payload SHA: PENDING_FINAL_P
-Authorized base SHA: PENDING_FINAL_AUTH_BASE
-Authorized non-auth digest SHA256: PENDING_FINAL_NON_AUTH_DIGEST
-H2 expected eligible count: PENDING_NEW_CERTIFICATION_VERIFY
-H2 expected cohort digest: PENDING_NEW_CERTIFICATION_VERIFY
+Authorized payload SHA: 4eb357f0c6abe2717b0ad22406ce7aac81f5bc73
+Authorized base SHA: f26f7f43c5bfcea55e0bdb73627ec8be1d5c82aa
+Authorized non-auth digest SHA256: sha256:93a812978cb58852dd443c502b7feb678d4b2b65e4bc2fbd55ec477e9ddd9ca8
+H2 expected eligible count: 224
+H2 expected cohort digest: sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9
 Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED
 Pro apply gate: APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR
 
-Este borrador corresponde al manifest H3 de 32 migraciones. La aprobación anterior
-se refería a un payload/manifest de 31 migraciones y no se transfiere. Los valores
-`PENDING_*` hacen que el workflow falle cerrado y no acreditan ningún gate. Se
-reemplazarán solo después de integrar todo el contenido no-auth, obtener el nuevo
-verify H2 sobre el SHA real de Certification y fijar P/auth_base/digest. La
-aprobación humana futura deberá cubrir el archivo completo y esos valores exactos;
-solo entonces podrá cambiarse el estado. No se editan valores después de P salvo
-mediante la modificación de este único archivo. La aprobación DDL tampoco
-sustituye publicación protegida, workflow_dispatch, gate Production ni evidencia
-vigente y aceptada del punto de recuperación.
+**Decisión de contenido para este candidato.** PR #532 aprobó una versión
+anterior y su aprobación no se transfiere. El payload congelado es P
+`4eb357f0c6abe2717b0ad22406ce7aac81f5bc73`; su base y digest se calcularon con
+el algoritmo literal del workflow. Esta versión reemplaza los valores
+históricos del snapshot Draft con la tupla exacta de P y conserva el manifest y
+la cohorte H2 aprobados como entradas de verificación. La decisión humana se
+limita a estos bytes y valores. El workflow debe rechazar cualquier Status o
+campo que difiera de este archivo y de los inputs. Este estado no autoriza por
+sí solo publicación, review, merge, dispatch, SQL ni deploy.
+
+Para #532 se usó como base el merge de incorporación de main
+`f26f7f43c5bfcea55e0bdb73627ec8be1d5c82aa`, integrado mediante PR #529; no es
+el SHA de la rama main. Sus padres incluyen main histórico
+`70d0f4fee885be0f6780e5d14f466b2a6c897961` y el paquete funcional revisado.
+Para esta autorización, el campo `Authorized base SHA` identifica la base que
+consume el workflow. Debe revalidarse como ancestro del P real y su digest debe
+calcularse de nuevo; ni el valor ni la aprobación de #532 se presumen vigentes.
+
+**Tupla histórica aprobada por #532:** el digest no-auth se calculó literalmente
+como el workflow sobre base→P y cubrió cuatro documentos posteriores a la base
+de integración. El runtime y las 32 migraciones pertenecían a esa base ya
+revisada; el digest no cubría todo el acumulado desde main. El SHA P vinculaba
+el payload completo y el manifest validaba separadamente los 32 hashes SQL.
+Esta rama agrega documentación no-auth y corrige la autoridad; por eso el P y el
+digest anteriores no describen el paquete actual. `diff(P,M)` seguirá limitado
+a este archivo DDL, sin modificar el control.
+
+**Evidencia histórica de H2 para la tupla #532:** C verificado fue
+`257b77471e1f0b6bb8714eeaa975b3815668aea9`, verify #93 (`41555682589`),
+SUCCESS, Apply NO-OP y SQL real SKIPPED. El JSON auténtico se incluyó en aquel
+P; cohorte 224 y digest H2 constan arriba. Los advisors del artefacto conservan
+12 hallazgos de seguridad y 17 de rendimiento idénticos al baseline #91, sin
+nuevos HIGH/CRITICAL/ERROR. Esta evidencia acredita H2, no H3.
+
+En esta versión, payload, base, digest, manifest y cohorte son la tupla exacta
+sometida a decisión humana. El snapshot Draft anterior conserva la tupla
+histórica de #532 y no es una autorización para el candidato actual. Cualquier
+cambio no-auth posterior a P invalida P y exige un nuevo cálculo; no se permite
+añadirlo mediante esta autorización. M solo existe tras el merge protegido real
+a main. La aprobación DDL tampoco sustituye publicación protegida,
+`workflow_dispatch`, gate Production ni un punto de recuperación vigente y
+aceptado antes de apply.
 
 ## Manifest cerrado y orden
 
@@ -39,13 +78,13 @@ El único payload SQL elegible es la tupla cerrada `h3-editorial-expand` de 32 m
 
 Quedan excluidos: ejecutar H2 otra vez; backfill o sincronización de datos operativos desde Free; fixtures/seeds de prueba; cuentas/Auth/membresías; Edge Functions; BFF/Pages/Access/Workers/bindings/secrets; habilitar `pgrst.db_pre_request` o crear el espejo del gateway; escritores, schedules, FG1/FG2/FG3; cambios de configuración; y cualquier deploy manual. Esas operaciones requieren sus propios paquetes y JIT.
 
-## Secuencia y gates que siguen pendientes
+## Secuencia y gates
 
-1. **Decisión de contenido.** La revisión humana debe cubrir exactamente este archivo y sus valores. Mantener `DRAFT_NOT_AUTHORIZED` hasta esa decisión. La aprobación del contenido DDL no autoriza publicarlo, integrarlo, despachar un workflow ni aplicar SQL.
+1. **Decisión de contenido.** Esta versión contiene `APPROVED_FOR_PRODUCTION_DDL` y la tupla exacta de manifest32, P, base, digest no-auth y cohorte. El workflow rechaza un archivo Draft o cualquier diferencia. La aprobación humana de estos bytes solo cubre contenido; no autoriza publicación, integración, dispatch ni SQL.
 2. **Publicación protegida.** Con autorización de publicación separada, enviar el archivo aprobado por el flujo feature → Desarrollo → Certificación → main. El cambio posterior al payload debe limitarse a esta ruta. Conservar merge commits; no usar squash ni rebase.
-3. **Validación de SHAs antes de fijar la ejecución.** `P`, `auth_base`, `C` y `M` aún no están congelados para este manifest. Revalidar main actual como base propuesta, integrar su ancestry mediante el flujo protegido y calcular `P` solo después de incorporar el JSON H2 auténtico y todos los documentos no-auth. Validar `auth_base` ancestro de `P`, `P` ancestro de `M`, `diff(P,M)` solo esta autorización, nuevo `C` ancestro de `M`, y `diff(C,M)` aprobado por el filtro H2. No imponer `C` ancestro de `P`. Ante drift de SHA, árbol o digest, detener.
+3. **Validación de SHAs antes de fijar la ejecución.** Usar los valores exactos del archivo aprobado y de los inputs del workflow. Releer P, base de integración y C. El workflow exige base→P y P→M; también valida C→M y que diff(C,M) respete el filtro H2. Exige que diff(P,M) contenga solo esta autorización. No imponer C→P si el workflow no lo exige: Desarrollo y Certificación conservan sus ancestros mediante los merges protegidos. El árbol y digest deben coincidir con los bytes revisados; ante cambio no-auth o drift, detener y volver a revisión. Una simulación local no fija M ni autoriza actualizar ramas.
 4. **Report read-only.** Solo después de una integración real a main, solicitar un JIT específico para `operation=report`, manifest `h3-editorial-expand`, `candidate_sha=M` real y `payload_sha=P`. El workflow admite report únicamente desde main y usa el environment Production. El job ejecuta dry-run/lecturas; no aplica SQL. Revisar su resultado de ledger, pendientes, drift y manifest antes de decidir apply. Este reporte no autoriza apply; el propio run `operation=apply` vuelve a ejecutar el report como precondición.
-5. **Preflight inmediato de apply.** Releer Pro, ledger, schema y dependencias; usar solo la cohorte/digest del nuevo verify H2 sobre C. El run #91 queda como historia y no fija inputs para este candidato. Comprobar los controles de Production y el punto de recuperación aceptado. `backup_pitr_verified=true` solo con evidencia vigente y aceptada justo antes del apply; si falta, es insuficiente o hay drift, detenerse sin cambiar flags ni reparar el ledger.
+5. **Preflight inmediato de apply.** Releer Pro, ledger, schema y dependencias. El verify H2 #93 documenta cohorte 224/digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9` sobre C, pero solo se usarán si el workflow confirma que siguen vigentes para el candidato y el estado Pro del apply. El run #91 queda como historia y no fija inputs para este candidato. Comprobar los controles de Production y el punto de recuperación aceptado. `backup_pitr_verified=true` solo con evidencia vigente y aceptada justo antes del apply; si falta, es insuficiente o hay drift, detenerse sin cambiar flags ni reparar el ledger.
 6. **Apply separado.** Requiere JIT propio de workflow/SQL y la aprobación del environment Production para los jobs protegidos. Inputs del dispatch: `operation=apply`, manifest `h3-editorial-expand`, `candidate_sha=M`, `payload_sha=P`, ID exacto, `apply_authorized=true` y `backup_pitr_verified=true` únicamente después de sus aprobaciones/comprobaciones respectivas. En este mismo run, Report vuelve a hacer dry-run; Apply solo corre si el reporte termina sin error y `pending_count > 0`, además de superar los controles de DDL, ancestry, digest, manifest y producción. Si pendientes es cero o cualquier guard falla, el Apply queda bloqueado.
 7. **Verify y activación posterior.** El job `Verify target schema` debe pasar después de Apply para acreditar paridad real. Una ejecución separada `operation=verify` requiere autorización propia; en ella Apply es NO-OP y Verify procede solo con cero pendientes. Si Apply falla parcialmente o Verify no alcanza paridad, detener reintentos y activación. Incluso tras Apply + Verify, mantener cerrado el panel Admin hasta resolver los JIT independientes de gateway, Auth/primer Admin, Edge, Pages/BFF/cuotas y el smoke Pro con recuperación.
 
@@ -55,8 +94,8 @@ Ante drift de manifest/hash, candidato, base/digest, cohorte, ancestry, diff de 
 
 ## Aprobaciones y autorizaciones que siguen separadas
 
-- Nueva aprobación humana del contenido exacto para manifest 32, P, base, digest y H2 verify vigentes; hasta entonces, mantener `DRAFT_NOT_AUTHORIZED`.
-- Autorización de commit/push/PR protegido para publicar ese archivo a Desarrollo; no incluye review, merge ni promoción.
+- La aprobación de #532 solo cubrió su tupla histórica. Esta versión registra aprobación humana únicamente de sus bytes y valores exactos. El Status no concede autorización de workflow, SQL, publicación, review o merge.
+- Commits, push y PR siguen el flujo protegido del repositorio; esta autorización DDL no concede review, merge ni promoción.
 - Disposición documental específica si el gate integral continúa en FAIL; no se heredan las disposiciones de #524/#525.
 - JIT read-only para `operation=report` desde main y su aprobación del environment Production.
 - JIT de apply/SQL y aprobación del environment Production; evidencia vigente del punto de recuperación y aprobación de `apply_authorized`/`backup_pitr_verified`.

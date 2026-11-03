@@ -6,7 +6,153 @@
 
 ## Corte vigente
 
-### Remediación local consolidada para PR #528 — corte 2026-11-02
+### Conciliación del P1 de #533 — paquete correctivo y secuencia DDL — corte 2026-11-03
+
+Este corte deja la regla vigente y registra el baseline comprobado para esta
+remediación. Los cortes bajo «Antecedentes y planes históricos» son evidencia
+de sus fechas, no instrucciones para repetir aprobaciones, editar documentación
+no-auth después de P o ejecutar operaciones remotas.
+
+La decisión humana DDL se determina exclusivamente por el `Status` y la tupla
+exacta del [archivo versionado](operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md)
+que evalúa el workflow. `APPROVED_FOR_PRODUCTION_DDL` registra aprobación del
+contenido exacto; no autoriza publicar, mergear, despachar workflows, aplicar
+SQL ni cambiar ambientes. #532 aprobó una tupla anterior y no cubre la
+corrección de #533. En el árbol de este corte, el archivo está en
+`DRAFT_NOT_AUTHORIZED` y sus valores identifican aquella tupla histórica. Esa
+observación es fechada: en cada candidato se debe leer el archivo de ese SHA y
+comparar sus bytes e inputs, sin usar este corte para reemplazarlo. Para el
+nuevo payload, primero se congela P y se deriva la tupla; solo una decisión
+humana sobre el contenido exacto permite actualizar después la ruta DDL
+admitida. Las notas fechadas del borrador del 1 de noviembre son antecedentes.
+
+P es el commit que congela todo el contenido no-auth del candidato. Este
+paquete consolida estado, índice, ficha de migraciones, evidencia H2 y las
+relaciones operativas antes de fijarlo. La base/digest se calculan con el
+algoritmo literal del workflow sobre los SHAs reales; una aprobación humana
+cubrirá el archivo DDL completo con esos valores. Después de P, `diff(P,M`)
+debe contener solo la ruta DDL exacta. Una corrección no-auth invalida P y
+exige recalcular el conjunto antes de publicar; no se relaja el filtro. P debe
+quedar como ancestro mediante PRs protegidos con merge commits; no es necesario
+que sea el tip de Desarrollo. M solo existe tras el merge real a main.
+
+Snapshot remoto revalidado mediante GitHub MCP, 2026-11-03 (00:09 America/Lima): Desarrollo
+`b70008087d54fa7f0244bc101697b7f9318871ee`, Certification/H2 C
+`257b77471e1f0b6bb8714eeaa975b3815668aea9`, main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. Son referencias fechadas, deben
+releerse antes de cada acción. PR #533 sigue abierto, head Desarrollo `b700…`,
+base Certification `257…`, `mergeable_state=blocked`; PR #528 sigue abierto,
+head Certification `257…`, base main `70…`, también `blocked`. Las reviews
+automáticas disponibles están asociadas a HEADs anteriores; no hay review humana
+válida para este candidato local. El P1 solo queda resuelto cuando la versión
+final de los documentos y del archivo DDL es semánticamente coherente y la
+revisión humana inspecciona el candidato actualizado.
+
+La propuesta `auth_base=f26f7f43c5bfcea55e0bdb73627ec8be1d5c82aa` es el merge
+de integración de main realizado en #529; el commit tiene como padre el main
+histórico `70d0f4fee885be0f6780e5d14f466b2a6c897961` y es ancestro del paquete
+local. No es el tip de main. El digest no-auth literal cubre únicamente los
+cambios desde `auth_base` hasta P, excluyendo el archivo DDL exacto; no pretende
+resumir todo el acumulado desde main. El SHA P y la validación independiente del
+manifest cerrado verifican respectivamente el payload completo y los 32 SQL.
+Los SHAs/digest del paquete se validan contra el commit real antes de cualquier
+publicación; todo cambio no-auth obliga a volver a fijarlos.
+
+El [verify H2 #93](https://github.com/romelhc95/studiamatch/actions/runs/41555682589)
+terminó SUCCESS sobre C: cero pendientes H2, Apply NO-OP, SQL real SKIPPED,
+Verify target schema SUCCESS, 224 elegibles/visibles y digest
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
+El [JSON auténtico](operaciones/h2_main_production_expand_evidence.json) y los
+advisors se conservan sin alterar; la etiqueta histórica operation=apply del
+generador no significa que se aplicó SQL. Esa evidencia no demuestra H3 en Pro.
+Se reutilizan E1–E6 local 6/6, Development R1–R4 4/4 y smoke histórico de
+Certification 1/1 sin repetirlos. Un snapshot anterior del paquete (HEAD
+`9a6ee6fa310a273b01c92f7ad3df692a23a5e7f8`) registró pruebas focales que no
+deben atribuirse al candidato actual. Sobre el candidato local anterior a esta
+corrección (HEAD `05fd9e249699bfdf6868fe047f663be388dd86cf`, tree
+`2dee2fbb6da005ad71e78dd0be9ee4e7aeced45e`), el runner Docker sin red
+`final-exact-validation-rerun/docker-docs-run.log` pasó diff-check, scanner,
+guard/selector, manifest 32/32, self-test y gate candidate-aware; el gate
+integral terminó FAIL 348→348 con listas idénticas, cero nuevos/resueltos y
+SHA-256 `738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`.
+El gate literal DDL aceptó solo el fixture positivo sintético y rechazó Draft,
+digest incorrecto y ruta adicional. Esta evidencia corresponde a esos bytes y
+no cubre la corrección posterior del corte operativo/índice. Antes de publicar,
+se vuelve a ejecutar el checker aplicable sobre el árbol final; sus resultados
+se registran en el paquete del PR y no se atribuyen retroactivamente al log
+anterior. Ninguna de estas pruebas locales equivale a CI ni a runtime Pro.
+
+Lecturas de Cloudflare Pages/Access del 2026-11-03 (00:10 America/Lima), sin
+leer valores de variables: Production apunta a `main`, raíz `web`, ejecuta
+`npm install && npm run build` y publica `out`. El último deployment de
+Production es `2b53bc74-576d-4e12-8b80-2986a857bde7`, SUCCESS sobre el main
+histórico `70d0f4fee885be0f6780e5d14f466b2a6c897961`, con
+`uses_functions=false`; el Preview más reciente de Certification es
+`bb06aa07-de22-4a67-8a1f-7a4654e1ff1b`, SUCCESS en `257b774…`, con
+`uses_functions=true`. El blob de `web/functions/_middleware.ts` en C y el
+archivo local coinciden (`6791d11808c416388ff774c5311cb98049e93f12`): si
+`ADMIN_ALLOWED_HOSTS` no contiene el host, las rutas Admin reciben 404. El
+Access de `admin.studiamatch.com` sigue Admin-only, 6 h y una política Allow;
+es el perímetro, no la condición que cierra el panel al Admin autorizado.
+
+Los metadatos de Production muestran nombres de variables de Supabase y no
+muestran `ADMIN_ALLOWED_HOSTS`, las variables HMAC/ID de Admin ni un objeto
+`services` de Pages (por tanto no hay binding `ADMIN_QUOTA` en la configuración
+consultada). `NEXT_SUPABASE_SECRET_KEY` aparece como nombre/tipo `plain_text`,
+pero no se leyó su valor y el código bajo `web/src`/`web/functions` no la
+consume; el tipo por sí solo no demuestra exposición. La lista de Preview sí
+contiene nombres Admin, sin trasladarlos a Production.
+
+Compatibilidad pública: una lectura anónima con MCP Playwright del alias
+`https://studiamatch-aty.pages.dev/` el 2026-11-03 (aprox. 01:52 Lima) cargó el
+catálogo con 224 resultados/14 instituciones y registró `GET` a
+`courses_public_effective` en Pro con HTTP 200. Es una línea base pública
+anterior al deployment del candidato, no demuestra el runtime posterior a
+main. La navegación a `https://studiamatch.com/` en ese mismo entorno terminó
+`DNS_PROBE_FINISHED_NXDOMAIN`; solo describe esa consulta local y no demuestra
+una falla global del dominio. En código, el cliente conserva las lecturas
+anónimas mediante `COURSE_PUBLIC_FIELDS`, consistente con H2 #93.
+
+El deployment Production observado sigue siendo el SHA antiguo con
+`uses_functions=false`; no demuestra el middleware del candidato. El proyecto
+Pages sí tiene un deployment de Desarrollo con Functions, y el código del
+middleware del candidato devuelve 404 en rutas Admin cuando falta el host en
+`ADMIN_ALLOWED_HOSTS`. La configuración Production consultada no contiene ese
+allowlist ni el binding `ADMIN_QUOTA`; Access sigue limitado a Admin, pero no
+sustituye el cierre del middleware. Antes de abrir Admin se debe verificar tras
+el deploy normal que `uses_functions=true`, `ADMIN_ALLOWED_HOSTS` siga ausente y
+las rutas Admin/BFF devuelvan 404, a la vez que el catálogo anónimo conserva
+HTTP 200 contra Pro. No se infiere el estado del candidato por el deployment
+antiguo ni se declara runtime post-merge aprobado.
+
+Relectura Pro 2026-11-03 (00:18 America/Lima): el MCP
+`supabase-pro.get_project_url` respondió con el endpoint del proyecto
+`xwhtiqmboljkshrtviyw`. Esto confirma el destino, no el schema. No se ejecutó
+SQL en esta relectura; el intento posterior de SELECT de metadatos del TL fue
+rechazado por falta de JIT específico. Por eso el snapshot de schema/ledger del
+2 de noviembre sigue siendo la última lectura SQL disponible, no una medición
+actual ni un error OAuth vigente.
+
+Secuencia vigente: completar y validar el registro/índice corregidos, congelar
+el nuevo P real y recalcular base/digest; obtener disposición documental y
+aprobación del archivo DDL para la tupla exacta; después publicar un paquete
+consolidado por PR protegido. Revalidar/actualizar #533 y #528 con los SHAs
+reales, conservar C/H2 y P como ancestros y esperar review/checks del candidato
+final. El estado posterior al merge normal se confirma por lectura de
+deployment, funciones y catálogo antes de cambiar configuración. Cualquier
+cambio no-auth posterior a P invalida la tupla y obliga a reconsolidar antes de
+promover. Instalación H3 Pro, backup, gateway, Auth, Edge, Pages/BFF/cuotas,
+activación y smoke con escritura conservan JIT independientes. No hay cierre
+productivo.
+
+## Antecedentes y planes históricos — subordinados al corte vigente
+
+### Remediación local consolidada para PR #528 — corte histórico 2026-11-02
+
+Este plan es la fotografía anterior al verify H2 #93 y a la conciliación del
+P1 de #533. Sus pasos que pedían report/verify H2 y una PR documental posterior
+se conservaron como historial y quedaron satisfechos/revisados en el corte
+vigente superior; no se repiten por esta actualización.
 
 Refs releídas de GitHub: Desarrollo `571a81175f5b807251d6d266fa77b0c91c15d642`,
 Certification `12311eda52ecc14e93cad4d01775da6ab17a0231` y main
@@ -148,7 +294,7 @@ contaron como pruebas. No se cambiaron permisos de `docker.sock`.
 
 | Componente | Última evidencia real y límite | Acción exacta y orden | JIT/gate | Comprobación posterior | Recuperación |
 |---|---|---|---|---|---|
-| H2/C y evidencia | Run #91: H2 `h2-expand-compat`, C=`605a6ecca29e20ade8cac3874d380758d18e6a11`, verify SUCCESS, Apply NO-OP, cohorte 224/digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`. El guard/migración/código actuales están después de C; #91 no cubre ese cambio. | Integrar el paquete de código a Development y Certification. Fijar C al SHA real de Certification y ejecutar el nuevo report/verify `h2-expand-compat` desde `certificacion`; revalidar cohorte/advisors. Incorporar el artefacto auténtico y sus referencias antes de P mediante el flujo protegido. No reaplicar H2. | JIT propio de dispatch report/verify y gate Production de cada run; `apply_authorized=false`. | Run/SHA exactos, report, Apply NO-OP/skipped, Verify target schema SUCCESS, cohorte/digest y artefactos/advisors auténticos. | Drift o pendientes distintos de cero: detener; conservar run/artefactos; no repair/retry/apply. |
+| H2/C y evidencia | Verify #93, run `41555682589`, ref `certificacion`, C=`257b77471e1f0b6bb8714eeaa975b3815668aea9`: SUCCESS; Apply NO-OP, aplicación SQL SKIPPED, Verify SUCCESS; cohorte 224/digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`. H2 únicamente; no acredita H3 en Pro. | Conservar C como ancestro y comprobar `diff(C,M)` contra el filtro post-C para cada candidato. No repetir verify por el cambio documental actual, pues `.context/**` está permitido; reabrir solo si cambian código/evidencia o cohorte y se demuestra invalidación. | Run #93 y gates reales de promoción; cualquier nuevo `workflow_dispatch` requiere JIT del run exacto y gate Production. | SHA/run/artefacto auténticos, Apply NO-OP/skipped, Verify, cohorte y advisors vinculados a C; filtro `disallowed_after_candidate` en el candidato final. | Ante drift, pendiente o filtro inválido: detener promoción; conservar evidencia; no reaplicar H2 ni reparar ledger. |
 | DB Pro y manifest H3 | Último SELECT disponible: proyecto `xwhtiqmboljkshrtviyw`, PostgreSQL 17.6, ledger operativo 58 entradas, max `20260524`, H3 0/32; no equivale al historial de plataforma ni se ha refrescado tras el error OAuth. El código versiona 32 hashes/orden; última migración `20261102_h3_legacy_public_withdrawal_guard.sql`, SHA-256 `a719310811dd9b5a992f4a0002931b4a6c9f6a84aac2f84cdd217daead97a7b6`. | Con P/M reales en main: workflow DB Sync permite `h3-editorial-expand` solo en `main`. Orden: report dry-run → decisión/aprobación DDL y backup → apply del manifest cerrado → verify target schema. Mantener compatibilidad y no backfill. | JIT independiente por report, apply y verify; apply exige DDL aprobado, `apply_authorized=true`, backup aceptado y reviewer Production. Run verify previo no autoriza apply. | Report de pendientes y hashes; en apply, captura del ledger/schema; Verify del manifest 32. | Ante drift, fallo parcial o Verify no par: detener sin reparación/reintento automático; preservar ledger/snapshots/auditoría, volver a leer metadatos y preparar forward-fix JIT. Revertir aplicación, no esquema. |
 | Catálogo público / RLS | Último SELECT: `courses_public_effective` y sus columnas esperadas existen, `security_invoker=true`, SELECT anon/auth y RLS activo en `courses`; coincide el contrato de columnas del lector. Es paridad de metadatos, no lectura runtime actual ni build real de Pro. | Antes y después del despliegue normal main, probar catálogo y detalle anónimos contra el Pro efectivo, sin abrir Admin. | No requiere escritura; lectura estándar del deployment. Si el ambiente de build/runtime no acredita Pro, pedir JIT read-only exacto. | HTTP/JSON público, campos del contrato, error/ausencia de 22P02, mismo curso/route cuando aplique; cero filas privadas en evidencia. | Si degrada, detener activación Admin y restaurar el deployment Pages anterior; no revertir DB destructivamente. |
 | Tablas, snapshot y RPC editoriales | Último SELECT: `course_editorial_state`, auditoría y vista efectiva existen; `admin_members` y `admin_publish_course` ausentes; columnas snapshot 0/3. | Apply ordenado H3 manifest 32; mantener compatibilidad de lector y no backfill. | DDL JIT separado por candidato y archivo exactos; apply solo desde main bajo Production. | Workflow Verify schema + ACL/RLS/firma/contrato del candidato; humo anónimo público separado del smoke Admin. | Si no hay paridad, mantener el panel cerrado y aplicar solo forward-fix autorizado; nunca borrar auditoría, snapshot ni cursos. |
@@ -165,7 +311,7 @@ contaron como pruebas. No se cambiaron permisos de `docker.sock`.
 
 | Dependencia | Estado observado | Acción y orden | Autorización / comprobación / recuperación |
 |---|---|---|---|
-| H2 y elegibilidad | Verify #91 acredita C=`605a6ecca29e20ade8cac3874d380758d18e6a11`, cohorte 224/digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`; Apply NO-OP. No cubre este delta posterior a C. | Integrar el paquete de código en Certification, fijar nuevo C y ejecutar report/verify H2 desde `certificacion`; guardar artefactos auténticos antes de P. Después una PR documental lleva JSON y referencias a Desarrollo y Certification. | JIT workflow `operation=report`/`verify` y gates Production propios; revalidar cohorte/advisors. Cualquier drift detiene sin apply; no repetir H2 apply ni reparar ledger. |
+| H2 y elegibilidad | Snapshot de verify #93 (`41555682589`) sobre C=`257b77471e1f0b6bb8714eeaa975b3815668aea9`: SUCCESS, 224/digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`; Apply NO-OP y SQL SKIPPED. Es evidencia H2, no H3. | Mantener C ancestro y ejecutar el selector `disallowed_after_candidate` sobre el candidato real. El cambio actual es documental y permitido por el filtro; no se repite verify sin una causa concreta de invalidación. | Run/artefacto #93 y gates de promoción; un run nuevo requiere JIT propio. | Confirmar run, SHA, artefacto, cohorte/advisors y filtro post-C en el SHA final. | Si drift o datos incompatibles: detener; no convertir a apply ni repetir H2 sin autorización. |
 | DB Pro / H3 | Proyecto `xwhtiqmboljkshrtviyw`, PostgreSQL 17.6. Lecturas SQL fueron SELECT de metadatos: ledger operativo 58, max `20260524`; H3 aplicado 0/32. `course_editorial_state`, audit y vista efectiva existen; `admin_members`/`admin_publish_course` ausentes; snapshots 0/3; `courses` RLS activo. | Tras P y autorización DDL, `DB Sync to Production` desde main: report → apply de manifest cerrado 32 → Verify. Mantener compatibilidad y no backfill. | JIT separado para report, apply y cualquier workflow verify; gate Production y punto de recuperación vigente. En drift/apply parcial, detener, releer ledger/schema; preservar snapshots/audit/ledger y usar forward-fix aprobado; rollback de app a deployment compatible. |
 | Vista pública / catálogo | `courses_public_effective` tiene `security_invoker=true`; anon/auth SELECT, RLS de `courses` activo. La lista de columnas observada coincide con `COURSE_PUBLIC_FIELDS` del candidato. Es paridad de contrato/schema, no runtime público Pro. | Antes y después del deploy main, validar anónimamente catálogo y curso usando la URL Pro efectiva; no habilitar Admin durante el smoke público. | Usar la configuración normal del ambiente/Preview si demuestra URL Pro; si no, pedir JIT específico de lectura. Ante regresión, restaurar deployment Pages anterior; no revertir DB destructivamente. |
 | H3 RPC/RLS/gateway | H3 RPCs Admin y `admin_members` ausentes; registro de clave/nonce privado ausente; `pgrst.db_pre_request` no configurado. `exec_sql(text)` existe. | Primero aplicar/verify H3; luego provisionar key ID/HMAC espejo y habilitar el pre-request solo tras revisar todos los RPC/lectores afectados. | SQL/config JIT independiente. Verificar ACL/RLS, hook, firma y lecturas públicas/writers existentes. Si falla, no abrir Admin; retirar hook/binding solo bajo JIT, sin borrar auditoría. |
@@ -228,8 +374,10 @@ build mock 17/17 no demuestra catálogo Pro.
    cohorte H2, backup y efecto de 32 migraciones, la única mutación posterior
    permitida en el payload es cambiar el archivo DDL a aprobado con esos valores
    reales. Su publicación sigue el flujo protegido hasta main. La autorización
-   previa de 31 migraciones no aplica; el borrador actual sigue
-   DRAFT_NOT_AUTHORIZED.
+   previa de 31 migraciones no aplica; en esta fotografía del 2026-11-02 el
+   archivo aún figuraba `DRAFT_NOT_AUTHORIZED`. El Status de la versión posterior
+   se determina únicamente por su aprobación humana exacta y por los bytes
+   actuales del archivo.
 7. **Instalación después del deploy automático de main.** Primero lectura Pro
    actualizada y Backup/Production preflight. Ejecutar report read-only; con
    nueva aprobación y punto de recuperación aceptado, apply del manifest 32;

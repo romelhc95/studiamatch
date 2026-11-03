@@ -27,8 +27,11 @@ modificados y entradas de cohorte inválidas. El inventario exacto vive en
 `H3_PRO_MIGRATIONS`; no se deriva de todos los archivos del directorio al aplicar.
 
 Los resúmenes repetidos de las entradas históricas del ledger que dicen que DB
-Sync “solo acepta H2” describen el corte anterior. La extensión H3 de esta ficha
-existe únicamente en este worktree local; aún no está integrada ni aplicada en Pro.
+Sync “solo acepta H2” describen cortes anteriores. **Al corte local del
+2026-10-29** la extensión H3 aún no se había integrado. Después se incorporó
+por el flujo protegido en Desarrollo y llegó a Certificación; sigue sin
+aplicarse/verificarse como H3 en Pro. La presencia del código o del manifest no
+demuestra instalación remota.
 
 Las dependencias que deben conservarse en ese orden son: Admin auth antes de
 RBAC y del contrato expandido; quota EXPAND antes del wrapper; gateway EXPAND
@@ -65,23 +68,23 @@ Este candidato no ejecutó workflow, SQL ni PG17 con DDL.
 
 ### Borrador de autorización H3 Pro — 2026-11-01
 
-La ruta `.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md`
-se conserva como `DRAFT_NOT_AUTHORIZED`. No habilita `apply`: el workflow exige
-el estado de aprobación exacto, el manifest `h3-editorial-expand`, payload y
-base ancestrales, digest de cohorte, digest no-auth y gates de Backup/PITR y
-Production. Los valores dependientes del candidato y de la revisión humana no
-se presentan como conocidos en el borrador. Deben fijarse después de integrar
-el guard a Certification y obtener un report/verify H2 autorizado sobre ese
-SHA; run 89 es anterior al guard y no acredita el candidato futuro. Todos los
-JSON, pins, relaciones y documentos de evidencia deben quedar integrados antes
-del payload `P`. Luego, la autorización humana podrá cambiar solo este archivo;
-el gate debe rechazar cualquier archivo adicional en `diff(P,M)`. Esta nota no
-autoriza SQL, workflow ni promoción.
+**Corte histórico de preparación, no estado actual.** En esta fecha el documento
+se mantenía `DRAFT_NOT_AUTHORIZED`, y run 89 era anterior al guard. Más tarde,
+la revisión humana de PR #532 aprobó el archivo exacto para manifest32, payload
+`eb5bb9ffd8f425e621bb75aab6053641166f6fef`, base
+`f26f7f43c5bfcea55e0bdb73627ec8be1d5c82aa` y digest
+`sha256:4b4514b14fdb3afa7998f9796c67a315d6a97dfad46c2c93e98195f511a96445`.
+Esa aprobación y el Status integrado aplican solo a dicha tupla; no cubren el
+payload corregido que resuelve el P1 de #533. El texto de aprobación que aparece
+en el archivo vigente debe corresponder al Status y a los valores exactos. El
+workflow además exige ancestry, cohorte, digest no-auth y gates de Backup/PITR y
+Production. La aprobación DDL no autoriza publicación, promoción, workflow ni
+SQL.
 
 El borrador y su admisión exacta están enlazados desde el
 [checkpoint local](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
 
-### Evidencia H2 verificada después del guard — run 91 (2026-11-01)
+### Evidencia H2 verificada — run 91 histórico (2026-11-01)
 
 PR #521 quedó integrado en Certification y el run DB Sync `41338753002`
 (`#91`, ref `certificacion`) terminó SUCCESS para C
@@ -100,21 +103,24 @@ por el esquema histórico; la ejecución real fue `workflow_dispatch` con
 historia. Este resultado acredita H2 `h2-expand-compat` en C, no la instalación
 H3 ni su cierre en Pro.
 
-El JSON, DDL Draft, registro y documentos relacionados se preparan antes de
-congelar un futuro payload `P`; H2 payload/candidato `C` no equivale a H3 `P`.
+**Nota histórica del corte run 91, anterior a PR #532:** el JSON, DDL Draft,
+registro y documentos relacionados se preparaban antes de congelar el futuro
+payload `P`; H2 payload/candidato `C` no equivalía a H3 `P`.
 Los pins congelados de promociones pasadas permanecen intactos: el nuevo JSON
 usa una ruta ya admitida exactamente y el gate de contenido/artefacto es
 independiente. Para el cierre H2, `C` deberá ser ancestro de `M` y
 `diff(C,M)` respetar `disallowed_after_candidate`. Para H3, el contrato exige
 `auth_base` ancestro de `P`, `P` ancestro de `M` y que `diff(P,M)` cambie solo
 este archivo DDL; no se impone `C` ancestro de `P` sin una regla que lo exija.
-La aprobación humana sigue pendiente y no se declara aquí.
+La aprobación consignada después en PR #532 fue para el archivo/tupla descritos
+en el párrafo histórico anterior. No se transfiere a otros valores, ni acredita
+H3 instalado en Pro.
 
 **Estado de prueba:** selección/manifiesto, hashes, dependencias, rechazo de
 entradas inválidas y tests de controles corrieron offline en Docker; el resultado
 consolidado vigente está en el [checkpoint H3REQ1](../evidencia/h3req1_editorial_contract_2026-10-28.md).
 
-### Remediación local de PR #528 — corte 2026-11-02
+### Remediación local de PR #528 — corte histórico 2026-11-02
 
 El candidato local basado en Desarrollo `571a81175f5b807251d6d266fa77b0c91c15d642`
 añade la migration correctiva `20261102_h3_legacy_public_withdrawal_guard.sql`
@@ -128,17 +134,23 @@ exacto, con `postgres:17` fijado por digest; terminó PASS y limpió el contened
 Prueba lector, ACL, idempotencia y estados sintéticos directos, no RPCs de punta
 a punta ni runtime Pro. No se aplicó SQL a Supabase.
 
-Este paquete cambia código UI, el manifest y SQL después del candidato H2
+En ese corte el paquete cambiaba código UI, el manifest y SQL después del candidato H2
 `C=605a6ecca29e20ade8cac3874d380758d18e6a11`. El filtro real
 `disallowed_after_candidate` de `security-audit.yml` admite solo documentos,
 `AGENTS.md`, ese workflow y cuatro tests enumerados; este delta contiene rutas
-fuera de ese filtro. Run #91 no cubre el nuevo candidato. Tras integrar el paquete
-a Certification se necesita un report/verify H2 nuevo, con JIT propio, antes de
-preparar `P`; la cohorte y digest se deben volver a leer, no asumir que siguen
-siendo 224. La autorización DDL anterior corresponde a bytes/manifest anteriores
-y no se transfiere. La próxima autorización H3 se prepara para el candidato real
-después de integrar todos los documentos; tras congelar `P`, solo podrá cambiar
-el archivo DDL autorizado.
+fuera de ese filtro. Run #91 no cubría el nuevo candidato. La necesidad de un
+report/verify posterior quedó satisfecha por verify #93, run `41555682589`, contra
+C=`257b77471e1f0b6bb8714eeaa975b3815668aea9`: SUCCESS, Apply NO-OP, aplicación
+SQL SKIPPED, Verify SUCCESS, cohorte 224 y digest
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
+El estado vigente y la procedencia del JSON auténtico #93 se registran en el
+corte actual de [estado del proyecto](../estado_del_proyecto.md); esta ficha no
+presenta el run 91 como evidencia del candidato #93.
+El candidato final debe conservar C como ancestro y pasar el filtro post-C; no
+se repite verify salvo que cambien el candidato/evidencia o la cohorte de forma
+que invalide esa prueba. La autorización DDL de #532 corresponde a otra tupla y
+no se transfiere. Para el nuevo payload H3, todos los documentos no-auth deben
+quedar integrados antes de P; después solo puede cambiar el archivo DDL exacto.
 
 Transición: expand conserva la vista H2 y la cohorte; compatibilidad retira solo
 legacy explícitamente despublicado/archivado mientras el camino snapshot publicado
