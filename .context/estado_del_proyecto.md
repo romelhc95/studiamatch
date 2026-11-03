@@ -6,75 +6,124 @@
 
 ## Corte vigente
 
-### Corrección del apply H3 Pro y recepción en main — 2026-11-03
+### Corrección del apply H3 Pro después de #535 — 2026-11-03
 
 ### Integración y runtime público
 
-Según las lecturas GitHub/Cloudflare verificadas por el TL para este corte,
-PR #534 está integrado en Desarrollo, #533 en Certificación y #528 en `main`.
-`main` es `643b850533d3788ef4164378d4350f533595fd23`, árbol
-`86261e83b4f7cf5af00e54590da76b4e2cc065ce`; Pages Production desplegó ese SHA
-con SUCCESS (`f8ebf638-9cbc-49f8-b764-53b4bd63efd3`, `uses_functions=true`). La
-lectura pública mostró 224 programas y 14 instituciones. No se repitieron CA
-aceptados ni el verify H2.
+Lecturas GitHub/Cloudflare comprobadas para este corte: PR #535 se integró en
+Desarrollo con merge commit `b5b4de4a99351b83163225639590b3d529047960`, árbol
+`331db090866794e655ec0a51d794c3242421cb94`, padres `1f81a6234a5e0bf401f25b9e284f425d391bd8db`
+y `ee7192818d8fdd6418d6b1ce69ce9666c5cf9edf`. El PR terminó con 16 checks
+SUCCESS y 2 SKIPPED; son checks del HEAD del PR, no una nueva ejecución del
+merge. La versión certificada sigue `9ccd270f0e955606a68a306d9b7954b95217b58e`
+y main `643b850533d3788ef4164378d4350f533595fd23`. El deployment habitual de
+main que verificó el TL fue SUCCESS (`f8ebf638-9cbc-49f8-b764-53b4bd63efd3`,
+`uses_functions=true`).
 
-Admin permanece sin habilitación funcional acreditada: Production metadata
-no muestra `ADMIN_ALLOWED_HOSTS`, variables H3 HMAC/ID ni binding de cuotas; el
-middleware candidato responde 404 cuando el host no está permitido. Una visita
-anónima a `/admin/login/` llegó al perímetro Cloudflare Access; no se comprobó
-una respuesta 404 directa del BFF ni acceso Admin autenticado. No se cambió
-configuración ni se abrió el panel.
+El reload anónimo de `https://www.studiamatch.com/` observado en esta sesión
+mostró 224 programas y 14 instituciones. La captura de red del navegador no
+mostró una llamada a Supabase Pro; por eso esta lectura acredita que la página
+pública se cargó y renderizó esos conteos, no compatibilidad del catálogo contra
+el schema actual de Pro. No se repitieron CA aceptados.
+
+Admin no se habilitó. Una lectura Cloudflare Pages GET filtrada durante esta
+sesión (2026-11-03, aproximadamente 16:25 America/Lima) releyó la metadata de
+Production después del apply parcial: rama `main`, deployment canónico
+`f8ebf638-9cbc-49f8-b764-53b4bd63efd3`, commit
+`643b850533d3788ef4164378d4350f533595fd23`, `uses_functions=true`, todas las
+etapas SUCCESS. Están presentes los nombres de URL y publishable/secret keys de
+Supabase; la API devolvió `NEXT_SUPABASE_SECRET_KEY` con metadata `plain_text`,
+pero no se leyó su valor y el tipo por sí solo no demuestra exposición. No están
+presentes `ADMIN_ALLOWED_HOSTS`, `ADMIN_QUOTA_HMAC_KEY`,
+`ADMIN_RPC_GATEWAY_HMAC_KEY`, `ADMIN_RPC_GATEWAY_KEY_ID` ni
+`ADMIN_SESSION_ACTIVITY_HMAC_KEY`; el objeto de configuración Production no
+devolvió service bindings y `ADMIN_QUOTA` no aparece. El middleware del candidato
+(`web/functions/_middleware.ts`, ramas de host allowlist) responde 404 cuando el
+host no está permitido. En conjunto, metadata y código sostienen el cierre
+configurado de Admin mientras falta la allowlist, pero no son una comprobación
+HTTP directa del runtime. El acceso autenticado de Admin no se probó; no hubo
+cambios de configuración.
 
 ### Apply H3 Pro y remediación local
 
-El run DB Sync #95 fue `main`, candidato
-`643b850533d3788ef4164378d4350f533595fd23`: Detect/preflight y Report SUCCESS;
-el reporte previo al Apply indicó 32 pendientes y 0 aplicadas; Apply falló y
-Verify quedó SKIPPED. La evidencia del fallo identifica comandos de control de
-transacción (`BEGIN`/`COMMIT`) no admitidos por el `EXECUTE` dinámico de
-`public.exec_sql`. La última lectura Pro posterior al Apply no está disponible;
-por tanto, el ledger/schema operativo actual queda **no verificado** y no se
-infieren cero cambios ni un conteo actual.
+El run DB Sync #95 se ejecutó desde `main` sobre el candidato
+`643b850533d3788ef4164378d4350f533595fd23`. Detect/preflight y Report terminaron
+SUCCESS; el reporte previo al Apply indicó 32 pendientes/0 aplicadas. Apply
+falló en `public.exec_sql` por wrappers transaccionales `BEGIN`/`COMMIT` no
+admitidos como SQL dinámico y Verify quedó SKIPPED. No se reintentó #95.
 
-El candidato correctivo sigue local y sin publicar en
-`/tmp/studiamatch-h3req1-quota-fix-20261103`: base/HEAD
-`1f81a6234a5e0bf401f25b9e284f425d391bd8db`, diff de 8 archivos
-`c80513859e8f397686dfb07c0ca2930178f4f737cc75888143a17d394606a1f9`.
-Quita únicamente los `BEGIN`/`COMMIT` superiores de seis migrations; el runner
-`db_migrate.py` sigue mandando el SQL y el registro de ledger por una llamada
-`exec_sql` atómica. Los seis pins del manifest se actualizaron y la suite añade
-una regresión para rechazar esos comandos no compatibles. El manifest conserva
-32 migrations ordenadas.
+Una única consulta SQL `SELECT` de metadatos al ledger Pro fue autorizada y
+consumida por el TL el 2026-11-03 14:24:01 Lima. El resultado registra 22/32
+nombres, posiciones 1–22; faltan 23–32 (10), primera faltante
+`20261002_h3_admin_quota_expand`. Evidencia byte por byte en
+[evidencia del ledger Pro](evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json),
+SHA-256 `24e783aa98ba8b699f1348200ccdffdd572100aa0e74549d88e88931a1f1d525`.
+El resultado acredita presencia de nombres en el ledger, no schema, hash,
+ACL ni paridad. No volver a ejecutar la consulta con la autorización consumida.
+No reaplicar ni reparar manualmente las 22 entradas; el próximo report H3 debe
+confirmar los pendientes reales, y cualquier diferencia respecto de los diez
+nombres observados detiene Apply.
 
-La ejecución JIT local PG17 v3 terminó PASS el 2026-11-03, en un contenedor
-desechable `--network none`: PostgreSQL 17.11, 32/32 migrations por `exec_sql`,
-ledger sintético 32/32, lector anónimo 224, assertions de privilegios PASS y
-limpieza `REMOVED_AND_VERIFIED`. Resultado y hashes: `result.txt` SHA-256
-`ed25fe7c3726a6d8082569c6bdfd9ff175c38040d1bef7620189be36e14c69f5` bajo
-`/tmp/h3req1-quota-pg17-jit-20261103/retry-v3/run-result-v3/`; resumen externo
-`attempt-3-summary.md`. El detalle contractual está en la [ficha de migraciones](componentes/database_migrations.md#correccion-del-runner-h3-pro-corte-local-2026-11-03).
-Esto prueba el fixture sintético, no Pro.
+El fix de seis migrations quedó integrado a Desarrollo mediante #535. HEAD
+remoto actual: `b5b4de4a99351b83163225639590b3d529047960`, árbol
+`331db090866794e655ec0a51d794c3242421cb94`; incluye los wrappers superiores
+retirados, seis hashes corregidos en el manifest compartido y la regresión del
+límite de `exec_sql`. La validación Docker del manifest en este árbol fue
+32/32. La ejecución JIT local PG17 v3 previa a #535 terminó PASS en un
+contenedor desechable `--network none`: PostgreSQL 17.11, 32/32 migrations por
+`exec_sql`, ledger sintético 32/32, lector anónimo 224, assertions de
+privilegios PASS y limpieza `REMOVED_AND_VERIFIED`. Resultado `result.txt`
+SHA-256 `ed25fe7c3726a6d8082569c6bdfd9ff175c38040d1bef7620189be36e14c69f5`;
+resumen `/tmp/h3req1-quota-pg17-jit-20261103/attempt-3-summary.md`. Los hashes
+del manifest usado por el fixture coinciden con el módulo y los archivos
+validados en #535. Esto acredita el fixture local, no Pro.
 
-La autorización DDL versionada todavía contiene la tupla aprobada anterior
-(`P=4eb357f0c6abe2717b0ad22406ce7aac81f5bc73`). Al cambiar seis hashes de
-migration, esa aprobación no cubre este payload; el documento no se modifica
-hasta consolidar el nuevo contenido pre-P, recalcular la tupla y obtener la
-decisión humana exacta correspondiente. No se ejecutó SQL remoto ni se reintentó
-el run #95.
+La versión certificada `C=257b77471e1f0b6bb8714eeaa975b3815668aea9` y el H2 verify
+#93 anteceden estas correcciones. El diff desde C contiene SQL, manifest y test
+fuera de `disallowed_after_candidate`; por eso #93 no cubre el candidato
+corregido. Se necesita promover el fix a Certificación y, sobre el SHA real C
+resultante, obtener un nuevo H2 verify autorizado. Solo tras recuperar y
+validar su artefacto auténtico puede integrarse toda evidencia no-auth y fijarse
+un nuevo P. La tupla DDL aprobada anterior no cubre los hashes nuevos; P, base y
+digest futuros todavía no existen y no se inventan. No hubo SQL remoto después
+de #95 ni se acredita H3 instalado/paritario.
 
 ### Siguiente secuencia protegida
 
-Primero completar este paquete local y sus comprobaciones documentales; luego
-solicitar autorización exacta de commit, push no forzado y PR a Desarrollo.
-Tras review/checks y merge protegidos, promover a Certificación y resolver el
-gate post-candidato H2 con evidencia del SHA real si el filtro vigente lo exige.
-Incorporar la evidencia auténtica antes de fijar el nuevo P; después solo podrá
-cambiar la ruta DDL admitida y su aprobación no autorizará ejecución. Las
-operaciones Pro posteriores conservan JIT separados: report, Apply con lectura
-vigente de recuperación y gates Production, y verify. Admin seguirá cerrado
-hasta validar DB, Edge, gateway, BFF y cuotas; su apertura, configuración,
-secretos y smoke productivo no están autorizados aquí. H3 no está instalado ni
-aceptado en Pro.
+El snapshot ledger JSON de este corte no estaba en el scope guard. El candidato
+local incorpora únicamente su ruta fechada a `allowed_h3_local`, con regresión
+para admitirla y rechazar el nombre vecino `_extra.json`; no se añade una
+carpeta ni se cambia el gate de contenido. Esta corrección y su validación
+deben viajar junto con el snapshot antes de la nueva promoción a Certificación.
+
+La secuencia debe resolver primero la historia divergente. El checkout de #535
+muestra que Desarrollo no tiene a Certificación ni a main como ancestros; la
+simulación `git merge-tree` de main `643b850...` en Desarrollo `b5b4de4...` no
+tuvo conflictos y produjo el mismo árbol de Desarrollo. No es integración real.
+Preparar un branch de documentación desde Desarrollo que incluya un merge
+commit de main y este snapshot del ledger; publicar solo tras revisión del diff
+y autorización/disposición del candidato exacto. Después del merge protegido a
+Desarrollo, abrir/promover el candidato a Certificación con reviews y checks
+nuevos. Mantener merge commits; no squash/rebase.
+
+El H2 #93 sobre C `257b774...` no satisface el filtro posterior a C para estas
+migrations/hashes. Luego de obtener un C real en Certificación, solicitar un
+nuevo `workflow_dispatch` H2 `operation=verify` con candidate/payload iguales a
+ese C, Apply NO-OP y Verify real; revisar Security/Performance Advisors y
+recuperar el artefacto auténtico. Ese artefacto y todas las actualizaciones
+no-auth del estado, índice, ficha y relaciones deben integrarse antes de fijar
+P. Solo entonces se calcula auth_base/P/digest literales y se solicita aprobación
+DDL para bytes nuevos; el archivo DDL cambia después de P y no autoriza apply.
+
+Tras el merge protegido a main con C ancestro y `diff(C,M)` permitido, el nuevo
+H3 Report-only vuelve a evaluar el ledger. El snapshot de 14:24 hace esperables
+10 faltantes (posiciones 23–32), pero solo el report actual puede confirmarlo.
+Un Apply futuro requiere JIT nuevo, gates Production de ese run, recuperación
+releída inmediatamente antes y reporte exacto de pendientes; no volver a aplicar
+las 22 registradas. Verify debe terminar SUCCESS antes de declarar schema
+instalado. Admin, gateway, Auth/primer Admin, Edge, BFF, cuotas y smoke siguen
+con autorizaciones separadas. No hubo dispatch nuevo, configuración ni runtime
+Pro validado; H3 no está cerrado.
 
 ## Corte histórico — preparación P1 anterior a #534
 
