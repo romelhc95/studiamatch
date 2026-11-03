@@ -8,57 +8,65 @@
 
 ### Recepción del verify H2 #93 y preparación final — 2026-11-02
 
-Corte TL posterior a los merges humanos #529/#530: Desarrollo
-`9160b6ad381cee3d6e3bf3ab9d876146a9b97d64`, Certification
-`257b77471e1f0b6bb8714eeaa975b3815668aea9` y main
-`70d0f4fee885be0f6780e5d14f466b2a6c897961`. Desarrollo y Certification
-conservan el árbol `879bda1a0b5ca9a8ace368314d9f0c2b7513291c`; main ya es
-ancestro de ambas ramas. La actualización de historial está resuelta. PR #528
-continúa abierto hacia main; no está integrado ni autorizado para merge.
+Este corte gobierna la secuencia operativa. Los cortes posteriores a la sección
+«Antecedentes y planes históricos» son evidencia de sus fechas, no instrucciones
+para repetir aprobaciones, editar documentación no-auth después de P o ejecutar
+operaciones remotas.
 
-El reporte H2 #92 y el verify #93 se ejecutaron una sola vez cada uno, con JIT
-separados y aprobaciones humanas de Production. El [verify #93](https://github.com/romelhc95/studiamatch/actions/runs/41555682589),
-ref Certification y candidate/payload `257b77471e1f0b6bb8714eeaa975b3815668aea9`,
-terminó SUCCESS: cero pendientes H2, Apply NO-OP, aplicación real de SQL SKIPPED
-y Verify target schema SUCCESS. Se observaron 224 elegibles/visibles y digest
+La aprobación documental DDL se consulta en el campo `Status` del
+[archivo versionado exacto](operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md),
+junto con P, base, digest y manifest. Esos campos son datos consumidos por este
+estado y el workflow, no una autoridad operativa alternativa. Si Status es
+`APPROVED_FOR_PRODUCTION_DDL`, la aprobación del contenido exacto registrado
+está cumplida; si es `DRAFT_NOT_AUTHORIZED`, está pendiente. Ningún estado del
+archivo concede por sí solo permiso de publicar, mergear, despachar workflows,
+aplicar SQL o modificar ambientes. No volver a declarar «DDL pendiente» usando
+una instantánea histórica cuando el archivo y su aprobación vigente dicen otra
+cosa; tampoco extender una aprobación a valores modificados.
+
+El payload P debe identificar todo el contenido no-auth definitivo. Antes de
+fijarlo se concilian estado, índice, evidencia H2 y demás documentos operativos.
+Después de fijarlo, el diff P→candidato final debe contener únicamente la ruta
+DDL exacta. Si hay una corrección no-auth, se detiene la promoción: se integra
+esa corrección en un nuevo commit de payload, se recalcula el digest contra la
+base revisada y se solicita nueva aprobación del archivo DDL con los nuevos
+valores. No se relaja el filtro para admitir documentos adicionales post-P.
+El commit de payload debe quedar incorporado en la historia protegida de
+Desarrollo; no tiene que ser el merge tip. Conservar merge commits en las
+promociones permite verificar P→M y C→M. M solo existe tras el merge real a main.
+
+Último corte remoto comprobado antes de esta remediación: Desarrollo
+`b70008087d54fa7f0244bc101697b7f9318871ee`, Certification/H2 C
+`257b77471e1f0b6bb8714eeaa975b3815668aea9`, main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. Son referencias fechadas, deben
+releerse antes de cada acción. #531/#532 están integrados en Desarrollo y #533
+está abierto. El CI de #533 terminó SUCCESS; el P1 de coherencia documental
+requiere validar esta corrección y su nuevo payload antes de autorizar merge.
+El estado de resolución del P1 lo acredita el árbol corregido, sus resultados
+y la revisión del candidato, no la mera existencia de un PR o un resumen.
+
+El [verify H2 #93](https://github.com/romelhc95/studiamatch/actions/runs/41555682589)
+terminó SUCCESS sobre C: cero pendientes H2, Apply NO-OP, SQL real SKIPPED,
+Verify target schema SUCCESS, 224 elegibles/visibles y digest
 `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
-Los advisors del artefacto son idénticos al baseline #91: 12 de seguridad y 17
-de rendimiento, sin nuevos HIGH/CRITICAL/ERROR; INFO/WARN históricos permanecen.
-El reporte #92 no sondea el esquema privado ni la RPC de verificación; #93
-sí acredita el contrato H2 que ejecuta su job, sin acreditar H3.
+El [JSON auténtico](operaciones/h2_main_production_expand_evidence.json) y los
+advisors se conservan sin alterar; la etiqueta histórica operation=apply del
+generador no significa que se aplicó SQL. Esa evidencia no demuestra H3 en Pro.
+Se reutilizan E1–E6 local 6/6, Development R1–R4 4/4 y smoke histórico de
+Certification 1/1 sin repetirlos. El integral documental conserva FAIL; el último
+comparativo de los árboles anteriores fue 348→348 idénticos y no sustituye la
+validación del nuevo candidato corregido.
 
-El JSON auténtico de #93 sustituye el de #91 en
-[la evidencia H2 versionada](operaciones/h2_main_production_expand_evidence.json).
-Artefacto GitHub `13194926943`, ZIP SHA-256
-`1658089f4f137b89dfb4cc7a00a135943c0bfe6426fba44be8bcdd99aee6cf90`;
-se comprobaron hash, tres miembros exactos, run, SHA y advisors. La etiqueta
-`operation=apply` es emitida históricamente por el generador: se conserva sin
-adulterar; el dispatch real fue `verify` con `apply_authorized=false`,
-backup=false y DDL vacío. El [checkpoint](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md#recepcion-autentica-del-verify-h2-93--2026-11-02)
-conserva los jobs y límites del resultado.
+Siguiente secuencia: finalizar la corrección no-auth; identificar P real;
+recalcular base/digest y revisar el archivo DDL exacto; publicar mediante el
+flujo protegido autorizado; verificar CI/review y catálogo público Pro/Admin
+cerrado antes de GO main. No se necesitan nuevos documentos no-auth de cierre
+después de P: resultados posteriores se conservan como artefactos externos y
+metadatos de revisión hasta una actualización posterior explícitamente planificada.
+Instalación H3 Pro, backup, gateway, Auth, Edge, Pages/BFF/cuotas, activación y
+smoke con escritura conservan sus JIT independientes. No hay cierre productivo.
 
-Este paquete local cambia solo evidencia y documentación; no modifica código,
-SQL, manifest, configuración ni permisos. Los CA aceptados se reutilizan sin
-repetición: E1–E6 local 6/6, Development R1–R4 4/4 y smoke histórico de
-Certification 1/1. Validación Docker de este paquete, sin red y con fuentes de
-solo lectura: self-test/gate focal PASS; integral baseline/candidato FAIL con
-348→348 diagnósticos byte-idénticos, cero nuevos y cero resueltos; contratos de
-estado/main 15/15 PASS, escaneo de los cuatro archivos PASS y manifiesto H3
-32/32 hashes/orden PASS. El validador semántico H2 se extrae literalmente del
-workflow y valida el JSON auténtico. No son checks CI del futuro commit ni GO
-main; no se ejecutó SQL ni se repitieron CA funcionales.
-
-Siguiente secuencia mínima: publicar este paquete con autorización
-separada por el flujo protegido y, tras integrar todo el contenido no-auth,
-fijar P real de Desarrollo, auth_base y digest. El borrador DDL de 32 migraciones
-sigue DRAFT_NOT_AUTHORIZED y sus PENDING no se sustituyen con SHAs simulados.
-Revisar su contenido exacto y publicar únicamente ese archivo después de P,
-con aprobaciones separadas. Antes del GO main aún debe acreditarse catálogo
-público compatible y Admin cerrado para el candidato; la evidencia de H2 no
-sustituye esas comprobaciones. Después del merge humano, instalación H3 y
-configuración/activación Pro siguen bajo JIT propios. No hay cierre productivo.
-Las matrices y el orden de instalación posteriores se conservan como plan;
-sus filas que citan #91 son antecedentes sustituidos por #93 solo para H2.
+## Antecedentes y planes históricos — subordinados al corte vigente
 
 ### Remediación local consolidada para PR #528 — corte histórico 2026-11-02
 
