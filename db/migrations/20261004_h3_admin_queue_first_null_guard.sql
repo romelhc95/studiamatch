@@ -1,7 +1,6 @@
 -- H3REQ1: forward-only guard for deployments where the original queue migration
 -- is already recorded as applied. Preserve a quota wrapper when one is installed
 -- by patching only its private original-function snapshot.
-BEGIN;
 
 DO $$
 DECLARE
@@ -68,5 +67,3 @@ BEGIN
   EXECUTE function_definition;
 END;
 $$;
-
-COMMIT;

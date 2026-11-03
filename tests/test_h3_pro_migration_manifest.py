@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -28,6 +29,24 @@ def test_h3_manifest_has_exact_ordered_inventory_and_matching_sha_pins() -> None
     assert len(set(H3_PRO_MIGRATIONS)) == len(H3_PRO_MIGRATIONS)
     assert set(H3_PRO_MIGRATION_SHA256) == set(H3_PRO_MIGRATIONS)
     assert validate_h3_manifest_tree(MIGRATIONS) == H3_PRO_MIGRATION_SHA256
+
+
+def test_h3_sql_is_compatible_with_atomic_exec_sql_migration_runner() -> None:
+    transaction_control = re.compile(r"(?im)^\s*(?:BEGIN|COMMIT)\s*;\s*$")
+    offenders = {
+        name: [
+            line_number
+            for line_number, line in enumerate((MIGRATIONS / f"{name}.sql").read_text(encoding="utf-8").splitlines(), 1)
+            if transaction_control.fullmatch(line)
+        ]
+        for name in H3_PRO_MIGRATIONS
+    }
+    offenders = {name: lines for name, lines in offenders.items() if lines}
+
+    assert not offenders, (
+        "H3 migrations run through db_migrate's atomic exec_sql RPC; "
+        f"transaction-control statements are unsupported: {offenders}"
+    )
 
 
 def test_h3_manifest_rejects_unknown_missing_duplicate_and_reordered_selection() -> None:

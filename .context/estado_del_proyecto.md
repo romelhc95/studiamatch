@@ -6,6 +6,86 @@
 
 ## Corte vigente
 
+### Corrección del apply H3 Pro y recepción en main — 2026-11-03
+
+### Integración y runtime público
+
+Según las lecturas GitHub/Cloudflare verificadas por el TL para este corte,
+PR #534 está integrado en Desarrollo, #533 en Certificación y #528 en `main`.
+`main` es `643b850533d3788ef4164378d4350f533595fd23`, árbol
+`86261e83b4f7cf5af00e54590da76b4e2cc065ce`; Pages Production desplegó ese SHA
+con SUCCESS (`f8ebf638-9cbc-49f8-b764-53b4bd63efd3`, `uses_functions=true`). La
+lectura pública mostró 224 programas y 14 instituciones. No se repitieron CA
+aceptados ni el verify H2.
+
+Admin permanece sin habilitación funcional acreditada: Production metadata
+no muestra `ADMIN_ALLOWED_HOSTS`, variables H3 HMAC/ID ni binding de cuotas; el
+middleware candidato responde 404 cuando el host no está permitido. Una visita
+anónima a `/admin/login/` llegó al perímetro Cloudflare Access; no se comprobó
+una respuesta 404 directa del BFF ni acceso Admin autenticado. No se cambió
+configuración ni se abrió el panel.
+
+### Apply H3 Pro y remediación local
+
+El run DB Sync #95 fue `main`, candidato
+`643b850533d3788ef4164378d4350f533595fd23`: Detect/preflight y Report SUCCESS;
+el reporte previo al Apply indicó 32 pendientes y 0 aplicadas; Apply falló y
+Verify quedó SKIPPED. La evidencia del fallo identifica comandos de control de
+transacción (`BEGIN`/`COMMIT`) no admitidos por el `EXECUTE` dinámico de
+`public.exec_sql`. La última lectura Pro posterior al Apply no está disponible;
+por tanto, el ledger/schema operativo actual queda **no verificado** y no se
+infieren cero cambios ni un conteo actual.
+
+El candidato correctivo sigue local y sin publicar en
+`/tmp/studiamatch-h3req1-quota-fix-20261103`: base/HEAD
+`1f81a6234a5e0bf401f25b9e284f425d391bd8db`, diff de 8 archivos
+`c80513859e8f397686dfb07c0ca2930178f4f737cc75888143a17d394606a1f9`.
+Quita únicamente los `BEGIN`/`COMMIT` superiores de seis migrations; el runner
+`db_migrate.py` sigue mandando el SQL y el registro de ledger por una llamada
+`exec_sql` atómica. Los seis pins del manifest se actualizaron y la suite añade
+una regresión para rechazar esos comandos no compatibles. El manifest conserva
+32 migrations ordenadas.
+
+La ejecución JIT local PG17 v3 terminó PASS el 2026-11-03, en un contenedor
+desechable `--network none`: PostgreSQL 17.11, 32/32 migrations por `exec_sql`,
+ledger sintético 32/32, lector anónimo 224, assertions de privilegios PASS y
+limpieza `REMOVED_AND_VERIFIED`. Resultado y hashes: `result.txt` SHA-256
+`ed25fe7c3726a6d8082569c6bdfd9ff175c38040d1bef7620189be36e14c69f5` bajo
+`/tmp/h3req1-quota-pg17-jit-20261103/retry-v3/run-result-v3/`; resumen externo
+`attempt-3-summary.md`. El detalle contractual está en la [ficha de migraciones](componentes/database_migrations.md#correccion-del-runner-h3-pro-corte-local-2026-11-03).
+Esto prueba el fixture sintético, no Pro.
+
+La autorización DDL versionada todavía contiene la tupla aprobada anterior
+(`P=4eb357f0c6abe2717b0ad22406ce7aac81f5bc73`). Al cambiar seis hashes de
+migration, esa aprobación no cubre este payload; el documento no se modifica
+hasta consolidar el nuevo contenido pre-P, recalcular la tupla y obtener la
+decisión humana exacta correspondiente. No se ejecutó SQL remoto ni se reintentó
+el run #95.
+
+### Siguiente secuencia protegida
+
+Primero completar este paquete local y sus comprobaciones documentales; luego
+solicitar autorización exacta de commit, push no forzado y PR a Desarrollo.
+Tras review/checks y merge protegidos, promover a Certificación y resolver el
+gate post-candidato H2 con evidencia del SHA real si el filtro vigente lo exige.
+Incorporar la evidencia auténtica antes de fijar el nuevo P; después solo podrá
+cambiar la ruta DDL admitida y su aprobación no autorizará ejecución. Las
+operaciones Pro posteriores conservan JIT separados: report, Apply con lectura
+vigente de recuperación y gates Production, y verify. Admin seguirá cerrado
+hasta validar DB, Edge, gateway, BFF y cuotas; su apertura, configuración,
+secretos y smoke productivo no están autorizados aquí. H3 no está instalado ni
+aceptado en Pro.
+
+## Corte histórico — preparación P1 anterior a #534
+
+El siguiente bloque conserva la fotografía previa a la integración correctiva.
+Sus SHAs, estados de PR, deployment y valores DDL son históricos; no gobiernan
+la siguiente operación.
+
+El snapshot siguiente se redactó antes de #534. Sus instrucciones y la
+observación `DRAFT_NOT_AUTHORIZED` describen ese corte, no el estado del archivo
+DDL en el candidato posterior.
+
 ### Conciliación del P1 de #533 — paquete correctivo y secuencia DDL — corte 2026-11-03
 
 Este corte deja la regla vigente y registra el baseline comprobado para esta

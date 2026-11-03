@@ -1,7 +1,6 @@
 -- H3REQ1: keep the onboarding reader's active-admin rejection distinct from
 -- service failure after the quota wrapper catches the private base function.
 -- Preserve the public signature, wrapper, grants, and quota admission.
-BEGIN;
 
 DO $$
 DECLARE
@@ -75,5 +74,3 @@ BEGIN
   END IF;
 END;
 $$;
-
-COMMIT;
