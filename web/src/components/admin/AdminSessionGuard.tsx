@@ -1,3 +1,4 @@
+// StudIAMatch-Docs: .context/componentes/admin_portal.md#admin-session-guard
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -21,6 +22,7 @@ export default function AdminSessionGuard() {
   const pathname = usePathname();
   const router = useRouter();
   const loggingOut = useRef(false);
+  const sessionGeneration = useRef(0);
 
   useEffect(() => {
     if (!isProtectedAdminPath(pathname)) return undefined;
@@ -29,20 +31,25 @@ export default function AdminSessionGuard() {
     let activityTimer: number | undefined;
     let lastRecordedActivity = 0;
     let lastServerTouch = 0;
+    let sessionValidated = false;
+    let currentGeneration = 0;
 
     const goToLogin = () => {
       if (active) router.replace('/admin/login/');
     };
 
     const expireSession = async (broadcast: boolean) => {
-      if (loggingOut.current) return;
+      if (!active || !sessionValidated || currentGeneration !== sessionGeneration.current || loggingOut.current) return;
       loggingOut.current = true;
+      sessionValidated = false;
       await signOutAdmin({ broadcast }).catch(() => undefined);
+      if (!active || currentGeneration !== sessionGeneration.current) return;
       goToLogin();
     };
 
     const scheduleExpiryCheck = () => {
       if (activityTimer !== undefined) window.clearTimeout(activityTimer);
+      if (!active || !sessionValidated || loggingOut.current) return;
       const lastActivity = getAdminLastActivity();
       const remaining = lastActivity === null ? ADMIN_IDLE_TIMEOUT_MS : ADMIN_IDLE_TIMEOUT_MS - (Date.now() - lastActivity);
       activityTimer = window.setTimeout(() => {
@@ -56,7 +63,7 @@ export default function AdminSessionGuard() {
     };
 
     const markActivity = () => {
-      if (loggingOut.current) return;
+      if (!active || !sessionValidated || currentGeneration !== sessionGeneration.current || loggingOut.current) return;
       const now = Date.now();
       if (now - lastRecordedActivity < 1000) return;
       const lastActivity = getAdminLastActivity();
@@ -75,10 +82,17 @@ export default function AdminSessionGuard() {
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === ADMIN_LOGOUT_EVENT_KEY && event.newValue) {
-        void expireSession(false);
+        if (sessionValidated) {
+          void expireSession(false);
+        } else {
+          sessionGeneration.current += 1;
+          loggingOut.current = true;
+          if (activityTimer !== undefined) window.clearTimeout(activityTimer);
+          goToLogin();
+        }
         return;
       }
-      if (event.key === ADMIN_ACTIVITY_EVENT_KEY) scheduleExpiryCheck();
+      if (event.key === ADMIN_ACTIVITY_EVENT_KEY && sessionValidated) scheduleExpiryCheck();
     };
 
     const activityEvents: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'touchstart', 'scroll', 'focus'];
@@ -86,12 +100,18 @@ export default function AdminSessionGuard() {
     window.addEventListener('storage', handleStorage);
 
     const initialize = async () => {
+      const requestGeneration = sessionGeneration.current;
       const session = await getAuthSession().catch(() => null);
-      if (!active) return;
+      if (!active || requestGeneration !== sessionGeneration.current) return;
       if (!session) {
         goToLogin();
         return;
       }
+
+      currentGeneration = requestGeneration + 1;
+      sessionGeneration.current = currentGeneration;
+      sessionValidated = true;
+      loggingOut.current = false;
 
       const lastActivity = getAdminLastActivity();
       if (lastActivity !== null && Date.now() - lastActivity >= ADMIN_IDLE_TIMEOUT_MS) {
@@ -106,6 +126,7 @@ export default function AdminSessionGuard() {
 
     return () => {
       active = false;
+      sessionValidated = false;
       if (activityTimer !== undefined) window.clearTimeout(activityTimer);
       for (const eventName of activityEvents) window.removeEventListener(eventName, markActivity);
       window.removeEventListener('storage', handleStorage);

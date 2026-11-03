@@ -6,6 +6,254 @@
 
 ## Corte vigente
 
+### Remediación local consolidada para PR #528 — corte 2026-11-02
+
+Refs releídas de GitHub: Desarrollo `571a81175f5b807251d6d266fa77b0c91c15d642`,
+Certification `12311eda52ecc14e93cad4d01775da6ab17a0231` y main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. PR #528 sigue abierto, con head
+Certification `12311eda…`, base main `70d0f4…` y estado `blocked` por la
+actualización requerida de historial. El paquete de esta rama está aislado sobre
+Desarrollo `571a8117…`; no actualiza ni publica PR #528. El checkout fuente con
+WIP permanece intacto.
+
+El delta local corrige tres observaciones corroboradas por TL: (1) la vista de
+compatibilidad legacy excluye cursos con auditoría append-only `unpublish` o
+`archive`, sin borrar cohorte, cursos, snapshots ni auditoría; la republicación
+usa el snapshot estricto; (2) `AdminSessionGuard` vuelve a aceptar actividad y
+heartbeat solo después de validar una sesión nueva y evita efectos de callbacks
+obsoletos; (3) la cola presenta errores de assurance con reintento y solo deja
+que la respuesta más reciente habilite lecturas AAL2. Una regresión concurrente
+adicional reprodujo que un AAL2 antiguo podía prevalecer sobre un AAL1 más
+reciente; se corrigió con un identificador de petición y una prueba del TSX real.
+
+Validación focal independiente (corte 2026-11-02): el entrypoint canónico
+`node --test tests/admin_queue_request_guard.test.mjs` importa la regresión TSX
+y cubre 8 casos únicos PASS, incluido el logout durante la validación inicial
+pendiente. El log TL del caso dirigido de logout confirma ese mismo caso; no
+añade cobertura única. El log combinado anterior está descartado: ejecutar
+también el archivo importado como entrada separada duplica cinco casos y no
+añade cobertura independiente. No acreditar 9 únicos ni usar el conteo obsoleto
+del log combinado. Python de manifest/migración: 9/9 PASS.
+Guard real de rutas y negativos PASS; credential scan `--tree` PASS;
+`git diff --check` PASS; sintaxis Bash PASS; TypeScript `--noEmit` PASS y
+ESLint de ambos componentes PASS. ShellCheck no está instalado en la imagen.
+`npm run build:mock` compiló y generó 17/17 páginas con fixture mock; no acredita
+el catálogo Pro. El build ordinario con `supabase.invalid` no es evidencia Pro.
+El build/runtime con configuración real de Production y lectura pública Pro
+siguen pendientes.
+
+El harness PG17 desechable se ejecutó una vez tras aprobación JIT exacta el
+2026-11-02: imagen `postgres:17` digest
+`sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f`,
+`EXIT_CODE=0`, marcador `h3_legacy_public_withdrawal_pg17_ok` y limpieza PASS.
+Log `/tmp/h3req1-pr528-final-evidence-20261102/pg17-harness.log`, SHA-256
+`d195534994239b8c690b1bcc6d32ee3cecd2efde03d47c00f2362948db89e0d3`.
+Prueba lector/ACL/idempotencia y estados sintéticos directos; no ejecuta RPCs
+editoriales end-to-end ni toca Supabase Free/Pro. El JIT local fue consumido y
+no se reutiliza para otra ejecución.
+
+Self-test y candidate-aware documental PASS. Integral permanece FAIL/FAIL:
+348 diagnósticos en baseline y candidato, listas byte-idénticas, cero nuevos y
+cero resueltos. Lista SHA-256
+`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`; checker
+SHA-256 `f2a95870de748b2e59ee0d988abb0b16125da47c996a7f85841f1113fcebbb75`.
+La comparación intermedia 348→343 por archivos ignorados asimétricos y el conteo
+UI antiguo 11/11 se descartan. La comparación válida usa copias de `git archive`
+y configuración idéntica. El scan Codex Security del código/controles del diff
+anterior terminó sin findings; excluye runtime remoto, el harness PG17 y las
+correcciones documentales de este corte. Sus resultados no son CI del candidato
+nuevo.
+
+El manifest H3 cambia de 31 a 32 entradas y fija
+`20261102_h3_legacy_public_withdrawal_guard.sql` con SHA-256
+`a719310811dd9b5a992f4a0002931b4a6c9f6a84aac2f84cdd217daead97a7b6`. Esta ruta,
+la UI y el guard quedan posteriores al candidato H2 `C=605a6ecca29e20ade8cac3874d380758d18e6a11`; `disallowed_after_candidate` limita el diff
+posterior a C, por lo que run #91 no cubre el nuevo candidato. Tras integrar el
+paquete en Certification se necesita un H2 report/verify nuevo, con JIT
+independiente y cohorte/digest releídos. No se reaplica H2. La autorización DDL
+H3 anterior no cubre este manifest/candidato y sigue sin transferirse.
+
+Main `70d0f4fe…` no es ancestro de Desarrollo `571a8117…`; hay cuatro commits
+solo en main. `merge-tree` local devuelve el árbol candidato sin conflictos,
+pero no integra historia ni actualiza refs remotas. Ruta propuesta: una rama
+feature desde Desarrollo incorpora main mediante merge commit local; el mismo
+árbol/delta se tramita por PR protegido feature→Desarrollo→Certificación→main.
+Así se conserva main como ancestro sin bypass, force-push ni relajar strict,
+review, `enforce_admins` o checks. La simulación no sustituye la actualización
+real ni los checks remotos.
+
+GitHub mantiene #528 abierto, no mergeado y `blocked` porque Certification
+`12311eda…` requiere actualizarse frente a main `70d0f4fe…`. El audit TL lista
+36 check-runs del candidato anterior: 31 SUCCESS y 5 SKIPPED, cero fallos o
+pendientes; no hay aprobación humana válida registrada en esa lectura. No son
+checks del paquete local, cuyo CI/review aún no existe.
+
+### Reconciliación del último corte — 2026-11-02, 15:32 America/Lima
+
+La última lectura exitosa disponible de Pro fue un conjunto de SQL `SELECT`
+de metadatos del 2026-11-02; sus observaciones están resumidas abajo en el
+snapshot histórico. Después de que el responsable confirmó “Pro conectado”,
+`mcp__supabase_pro__get_project_url` falló dos veces con
+`OAuth token refresh failed: Failed to parse server response`. Ambas fallas
+ocurrieron antes de obtener la URL y antes de ejecutar SQL; no son errores de
+PostgreSQL ni prueban drift. No se leyó ni escribió la base en este reintento.
+El catálogo MCP sigue cargado, por lo que no se reinició WSL ni se sustituyó
+el servidor por `codex_apps`. No afirmar estado Pro actual más reciente hasta
+que una lectura de metadatos desde `supabase-pro` funcione.
+
+Relectura Cloudflare por GET filtrado del 2026-11-02 15:32 America/Lima:
+Pages Production sigue en `main` con despliegues automáticos habilitados. Las
+cuatro variables observadas (`NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_SUPABASE_PUBLISHABLE_KEY` y
+`NEXT_SUPABASE_SECRET_KEY`) están presentes como `plain_text`; la URL se comparó
+booleanamente con Pro y coincide. No se devolvieron valores. Siguen ausentes
+`ADMIN_ALLOWED_HOSTS`, `ADMIN_QUOTA` y las HMAC/ID BFF; no hay bindings de
+servicio ni Durable Object en Production. No se encontró consumidor web de
+`NEXT_SUPABASE_SECRET_KEY` (los consumidores observados están en GitHub
+Actions). El tipo/presencia no prueba exposición ni autoriza retirarla. El
+objeto del proyecto Pages informa `uses_functions=true`, pero el deployment
+Production más reciente consultado
+`2b53bc74-576d-4e12-8b80-2986a857bde7`, SHA main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`, SUCCESS del 2026-08-28, sigue
+informando `uses_functions=false`. Esa discrepancia impide afirmar que el
+middleware fail-closed ya protege el deployment actual. Access conserva la aplicación
+`admin.studiamatch.com`, sesión de 6 h, un IdP y una política Allow con un
+principal; la lectura sanitizada no volvió a exponer/verificar la identidad
+exacta del principal. El JIT previo registra Admin-only, pero no se extiende
+ni se cambia aquí.
+
+El resumen previo atribuía 9 casos UI únicos; esa cifra era incorrecta y queda
+sustituida por los 8 casos únicos del entrypoint canónico descritos arriba. El log
+combinado se conserva como antecedente descartado. Se reutilizan sin repetición
+PG17 PASS (JIT consumido), Python focal 9/9, tests previos de manifest y scan de
+seguridad con límites descritos. La validación Docker de las 15:12 America/Lima es un antecedente de la primera
+reconciliación y no cubre la corrección posterior del conteo UI ni el texto de este
+registro. La revalidación del delta documental final se conserva en el paquete
+externo de este corte; no se repitieron pruebas funcionales. La corrida anterior
+se hizo sin red y con el worktree de solo lectura: fingerprint de 22 rutas y hashes
+verificados; credential scan
+`--tree` PASS; `git diff --check HEAD` PASS; sintaxis Bash PASS; guard real
+de rutas/callers/selector PASS; 22 pruebas Python focales PASS; self-test candidate-aware PASS; integral baseline/candidato FAIL 348/348, listas
+completas idénticas y cero nuevos/resueltos. El aviso de pytest fue únicamente
+la imposibilidad de crear `.pytest_cache` en el montaje de solo lectura; los 22
+tests terminaron PASS. El informe Codex Security focal previo revisó 15 rutas
+de código/control; sus hashes coinciden con los del paquete actual, sin
+findings. Ese scan no cubre runtime Pro ni reemplaza CI; ShellCheck no está
+disponible en la imagen local. Las rutas y digests finales, comandos y logs se
+conservan en `/tmp/h3req1-pr528-final-evidence-20261102/reconciled-20261102/`.
+Los errores iniciales de montaje/invocación del runner se descartaron y no se
+contaron como pruebas. No se cambiaron permisos de `docker.sock`.
+
+### Matriz única de instalación Pro — comprobación, orden y recuperación
+
+| Componente | Última evidencia real y límite | Acción exacta y orden | JIT/gate | Comprobación posterior | Recuperación |
+|---|---|---|---|---|---|
+| H2/C y evidencia | Run #91: H2 `h2-expand-compat`, C=`605a6ecca29e20ade8cac3874d380758d18e6a11`, verify SUCCESS, Apply NO-OP, cohorte 224/digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`. El guard/migración/código actuales están después de C; #91 no cubre ese cambio. | Integrar el paquete de código a Development y Certification. Fijar C al SHA real de Certification y ejecutar el nuevo report/verify `h2-expand-compat` desde `certificacion`; revalidar cohorte/advisors. Incorporar el artefacto auténtico y sus referencias antes de P mediante el flujo protegido. No reaplicar H2. | JIT propio de dispatch report/verify y gate Production de cada run; `apply_authorized=false`. | Run/SHA exactos, report, Apply NO-OP/skipped, Verify target schema SUCCESS, cohorte/digest y artefactos/advisors auténticos. | Drift o pendientes distintos de cero: detener; conservar run/artefactos; no repair/retry/apply. |
+| DB Pro y manifest H3 | Último SELECT disponible: proyecto `xwhtiqmboljkshrtviyw`, PostgreSQL 17.6, ledger operativo 58 entradas, max `20260524`, H3 0/32; no equivale al historial de plataforma ni se ha refrescado tras el error OAuth. El código versiona 32 hashes/orden; última migración `20261102_h3_legacy_public_withdrawal_guard.sql`, SHA-256 `a719310811dd9b5a992f4a0002931b4a6c9f6a84aac2f84cdd217daead97a7b6`. | Con P/M reales en main: workflow DB Sync permite `h3-editorial-expand` solo en `main`. Orden: report dry-run → decisión/aprobación DDL y backup → apply del manifest cerrado → verify target schema. Mantener compatibilidad y no backfill. | JIT independiente por report, apply y verify; apply exige DDL aprobado, `apply_authorized=true`, backup aceptado y reviewer Production. Run verify previo no autoriza apply. | Report de pendientes y hashes; en apply, captura del ledger/schema; Verify del manifest 32. | Ante drift, fallo parcial o Verify no par: detener sin reparación/reintento automático; preservar ledger/snapshots/auditoría, volver a leer metadatos y preparar forward-fix JIT. Revertir aplicación, no esquema. |
+| Catálogo público / RLS | Último SELECT: `courses_public_effective` y sus columnas esperadas existen, `security_invoker=true`, SELECT anon/auth y RLS activo en `courses`; coincide el contrato de columnas del lector. Es paridad de metadatos, no lectura runtime actual ni build real de Pro. | Antes y después del despliegue normal main, probar catálogo y detalle anónimos contra el Pro efectivo, sin abrir Admin. | No requiere escritura; lectura estándar del deployment. Si el ambiente de build/runtime no acredita Pro, pedir JIT read-only exacto. | HTTP/JSON público, campos del contrato, error/ausencia de 22P02, mismo curso/route cuando aplique; cero filas privadas en evidencia. | Si degrada, detener activación Admin y restaurar el deployment Pages anterior; no revertir DB destructivamente. |
+| Tablas, snapshot y RPC editoriales | Último SELECT: `course_editorial_state`, auditoría y vista efectiva existen; `admin_members` y `admin_publish_course` ausentes; columnas snapshot 0/3. | Apply ordenado H3 manifest 32; mantener compatibilidad de lector y no backfill. | DDL JIT separado por candidato y archivo exactos; apply solo desde main bajo Production. | Workflow Verify schema + ACL/RLS/firma/contrato del candidato; humo anónimo público separado del smoke Admin. | Si no hay paridad, mantener el panel cerrado y aplicar solo forward-fix autorizado; nunca borrar auditoría, snapshot ni cursos. |
+| Gateway RPC y hook global | Último SELECT: registro/tabla privada de claves gateway ausente; `pgrst.db_pre_request` no configurado; los H3 RPC no estaban presentes. La migración H3 no aprovisiona el secreto espejo ni activa el hook. | Después de DB Verify, inventariar RPC/lectores/writers afectados; provisionar key ID y HMAC espejo en DB/Runtime y habilitar el hook como operación coordinada, no aisladamente. | JIT de DDL y secreto/configuración separados; el valor nunca se lee ni imprime. | ACL de RPC allowlisted, firma/nonce, rechazo anónimo/rol, lectores públicos y escritores existentes sin degradación. | Mantener Admin cerrado; desactivar/revertir el hook o retirar binding solo con JIT; conservar auditoría/nonce. |
+| Edge `admin-invite` | Último listado Pro: función ausente; solo `send-lead-emails` ACTIVE v8 (`verify_jwt=false`). No hay lectura de versión posterior tras el error OAuth. | Desplegar `admin-invite` del candidato main después de DB/gateway y Auth, con `verify_jwt=true`; callback exacto `https://admin.studiamatch.com/admin/auth/callback/`. | JIT de deploy Edge separado; no copiar la función de Free a mano. | Nombre/versión ACTIVE, verify_jwt true y flujo de token/sesión esperado con identidad autorizada. | No abrir Admin; restaurar ausencia/versión previa mediante operación protegida y JIT específico. |
+| Auth y primer Admin | Última comprobación asistida de Auth Pro: Site URL `http://localhost:3000`, Redirect URLs vacías; la identidad principal y membresía no existían en ese preflight. No UUID actual demostrado. | JIT para Site URL `https://admin.studiamatch.com` y añadir solo el callback exacto. Después crear/verificar identidad por flujo oficial; obtener UUID real y pedir un JIT distinto para membresía Admin. | Auth/config y creación de identidad son acciones separadas; membresía requiere JIT DB usando el UUID verificado. Sin copiar Free, seed ni contraseña de agente. | Callback/recuperación oficial, identidad Pro visible y membresía con rol Admin; verificar último-admin guard. | Si identidad/callback/membresía falla, detener; dejar panel cerrado; revertir solo URL/callback bajo autorización. |
+| Pages Production / BFF / secreto | GET filtrado: destino URL Supabase coincide con Pro; `ADMIN_ALLOWED_HOSTS`, binding `ADMIN_QUOTA`, HMAC quota/RPC/session y key ID ausentes. `NEXT_SUPABASE_SECRET_KEY` presente `plain_text`; búsqueda en `web/src` sin consumidor, pero usada por workflows. | Deployment automático main ocurre antes de SQL. Mantener Admin sin allowlist; después comprobar runtime Functions y rutas cerradas, y catálogo Pro operativo. Solo tras todos los prerequisitos establecer host exacto `admin.studiamatch.com` y configurar BFF. | JIT Pages por nombres/valores/secretos y binding; no mostrar/transferir secretos entre ambientes. HMAC de quota, RPC y session distintas; gateway RPC requiere espejo DB. | Metadatos presence-only y comparación booleana Pro URL; GET anónimo `/admin*` y `/api/admin*` deben fallar cerrados, catálogo público debe funcionar. | Si Functions no corre o rutas no fallan cerrado, detener SQL/habilitación; mantener host ausente y restaurar deployment anterior. No retirar secret key por tipo; revisar consumidor primero. |
+| Access y hosts | GET sanitizado: Access app de `admin.studiamatch.com`, TTL 6 h, un IdP, una política Allow/un principal. Identidad exacta basada en JIT anterior, no reexpuesta en lectura reciente. | No cambiar Access por defecto. Confirmar host/identidad efectiva antes de habilitar Pages allowlist; añadir solo el hostname necesario bajo JIT si el estado deriva. | JIT de configuración separado; nunca añadir colaborador o wildcard por inferencia. | Prueba humana Admin tras dependencias; visitante sin sesión continúa rechazado por Access y por el BFF. | Mantener/quitar el host permitido, no debilitar política ni TTL; rollback vía JIT de Pages/Access según delta aprobado. |
+| Worker, Durable Object y cuotas | Dos GET anteriores devolvieron el mismo `index.js`, 7.013 B, SHA-256 `8e535fd78f329095d127f17cfee5e93404b836f934ea54d68540c3e276be9dee`; no existe vínculo reproducible a build certificado. Worker/DO existen y el namespace es compartido; binding ausente. | Antes de binding, resolver evidencia de correspondencia source→bundle y decisión de aislamiento; preparar Worker/namespace Production separado si se acepta. Después crear binding Pages y validar cuota controlada. No deploy ni borrar namespace ahora. | Decisión humana de aislamiento + JIT Cloudflare para Worker/DO/binding y secretos. | Rebuild con versión fijada o artifact verificable; binding apunta al recurso Production aislado; test limitado de cuotas y recuperación. | Si falla, quitar solo binding bajo JIT; preservar DO compartido y mantener Admin cerrado. |
+| Backup, Production y writers | Última observación backup físico 2026-11-01 00:57:56 Lima, PITR off, sin restore. GitHub última lectura conocida: `PRODUCTION_WRITERS_PAUSED=true`, `AUTOMATION_ENABLED=false`; revalidar antes de apply. | Justo antes del apply refrescar backup/PITR y pedir aceptación del punto; comprobar flags y no cambiarlos. PITR no se activa como requisito inventado. | Gate Production/backup y JIT apply separado; `backup_pitr_verified=true` solo con evidencia fresca aceptada. | Resumen del backup, flags y control DB-SYNC PASS asociado al SHA/run exactos. | Si backup no es aceptable, flags no son seguros o el gate falla: detener apply y no cambiar ambiente. |
+| Smoke Pro y contract | No se ejecutó H3 Pro ni UAT de este paquete; aceptaciones CA cerradas no se repiten. | Tras DB Verify, gateway/Edge/Auth/Pages/Worker y primer Admin: smoke mínimo de lectura pública, acceso/BFF/cola, edición/publicación/auditoría y restauración, con JIT de escritura que incluya valores/curso/campo/recuperación. Contract solo después de paridad y uso estable. | JIT específico por cada escritura y por contract; no reutilizar smoke Development/Certification. | Evidencia Pro anónima y autenticada, actor/evento, valor publicado y restaurado; CI/deploy y esquema asociados a SHAs reales. | Restaurar contenido público original y republicarlo, cerrar Admin, conservar auditoría; no borrar schema/ledger ni activar writers/schedules. |
+
+#### Snapshot del último preflight Pro exitoso (solo metadatos; no es runtime)
+
+| Dependencia | Estado observado | Acción y orden | Autorización / comprobación / recuperación |
+|---|---|---|---|
+| H2 y elegibilidad | Verify #91 acredita C=`605a6ecca29e20ade8cac3874d380758d18e6a11`, cohorte 224/digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`; Apply NO-OP. No cubre este delta posterior a C. | Integrar el paquete de código en Certification, fijar nuevo C y ejecutar report/verify H2 desde `certificacion`; guardar artefactos auténticos antes de P. Después una PR documental lleva JSON y referencias a Desarrollo y Certification. | JIT workflow `operation=report`/`verify` y gates Production propios; revalidar cohorte/advisors. Cualquier drift detiene sin apply; no repetir H2 apply ni reparar ledger. |
+| DB Pro / H3 | Proyecto `xwhtiqmboljkshrtviyw`, PostgreSQL 17.6. Lecturas SQL fueron SELECT de metadatos: ledger operativo 58, max `20260524`; H3 aplicado 0/32. `course_editorial_state`, audit y vista efectiva existen; `admin_members`/`admin_publish_course` ausentes; snapshots 0/3; `courses` RLS activo. | Tras P y autorización DDL, `DB Sync to Production` desde main: report → apply de manifest cerrado 32 → Verify. Mantener compatibilidad y no backfill. | JIT separado para report, apply y cualquier workflow verify; gate Production y punto de recuperación vigente. En drift/apply parcial, detener, releer ledger/schema; preservar snapshots/audit/ledger y usar forward-fix aprobado; rollback de app a deployment compatible. |
+| Vista pública / catálogo | `courses_public_effective` tiene `security_invoker=true`; anon/auth SELECT, RLS de `courses` activo. La lista de columnas observada coincide con `COURSE_PUBLIC_FIELDS` del candidato. Es paridad de contrato/schema, no runtime público Pro. | Antes y después del deploy main, validar anónimamente catálogo y curso usando la URL Pro efectiva; no habilitar Admin durante el smoke público. | Usar la configuración normal del ambiente/Preview si demuestra URL Pro; si no, pedir JIT específico de lectura. Ante regresión, restaurar deployment Pages anterior; no revertir DB destructivamente. |
+| H3 RPC/RLS/gateway | H3 RPCs Admin y `admin_members` ausentes; registro de clave/nonce privado ausente; `pgrst.db_pre_request` no configurado. `exec_sql(text)` existe. | Primero aplicar/verify H3; luego provisionar key ID/HMAC espejo y habilitar el pre-request solo tras revisar todos los RPC/lectores afectados. | SQL/config JIT independiente. Verificar ACL/RLS, hook, firma y lecturas públicas/writers existentes. Si falla, no abrir Admin; retirar hook/binding solo bajo JIT, sin borrar auditoría. |
+| Edge `admin-invite` | Ausente en Pro; único `send-lead-emails` ACTIVE v8, `verify_jwt=false`. | Desplegar desde el candidato integrado después del schema/gateway, con `verify_jwt=true`; URL callback exacta `https://admin.studiamatch.com/admin/auth/callback/`. | JIT de deploy Edge independiente; verificar versión, JWT y callback. Si falla, mantener Admin cerrado y revertir a ausencia/versión previa con JIT. |
+| Auth y primer Admin | Lectura visible TL 2026-11-02: Site URL `http://localhost:3000`, Redirect URLs vacías. La identidad/membresía Admin Pro no estaba presente en el último preflight; UUID no demostrado. | Aprobación separada para Site URL `https://admin.studiamatch.com` y añadir solo callback exacto. Luego crear identidad por flujo oficial, verificar UUID real y solicitar aparte la membresía Admin; no copiar usuario Free ni seed. | JIT Auth y JIT SQL de membresía separados; comprobar callback/invitación y sesión. Si identidad o membership no coincide, detener; no inventar UUID ni credenciales. Reabrir Auth dashboard de forma asistida si hay verificación humana. |
+| Pages/BFF / host | Pages Production sigue main; `NEXT_PUBLIC_SUPABASE_URL` coincide con Pro por comparación booleana. `ADMIN_ALLOWED_HOSTS`, BFF HMAC, key ID y service binding ausentes. Deploy actual `uses_functions=false`; Access `admin.studiamatch.com` Admin-only/6 h. | El deploy normal de main ocurre antes del SQL. Mantener allowlist ausente; después del deploy comprobar `uses_functions=true`, ruta Admin fail-closed y catálogo público operativo. Solo al final fijar `ADMIN_ALLOWED_HOSTS=admin.studiamatch.com` y configurar BFF. | JIT Pages/Access (Access sin cambio previsto) y secretos por nombre, nunca valores; las HMAC de quota/RPC/session son distintas, RPC requiere espejo DB. Si Functions no está activo o Admin no falla cerrado, detener antes de SQL; rollback al deployment previo. `NEXT_SUPABASE_SECRET_KEY` existe como `plain_text` pero no tiene consumidor web observado; no prueba exposición ni autoriza retirarla. |
+| Worker/cuotas | Worker y Durable Object existen; módulo descargado coincide entre dos lecturas (7.013 B, SHA-256 `8e535fd7…`), pero no hay correspondencia verificable con source/build certificado. Namespace DO compartido físicamente; binding `ADMIN_QUOTA` ausente. | Antes de binding, reconstruir/paridad del módulo con herramienta/versiones identificadas y decidir aislamiento. Propuesta preferida: Worker/namespace Production separados; después crear binding Pages y validar cuotas sintéticas no destructivas. | Decisión humana de aislamiento y JIT Cloudflare. No bindear namespace compartido por defecto ni borrar DO. Recuperación: quitar solo binding bajo JIT y mantener Admin cerrado. |
+| Backup/PITR | Última observación UI: backup físico diario 2026-11-01 00:57:56 Lima; PITR desactivado. No hubo restore ni verificación de recuperación. | Refrescar backup/PITR inmediatamente antes del apply y obtener aceptación del punto de recuperación disponible. | Aprobación de respaldo separada; `backup_pitr_verified=true` solo con evidencia vigente aceptada. Si el punto no sirve, parar; no activar PITR ni cambiar plan por inferencia. |
+
+Ventana deploy→H3: el deployment actual reporta `uses_functions=false`, aunque
+el objeto de Pages informa `uses_functions=true`. Por ello no se afirma que el
+middleware fail-closed esté activo hoy. Access solo protege su hostname Admin;
+no demuestra por sí solo el cierre de rutas Admin sobre el host público. El
+requisito previo a cualquier SQL es que el deployment automático nuevo de main
+muestre Functions activas, que `ADMIN_ALLOWED_HOSTS` siga ausente, que las
+rutas anónimas `/admin*` y `/api/admin*` fallen con 404 y que el catálogo
+anónimo consulte el Pro vigente. Los componentes públicos observados
+(`page.tsx`, `HomeContent.tsx`, detalle y comparación) leen
+`courses_public_effective`; la paridad SQL observada da compatibilidad
+estructural, no prueba runtime ni build conectado al Pro. Si una sola de esas
+condiciones falla, detener SQL y mantener el host cerrado; usar rollback de
+Pages o preparar un cambio de cierre con JIT, sin tocar el contrato público. El
+build mock 17/17 no demuestra catálogo Pro.
+
+#### Secuencia consolidada — código, evidencia, P, DDL y activación
+
+1. **Paquete local → Desarrollo.** Revalidar base y alcance. En una rama
+   codex/ desde Desarrollo, incorporar las cuatro commits exclusivas de main
+   mediante merge commit local. La simulación actual git merge-tree sobre las
+   refs existentes produce el tree de Desarrollo, sin conflictos; luego
+   aplicar y comprobar el patch de trabajo contra ese árbol. El PR a Desarrollo
+   debe contener solo los paths autorizados del paquete. No actualizar ramas
+   protegidas desde “Update branch”; no usar squash, rebase, bypass ni force-push.
+2. **Desarrollo → Certificación y nuevo C.** Tras integrar el código (incluido
+   el cambio del guard posterior a C) a Certification, fijar C al SHA real de
+   esa integración y ejecutar una sola verificación H2 nueva, si el gate
+   post-C se mantiene: dispatch operation=verify,
+   migration_manifest=h2-expand-compat, candidato actual, Apply NO-OP. Deben
+   pasar report/dry-run, Verify y revisión real de advisors. El run #91 no cubre
+   el guard ni el manifest de 32. No aplicar H2.
+3. **Evidencia H2 antes de P.** Descargar JSON/advisors auténticos, preservar
+   bytes/digests y actualizar las relaciones/documentos mínimos. El gate
+   principal requiere ese archivo versionado, pero su contenido no existe antes
+   del run C; por tanto hace falta un PR documental protegido después de C
+   (feature/docs→Desarrollo→Certificación) antes de congelar P. El filtro
+   disallowed_after_candidate permite documentación, pero no cubre la
+   modificación del guard/código. No prometer cero PRs.
+4. **Fijar P y auth_base.** Solo después de integrar todo el código, manifest
+   32, pins, JSON H2 auténtico, advisors y documentación no-auth: elegir P como
+   commit real de Desarrollo y auth_base como el commit de main incorporado en
+   la rama protegida. Verificar auth_base→P, el digest no-auth que el workflow
+   calcula desde el tree real y que la autorización DDL permanece
+   DRAFT_NOT_AUTHORIZED. El manifest debe validar 32 nombres, orden, hashes y
+   precedencias.
+5. **Promoción final del payload.** PR Development→Certification→main con
+   merge commits. En M, validar C ancestro de M y el filtro H2 real; no imponer
+   C→P sin predicado del workflow. Después de congelar P, el único diff
+   permitido es el archivo exacto de autorización DDL.
+6. **Autorizar y publicar DDL.** Tras revisión humana de P, base, digest,
+   cohorte H2, backup y efecto de 32 migraciones, la única mutación posterior
+   permitida en el payload es cambiar el archivo DDL a aprobado con esos valores
+   reales. Su publicación sigue el flujo protegido hasta main. La autorización
+   previa de 31 migraciones no aplica; el borrador actual sigue
+   DRAFT_NOT_AUTHORIZED.
+7. **Instalación después del deploy automático de main.** Primero lectura Pro
+   actualizada y Backup/Production preflight. Ejecutar report read-only; con
+   nueva aprobación y punto de recuperación aceptado, apply del manifest 32;
+   Verify; luego gateway/RPC con key mirror y revisión de lectores/writers,
+   Auth/callback e identidad Admin, membresía mediante UUID real, Edge
+   admin-invite, Worker/namespace de cuota aislado, binding/variables BFF.
+   Habilitar el hostname Admin solo al final. Probar catálogo antes y después,
+   luego el smoke mínimo autenticado/escritura con recuperación JIT. Contract
+   solo tras paridad estable y decisión separada; no activar writers, schedules,
+   FG1/FG2/FG3 ni H4.
+
+Transición: **expand** instala 32 migraciones versionadas sin backfill;
+**compatibilidad** conserva el lector público y el fallback legacy no retirado;
+**deploy** promueve Pages antes de DB con Admin host no allowlisted y aplica SQL
+solo por workflow/JIT; **contract** mantiene cohortes/auditoría y solo retira
+legacy cuando la paridad/cobertura lo autoriza. Recuperación ante error de
+Pages: deployment previo; ante SQL parcial, detener y conservar estado, sin
+revertir ledger/snapshot/auditoría, y preparar forward-fix autorizado; ante
+fallo de gateway/BFF/cuota, retirar solo el binding/hook o mantener hostname
+cerrado bajo JIT. Este corte acredita solo preparación/correcciones locales,
+no Deployment Certification, H3 instalado en Pro, GO de merge a main ni cierre
+productivo. Se reutilizan sin repetir E1–E6 6/6, Development R1–R4 4/4 y smoke
+histórico Certification 1/1.
+
 ### Recepción H3REQ1 posterior a PR #523 — corte de evidencia 2026-11-01
 
 PR #523 está aprobado e integrado en Certification. Refs verificadas en este
@@ -55,8 +303,11 @@ namespace Durable Object está compartido físicamente; una HMAC distinta solo
 separa lógicamente y no demuestra aislamiento físico.
 
 Pro continúa sin instalación ni verificación H3. El sitio público puede seguir
-sirviéndose desde main; el panel Admin permanece cerrado porque falta la
-allowlist de hosts. El gate integral documental sigue en FAIL. La revisión
+sirviéndose desde main. En ese corte se observó ausente la allowlist Pages y
+existente Access Admin-only; eso no demuestra por sí solo el cierre efectivo
+de todas las rutas Admin. La lectura posterior del deployment activo muestra
+`uses_functions=false`, por lo que su cierre runtime debe probarse en el nuevo
+deployment y queda pendiente. El gate integral documental sigue en FAIL. La revisión
 independiente TL comparó baseline Desarrollo `60ac3ca…` y candidato con solo
 estos dos documentos, en checkouts limpios creados desde `git archive` y con el
 mismo checker SHA-256 `f2a95870de748b2e59ee0d988abb0b16125da47c996a7f85841f1113fcebbb75`:
