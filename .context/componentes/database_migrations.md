@@ -2,30 +2,43 @@
 
 > Generado el 2026-10-12 desde nombres presentes en el checkout candidato. El orden lexicográfico coincide con el prefijo de fecha, no certifica orden de aplicación en ningún ambiente. Los cuerpos y comentarios de cada migration definen el cambio. No se ejecutó SQL.
 
-## Corrección del runner H3 Pro — corte local 2026-11-03
+## Corrección del runner H3 Pro y estado de ledger — corte 2026-11-03
 
 `db_migrate.py` compone el SQL de una migration y su inserción en el ledger en
 una sola llamada a `public.exec_sql`. La función ejecuta SQL dinámico dentro de
-su propia transacción PostgreSQL; no admite ejecutar `BEGIN`/`COMMIT` de nivel
-superior como texto dinámico. El run Pro #95 falló en ese límite antes de
-completar el manifest y Verify quedó omitido. El reporte previo indicó 32
-pendientes/0 aplicadas; no hay una lectura del ledger/schema posterior al fallo,
-así que el estado remoto actual no se infiere.
+su propia transacción PostgreSQL; no admite wrappers `BEGIN`/`COMMIT` superiores.
+El run Pro #95 falló en ese límite después de iniciar Apply; Verify quedó
+SKIPPED. Su Report previo indicaba 32 pendientes/0 aplicadas y es anterior a
+la ejecución de Apply.
 
-El fix local elimina solo los wrappers `BEGIN`/`COMMIT` de seis migrations H3,
-repina sus bytes en `pro_h3_migration_manifest.py` y añade una prueba de contrato
-que prohíbe esos comandos en el manifest seleccionado. La atomicidad queda en la
-llamada única a `exec_sql` que también inserta el ledger. Manifest: 32 entradas.
-La prueba sintética autorizada en PostgreSQL 17.11 pasó: aplicó 32/32 vía
-`exec_sql`, verificó ledger 32/32, lector anónimo de 224 y ACL, y eliminó el
-contenedor desechable. No conecta a Free/Pro ni prueba el runtime remoto.
+Una única consulta SQL `SELECT` autorizada por el usuario fue ejecutada por el
+TL sobre `xwhtiqmboljkshrtviyw` a las 14:24:01 Lima. El resultado se preserva
+sin editar en [`h3req1_pro_ledger_snapshot_2026-11-03.json`](../evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json), SHA-256
+`24e783aa98ba8b699f1348200ccdffdd572100aa0e74549d88e88931a1f1d525`. De 32
+nombres H3, 22 están presentes en ledger (posiciones 1–22) y 10 no están
+presentes (posiciones 23–32), desde `20261002_h3_admin_quota_expand`. Esto no
+verifica cuerpo de schema, hashes instalados, permisos ni paridad de objetos.
+No repetir la consulta, no reparar manualmente el ledger y no reejecutar las 22
+entradas. Un nuevo report debe confirmar el delta actual y detener Apply ante
+cualquier diferencia respecto de los diez nombres observados.
 
-La evidencia autenticada del fixture está fuera del repositorio en
-`/tmp/h3req1-quota-pg17-jit-20261103/attempt-3-summary.md` y
-`retry-v3/run-result-v3/`. El texto de generación del 2026-10-12 y los cortes
-históricos que indican que no se ejecutó SQL describen sus fechas; la ejecución
-PG17 sintética de este corte no se debe confundir con una instalación remota.
-La aprobación DDL anterior está fijada a otros hashes y no cubre este cambio.
+El fix de seis migrations y sus pins se integró en Development mediante #535
+(HEAD `b5b4de4a99351b83163225639590b3d529047960`). Docker confirmó el manifest
+actual de 32 entradas y sus hashes. La ejecución local autorizada PG17.11 v3
+previa a #535 reutiliza el mismo módulo manifest (su SHA del harness coincide
+con `prep-inputs.sha256`) y el mismo conjunto de hashes SQL fijado por los pins
+que se validaron en Docker sobre #535; terminó `fixture=PASS` en una base efímera `--network none`, con
+32/32 migrations, ledger sintético 32/32, lector anónimo 224, ACL y limpieza
+verificados. Evidencia: `/tmp/h3req1-quota-pg17-jit-20261103/attempt-3-summary.md`
+y `retry-v3/run-result-v3/`. Es fixture local, no aplicación en Pro.
+
+El H2 verify #93 usó C `257b77471e1f0b6bb8714eeaa975b3815668aea9`; las migrations
+corregidas y los pins/test agregados después de C no cumplen el filtro
+`disallowed_after_candidate`. Promover estos bytes a Certificación producirá
+un C nuevo; el gate exige un verify H2 nuevo para ese C. El artefacto auténtico
+se integra sin editar antes de fijar un nuevo P. Las 22 entradas ya presentes
+no se incluyen en el siguiente Apply; report, Apply y Verify futuros requieren
+sus JIT y gates Production propios.
 
 ## h3-pro-promotion-manifest
 
@@ -68,10 +81,10 @@ validar el SHA de cada SQL y usar los gates report → autorización
 DDL/Production/backup-PITR → apply → verify.
 El caller de Pro no admite `--only` ni selección parcial.
 
-El preflight Pro de este corte observa 23 entradas de ledger, objetos H2
-editoriales presentes fuera de ese ledger, `admin_*`/`h3_*` Admin ausentes y
-campos snapshot ausentes. No se leyó la cohorte ni se ejecutó
-`h2_verify_expand_compat`; por eso este manifest local no es aplicable todavía.
+El preflight Pro de ese corte histórico (2026-10-29) observó 23 entradas de
+ledger, objetos H2 editoriales presentes fuera de ese ledger, `admin_*`/`h3_*`
+Admin ausentes y campos snapshot ausentes. No describe la lectura posterior a
+#95 ni el estado actual.
 El report read-only H2 ahora distingue el baseline de una instalación parcial
 fuera de ledger y entrega agregados con `REVIEW_REQUIRED`; una superficie H2
 compatible observada es solo diagnóstico porque el lector no puede consultar el
