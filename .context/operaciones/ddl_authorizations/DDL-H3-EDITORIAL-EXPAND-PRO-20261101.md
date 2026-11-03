@@ -1,13 +1,13 @@
 # DDL-H3-EDITORIAL-EXPAND-PRO-20261101
 
-Status: DRAFT_NOT_AUTHORIZED
+Status: APPROVED_FOR_PRODUCTION_DDL
 
-**Estado del borrador en este corte:** los campos `Authorized ...` siguientes
-conservan la tupla histórica de #532 y no constituyen una autorización vigente
-para el nuevo payload. Tras fijar P, se derivará la tupla desde los commits y
-el algoritmo real del workflow. El archivo seguirá en `DRAFT_NOT_AUTHORIZED`
-hasta la aprobación humana de los bytes y valores exactos; solo después podrá
-publicarse la versión aprobada de esta ruta.
+**Alcance del estado:** esta marca registra aprobación humana del contenido
+exacto de este archivo para la tupla indicada abajo. Solo acredita la decisión
+sobre contenido DDL; no autoriza commit, push, PR, review, merge, workflow
+`dispatch`, SQL, configuración, secretos, backup/restore ni deploy. La ejecución
+requiere las aprobaciones separadas de publicación y del workflow Production,
+además de un punto de recuperación vigente y aceptado.
 
 ## Identidad y campos del workflow; ejecución separada
 
@@ -17,25 +17,23 @@ publicarse la versión aprobada de esta ruta.
 - Candidato final M: lo define el merge protegido real a `main` y se verifica contra la rama justo antes del workflow; esta autorización pre-merge no asigna ni anticipa ese SHA.
 
 Authorized manifest: h3-editorial-expand
-Authorized payload SHA: eb5bb9ffd8f425e621bb75aab6053641166f6fef
+Authorized payload SHA: 4eb357f0c6abe2717b0ad22406ce7aac81f5bc73
 Authorized base SHA: f26f7f43c5bfcea55e0bdb73627ec8be1d5c82aa
-Authorized non-auth digest SHA256: sha256:4b4514b14fdb3afa7998f9796c67a315d6a97dfad46c2c93e98195f511a96445
+Authorized non-auth digest SHA256: sha256:93a812978cb58852dd443c502b7feb678d4b2b65e4bc2fbd55ec477e9ddd9ca8
 H2 expected eligible count: 224
 H2 expected cohort digest: sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9
 Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED
 Pro apply gate: APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR
 
-**Secuencia de autorización.** PR #532 aprobó una versión anterior para una
-tupla exacta; esa decisión se conserva como historia y no se transfiere. En el
-snapshot pre-P de esta rama, el Status se restableció a
-`DRAFT_NOT_AUTHORIZED` y los valores antiguos solo identifican la tupla
-histórica. Antes de aprobar un payload nuevo se deben sustituir los campos por
-los valores derivados del P real. La persona responsable revisa los bytes y la
-tupla completos; solo después se cambia Status al valor exigido por el workflow.
-Esta frase registra el corte pre-P y no predetermina el Status posterior. En
-cualquier ejecución, el workflow debe rechazar Status o campos que no coincidan
-con la decisión humana y los inputs. Ningún estado documental autoriza por sí
-solo publicación, merge, dispatch, SQL ni deploy.
+**Decisión de contenido para este candidato.** PR #532 aprobó una versión
+anterior y su aprobación no se transfiere. El payload congelado es P
+`4eb357f0c6abe2717b0ad22406ce7aac81f5bc73`; su base y digest se calcularon con
+el algoritmo literal del workflow. Esta versión reemplaza los valores
+históricos del snapshot Draft con la tupla exacta de P y conserva el manifest y
+la cohorte H2 aprobados como entradas de verificación. La decisión humana se
+limita a estos bytes y valores. El workflow debe rechazar cualquier Status o
+campo que difiera de este archivo y de los inputs. Este estado no autoriza por
+sí solo publicación, review, merge, dispatch, SQL ni deploy.
 
 Para #532 se usó como base el merge de incorporación de main
 `f26f7f43c5bfcea55e0bdb73627ec8be1d5c82aa`, integrado mediante PR #529; no es
@@ -61,14 +59,14 @@ P; cohorte 224 y digest H2 constan arriba. Los advisors del artefacto conservan
 12 hallazgos de seguridad y 17 de rendimiento idénticos al baseline #91, sin
 nuevos HIGH/CRITICAL/ERROR. Esta evidencia acredita H2, no H3.
 
-Los valores de identidad del archivo deben corresponder al P, base, digest,
-manifest y cohorte que se sometieron a aprobación. Los que figuran en el
-snapshot pre-P de esta rama pertenecen a la tupla histórica de #532; no se
-interpretan como aprobación del candidato corregido. Cualquier cambio no-auth
-posterior a P invalida P y exige nuevo cálculo; no se permite añadirlo mediante
-esta autorización. M solo existe tras el merge protegido real a main. La
-aprobación DDL tampoco sustituye publicación protegida, workflow_dispatch,
-gate Production ni un punto de recuperación vigente y aceptado antes de apply.
+En esta versión, payload, base, digest, manifest y cohorte son la tupla exacta
+sometida a decisión humana. El snapshot Draft anterior conserva la tupla
+histórica de #532 y no es una autorización para el candidato actual. Cualquier
+cambio no-auth posterior a P invalida P y exige un nuevo cálculo; no se permite
+añadirlo mediante esta autorización. M solo existe tras el merge protegido real
+a main. La aprobación DDL tampoco sustituye publicación protegida,
+`workflow_dispatch`, gate Production ni un punto de recuperación vigente y
+aceptado antes de apply.
 
 ## Manifest cerrado y orden
 
@@ -82,7 +80,7 @@ Quedan excluidos: ejecutar H2 otra vez; backfill o sincronización de datos oper
 
 ## Secuencia y gates
 
-1. **Decisión de contenido.** Para que el workflow acepte apply, el archivo debe tener Status `APPROVED_FOR_PRODUCTION_DDL` y coincidir exactamente en manifest32, P, base, digest no-auth y cohorte. El snapshot pre-P descrito arriba permanecía en `DRAFT_NOT_AUTHORIZED` y el workflow lo rechazaría. La aprobación humana de los bytes exactos debe anteceder cualquier cambio de Status; no autoriza publicar, integrar, despachar workflows ni aplicar SQL.
+1. **Decisión de contenido.** Esta versión contiene `APPROVED_FOR_PRODUCTION_DDL` y la tupla exacta de manifest32, P, base, digest no-auth y cohorte. El workflow rechaza un archivo Draft o cualquier diferencia. La aprobación humana de estos bytes solo cubre contenido; no autoriza publicación, integración, dispatch ni SQL.
 2. **Publicación protegida.** Con autorización de publicación separada, enviar el archivo aprobado por el flujo feature → Desarrollo → Certificación → main. El cambio posterior al payload debe limitarse a esta ruta. Conservar merge commits; no usar squash ni rebase.
 3. **Validación de SHAs antes de fijar la ejecución.** Usar los valores exactos del archivo aprobado y de los inputs del workflow. Releer P, base de integración y C. El workflow exige base→P y P→M; también valida C→M y que diff(C,M) respete el filtro H2. Exige que diff(P,M) contenga solo esta autorización. No imponer C→P si el workflow no lo exige: Desarrollo y Certificación conservan sus ancestros mediante los merges protegidos. El árbol y digest deben coincidir con los bytes revisados; ante cambio no-auth o drift, detener y volver a revisión. Una simulación local no fija M ni autoriza actualizar ramas.
 4. **Report read-only.** Solo después de una integración real a main, solicitar un JIT específico para `operation=report`, manifest `h3-editorial-expand`, `candidate_sha=M` real y `payload_sha=P`. El workflow admite report únicamente desde main y usa el environment Production. El job ejecuta dry-run/lecturas; no aplica SQL. Revisar su resultado de ledger, pendientes, drift y manifest antes de decidir apply. Este reporte no autoriza apply; el propio run `operation=apply` vuelve a ejecutar el report como precondición.
@@ -96,7 +94,7 @@ Ante drift de manifest/hash, candidato, base/digest, cohorte, ancestry, diff de 
 
 ## Aprobaciones y autorizaciones que siguen separadas
 
-- La aprobación de #532 solo cubrió la tupla registrada en el historial. Para otro P, la revisión humana debe abarcar el archivo completo y sus valores exactos; Status puede reflejar aprobación únicamente después de esa decisión. El Status no concede autorización de workflow, SQL, publicación, review o merge.
+- La aprobación de #532 solo cubrió su tupla histórica. Esta versión registra aprobación humana únicamente de sus bytes y valores exactos. El Status no concede autorización de workflow, SQL, publicación, review o merge.
 - Commits, push y PR siguen el flujo protegido del repositorio; esta autorización DDL no concede review, merge ni promoción.
 - Disposición documental específica si el gate integral continúa en FAIL; no se heredan las disposiciones de #524/#525.
 - JIT read-only para `operation=report` desde main y su aprobación del environment Production.
