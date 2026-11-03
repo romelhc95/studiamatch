@@ -68,3 +68,7 @@ test('changing a filter invalidates an in-flight response before the replacement
   assert.ok(/const updateFilter = \([\s\S]*?latestQueueRequestId\.current = nextAdminQueueRequestId[\s\S]*?setFilters/.test(queueSource));
   assert.ok(/const updateInstitution = \([\s\S]*?latestQueueRequestId\.current = nextAdminQueueRequestId[\s\S]*?setInstitutionSlug/.test(queueSource));
 });
+
+// Run TSX-level session/MFA regressions from this existing CI suite without a
+// separate workflow job or altered security-audit orchestration.
+await import('./h3req1_pr528_ui_regressions.test.mjs');

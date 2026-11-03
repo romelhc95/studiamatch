@@ -118,6 +118,7 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
     quality_status: role === 'admin' ? 'complete' : 'pending',
   });
   const latestQueueRequestId = useRef(0);
+  const latestAssuranceCheckId = useRef(0);
 
   const fetchFacets = useCallback(async () => {
     setFacetsLoading(true);
@@ -186,31 +187,42 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
     }
   }, [filters.editorial_status, filters.quality_status, institutionSlug]);
 
+  const checkAssurance = useCallback(async () => {
+    const assuranceCheckId = latestAssuranceCheckId.current + 1;
+    latestAssuranceCheckId.current = assuranceCheckId;
+    latestQueueRequestId.current = nextAdminQueueRequestId(latestQueueRequestId.current);
+    setError(null);
+    setMfaRequired(false);
+    setAssurance('checking');
+
+    try {
+      const { currentLevel } = await getAuthenticatorAssuranceLevel();
+      if (assuranceCheckId !== latestAssuranceCheckId.current) return;
+      const verifiedLevel = currentLevel === 'aal2' ? 'aal2' : 'aal1';
+      setAssurance(verifiedLevel);
+      setMfaRequired(verifiedLevel !== 'aal2');
+    } catch (reason) {
+      if (assuranceCheckId !== latestAssuranceCheckId.current) return;
+      if (isMfaRequiredError(reason)) {
+        setAssurance('aal1');
+        setMfaRequired(true);
+      } else {
+        setError(reason instanceof Error ? reason.message : 'No se pudo verificar el nivel de autenticación.');
+      }
+    }
+  }, []);
+
   const reloadAll = useCallback(() => {
     setCursorHistory([]);
-    setMfaRequired(false);
-    setAssurance('aal2');
-    void Promise.all([fetchFacets(), fetchQueue(null)]);
-  }, [fetchFacets, fetchQueue]);
+    void checkAssurance();
+  }, [checkAssurance]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      void getAuthenticatorAssuranceLevel()
-        .then(({ currentLevel }) => {
-          setAssurance(currentLevel ?? 'aal1');
-          setMfaRequired(currentLevel !== 'aal2');
-        })
-        .catch((reason) => {
-          if (isMfaRequiredError(reason)) {
-            setAssurance('aal1');
-            setMfaRequired(true);
-          } else {
-            setError(reason instanceof Error ? reason.message : 'No se pudo verificar el nivel de autenticación.');
-          }
-        });
+      void checkAssurance();
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, []);
+  }, [checkAssurance]);
 
   useEffect(() => {
     if (assurance !== 'aal2') return;
@@ -255,22 +267,24 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
     return <MfaRequiredCard onVerified={reloadAll} />;
   }
 
+  if (error) {
+    return (
+      <Card className="border-0 bg-white p-8 text-center shadow-card">
+        <h3 className="text-lg font-semibold text-slate-900">
+          {assurance === 'checking' ? 'No se pudo verificar la autenticación' : 'No pudimos cargar la cola'}
+        </h3>
+        <p className="mt-2 text-sm text-slate-600">{error}</p>
+        <Button onClick={reloadAll} className="mt-6" variant="outline">Reintentar</Button>
+      </Card>
+    );
+  }
+
   if (assurance === 'checking') {
     return <Card className="border-0 bg-white/80 p-12 text-center text-sm text-slate-600 shadow-card">Verificando la seguridad de la sesión...</Card>;
   }
 
   if (loading && courses.length === 0) {
     return <Card className="border-0 bg-white/80 p-12 text-center text-sm text-slate-600 shadow-card">Cargando cola editorial...</Card>;
-  }
-
-  if (error) {
-    return (
-      <Card className="border-0 bg-white p-8 text-center shadow-card">
-        <h3 className="text-lg font-semibold text-slate-900">No pudimos cargar la cola</h3>
-        <p className="mt-2 text-sm text-slate-600">{error}</p>
-        <Button onClick={reloadAll} className="mt-6" variant="outline">Reintentar</Button>
-      </Card>
-    );
   }
 
   return (
