@@ -6,7 +6,61 @@
 
 ## Corte vigente
 
-### Remediación local consolidada para PR #528 — corte 2026-11-02
+### Recepción del verify H2 #93 y preparación final — 2026-11-02
+
+Corte TL posterior a los merges humanos #529/#530: Desarrollo
+`9160b6ad381cee3d6e3bf3ab9d876146a9b97d64`, Certification
+`257b77471e1f0b6bb8714eeaa975b3815668aea9` y main
+`70d0f4fee885be0f6780e5d14f466b2a6c897961`. Desarrollo y Certification
+conservan el árbol `879bda1a0b5ca9a8ace368314d9f0c2b7513291c`; main ya es
+ancestro de ambas ramas. La actualización de historial está resuelta. PR #528
+continúa abierto hacia main; no está integrado ni autorizado para merge.
+
+El reporte H2 #92 y el verify #93 se ejecutaron una sola vez cada uno, con JIT
+separados y aprobaciones humanas de Production. El [verify #93](https://github.com/romelhc95/studiamatch/actions/runs/41555682589),
+ref Certification y candidate/payload `257b77471e1f0b6bb8714eeaa975b3815668aea9`,
+terminó SUCCESS: cero pendientes H2, Apply NO-OP, aplicación real de SQL SKIPPED
+y Verify target schema SUCCESS. Se observaron 224 elegibles/visibles y digest
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
+Los advisors del artefacto son idénticos al baseline #91: 12 de seguridad y 17
+de rendimiento, sin nuevos HIGH/CRITICAL/ERROR; INFO/WARN históricos permanecen.
+El reporte #92 no sondea el esquema privado ni la RPC de verificación; #93
+sí acredita el contrato H2 que ejecuta su job, sin acreditar H3.
+
+El JSON auténtico de #93 sustituye el de #91 en
+[la evidencia H2 versionada](operaciones/h2_main_production_expand_evidence.json).
+Artefacto GitHub `13194926943`, ZIP SHA-256
+`1658089f4f137b89dfb4cc7a00a135943c0bfe6426fba44be8bcdd99aee6cf90`;
+se comprobaron hash, tres miembros exactos, run, SHA y advisors. La etiqueta
+`operation=apply` es emitida históricamente por el generador: se conserva sin
+adulterar; el dispatch real fue `verify` con `apply_authorized=false`,
+backup=false y DDL vacío. El [checkpoint](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md#recepcion-autentica-del-verify-h2-93--2026-11-02)
+conserva los jobs y límites del resultado.
+
+Este paquete local cambia solo evidencia y documentación; no modifica código,
+SQL, manifest, configuración ni permisos. Los CA aceptados se reutilizan sin
+repetición: E1–E6 local 6/6, Development R1–R4 4/4 y smoke histórico de
+Certification 1/1. Validación Docker de este paquete, sin red y con fuentes de
+solo lectura: self-test/gate focal PASS; integral baseline/candidato FAIL con
+348→348 diagnósticos byte-idénticos, cero nuevos y cero resueltos; contratos de
+estado/main 15/15 PASS, escaneo de los cuatro archivos PASS y manifiesto H3
+32/32 hashes/orden PASS. El validador semántico H2 se extrae literalmente del
+workflow y valida el JSON auténtico. No son checks CI del futuro commit ni GO
+main; no se ejecutó SQL ni se repitieron CA funcionales.
+
+Siguiente secuencia mínima: publicar este paquete con autorización
+separada por el flujo protegido y, tras integrar todo el contenido no-auth,
+fijar P real de Desarrollo, auth_base y digest. El borrador DDL de 32 migraciones
+sigue DRAFT_NOT_AUTHORIZED y sus PENDING no se sustituyen con SHAs simulados.
+Revisar su contenido exacto y publicar únicamente ese archivo después de P,
+con aprobaciones separadas. Antes del GO main aún debe acreditarse catálogo
+público compatible y Admin cerrado para el candidato; la evidencia de H2 no
+sustituye esas comprobaciones. Después del merge humano, instalación H3 y
+configuración/activación Pro siguen bajo JIT propios. No hay cierre productivo.
+Las matrices y el orden de instalación posteriores se conservan como plan;
+sus filas que citan #91 son antecedentes sustituidos por #93 solo para H2.
+
+### Remediación local consolidada para PR #528 — corte histórico 2026-11-02
 
 Refs releídas de GitHub: Desarrollo `571a81175f5b807251d6d266fa77b0c91c15d642`,
 Certification `12311eda52ecc14e93cad4d01775da6ab17a0231` y main

@@ -505,3 +505,39 @@ aceptados ni se hicieron operaciones remotas.
 El gate integral conserva FAIL en el baseline Development `64c23fd8a9694f50a2728399bf8e35771bf56fad` y en el paquete local de 10 paths: 348 diagnósticos idénticos, 0 nuevos y 0 resueltos. Causa demostrada: relaciones/referencias históricas a fuentes retiradas o ausentes que no se recuperan desde Git/copia autorizada. El candidate-aware self-test pasa por separado; no convierte el integral en PASS.
 
 Propuesta para decisión humana, no aprobada: disponer únicamente este residual para tramitar la integración protegida del paquete exacto de la rama local `codex/h3req1-run91-evidence-20261101` hacia Development, sobre la base indicada. Owner propuesto: Romel/TL. Vencimiento propuesto: 2026-11-03 23:59 America/Lima o antes de integrar este paquete, lo que ocurra primero. Riesgo: referencias históricas incompletas; no se identificó impacto funcional en un diff exclusivamente documental. No cubre Certification, main, Pro/H3 DDL, SQL, workflow, configuración, deploy ni checks/review; no habilita publicación, commit, push o merge y no extiende disposiciones anteriores.
+
+## Recepción auténtica del verify H2 #93 — 2026-11-02
+
+Este corte sustituye #91 como evidencia H2 del candidato actual; conserva los
+cortes anteriores como historia. Run [41555682589](https://github.com/romelhc95/studiamatch/actions/runs/41555682589),
+número 93, attempt 1, workflow_dispatch desde Certification,
+candidate/payload `257b77471e1f0b6bb8714eeaa975b3815668aea9`, SUCCESS.
+Report job `125654026273` SUCCESS con cero pendientes; Apply job `125655915626`
+SUCCESS exclusivamente por Confirm verify no-op; Apply migrations to Pro
+SKIPPED; Verify target schema job `125656092764` SUCCESS. FG2 solo confirmó su
+diferimiento; no ejecutó scraping. Los gates Production fueron humanos.
+
+Artefacto `13194926943`, nombre
+`h2-production-expand-verify-257b77471e1f0b6bb8714eeaa975b3815668aea9`, ZIP
+SHA-256 `1658089f4f137b89dfb4cc7a00a135943c0bfe6426fba44be8bcdd99aee6cf90`,
+contrastado contra GitHub. Miembros exactos: JSON de evidencia y los dos JSON de
+advisors de seguridad/rendimiento. El JSON versionado se copia byte a byte del
+ZIP. La etiqueta histórica operation=apply se conserva: no describe el dispatch
+real verify ni demuestra SQL aplicado. Inputs: apply=false, backup=false, DDL
+vacío, advisors_reviewed=true; cohorte 224 y digest
+`sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`.
+Advisors: 12 seguridad y 17 rendimiento, fingerprints idénticos al baseline #91,
+sin HIGH/CRITICAL/ERROR ni novedades; los INFO/WARN no se presentan como resueltos.
+
+Logs, ZIP, JSON y registro de autorización/ejecución se conservan fuera del
+repositorio en `/tmp/h3req1-after530-20261102/`. Este corte prepara documentación
+local sin commit/push/PR/merge, SQL write, configuración o nuevo dispatch.
+No repetir los CA aceptados. No acredita H3, BFF, Auth, Edge, cuotas ni smoke Pro.
+Validación local en Docker sin red, fuentes de solo lectura: self-test/gate
+focal PASS; integral baseline/candidato FAIL 348→348, listas completas idénticas,
+cero nuevos/resueltos. Contratos de estado/main 15/15 PASS, scan de los cuatro
+archivos PASS, manifiesto H3 32/32 hashes/orden PASS. El predicado semántico H2
+se extrae literalmente del workflow para validar este JSON. Diff-check PASS.
+No se acredita CI remoto del futuro commit. P/auth_base/digest aún no están
+congelados; DDL permanece borrador. Siguiente gate: publicación protegida
+con autorización separada antes de fijar P.
