@@ -2,6 +2,63 @@
 
 > Generado el 2026-10-12 desde nombres presentes en el checkout candidato. El orden lexicográfico coincide con el prefijo de fecha, no certifica orden de aplicación en ningún ambiente. Los cuerpos y comentarios de cada migration definen el cambio. No se ejecutó SQL.
 
+## Estado de H2/H3 Pro después de #537 y run #96 — corte 2026-11-03
+
+### H3: último ledger y fallo anterior
+
+El snapshot H3 autorizado del 2026-11-03 14:24 Lima conserva 22/32 nombres
+registrados (posiciones 1–22) y 10 ausentes (23–32), primera faltante
+20261002_h3_admin_quota_expand. Es evidencia de presencia en ledger, no de
+paridad. No se repitió la SELECT consumida, no se reparó el ledger y no se
+forzaron las 22 migraciones registradas.
+
+El run H3 #95 falló en public.exec_sql al enviar wrappers transaccionales
+BEGIN/COMMIT como SQL dinámico; Verify quedó SKIPPED. No se reintentó.
+La corrección transaccional y los seis hashes del manifest cerrado H3 (32
+entradas) llegaron a Certificación mediante #537, SHA
+7e6c1c1a288706afcfac405df1bb6eabaa9a64e5. La ejecución PG17 desechable
+autorizada ya existente acredita fixture local, no aplicación en Pro.
+
+### H2 verify #96
+
+Run [#96](https://github.com/romelhc95/studiamatch/actions/runs/41749790054),
+ref certificacion, candidate/payload 7e6c1c1a288706afcfac405df1bb6eabaa9a64e5,
+manifest h2-expand-compat, terminó SUCCESS. El reporte H2 fue dry-run con
+cero pendientes; Apply confirmó NO-OP y el step Apply migrations to Pro quedó
+SKIPPED. Verify target schema fue SUCCESS; H2 elegibles 224, digest
+sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9;
+Advisors se revisaron, sin nuevos HIGH/CRITICAL/ERROR. Esto acredita H2 sobre
+C y no cuenta las pendientes H3.
+
+El artefacto auténtico 13286019927 contiene el JSON y los dos resultados
+Advisors. ZIP SHA-256
+8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a;
+JSON SHA-256
+c30895c94edd054fd2500293c417021c643f906558de184a1a49021e2cd2a59c.
+El JSON mantiene operation=apply como etiqueta histórica de esquema; el
+dispatch real fue verify, Apply fue NO-OP y Verify fue SUCCESS. No se editó la
+etiqueta. La evidencia canónica se copió íntegra desde el artefacto a su ruta
+exacta antes de fijar P; nunca se fabrica ni se reescribe manualmente.
+
+### Instalación H3: siguientes gates
+
+El ledger snapshot 22/32 es una expectativa fechada. Después de que el paquete
+con evidencia #96 se integre por el flujo protegido y el nuevo candidato llegue
+a main, solicitar un Report H3 nuevo para ver las pendientes actuales. Detener
+si difieren o existe drift; no repetir #95 ni reaplicar las 22. Apply requiere
+JIT nuevo, autorización DDL exacta para el P/hash actual, punto de recuperación
+aceptado y revalidado, pending_count exacto y gate Production. Verify H3
+SUCCESS es obligatorio para declarar schema instalado. Migración aplicada,
+runtime habilitado y contract/retirada legacy son estados separados.
+
+Transición: expand → compatibilidad conserva los lectores legacy y ledger;
+deploy por main protegido sin writers/schedules; contract solo después de
+Verify/paridad y aceptación del runtime. Ante Apply parcial, detener y conservar
+ledger/auditoría/snapshots; no borrar ni marcar registros manualmente. Preparar
+forward-fix autorizado si el schema queda parcial; rollback de aplicación al
+código compatible, no rollback destructivo de DB. Gateway, cuotas, Edge,
+Auth/primer Admin, Pages/BFF, abrir Admin y smoke Pro conservan JIT separados.
+
 ## h3-pro-promotion-manifest
 
 ### Preflight offline del registro compartido — corrección P1 de PR 514
@@ -43,10 +100,10 @@ validar el SHA de cada SQL y usar los gates report → autorización
 DDL/Production/backup-PITR → apply → verify.
 El caller de Pro no admite `--only` ni selección parcial.
 
-El preflight Pro de este corte observa 23 entradas de ledger, objetos H2
-editoriales presentes fuera de ese ledger, `admin_*`/`h3_*` Admin ausentes y
-campos snapshot ausentes. No se leyó la cohorte ni se ejecutó
-`h2_verify_expand_compat`; por eso este manifest local no es aplicable todavía.
+El preflight Pro de ese corte histórico (2026-10-29) observó 23 entradas de
+ledger, objetos H2 editoriales presentes fuera de ese ledger, `admin_*`/`h3_*`
+Admin ausentes y campos snapshot ausentes. No describe la lectura posterior a
+#95 ni el estado actual.
 El report read-only H2 ahora distingue el baseline de una instalación parcial
 fuera de ledger y entrega agregados con `REVIEW_REQUIRED`; una superficie H2
 compatible observada es solo diagnóstico porque el lector no puede consultar el

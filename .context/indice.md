@@ -1,6 +1,17 @@
 # StudIAMatch — índice de transferencia
 
-> Corte H3REQ1 del paquete correctivo, 2026-11-03: el estado operativo gobierna la secuencia. El `Status` y la tupla DDL se leen del archivo versionado en el SHA candidato y solo aplican a sus bytes exactos; #532 cubrió una tupla histórica que no se transfiere. H2 #93 acredita H2 sobre C, no instala H3 en Pro. El integral documental conserva FAIL histórico; el gate acotado no lo convierte en PASS. Este corte registró #533 y #528 abiertos sobre SHAs anteriores y no declaró GO main; releer GitHub antes de cada paso. Las lecturas públicas y los límites del runtime se describen con fecha en el estado operativo. Publicación/promociones requieren reviews y checks protegidos; DDL, workflow y operaciones Pro conservan autorizaciones propias.
+> Corte H3REQ1 tras #537 y H2 verify #96, 2026-11-03 20:32 Lima: Desarrollo
+> 5523c6e7606a9c006020c263b43cf63aa05778f1 y Certificación/C
+> 7e6c1c1a288706afcfac405df1bb6eabaa9a64e5 comparten árbol
+> bca1ff30e8bf50857448d79960dee219224d22d4; main continúa en
+> 643b850533d3788ef4164378d4350f533595fd23. Run #96 verificó H2
+> h2-expand-compat: cero pendientes H2, Apply NO-OP y Verify target schema
+> SUCCESS; artefacto ID 13286019927, ZIP SHA-256
+> 8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a.
+> Esto no actualiza el ledger H3: la última SELECT H3 fechada sigue 22/32 y no
+> se repitió. H3 no está aplicado/verificado; #95 no se reintentó. La aprobación
+> DDL anterior no cubre los hashes corregidos ni P nuevo. Ver autoridad y orden
+> en [estado](estado_del_proyecto.md); el integral documental conserva FAIL 348.
 
 Esta es la única entrada principal de Obsidian. El [estado del proyecto](estado_del_proyecto.md) es la única autoridad operativa para el corte vigente, resultados, pendientes y siguiente paso. Las reglas de ejecución están en [AGENTS.md](../AGENTS.md).
 
@@ -55,6 +66,8 @@ Las fichas explican el módulo; el [registro verificable de fuentes](trazabilida
 Sigue los [recorridos de transferencia](transferencia.md) para cambiar: una regla de edición Admin, un filtro público, un campo de datos, discovery/procesamiento, invitaciones/cuota/sesión o un workflow/herramienta. Cada recorrido enlaza módulo, fuentes/símbolos, consumidores, datos, permisos y pruebas que revisar.
 
 ## Historia y evidencia
+
+- [Snapshot del ledger H3 Pro — SELECT autorizado, 2026-11-03 14:24 Lima](evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json) registra presencia de 22/32 nombres: posiciones 1–22 presentes, 23–32 faltantes. El archivo acredita solo ledger, no schema, hashes ni ACL; no ejecutar otra lectura con la autorización consumida. El estado operativo fija la secuencia y el siguiente gate.
 
 - [Contrato editorial H3REQ1 — cortes históricos de CA4 y preflight](evidencia/h3req1_editorial_contract_2026-10-28.md) conserva las aceptaciones E1–E6 local, R1–R4 Development y smoke Certification, además de los resultados y límites de cada corte. La actualidad de ramas, despliegues, H2 Pro y gates se lee en el estado operativo vigente.
 - [Checkpoint de scope y evidencia H2 Pro — runs 89/91 históricos y recepción de #93](evidencia/h3req1_protected_path_scope_fix_2026-10-31.md) conserva la procedencia, digests, diferencia entre etiqueta histórica `operation=apply` y dispatch real `verify` con Apply NO-OP, además del paquete local en preparación. El run #93 acredita H2 `h2-expand-compat` para Certification `257b774…`; no demuestra H3 instalado en Pro.

@@ -63,6 +63,16 @@ Tras congelar `P`, el único archivo modificable será esta autorización DDL;
 el gate conserva su comprobación de estado y contenido. Detalle en el
 [checkpoint](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
 
+### Snapshot del ledger Pro posterior a #535 — 03-nov-2026
+
+El nuevo snapshot fechado `.context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json`
+no estaba admitido por el scope guard. Para incorporarlo al paquete antes de
+fijar el nuevo payload, el candidato añade solo esa ruta literal a
+`allowed_h3_local` y una regresión que exige la ruta y rechaza su vecino
+`_extra.json`. No admite la carpeta de evidencia ni altera el gate de contenido
+H2/H3. El archivo registra presencia de nombres en el ledger (22/32), no
+instalación/paridad de schema ni autorización para reintentar Apply.
+
 ## Límites del control local
 
 Remediación CI PR #512: el inventario de consumidores registra también los tests

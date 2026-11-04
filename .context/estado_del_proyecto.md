@@ -6,6 +6,105 @@
 
 ## Corte vigente
 
+### H3REQ1 — #537 integrado y verify H2 #96 — 2026-11-03 20:32 America/Lima
+
+#### Refs e integración
+
+Las refs remotas releídas con GitHub MCP para este corte son Desarrollo
+5523c6e7606a9c006020c263b43cf63aa05778f1, Certificación/C
+7e6c1c1a288706afcfac405df1bb6eabaa9a64e5 y main
+643b850533d3788ef4164378d4350f533595fd23. Desarrollo y Certificación
+comparten el árbol bca1ff30e8bf50857448d79960dee219224d22d4; el commit
+Certificación es merge #537, con padres 9ccd270f0e955606a68a306d9b7954b95217b58e
+y Desarrollo 5523c6e7606a9c006020c263b43cf63aa05778f1. Main tiene el árbol
+86261e83b4f7cf5af00e54590da76b4e2cc065ce y sigue siendo ancestro de
+Desarrollo. #537 está integrado. No se hizo una nueva lectura de deployment
+Pages en esta fase.
+
+#### H2 verify #96 — evidencia remota
+
+Run [DB Sync to Production #96](https://github.com/romelhc95/studiamatch/actions/runs/41749790054),
+workflow_dispatch, ref certificacion, SHA de candidate y payload
+7e6c1c1a288706afcfac405df1bb6eabaa9a64e5, terminó SUCCESS en el intento 1.
+Report pending migrations para el manifest h2-expand-compat fue dry-run y
+registró cero pendientes H2. Apply pending migrations terminó SUCCESS como
+NO-OP (Confirm verify no-op); Apply migrations to Pro quedó SKIPPED.
+Verify target schema terminó SUCCESS y el workflow escribió/subió la evidencia.
+Los jobs Detect y DB contract preflight terminaron SUCCESS; DB Sync Detect
+Only, H2 preflight digest report y reporte-artifact opcional quedaron SKIPPED
+según el modo verify. Este run no aplicó migraciones H3.
+
+El artefacto auténtico de GitHub es el ID 13286019927, nombre
+h2-production-expand-verify-7e6c1c1a288706afcfac405df1bb6eabaa9a64e5,
+ZIP SHA-256 8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a.
+El miembro canónico fue copiado byte por byte a
+[la ruta consumida por el gate H2](operaciones/h2_main_production_expand_evidence.json);
+su SHA-256 es c30895c94edd054fd2500293c417021c643f906558de184a1a49021e2cd2a59c.
+El JSON identifica schema h2-main-production-expand-evidence-v1, manifest
+h2-expand-compat, verify SUCCESS, C/payload 7e6c1c1..., cohorte 224 y digest
+sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9,
+advisors revisados y no_new_high_or_critical_h2_findings. Conserva
+operation=apply por el contrato histórico del generador; el evento real,
+el NO-OP explícito de Apply y el job Verify confirman que la operación fue
+verify. No se editaron a mano el JSON ni su etiqueta. Los dos archivos
+Advisors permanecen dentro del artefacto (hashes de miembros en el registro de
+trazabilidad); no se versionan sus cuerpos crudos. El artefacto vence el
+2026-12-04 01:31:52 UTC.
+
+El resultado “cero pendientes” se limita al manifest H2 h2-expand-compat;
+no actualiza ni mide el ledger operativo H3. La lectura H3 autorizada del
+2026-11-03 14:24 Lima sigue siendo el snapshot fechado 22/32, posiciones 1–22,
+con 10 ausentes. No se repitió esa SELECT. El fallo de Apply H3 #95 no se
+reintentó; run #96 no aplicó H3 ni acredita su instalación o paridad en Pro.
+
+#### Validaciones locales del overlay de evidencia #96
+
+El overlay no publicado de seis rutas pasó el self-test y el gate documental
+acotado en Docker. El checker integral conserva FAIL: baseline y overlay
+reportan 348 diagnósticos; la comparación completa de listas es idéntica, con
+cero nuevos y cero resueltos (SHA-256 de la lista
+`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`). El
+diff-check y credential scan de las seis rutas pasaron. Las suites focales
+`test_h2_pro_migration_controls.py`, `test_fase10_main_boundary.py` y
+`test_security_flow.py` pasaron 56/56 en la imagen fijada de Docker. Estos son
+resultados locales del overlay, no CI remoto ni verificación H3 de runtime;
+no hay P ni candidato publicado para este cambio.
+
+#### H3 y siguiente secuencia
+
+El código H3 y su manifest cerrado de 32 migraciones, con hashes corregidos,
+están en C por #537. La ejecución PG17 desechable y validaciones ya aceptadas
+se conservan en sus alcances; no se repitieron. La autorización DDL actualmente
+integrada corresponde a una tupla anterior y no cubre estos hashes, el nuevo
+C ni un P futuro. El archivo autorizado no se cambia hasta fijar el nuevo P.
+
+El JSON auténtico de #96 y las actualizaciones no-auth de estado, índice,
+ficha y relaciones se consolidan antes de calcular el payload final. Luego se
+valida el recorrido protegido y el filtro H2 C→M, manteniendo C como ancestro.
+Tras recibir las decisiones humanas para el paquete exacto, se integra por
+Desarrollo→Certificación→main con merge commits. P, auth_base y digest se
+calculan únicamente sobre el commit real validado; después de P solo puede
+cambiar el archivo DDL exacto, con una aprobación humana nueva para la tupla.
+El digest de la aprobación anterior no se reutiliza.
+
+Después del merge correcto a main se requiere un nuevo Report H3 autorizado,
+porque el snapshot 22/32 es histórico; no se reaplican ni se reparan las 22
+entradas. Un Apply H3 exige un JIT separado, pendientes actuales exactas,
+punto de recuperación revalidado y gates Production de ese run. Verify H3 debe
+terminar SUCCESS antes de declarar el schema completo. Gateway, cuotas, Edge,
+Auth/primer Admin, BFF/Pages, apertura de Admin y smoke productivo siguen con
+autorizaciones propias. Admin no se abrió. No hay cierre productivo.
+
+## Corte histórico — preparación P1 anterior a #534
+
+El siguiente bloque conserva la fotografía previa a la integración correctiva.
+Sus SHAs, estados de PR, deployment y valores DDL son históricos; no gobiernan
+la siguiente operación.
+
+El snapshot siguiente se redactó antes de #534. Sus instrucciones y la
+observación `DRAFT_NOT_AUTHORIZED` describen ese corte, no el estado del archivo
+DDL en el candidato posterior.
+
 ### Conciliación del P1 de #533 — paquete correctivo y secuencia DDL — corte 2026-11-03
 
 Este corte deja la regla vigente y registra el baseline comprobado para esta
