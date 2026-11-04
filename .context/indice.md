@@ -1,6 +1,17 @@
 # StudIAMatch — índice de transferencia
 
-> Corte H3REQ1 posterior a #535, 2026-11-03: Desarrollo `b5b4de4a99351b83163225639590b3d529047960` contiene la corrección de migraciones; Certificación `9ccd270f0e955606a68a306d9b7954b95217b58e` aún es anterior, main `643b850533d3788ef4164378d4350f533595fd23`. Una SELECT autorizada del ledger Pro a las 14:24 Lima registró 22/32 y diez faltantes; ver evidencia enlazada abajo. H2 #93 no cubre los hashes corregidos por el filtro post-C: hace falta un C nuevo y verify H2 autorizado. La disposición DDL anterior no se transfiere; P/base/digest nuevos no están congelados. El integral documental sigue FAIL y H3 no está instalado/paritario en Pro. La autoridad operativa contiene la secuencia y límites.
+> Corte H3REQ1 tras #537 y H2 verify #96, 2026-11-03 20:32 Lima: Desarrollo
+> 5523c6e7606a9c006020c263b43cf63aa05778f1 y Certificación/C
+> 7e6c1c1a288706afcfac405df1bb6eabaa9a64e5 comparten árbol
+> bca1ff30e8bf50857448d79960dee219224d22d4; main continúa en
+> 643b850533d3788ef4164378d4350f533595fd23. Run #96 verificó H2
+> h2-expand-compat: cero pendientes H2, Apply NO-OP y Verify target schema
+> SUCCESS; artefacto ID 13286019927, ZIP SHA-256
+> 8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a.
+> Esto no actualiza el ledger H3: la última SELECT H3 fechada sigue 22/32 y no
+> se repitió. H3 no está aplicado/verificado; #95 no se reintentó. La aprobación
+> DDL anterior no cubre los hashes corregidos ni P nuevo. Ver autoridad y orden
+> en [estado](estado_del_proyecto.md); el integral documental conserva FAIL 348.
 
 Esta es la única entrada principal de Obsidian. El [estado del proyecto](estado_del_proyecto.md) es la única autoridad operativa para el corte vigente, resultados, pendientes y siguiente paso. Las reglas de ejecución están en [AGENTS.md](../AGENTS.md).
 
