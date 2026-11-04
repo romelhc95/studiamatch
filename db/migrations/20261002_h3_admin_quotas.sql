@@ -1,6 +1,5 @@
 -- Approved LOCAL design. Remote DDL/deploy remains separately gated.
 -- Additive rolling-window quotas; originals retained privately, auth/RLS unchanged.
-BEGIN;
 -- EXPAND must already be installed; deploy compatible reserve-before-Auth Edge
 -- with HMAC before activating these wrappers. Do not blanket-sync both phases.
 DO $$ BEGIN
@@ -96,4 +95,3 @@ BEGIN
   END LOOP;
 END;
 $$;
-COMMIT;

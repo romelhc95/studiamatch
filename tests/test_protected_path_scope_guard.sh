@@ -139,6 +139,11 @@ if checkpoint_path not in local_paths:
     raise SystemExit("protected path integration test: exact local fix checkpoint is not admitted")
 if ".context/evidencia/h3req1_protected_path_scope_fix_2026-10-31_extra.md" in local_paths:
     raise SystemExit("protected path integration test: neighboring fix checkpoint path is admitted")
+ledger_snapshot = ".context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json"
+if ledger_snapshot not in local_paths:
+    raise SystemExit("protected path integration test: exact dated Pro ledger snapshot is not admitted")
+if ledger_snapshot.removesuffix(".json") + "_extra.json" in local_paths:
+    raise SystemExit("protected path integration test: neighboring Pro ledger snapshot path is admitted")
 for neighbor in (
     "scripts/maintenance/pro_h3_migration_manifest_extra.py",
     "tests/test_h3_pro_migration_manifest_extra.py",
@@ -587,6 +592,7 @@ os.environ["GITHUB_REF"] = "refs/pull/regression/merge"
 paths = (
     ".github/scripts/production_control_preflight.sh",
     "tests/test_fase09_10_pre_main_controls.py",
+    ".context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json",
 )
 
 def git(repo, *args):
@@ -682,8 +688,12 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     result = create_candidate(root, "neighbor", neighbor)
     if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
         raise SystemExit("protected path candidate regression: neighboring test path was not rejected")
+    ledger_neighbor = ".context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03_extra.json"
+    result = create_candidate(root, "ledger-neighbor", ledger_neighbor)
+    if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+        raise SystemExit("protected path candidate regression: neighboring ledger snapshot path was not rejected")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|combined_five_path_candidate=admitted|test_neighbor=rejected|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'

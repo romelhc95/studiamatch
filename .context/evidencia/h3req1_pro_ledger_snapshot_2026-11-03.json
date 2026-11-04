@@ -1,0 +1,172 @@
+{
+  "observed_at_lima": "2026-11-03T14:24:01-05:00",
+  "project_ref": "xwhtiqmboljkshrtviyw",
+  "authorization": "User approved one exact bounded SELECT; consumed once",
+  "query_file": "/tmp/h3req1-tl-post95-audit-20261103/pro-ledger-readonly-proposal.sql",
+  "query_count": 1,
+  "registered_count": 22,
+  "not_registered_count": 10,
+  "rows": [
+    {
+      "ord": 1,
+      "name": "20260828_h3_admin_auth",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 2,
+      "name": "20260828_h3_admin_course_queue_view",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 3,
+      "name": "20260828_h3_admin_editorial_reader_rpc",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 4,
+      "name": "20260828_h3_admin_editorial_rpc",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 5,
+      "name": "20260828_h3_admin_queue_rpc",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 6,
+      "name": "20260829_h3_rbac_users",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 7,
+      "name": "20260830_h3_expanded_contract",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 8,
+      "name": "20260902_h3_pr_contract",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 9,
+      "name": "20260903_h3_rbac_contract_fix",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 10,
+      "name": "20260918_h3_invitation_flow_persistence",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 11,
+      "name": "20260919_h3_invitation_auth_token_delta",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 12,
+      "name": "20260920_h3_invitation_edge_runtime",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 13,
+      "name": "20260921_h3_invitation_onboarding_rpc",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 14,
+      "name": "20260924_h3_onboarding_rbac_hardening",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 15,
+      "name": "20260924_h3_onboarding_rbac_hardening_fix",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 16,
+      "name": "20260925_h3_admin_members_onboarding_reader",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 17,
+      "name": "20260925_h3_legacy_member_creation_guard",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 18,
+      "name": "20260927_h3_admin_queue_facets_filter",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 19,
+      "name": "20260927_h3_publication_visibility_contract",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 20,
+      "name": "20260928_h3_invitation_accept_email_regex_fix",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 21,
+      "name": "20261001_h3_course_editorial_audit_availability",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 22,
+      "name": "20261001_h3_invitation_reservation_compensation",
+      "recorded_in_ledger": true
+    },
+    {
+      "ord": 23,
+      "name": "20261002_h3_admin_quota_expand",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 24,
+      "name": "20261002_h3_admin_quotas",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 25,
+      "name": "20261004_h3_admin_queue_first_null_guard",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 26,
+      "name": "20261004_h3_admin_rpc_signed_gateway_expand",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 27,
+      "name": "20261004_h3_admin_rpc_signed_gateway_payload_bound_wrapper",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 28,
+      "name": "20261010_h3_admin_members_service_select",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 29,
+      "name": "20261025_h3_admin_members_onboarding_forbidden_status",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 30,
+      "name": "20261028_h3_editorial_publication_snapshot",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 31,
+      "name": "20261028_h3_public_price_projection_empty_price_guard",
+      "recorded_in_ledger": false
+    },
+    {
+      "ord": 32,
+      "name": "20261102_h3_legacy_public_withdrawal_guard",
+      "recorded_in_ledger": false
+    }
+  ],
+  "limits": "Ledger presence only; no independent schema/hash/ACL verification, no writes, no retry95, no apply/dispatch/configuration authorized."
+}

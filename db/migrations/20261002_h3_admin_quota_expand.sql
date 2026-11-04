@@ -1,6 +1,5 @@
 -- LOCAL approved additive EXPAND. Deploy this before the compatible Edge and
 -- BEFORE 20261002_h3_admin_quotas.sql wraps legacy RPCs. Remote JIT required.
-BEGIN;
 CREATE TABLE IF NOT EXISTS private.h3_admin_quota_events (
   scope TEXT PRIMARY KEY,
   events TIMESTAMPTZ[] NOT NULL DEFAULT '{}',
@@ -63,4 +62,3 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.admin_invitation_request_admit(UUID) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_invitation_request_admit(UUID) TO service_role;
-COMMIT;

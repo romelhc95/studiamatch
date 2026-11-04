@@ -3,7 +3,6 @@
 -- keys. Activate only after signed BFF consumers are deployed and a separate
 -- JIT approves the exact PostgREST setting and environment-specific secret.
 -- Local execution also requires a separate JIT for a disposable PG17 database.
-BEGIN;
 
 CREATE TABLE IF NOT EXISTS private.h3_admin_rpc_gateway_keys (
   key_id TEXT PRIMARY KEY CHECK (key_id ~ '^[A-Za-z0-9._-]{1,32}$'),
@@ -233,4 +232,3 @@ GRANT EXECUTE ON FUNCTION public.h3_admin_rpc_signed_gateway_pre_request() TO an
 
 COMMENT ON FUNCTION public.h3_admin_rpc_signed_gateway_pre_request() IS
   'H3REQ1 pre-request verifier. Configure only after signed BFF deployment and environment key provisioning.';
-COMMIT;
