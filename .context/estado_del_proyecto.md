@@ -6,124 +6,94 @@
 
 ## Corte vigente
 
-### Corrección del apply H3 Pro después de #535 — 2026-11-03
+### H3REQ1 — #537 integrado y verify H2 #96 — 2026-11-03 20:32 America/Lima
 
-### Integración y runtime público
+#### Refs e integración
 
-Lecturas GitHub/Cloudflare comprobadas para este corte: PR #535 se integró en
-Desarrollo con merge commit `b5b4de4a99351b83163225639590b3d529047960`, árbol
-`331db090866794e655ec0a51d794c3242421cb94`, padres `1f81a6234a5e0bf401f25b9e284f425d391bd8db`
-y `ee7192818d8fdd6418d6b1ce69ce9666c5cf9edf`. El PR terminó con 16 checks
-SUCCESS y 2 SKIPPED; son checks del HEAD del PR, no una nueva ejecución del
-merge. La versión certificada sigue `9ccd270f0e955606a68a306d9b7954b95217b58e`
-y main `643b850533d3788ef4164378d4350f533595fd23`. El deployment habitual de
-main que verificó el TL fue SUCCESS (`f8ebf638-9cbc-49f8-b764-53b4bd63efd3`,
-`uses_functions=true`).
+Las refs remotas releídas con GitHub MCP para este corte son Desarrollo
+5523c6e7606a9c006020c263b43cf63aa05778f1, Certificación/C
+7e6c1c1a288706afcfac405df1bb6eabaa9a64e5 y main
+643b850533d3788ef4164378d4350f533595fd23. Desarrollo y Certificación
+comparten el árbol bca1ff30e8bf50857448d79960dee219224d22d4; el commit
+Certificación es merge #537, con padres 9ccd270f0e955606a68a306d9b7954b95217b58e
+y Desarrollo 5523c6e7606a9c006020c263b43cf63aa05778f1. Main tiene el árbol
+86261e83b4f7cf5af00e54590da76b4e2cc065ce y sigue siendo ancestro de
+Desarrollo. #537 está integrado. No se hizo una nueva lectura de deployment
+Pages en esta fase.
 
-El reload anónimo de `https://www.studiamatch.com/` observado en esta sesión
-mostró 224 programas y 14 instituciones. La captura de red del navegador no
-mostró una llamada a Supabase Pro; por eso esta lectura acredita que la página
-pública se cargó y renderizó esos conteos, no compatibilidad del catálogo contra
-el schema actual de Pro. No se repitieron CA aceptados.
+#### H2 verify #96 — evidencia remota
 
-Admin no se habilitó. Una lectura Cloudflare Pages GET filtrada durante esta
-sesión (2026-11-03, aproximadamente 16:25 America/Lima) releyó la metadata de
-Production después del apply parcial: rama `main`, deployment canónico
-`f8ebf638-9cbc-49f8-b764-53b4bd63efd3`, commit
-`643b850533d3788ef4164378d4350f533595fd23`, `uses_functions=true`, todas las
-etapas SUCCESS. Están presentes los nombres de URL y publishable/secret keys de
-Supabase; la API devolvió `NEXT_SUPABASE_SECRET_KEY` con metadata `plain_text`,
-pero no se leyó su valor y el tipo por sí solo no demuestra exposición. No están
-presentes `ADMIN_ALLOWED_HOSTS`, `ADMIN_QUOTA_HMAC_KEY`,
-`ADMIN_RPC_GATEWAY_HMAC_KEY`, `ADMIN_RPC_GATEWAY_KEY_ID` ni
-`ADMIN_SESSION_ACTIVITY_HMAC_KEY`; el objeto de configuración Production no
-devolvió service bindings y `ADMIN_QUOTA` no aparece. El middleware del candidato
-(`web/functions/_middleware.ts`, ramas de host allowlist) responde 404 cuando el
-host no está permitido. En conjunto, metadata y código sostienen el cierre
-configurado de Admin mientras falta la allowlist, pero no son una comprobación
-HTTP directa del runtime. El acceso autenticado de Admin no se probó; no hubo
-cambios de configuración.
+Run [DB Sync to Production #96](https://github.com/romelhc95/studiamatch/actions/runs/41749790054),
+workflow_dispatch, ref certificacion, SHA de candidate y payload
+7e6c1c1a288706afcfac405df1bb6eabaa9a64e5, terminó SUCCESS en el intento 1.
+Report pending migrations para el manifest h2-expand-compat fue dry-run y
+registró cero pendientes H2. Apply pending migrations terminó SUCCESS como
+NO-OP (Confirm verify no-op); Apply migrations to Pro quedó SKIPPED.
+Verify target schema terminó SUCCESS y el workflow escribió/subió la evidencia.
+Los jobs Detect y DB contract preflight terminaron SUCCESS; DB Sync Detect
+Only, H2 preflight digest report y reporte-artifact opcional quedaron SKIPPED
+según el modo verify. Este run no aplicó migraciones H3.
 
-### Apply H3 Pro y remediación local
+El artefacto auténtico de GitHub es el ID 13286019927, nombre
+h2-production-expand-verify-7e6c1c1a288706afcfac405df1bb6eabaa9a64e5,
+ZIP SHA-256 8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a.
+El miembro canónico fue copiado byte por byte a
+[la ruta consumida por el gate H2](operaciones/h2_main_production_expand_evidence.json);
+su SHA-256 es c30895c94edd054fd2500293c417021c643f906558de184a1a49021e2cd2a59c.
+El JSON identifica schema h2-main-production-expand-evidence-v1, manifest
+h2-expand-compat, verify SUCCESS, C/payload 7e6c1c1..., cohorte 224 y digest
+sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9,
+advisors revisados y no_new_high_or_critical_h2_findings. Conserva
+operation=apply por el contrato histórico del generador; el evento real,
+el NO-OP explícito de Apply y el job Verify confirman que la operación fue
+verify. No se editaron a mano el JSON ni su etiqueta. Los dos archivos
+Advisors permanecen dentro del artefacto (hashes de miembros en el registro de
+trazabilidad); no se versionan sus cuerpos crudos. El artefacto vence el
+2026-12-04 01:31:52 UTC.
 
-El run DB Sync #95 se ejecutó desde `main` sobre el candidato
-`643b850533d3788ef4164378d4350f533595fd23`. Detect/preflight y Report terminaron
-SUCCESS; el reporte previo al Apply indicó 32 pendientes/0 aplicadas. Apply
-falló en `public.exec_sql` por wrappers transaccionales `BEGIN`/`COMMIT` no
-admitidos como SQL dinámico y Verify quedó SKIPPED. No se reintentó #95.
+El resultado “cero pendientes” se limita al manifest H2 h2-expand-compat;
+no actualiza ni mide el ledger operativo H3. La lectura H3 autorizada del
+2026-11-03 14:24 Lima sigue siendo el snapshot fechado 22/32, posiciones 1–22,
+con 10 ausentes. No se repitió esa SELECT. El fallo de Apply H3 #95 no se
+reintentó; run #96 no aplicó H3 ni acredita su instalación o paridad en Pro.
 
-Una única consulta SQL `SELECT` de metadatos al ledger Pro fue autorizada y
-consumida por el TL el 2026-11-03 14:24:01 Lima. El resultado registra 22/32
-nombres, posiciones 1–22; faltan 23–32 (10), primera faltante
-`20261002_h3_admin_quota_expand`. Evidencia byte por byte en
-[evidencia del ledger Pro](evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json),
-SHA-256 `24e783aa98ba8b699f1348200ccdffdd572100aa0e74549d88e88931a1f1d525`.
-El resultado acredita presencia de nombres en el ledger, no schema, hash,
-ACL ni paridad. No volver a ejecutar la consulta con la autorización consumida.
-No reaplicar ni reparar manualmente las 22 entradas; el próximo report H3 debe
-confirmar los pendientes reales, y cualquier diferencia respecto de los diez
-nombres observados detiene Apply.
+#### Validaciones locales del overlay de evidencia #96
 
-El fix de seis migrations quedó integrado a Desarrollo mediante #535. HEAD
-remoto actual: `b5b4de4a99351b83163225639590b3d529047960`, árbol
-`331db090866794e655ec0a51d794c3242421cb94`; incluye los wrappers superiores
-retirados, seis hashes corregidos en el manifest compartido y la regresión del
-límite de `exec_sql`. La validación Docker del manifest en este árbol fue
-32/32. La ejecución JIT local PG17 v3 previa a #535 terminó PASS en un
-contenedor desechable `--network none`: PostgreSQL 17.11, 32/32 migrations por
-`exec_sql`, ledger sintético 32/32, lector anónimo 224, assertions de
-privilegios PASS y limpieza `REMOVED_AND_VERIFIED`. Resultado `result.txt`
-SHA-256 `ed25fe7c3726a6d8082569c6bdfd9ff175c38040d1bef7620189be36e14c69f5`;
-resumen `/tmp/h3req1-quota-pg17-jit-20261103/attempt-3-summary.md`. Los hashes
-del manifest usado por el fixture coinciden con el módulo y los archivos
-validados en #535. Esto acredita el fixture local, no Pro.
+El overlay no publicado de seis rutas pasó el self-test y el gate documental
+acotado en Docker. El checker integral conserva FAIL: baseline y overlay
+reportan 348 diagnósticos; la comparación completa de listas es idéntica, con
+cero nuevos y cero resueltos (SHA-256 de la lista
+`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`). El
+diff-check y credential scan de las seis rutas pasaron. Las suites focales
+`test_h2_pro_migration_controls.py`, `test_fase10_main_boundary.py` y
+`test_security_flow.py` pasaron 56/56 en la imagen fijada de Docker. Estos son
+resultados locales del overlay, no CI remoto ni verificación H3 de runtime;
+no hay P ni candidato publicado para este cambio.
 
-La versión certificada `C=257b77471e1f0b6bb8714eeaa975b3815668aea9` y el H2 verify
-#93 anteceden estas correcciones. El diff desde C contiene SQL, manifest y test
-fuera de `disallowed_after_candidate`; por eso #93 no cubre el candidato
-corregido. Se necesita promover el fix a Certificación y, sobre el SHA real C
-resultante, obtener un nuevo H2 verify autorizado. Solo tras recuperar y
-validar su artefacto auténtico puede integrarse toda evidencia no-auth y fijarse
-un nuevo P. La tupla DDL aprobada anterior no cubre los hashes nuevos; P, base y
-digest futuros todavía no existen y no se inventan. No hubo SQL remoto después
-de #95 ni se acredita H3 instalado/paritario.
+#### H3 y siguiente secuencia
 
-### Siguiente secuencia protegida
+El código H3 y su manifest cerrado de 32 migraciones, con hashes corregidos,
+están en C por #537. La ejecución PG17 desechable y validaciones ya aceptadas
+se conservan en sus alcances; no se repitieron. La autorización DDL actualmente
+integrada corresponde a una tupla anterior y no cubre estos hashes, el nuevo
+C ni un P futuro. El archivo autorizado no se cambia hasta fijar el nuevo P.
 
-El snapshot ledger JSON de este corte no estaba en el scope guard. El candidato
-local incorpora únicamente su ruta fechada a `allowed_h3_local`, con regresión
-para admitirla y rechazar el nombre vecino `_extra.json`; no se añade una
-carpeta ni se cambia el gate de contenido. Esta corrección y su validación
-deben viajar junto con el snapshot antes de la nueva promoción a Certificación.
+El JSON auténtico de #96 y las actualizaciones no-auth de estado, índice,
+ficha y relaciones se consolidan antes de calcular el payload final. Luego se
+valida el recorrido protegido y el filtro H2 C→M, manteniendo C como ancestro.
+Tras recibir las decisiones humanas para el paquete exacto, se integra por
+Desarrollo→Certificación→main con merge commits. P, auth_base y digest se
+calculan únicamente sobre el commit real validado; después de P solo puede
+cambiar el archivo DDL exacto, con una aprobación humana nueva para la tupla.
+El digest de la aprobación anterior no se reutiliza.
 
-La secuencia debe resolver primero la historia divergente. El checkout de #535
-muestra que Desarrollo no tiene a Certificación ni a main como ancestros; la
-simulación `git merge-tree` de main `643b850...` en Desarrollo `b5b4de4...` no
-tuvo conflictos y produjo el mismo árbol de Desarrollo. No es integración real.
-Preparar un branch de documentación desde Desarrollo que incluya un merge
-commit de main y este snapshot del ledger; publicar solo tras revisión del diff
-y autorización/disposición del candidato exacto. Después del merge protegido a
-Desarrollo, abrir/promover el candidato a Certificación con reviews y checks
-nuevos. Mantener merge commits; no squash/rebase.
-
-El H2 #93 sobre C `257b774...` no satisface el filtro posterior a C para estas
-migrations/hashes. Luego de obtener un C real en Certificación, solicitar un
-nuevo `workflow_dispatch` H2 `operation=verify` con candidate/payload iguales a
-ese C, Apply NO-OP y Verify real; revisar Security/Performance Advisors y
-recuperar el artefacto auténtico. Ese artefacto y todas las actualizaciones
-no-auth del estado, índice, ficha y relaciones deben integrarse antes de fijar
-P. Solo entonces se calcula auth_base/P/digest literales y se solicita aprobación
-DDL para bytes nuevos; el archivo DDL cambia después de P y no autoriza apply.
-
-Tras el merge protegido a main con C ancestro y `diff(C,M)` permitido, el nuevo
-H3 Report-only vuelve a evaluar el ledger. El snapshot de 14:24 hace esperables
-10 faltantes (posiciones 23–32), pero solo el report actual puede confirmarlo.
-Un Apply futuro requiere JIT nuevo, gates Production de ese run, recuperación
-releída inmediatamente antes y reporte exacto de pendientes; no volver a aplicar
-las 22 registradas. Verify debe terminar SUCCESS antes de declarar schema
-instalado. Admin, gateway, Auth/primer Admin, Edge, BFF, cuotas y smoke siguen
-con autorizaciones separadas. No hubo dispatch nuevo, configuración ni runtime
-Pro validado; H3 no está cerrado.
+Después del merge correcto a main se requiere un nuevo Report H3 autorizado,
+porque el snapshot 22/32 es histórico; no se reaplican ni se reparan las 22
+entradas. Un Apply H3 exige un JIT separado, pendientes actuales exactas,
+punto de recuperación revalidado y gates Production de ese run. Verify H3 debe
+terminar SUCCESS antes de declarar el schema completo. Gateway, cuotas, Edge,
+Auth/primer Admin, BFF/Pages, apertura de Admin y smoke productivo siguen con
+autorizaciones propias. Admin no se abrió. No hay cierre productivo.
 
 ## Corte histórico — preparación P1 anterior a #534
 
