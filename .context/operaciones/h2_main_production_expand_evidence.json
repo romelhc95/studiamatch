@@ -1,6 +1,6 @@
 {
   "branch": "certificacion",
-  "candidate_sha": "7e6c1c1a288706afcfac405df1bb6eabaa9a64e5",
+  "candidate_sha": "17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b",
   "h2_advisors_artifact": true,
   "h2_advisors_result": "no_new_high_or_critical_h2_findings",
   "h2_advisors_reviewed": true,
@@ -8,8 +8,8 @@
   "h2_expected_eligible_count": 224,
   "manifest": "h2-expand-compat",
   "operation": "apply",
-  "payload_sha": "7e6c1c1a288706afcfac405df1bb6eabaa9a64e5",
-  "run_id": 41749790054,
+  "payload_sha": "17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b",
+  "run_id": 42170267471,
   "schema": "h2-main-production-expand-evidence-v1",
   "verify_result": "success",
   "workflow_name": "DB Sync to Production"
