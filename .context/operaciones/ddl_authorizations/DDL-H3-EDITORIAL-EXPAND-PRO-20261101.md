@@ -9,13 +9,13 @@ Status: APPROVED_FOR_PRODUCTION_DDL
 - Proyecto: Supabase Pro `xwhtiqmboljkshrtviyw`.
 - Workflow: `.github/workflows/db-sync-to-pro.yml`, manifest H3 permitido solo desde `main`.
 - ID/path exigido por el workflow: `DDL-H3-EDITORIAL-EXPAND-PRO-20261101` / `.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md`.
-- `auth_base` es el corte real de Desarrollo antes de preparar la evidencia; no es main ni afirma cubrir todo el historial desde main.
+- `auth_base` es el baseline explícito del digest de este payload; es un ancestro de P, no su padre directo, y no es main ni pretende cubrir todo el historial desde main.
 - El candidato final `M` es el SHA real de main después de las promociones protegidas; todavía no existe para esta tupla y no se anticipa.
 
 Authorized manifest: h3-editorial-expand
-Authorized payload SHA: 9a79f4096a8af617e961d3494e2ec46ca050c997
+Authorized payload SHA: 286469bb45dcc0cb73b70cd25aa1ba71432da86f
 Authorized base SHA: 5523c6e7606a9c006020c263b43cf63aa05778f1
-Authorized non-auth digest SHA256: sha256:7d5d69873d842f5d309480d70072ef3ac9a582476d565664c3c10c08b253bbe8
+Authorized non-auth digest SHA256: sha256:9b831181d423569dead630327ecfea4d7e2c2a001086fab575f10096e1c13436
 H2 expected eligible count: 224
 H2 expected cohort digest: sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9
 Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED
@@ -23,15 +23,38 @@ Pro apply gate: APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL
 
 ## Identidad del payload y cálculo del digest
 
-P=`9a79f4096a8af617e961d3494e2ec46ca050c997`, árbol `246bd33e890e6e8ea929139acb67911bc106ace4`; `auth_base`=`5523c6e7606a9c006020c263b43cf63aa05778f1` es su padre directo y ancestro. El digest fue calculado en Docker con la misma secuencia del workflow: `git diff --name-status -z --find-renames --find-copies auth_base P`, metadatos de blob/modo del árbol P, SHA-256 por blob y JSON canónico con `sort_keys=true` y separadores `(',', ':')`. El resultado es `sha256:7d5d69873d842f5d309480d70072ef3ac9a582476d565664c3c10c08b253bbe8`. El diferencial auth_base→P consta solo de seis documentos/registro bajo `.context`; el digest cubre ese delta no-auth y no pretende resumir todo lo heredado desde main. El SHA P y el manifest cerrado fijan por separado el payload completo y los 32 bytes SQL.
+P=`286469bb45dcc0cb73b70cd25aa1ba71432da86f`, árbol `404a3920f7949087a0dca7ef86da09cc1343535b`; `auth_base`=`5523c6e7606a9c006020c263b43cf63aa05778f1` es ancestro de P (15 commits adelante en la comparación), pero no su padre directo. El digest se reconstruyó con las rutas y objetos GitHub del rango auth_base→P, aplicando el algoritmo literal del workflow: `git diff --name-status -z --find-renames --find-copies auth_base P`, metadatos blob/modo del árbol P, SHA-256 por blob y JSON canónico (`sort_keys=true`, separadores `(',', ':')`). No es un run CI. El valor propuesto es `sha256:9b831181d423569dead630327ecfea4d7e2c2a001086fab575f10096e1c13436`. El rango tiene 20 rutas; los 19 registros no-auth forman el digest y la ruta DDL exacta se excluye. La lista completa sigue; P y el manifest cerrado fijan por separado el payload y los 33 bytes SQL.
 
-El H2 candidate verificado `C` es `7e6c1c1a288706afcfac405df1bb6eabaa9a64e5`. No se exige `C` ancestro de P. El flujo protegido debe preservar P y C como ancestros del `M` final; el workflow exige `auth_base`→P, P→M, C→M, el filtro post-C y que `diff(P,M)` contenga exclusivamente este archivo. No se usa squash ni rebase. El DDL actual en el padre P tiene una aprobación histórica para otra tupla; esa aprobación no se transfiere. Esta nueva versión en la misma ruta exacta sustituye la tupla anterior solo después de decisión humana sobre estos bytes.
+| Estado | Ruta |
+|---|---|
+| modified | `.context/componentes/admin_runtime.md` |
+| modified | `.context/componentes/database_migrations.md` |
+| modified | `.context/componentes/pruebas_evidencia.md` |
+| modified | `.context/database.md` |
+| modified | `.context/estado_del_proyecto.md` |
+| added | `.context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md` |
+| modified | `.context/indice.md` |
+| modified, excluida del digest | `.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md` |
+| modified | `.context/operaciones/h2_main_production_expand_evidence.json` |
+| modified | `.context/trazabilidad/registro_fuentes_componentes.json` |
+| modified | `.context/trazabilidad/registro_fuentes_componentes.md` |
+| added | `db/migrations/20261105_h3_first_admin_auth_bootstrap.sql` |
+| modified | `scripts/maintenance/pro_h3_migration_manifest.py` |
+| modified | `scripts/security/protected_path_scope_guard.sh` |
+| added | `tests/h3_first_admin_bootstrap_pg17.sh` |
+| added | `tests/sql/h3_first_admin_bootstrap_harness.sql` |
+| added | `tests/sql/h3_first_admin_bootstrap_pg17_harness.sql` |
+| added | `tests/test_h3_first_admin_bootstrap_contract.py` |
+| modified | `tests/test_h3_pro_migration_manifest.py` |
+| modified | `tests/test_protected_path_scope_guard.sh` |
+
+El candidato H2 verificado `C` es `17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b`; C es ancestro de P (4 commits adelante en la comparación). El flujo protegido debe preservar P y C como ancestros del `M` final; el workflow exige `auth_base`→P, P→M, C→M, el filtro post-C y que `diff(P,M)` contenga exclusivamente este archivo. No se usa squash ni rebase. El archivo DDL presente en P contiene la aprobación anterior para un payload distinto de 32 migraciones; esa aprobación no se transfiere. Este documento es una propuesta externa de contenido exacto, aún no aprobada ni copiada al árbol.
 
 ## Evidencia H2 autenticada — no acredita H3
 
-DB Sync to Production [run #96](https://github.com/romelhc95/studiamatch/actions/runs/41749790054), attempt 1, fue `workflow_dispatch`, ref `certificacion`, candidate/payload `7e6c1c1a288706afcfac405df1bb6eabaa9a64e5`, manifest `h2-expand-compat`, conclusión `SUCCESS`. Report fue dry-run con cero pendientes H2; Apply finalizó `SUCCESS` como NO-OP y `Apply migrations to Pro` quedó `SKIPPED`; `Verify target schema` terminó `SUCCESS`. La cohorte verificada fue 224 con digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9` y los advisors se marcaron revisados, sin nuevos HIGH/CRITICAL/ERROR según el JSON auténtico.
+DB Sync to Production [run #99](https://github.com/romelhc95/studiamatch/actions/runs/42170267471), attempt 1, fue un `workflow_dispatch` de `operation=verify` sobre `ref=certificacion`, candidate/payload `C=17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b`, manifest `h2-expand-compat`, conclusión `SUCCESS`. Report registró 90 migraciones H2 presentes y 0 pendientes. Apply fue NO-OP; el step `Apply migrations to Pro` quedó `SKIPPED`. `Verify target schema` terminó `SUCCESS`. La cohorte fue 224 con digest `sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9`; `h2_advisors_reviewed=true` se respaldó con los advisors del run.
 
-Artefacto GitHub `13286019927`, ZIP SHA-256 `8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a`. El miembro `h2-production-expand-verify-evidence.json` y el archivo canónico se compararon byte por byte; SHA-256 `c30895c94edd054fd2500293c417021c643f906558de184a1a49021e2cd2a59c`. El esquema histórico conserva `operation=apply`; el evento y jobs reales prueban que el dispatch fue `verify`, Apply NO-OP y Verify SUCCESS. Esta evidencia verifica H2 en C, no el ledger, instalación ni runtime H3 Pro.
+Artefacto auténtico `13481325792`; JSON canónico SHA-256 `7082bb5a19f08a10f56cfb0d1198bb38021d575d05e18c144f81e799aed252f9`. La evidencia #99 se promovió a Certificación en #546 y quedó bajo el árbol actual sin cambios de archivos desde P. Acredita H2 en C; no acredita DB33 ni runtime Admin.
 
 ## Manifest H3 cerrado, orden y hashes
 
@@ -71,10 +94,11 @@ El workflow y `scripts/maintenance/pro_h3_migration_manifest.py::validate_h3_man
 | 30 | `20261028_h3_editorial_publication_snapshot.sql` | `2c2bd2238f03a1b5bec2d47fb4bc8a9f0fe1650501378a8ff2dde8746b2a0fef` |
 | 31 | `20261028_h3_public_price_projection_empty_price_guard.sql` | `82b8eb0655779f0e82b979cb65a051f2b244b5c4bffb199c5e13c9473132987b` |
 | 32 | `20261102_h3_legacy_public_withdrawal_guard.sql` | `a719310811dd9b5a992f4a0002931b4a6c9f6a84aac2f84cdd217daead97a7b6` |
+| 33 | `20261105_h3_first_admin_auth_bootstrap.sql` | `67045f02b2eb2c846295207b249b5b9014fe50610e162fe7fac4b40c8b7d62d6` |
 
 ## Alcance, exclusiones y secuencia
 
-El único payload elegible es `h3-editorial-expand`, las 32 migraciones de la tabla. `db_migrate.py --env pro --manifest h3-editorial-expand` aplica solo entradas pendientes tras un Report nuevo; no se reaplican ni reparan manualmente entradas existentes. La lectura histórica de H3 (22/32 al 2026-11-03 14:24 Lima) no es resultado vigente ni fija el próximo Apply.
+El único payload elegible es `h3-editorial-expand`, las 33 migraciones de la tabla. Report #97 / Apply y Verify #98 correspondieron a la tupla previa de 32 entradas; no sustituyen un Report para este payload. No se anticipa el número de pendientes de la entrada33: un Report posterior al merge real a main debe identificar los nombres actuales. `db_migrate.py --env pro --manifest h3-editorial-expand` aplica solo entradas aún pendientes, respetando las registradas; no se fuerza reaplicación ni se repara manualmente el ledger.
 
 Quedan excluidos: volver a aplicar H2; backfill/sincronización operativa Free→Pro; seeds/fixtures; Auth/cuentas/membresía Admin; Edge; gateway y `pgrst.db_pre_request`; Pages/BFF/Access/Worker/cuotas/bindings/secrets; habilitar Admin; writers, schedules, FG1/FG2/FG3; cambios de configuración y deploy manual. Cada operación conserva autorización independiente.
 
@@ -89,7 +113,7 @@ Quedan excluidos: volver a aplicar H2; backfill/sincronización operativa Free�
 
 ## Recuperación y detención
 
-Ante drift de candidate/payload/base/digest, manifest/hash, C/ancestry, pendientes, cohort, permisos o archivo de autorización: no iniciar Apply. Ante error parcial de Apply, detener todo reintento, conservar schema, ledger, auditoría y snapshots, obtener lecturas autorizadas y preparar corrección forward-only con nuevo JIT. No borrar historial ni ejecutar rollback destructivo de DB. Si Verify falla, mantener el código compatible y Admin cerrado; recuperar la aplicación mediante el flujo protegido si es necesario. La aprobación de este contenido no acepta ni verifica un backup ni autoriza restaurarlo.
+Ante drift de candidate/payload/base/digest, manifest/hash, C/ancestry, pendientes, cohort, permisos o archivo de autorización: no iniciar Apply. Ante error parcial de Apply, detener todo reintento, conservar schema, ledger, auditoría y snapshots, obtener lecturas autorizadas y preparar corrección forward-only con nuevo JIT. No borrar historial ni ejecutar rollback destructivo de DB. Si Verify falla, mantener el código compatible y Admin cerrado; recuperar la aplicación mediante el flujo protegido si es necesario. La aprobación de este contenido no acepta ni verifica un backup ni autoriza restaurarlo. La copia física observada el 2026-11-04 00:57:02 Lima fue aceptada solo condicionada a relectura inmediata; no es evidencia vigente para un futuro Apply.
 
 ## Decisiones que permanecen separadas
 
