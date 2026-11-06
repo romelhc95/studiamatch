@@ -1,6 +1,25 @@
 # StudIAMatch — índice de transferencia
 
-> Corte H3REQ1 tras #537 y H2 verify #96, 2026-11-03 20:32 Lima: Desarrollo
+> Corte local 2026-11-05: delta aislado para bootstrap del primer Admin. La
+> identidad del árbol y patch PG17 que se ejecutó es un snapshot de prueba, no
+> el árbol completo tras la reconciliación documental final; el checkpoint
+> externo fija el candidato de revisión actual. La migration 33 pasó el fixture
+> PostgreSQL 17 sintético para árbol
+> `20ca1593822c2d7e887877b5d1fffa103d2aceb0`, patch SHA-256
+> `bb8bb7af3fcbf94410e477bc44ee544abe374477654f51c7cc32e3b058f4a916`.
+> Hash SQL candidato `67045f02b2eb2c846295207b249b5b9014fe50610e162fe7fac4b40c8b7d62d6`.
+> El contrato permite `token_hash=NULL` en reservas ordinarias antes de
+> entrega Auth; la candidata conserva esa nulabilidad y solo admite creador
+> NULL con provenance bootstrap exacta. El callback entra una vez al
+> lifecycle/cuota por solicitud. Contrato estático + manifest 9/9, guard y
+> credential scan PASS en Docker; el diff-check también PASS. La comparación
+> documental integral sigue FAIL 348→348, listas idénticas, cero nuevos ni
+> resueltos, hash `738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`;
+> self-test PASS. El resultado PG17 y sus límites están en el
+> [checkpoint del bootstrap](evidencia/h3req1_first_admin_bootstrap_2026-11-05.md).
+> No hay aplicación Pro, identidad/correo, publicación ni activación Admin.
+
+> Snapshot histórico #537/H2 verify #96 — 2026-11-03 20:32 Lima: Desarrollo
 > 5523c6e7606a9c006020c263b43cf63aa05778f1 y Certificación/C
 > 7e6c1c1a288706afcfac405df1bb6eabaa9a64e5 comparten árbol
 > bca1ff30e8bf50857448d79960dee219224d22d4; main continúa en

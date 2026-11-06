@@ -44,6 +44,7 @@ H3_PRO_MIGRATIONS = (
     "20261028_h3_editorial_publication_snapshot",
     "20261028_h3_public_price_projection_empty_price_guard",
     "20261102_h3_legacy_public_withdrawal_guard",
+    "20261105_h3_first_admin_auth_bootstrap",
 )
 
 H3_PRO_MIGRATION_SHA256 = {
@@ -79,6 +80,7 @@ H3_PRO_MIGRATION_SHA256 = {
     "20261028_h3_editorial_publication_snapshot": "2c2bd2238f03a1b5bec2d47fb4bc8a9f0fe1650501378a8ff2dde8746b2a0fef",
     "20261028_h3_public_price_projection_empty_price_guard": "82b8eb0655779f0e82b979cb65a051f2b244b5c4bffb199c5e13c9473132987b",
     "20261102_h3_legacy_public_withdrawal_guard": "a719310811dd9b5a992f4a0002931b4a6c9f6a84aac2f84cdd217daead97a7b6",
+    "20261105_h3_first_admin_auth_bootstrap": "67045f02b2eb2c846295207b249b5b9014fe50610e162fe7fac4b40c8b7d62d6",
 }
 
 # Explicit non-lexical dependencies. The complete ordered list is also pinned above.
@@ -97,6 +99,10 @@ H3_PRO_MIGRATION_PRECEDENCE = (
     (
         "20261028_h3_public_price_projection_empty_price_guard",
         "20261102_h3_legacy_public_withdrawal_guard",
+    ),
+    (
+        "20261001_h3_invitation_reservation_compensation",
+        "20261105_h3_first_admin_auth_bootstrap",
     ),
 )
 

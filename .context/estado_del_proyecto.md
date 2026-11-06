@@ -6,6 +6,92 @@
 
 ## Corte vigente
 
+### H3REQ1 — bootstrap local del primer Admin — 2026-11-05
+
+El checkout aislado `/tmp/h3req1-first-admin-bootstrap-20261105` parte del
+main desplegado `96eb696d53a7f90279afdc4d37fadec10c2056c4`, árbol
+`455c9364223e93f63dc16f0534877d63b3e62aa0`. H3 base (32 migrations) cuenta
+con DB Sync #98 y Verify aceptados; esto no instala el delta local de bootstrap.
+La propuesta `20261105_h3_first_admin_auth_bootstrap.sql` aumenta localmente el
+manifest a 33 y pasó el fixture PostgreSQL 17 sintético. Sigue sin commit,
+publicación ni aplicación remota. Hash SQL/pin local:
+`67045f02b2eb2c846295207b249b5b9014fe50610e162fe7fac4b40c8b7d62d6`. La
+autorización DDL y Report/Apply H3 previos no cubren este manifiesto/candidato.
+
+La alternativa operacional sin cambio de esquema no satisface las constraints
+vigentes: la membresía y la reserva normal requieren actor/creador, y la
+auditoría exige un `actor_user_id` real. No se inventa un Admin creador ni se
+omite la aceptación. El delta propuesto admite una única invitación Auth
+externa para `romelhc95@gmail.com`, solo si `auth.uid()` coincide y Auth
+registra `invited_at` y `email_confirmed_at` en orden válido. El callback
+existente materializa una membresía Admin inactiva, la invitación con origen
+explícito y auditoría atribuida a ese actor; luego llama al lifecycle existente
+hasta `password_pending`. Solo el flujo actual de contraseña puede pasarla a
+`ready`/activa. Aplicar la migration por sí solo no crea usuarios, membresías,
+correos ni filas operativas.
+
+El TL corroboró que Pro ya tiene `token_hash` nullable: `20260919` permite NULL
+en una reserva ordinaria previa a la entrega Auth. El primer borrador local
+contradecía ese contrato; se quitó la exigencia de hash no nulo y no se cambia
+la nulabilidad. Solo el bootstrap puede tener `created_by_user_id=NULL`, con
+provenance Auth estricta; una reserva ordinaria conserva creador, fecha y
+contador reales. El harness preparado recorre la reserva ordinaria con token
+NULL y el rechazo de creador nulo.
+
+La revisión también detectó que el wrapper llamaba dos veces al lifecycle en el
+callback de primer acceso. El diseño local actual decide si materializar el
+bootstrap y llama una sola vez al lifecycle envuelto por cuota en cada solicitud.
+El harness preparado pasa por el gateway firmado, verifica una unidad de cuota
+por callback y conserva el paso a `password_pending`; no se atribuyen dos RPC ni
+dos nonces a una solicitud externa.
+
+La captura aportada por Romel en `/admin/login/` muestra “Administración
+temporalmente en mantenimiento.” Es evidencia visual de que la solicitud
+alcanzó la suspensión segura; no acredita código HTTP, identidad Auth, callback,
+membresía, contraseña ni funcionamiento del panel. Este paquete no consultó Auth Pro ni `admin_members`, no envió correo, no
+escribió en Pro ni abrió Admin. El TL confirmó que la identidad exacta
+`romelhc95@gmail.com` aún no existe en Auth Pro; no se solicita alta manual.
+Antes de invitarla, se revalidará el estado con el permiso de lectura aplicable
+y el flujo oficial de correo tendrá su JIT separado.
+
+**Validación local — actualización 2026-11-05:** `studiamatch-dev` está healthy. El contrato estático + manifest conserva 9/9 en Docker por identidad de sus entradas; la suite completa del scope guard pasó en Docker e incluye selector y promociones. Una verificación Docker adicional comprobó las 33 entradas ordenadas del manifest y sus 33 hashes. Credential scan sobre las 18 rutas actuales pasó sin red y con fuente read-only; `git diff --cached --check HEAD` con índice temporal externo no encontró errores. El único PG17 autorizado para el árbol de ejecución `20ca1593822c2d7e887877b5d1fffa103d2aceb0`, patch SHA-256 `bb8bb7af3fcbf94410e477bc44ee544abe374477654f51c7cc32e3b058f4a916`, terminó PASS; el log conserva su SHA-256 `2002c6ee56ec19ba4b2377a4b9973b1993f6a47d389e363be6f028f2f4af75c2`. La DB sintética probó reserva ordinaria con token NULL, bootstrap/repetición, lifecycle `password_pending`, ACL y una unidad de cuota por callback. La reconciliación final de documentación no cambió la migración ni los harnesses de ese run; no es prueba remota.
+
+El self-test documental y el gate acotado del candidato pasaron en copias
+limpias. El gate integral se conserva como FAIL: 348 diagnósticos en baseline
+y candidato, listas idénticas, cero nuevos/resueltos, SHA-256
+`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`. El checker integral se reejecutó tras esta reconciliación en Docker sobre baseline HEAD y candidato limpio. Para conservar la lista completa, solo se amplió el límite de impresión (200→10000) en copias efímeras del script; la lógica y configuración de diagnóstico no se modificaron. Resultado: FAIL 348→348, listas idénticas, cero nuevos/resueltos, SHA-256 `738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`. Logs: `/tmp/h3req1-security-reconcile-20261106/logs/baseline_full.log` (SHA-256 `d19826c25849e7ec1f451b75893c74115c4fca27627d30de17a1f6d6053127da`) y `candidate_full.log` (SHA-256 `a6d4d65e49d3dc3c005adb76b8a39a979cdba588fd42bb5f305d3b6ada34d8b5`).
+
+Codex Security completó la revisión focal del diff el 2026-11-05 21:41
+America/Lima: scan `5023da29-ae85-4543-8325-6e79a3a943a3`, snapshot
+`codex-security-snapshot/v1:sha256:3bfe97c9e49145b04b62245da745ad59598b412f974afb30e964113aa4c4182e`, 4/4 superficies del scope focal revisadas y cero hallazgos
+reportables. Incluyó identidad/auditoría del bootstrap, callback/safe-suspend,
+gateway/cuota y manifest/guard. Es un diff scan, no una auditoría global ni
+evidencia de runtime Pro, Cloudflare, Auth, correo, CI o activación. La metadata
+de uso del plugin marca `rollout_unavailable`/un hilo faltante; el reporte de
+scan sí está completo para el scope focal. Una revisión manual anterior señaló
+que no hay un caso directo de traversal en la regresión del guard; queda como
+límite de cobertura, sin bypass ni finding reportado.
+
+El JIT anterior para `eef0ad9e…` se consumió con mismatch RLS del rol
+sintético; BYPASSRLS solo se añadió al fixture local. El PG17 PASS aceptado y
+sus hashes probados se reutilizan, sin repetirlo. No hubo SQL remoto, correo,
+creación Auth, escritura Pro ni activación Admin.
+
+**Siguiente secuencia:** el gate de seguridad focal está cerrado para el diff
+revisado; el paquete permanece local y sin publicar. Congelar el patch final
+tras esta reconciliación documental y solicitar, por separado, la disposición
+documental vigente y la autorización exacta de commit/push/PR a Desarrollo.
+Luego siguen las promociones protegidas, H2 report/verify sobre el SHA real de
+Certificación si lo exige el gate post-C, consolidación de evidencia no-auth
+antes de fijar P, nueva tupla DDL para el manifest de 33 migraciones y
+promoción a main. Report/Apply/Verify de la migration, alta Auth/correo,
+apertura temporal del callback, contraseña, membresía y smoke Pro mantienen
+JITs independientes. H1 no se activa; H4 queda en preparación según H2 → H3 →
+H1 → H4.
+
+El [checkpoint técnico del bootstrap](evidencia/h3req1_first_admin_bootstrap_2026-11-05.md)
+separa el diseño, el resultado de cada gate y los permisos pendientes.
+
 ### H3REQ1 — #537 integrado y verify H2 #96 — 2026-11-03 20:32 America/Lima
 
 #### Refs e integración
