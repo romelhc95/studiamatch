@@ -1,6 +1,47 @@
-# H3REQ1 — bootstrap del primer Admin — corte local 2026-11-05
+# H3REQ1 — bootstrap del primer Admin — registro iniciado 2026-11-05
 
-## Alcance y estado
+## Reconciliación posterior — 2026-11-06
+
+Este checkpoint conserva el detalle local original y su evidencia sellada. El
+estado posterior comprobado es: #542 mergeado en Desarrollo
+`14d81b133258572ffa09d72e1bf74d17c221b6a2`; #543 mergeado en Certificación
+`17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b`; ambos con árbol
+`8cd495d31b0effe4a3023eee4afedc27f5bce933`. Main sigue en
+`96eb696d53a7f90279afdc4d37fadec10c2056c4` y no contiene bootstrap.
+
+H2 #99 (`42170267471`) verificó `h2-expand-compat` sobre Certificación; Report
+fue 90 aplicadas/0 pendientes, Apply NO-OP y Verify SUCCESS. Artefacto auténtico
+ID `13481325792`; JSON SHA-256
+`7082bb5a19f08a10f56cfb0d1198bb38021d575d05e18c144f81e799aed252f9`, copiado
+byte por byte a la ruta canónica. El label `operation=apply` es histórico del
+esquema; el evento real fue Verify. Este run no valida ni instala H3 migration
+33.
+
+H3 base 32 permanece instalada/verificada por #98. No consta Report/Apply/Verify
+H3 para la migration 33. El archivo DDL aprobado para 32 migraciones no cubre
+este delta. Pro no tiene todavía la identidad Auth `romelhc95@gmail.com` según
+la última lectura del TL; no se envió correo ni se creó membresía. Pages
+Production conserva el safe-suspend y el usuario vio el mensaje de mantenimiento;
+esto no acredita callback, Auth, membresía, contraseña ni panel operativo.
+
+La reconciliación de siete rutas documentales/evidencia pasó en Docker el
+self-test y el selector candidate-aware; el scanner de credenciales y
+`git diff --check` también pasaron. Checker integral: FAIL 348→348, listas
+idénticas, cero nuevos/resueltos, SHA-256
+`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`; logs y
+listas completas están en
+`/tmp/h3req1-documentation-reconcile-20261106/logs/`. Los siete paths
+modificados coinciden con los allowlists exactos actuales. El test completo
+`tests/test_protected_path_scope_guard.sh` terminó PASS en Docker sobre el
+checkout Git con el commit histórico `8ac174d81cf6ce23658bff132236a78935ace1ad`
+disponible: manifest/negativos, regresiones de rutas, selector candidate-aware,
+promociones y pins. Red deshabilitada y ambas fuentes montadas read-only. El
+resultado local no es CI remoto; comando, imagen y stdout se conservan en
+`/tmp/h3req1-documentation-reconcile-20261106-final/scope-guard-run-20261106.txt`.
+Los logs no incluyen datos secretos.
+
+
+## Snapshot original — alcance y estado al 2026-11-05
 
 Paquete local aislado en `/tmp/h3req1-first-admin-bootstrap-20261105`, base
 main `96eb696d53a7f90279afdc4d37fadec10c2056c4`, árbol base

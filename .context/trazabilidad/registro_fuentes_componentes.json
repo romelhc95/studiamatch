@@ -785,12 +785,12 @@
     },
     {
       "pattern": ".context/operaciones/h2_main_production_expand_evidence.json",
-      "producer": "DB Sync to Production run 41749790054 (#96), workflow_dispatch ref=certificacion, actual operation=verify; JSON retains the historical operation=apply contract label. Replaces #91 as current H2 evidence; #91 remains historical.",
-      "inputs": "Authenticated candidate/payload SHA 7e6c1c1a288706afcfac405df1bb6eabaa9a64e5, manifest h2-expand-compat, H2 cohort 224/digest sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9, advisors reviewed.",
+      "producer": "DB Sync to Production run 42170267471 (#99), workflow_dispatch ref=certificacion, actual operation=verify; JSON retains the historical operation=apply contract label. Replaces #96 as current H2 evidence; #96 and #91 remain historical.",
+      "inputs": "Authenticated candidate/payload SHA 17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b, manifest h2-expand-compat, H2 cohort 224/digest sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9, advisors reviewed.",
       "purpose": "Canonical artifact consumed by the H2 main production expand gate; this verifies H2 only and does not measure H3 ledger or authorize H3 apply.",
       "location": ".context/operaciones/h2_main_production_expand_evidence.json",
       "retention": "Preserve byte-for-byte at the exact path from the authenticated workflow artifact. Keep ZIP and advisor member bodies external; do not edit the legacy operation label.",
-      "evidence": "Run 41749790054 SUCCESS, attempt 1; H2 dry-run zero pending; Apply job NO-OP and migrations step SKIPPED; Verify target schema SUCCESS. Artifact 13286019927 ZIP SHA-256 8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a; JSON member SHA-256 c30895c94edd054fd2500293c417021c643f906558de184a1a49021e2cd2a59c. Advisor members: security e3e25ca29f639c82998a0826fb918bd6fcb4955ad9ee7098e0a11cf475a76d8e; performance 7443e8190bb56c785394be6a7f69e78d447abf47f2b60b722afa3e56e38bd1f1. Hash/presence does not prove H3 runtime/install."
+      "evidence": "Run 42170267471 SUCCESS, attempt 1; Report found 90 H2 migrations applied and 0 pending; Apply was NO-OP and migration step SKIPPED; Verify target schema SUCCESS. Artifact ID 13481325792; authentic JSON SHA-256 7082bb5a19f08a10f56cfb0d1198bb38021d575d05e18c144f81e799aed252f9. The JSON keeps operation=apply as a historical schema label although the dispatch was verify. Hash/presence does not prove H3 ledger/install or Admin runtime."
     },
     {
       "pattern": ".context/operaciones/manifest_h3req1_editorial_atomicity_pg17_2026-10-09.sha256",
