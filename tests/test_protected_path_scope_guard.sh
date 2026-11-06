@@ -125,6 +125,7 @@ h3_manifest_paths = {
     "tests/admin_audit_changes.test.mjs",
     "tests/test_h2_pro_preflight_report.py",
     "web/src/lib/admin-audit-changes.mjs",
+    "db/migrations/20261105_h3_first_admin_auth_bootstrap.sql",
 }
 if any(not any(re.search(pattern, path) for pattern in patterns) for path in h3_manifest_paths):
     raise SystemExit("protected path integration test: exact H3 Pro manifest paths are not admitted")
@@ -144,6 +145,24 @@ if ledger_snapshot not in local_paths:
     raise SystemExit("protected path integration test: exact dated Pro ledger snapshot is not admitted")
 if ledger_snapshot.removesuffix(".json") + "_extra.json" in local_paths:
     raise SystemExit("protected path integration test: neighboring Pro ledger snapshot path is admitted")
+bootstrap_paths = {
+    ".context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md",
+    "tests/h3_first_admin_bootstrap_pg17.sh",
+    "tests/sql/h3_first_admin_bootstrap_harness.sql",
+    "tests/sql/h3_first_admin_bootstrap_pg17_harness.sql",
+    "tests/test_h3_first_admin_bootstrap_contract.py",
+}
+if not bootstrap_paths.issubset(local_paths):
+    raise SystemExit("protected path integration test: an exact first-admin bootstrap path is not allowlisted")
+for neighbor in (
+    ".context/evidencia/h3req1_first_admin_bootstrap_2026-11-05_extra.md",
+    "tests/h3_first_admin_bootstrap_pg17_extra.sh",
+    "tests/sql/h3_first_admin_bootstrap_harness_extra.sql",
+    "tests/sql/h3_first_admin_bootstrap_pg17_harness_extra.sql",
+    "tests/test_h3_first_admin_bootstrap_contract_extra.py",
+):
+    if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+        raise SystemExit(f"protected path integration test: neighboring bootstrap path is admitted: {neighbor}")
 for neighbor in (
     "scripts/maintenance/pro_h3_migration_manifest_extra.py",
     "tests/test_h3_pro_migration_manifest_extra.py",
@@ -157,6 +176,7 @@ for neighbor in (
     "tests/admin_audit_changes_extra.test.mjs",
     "tests/test_h2_pro_preflight_report_extra.py",
     "web/src/lib/admin-audit-changes-extra.mjs",
+    "db/migrations/20261105_h3_first_admin_auth_bootstrap_extra.sql",
 ):
     if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
         raise SystemExit(f"protected path integration test: neighboring H3 Pro manifest path is admitted: {neighbor}")
@@ -807,8 +827,23 @@ for test_path in ("admin_header_responsive.test.mjs", "admin_queue_request_guard
 registry = json.loads((root / ".context/trazabilidad/registro_fuentes_componentes.json").read_text(encoding="utf-8"))
 candidate_only = {path for group in registry["groups"] for path in group.get("candidate_only_paths", [])}
 selected_candidate_only = manifest_paths & candidate_only & expected_paths
-if len(selected_candidate_only) != 5:
-    raise SystemExit(f"R21 scope regression: expected five candidate-only source/test paths in this exact PR, found {len(selected_candidate_only)}")
+# The historical R21 scope still includes the two active docs below, but the
+# current source registry no longer classifies them as candidate-only paths.
+expected_candidate_only = {
+    "scripts/security/protected_path_scope_guard.sh",
+    "tests/admin_header_responsive.test.mjs",
+    "tests/admin_queue_request_guard.test.mjs",
+    "tests/h3_duration_parser.test.mjs",
+    "tests/test_protected_path_scope_guard.sh",
+    "web/src/lib/admin-queue-request-guard.mjs",
+}
+if selected_candidate_only != expected_candidate_only:
+    missing = sorted(expected_candidate_only - selected_candidate_only)
+    unexpected = sorted(selected_candidate_only - expected_candidate_only)
+    raise SystemExit(
+        "R21 scope regression: candidate-only paths differ from the exact current registry; "
+        f"missing={missing} unexpected={unexpected}"
+    )
 
 excluded = set(scope.get("excludedPaths", []))
 for forbidden in (
@@ -820,7 +855,7 @@ for forbidden in (
     if forbidden in included or forbidden not in excluded:
         raise SystemExit(f"R21 scope regression: unrelated fixture/Admin WIP inclusion or exclusion drift: {forbidden}")
 
-print("protected-path-R21-manifest-integration=PASS|candidate_paths=22|exact_additions=6|selected_candidate_only_source_and_test_paths=5|R20_preserved=1")
+print("protected-path-R21-manifest-integration=PASS|candidate_paths=22|exact_additions=6|selected_candidate_only_paths=6|R20_preserved=1")
 
 selector_lines = documentation_job.splitlines()
 selector_start = selector_lines.index("          # h3req1-manifest-selector:start")
