@@ -48,7 +48,7 @@ P=`286469bb45dcc0cb73b70cd25aa1ba71432da86f`, árbol `404a3920f7949087a0dca7ef86
 | modified | `tests/test_h3_pro_migration_manifest.py` |
 | modified | `tests/test_protected_path_scope_guard.sh` |
 
-El candidato H2 verificado `C` es `17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b`; C es ancestro de P (4 commits adelante en la comparación). El flujo protegido debe preservar P y C como ancestros del `M` final; el workflow exige `auth_base`→P, P→M, C→M, el filtro post-C y que `diff(P,M)` contenga exclusivamente este archivo. No se usa squash ni rebase. El archivo DDL presente en P contiene la aprobación anterior para un payload distinto de 32 migraciones; esa aprobación no se transfiere. Este documento es una propuesta externa de contenido exacto, aún no aprobada ni copiada al árbol.
+El candidato H2 verificado `C` es `17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b`; C es ancestro de P (4 commits adelante en la comparación). El flujo protegido debe preservar P y C como ancestros del `M` final; el workflow exige `auth_base`→P, P→M, C→M, el filtro post-C y que `diff(P,M)` contenga exclusivamente este archivo. No se usa squash ni rebase. El archivo DDL que formaba parte de P registraba la aprobación anterior para un payload de 32 migraciones; esa aprobación no cubría el manifest de 33 migraciones de esta versión. Esta versión fue aprobada como contenido exacto y está incorporada en esta ruta canónica. La aprobación cubre el contenido DDL, no la ejecución: SQL, dispatch, backup/restore, configuración y deploy conservan sus autorizaciones independientes.
 
 ## Evidencia H2 autenticada — no acredita H3
 
