@@ -31,6 +31,47 @@ El middleware identifica `/admin` y `/api/admin`, rechaza variantes codificadas/
 
 **Cambio seguro:** revisar rutas de `admin-auth.ts`, middleware, configuración de hosts y tests `h3_admin_bff_mock_uat.mjs`, `h3_local_uat.mjs` y `test_supabase_credentials_contract.py`. Toda variación de host/cookie/método requiere revisar CSRF, safe-suspend, allowlist de transporte y pruebas; no activar flags locales en Cloudflare.
 
+## Primer Admin: invitación Auth, callback y lifecycle — propuesta local 2026-11-05
+
+La migration candidata `20261105_h3_first_admin_auth_bootstrap.sql` cubre solo
+la brecha de instalación inicial: el flujo normal no puede crear al primer
+Admin porque reserva requiere un actor Admin listo, `created_by_user_id` era
+obligatorio y la auditoría exige un actor Auth real. No se falsifica un
+`created_by_user_id`, no se llama la API de alta directa y no se omite callback,
+aceptación ni contraseña.
+
+El `ADMIN_BFF_SAFE_SUSPEND=true` actual también bloquea el callback, no solo la
+pantalla del panel. Por eso se mantiene mientras falte cualquier dependencia;
+no se debe enviar la invitación durante la suspensión. Tras instalar y verificar
+schema, gateway/hook, cuota/binding, Edge, Auth y BFF, un JIT separado puede
+retirar la suspensión manteniendo Cloudflare Access y el host exacto; se valida
+el runtime antes de enviar el correo. Si el runtime falla, se vuelve a activar
+la suspensión bajo su propio JIT y no se reintenta el callback a ciegas.
+
+Orden requerido después de validar y promover la migration: (1) comprobar por
+lectura autorizada si la identidad Pro exacta `romelhc95@gmail.com` ya existe;
+(2) comprobar que Auth conserve el callback permitido
+`https://admin.studiamatch.com/admin/auth/callback/`; (3) solo con autorización
+separada, enviar la invitación Auth oficial; (4) Romel abre el correo y completa
+el enlace en Chrome Windows visible; (5) el BFF verifica `token_hash` y tipo
+`invite`, y el callback llama `admin_accept_current_invitation()` sin inventar
+un ID; (6) el delta de bootstrap exige el usuario Auth autenticado,
+`invited_at`/`email_confirmed_at` ordenados y el email único, registra el actor
+real y atraviesa `invited` → `accepted` → `password_pending`; (7) el usuario
+completa la contraseña por el flujo existente, que es el único que permite
+`ready`/activo; (8) smoke de sesión/MFA/lector/cuota solo después de verificar
+todos los componentes. Auth/email, SQL, configuración/runtime y smoke conservan
+JIT separados.
+
+En este corte la captura aportada por Romel muestra el texto de mantenimiento
+en `/admin/login/`, compatible con `ADMIN_BFF_SAFE_SUSPEND`; no se capturó el
+status HTTP ni se consultaron Auth Pro, la membresía o su auditoría. No prueba
+login Supabase ni Admin operativo. Mantener la suspensión hasta tener schema,
+gateway, cuota/binding, Edge, Auth y BFF verificados. Desactivar la suspensión
+es un cambio remoto separado; ante fallo, volver a activarla bajo JIT y
+conservar Access y el catálogo público. No invitar ni pedir a Romel abrir el
+correo antes de comprobar que callback y lifecycle están desplegados.
+
 ## BFF: cookie y RPC firmada
 
 **Fuentes:** `web/functions/_lib/admin-bff.ts` (`routeAdminBff`, `createCookieState`, `ADMIN_RPC_ALLOWLIST`, `ADMIN_RPC_READS`) y el middleware anterior. El transporte compartido `web/src/lib/supabase-transport.ts` tiene ownership y contrato propios en [Supabase transport](supabase_transport.md#fuentes-y-relaciones); sus dos consumidores locales son el cliente SDK público y este BFF server-side.
