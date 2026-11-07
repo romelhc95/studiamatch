@@ -126,12 +126,12 @@
       }
     },
     "integration_projection": {
-      "name": "candidato local H3REQ1 PR #528 y sincronización main — 2026-11-02",
-      "source_set": "Desarrollo 571a81175f5b807251d6d266fa77b0c91c15d642 más los siete paths candidate-only exactos de la remediación PR #528; WIP no seleccionado permanece señalado por grupo y no se incorpora al candidato.",
-      "candidate_only_path_count_at_cut": 312,
-      "note": "Proyección recalculada en copias limpias baseline/candidato: 447 fuentes relevantes y 312 fuentes candidate-only registradas en el candidato (305 baseline + siete paths candidate-only de este delta). Incluye el lector H2/Pro y su test focal. Las omisiones del acumulado siguen sujetas a selección exacta y cobertura del diff completo.",
-      "refresh": "Al reconciliar paso 3, recalcular todas las listas con el manifiesto combinado; no reutilizar estas listas si cambia el scope.",
-      "projected_relevant_source_paths_at_cut": 447
+      "name": "bootstrap inicial del primer Admin — candidato local 2026-11-05",
+      "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap y el path existente del scope guard reclasificado como candidate-only por su cambio. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.",
+      "candidate_only_path_count_at_cut": 318,
+      "note": "Recuento recalculado en copias Git limpias del candidato: 764 fuentes, 318 candidate-only (312 del corte anterior, cinco fuentes nuevas y un path existente del guard reclasificado), dejando 446 fuentes en la proyección. El residual histórico del checker se compara por listas completas con el mismo baseline y no se convierte en PASS integral.",
+      "refresh": "Este corte local incluye únicamente las cinco fuentes nuevas declaradas; si cambia el scope, recalcular listas y revisar asignaciones antes de congelar el candidato.",
+      "projected_relevant_source_paths_at_cut": 446
     }
   },
   "exclusions": [
@@ -785,12 +785,12 @@
     },
     {
       "pattern": ".context/operaciones/h2_main_production_expand_evidence.json",
-      "producer": "DB Sync to Production run 41749790054 (#96), workflow_dispatch ref=certificacion, actual operation=verify; JSON retains the historical operation=apply contract label. Replaces #91 as current H2 evidence; #91 remains historical.",
-      "inputs": "Authenticated candidate/payload SHA 7e6c1c1a288706afcfac405df1bb6eabaa9a64e5, manifest h2-expand-compat, H2 cohort 224/digest sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9, advisors reviewed.",
+      "producer": "DB Sync to Production run 42170267471 (#99), workflow_dispatch ref=certificacion, actual operation=verify; JSON retains the historical operation=apply contract label. Replaces #96 as current H2 evidence; #96 and #91 remain historical.",
+      "inputs": "Authenticated candidate/payload SHA 17d2d9b57fe9e5f32430a83ec843a3c3df9baa3b, manifest h2-expand-compat, H2 cohort 224/digest sha256:c217dbffc9d50cca0e1f111fcddf1268db9a34e8671a409f3663dcfff1d735e9, advisors reviewed.",
       "purpose": "Canonical artifact consumed by the H2 main production expand gate; this verifies H2 only and does not measure H3 ledger or authorize H3 apply.",
       "location": ".context/operaciones/h2_main_production_expand_evidence.json",
       "retention": "Preserve byte-for-byte at the exact path from the authenticated workflow artifact. Keep ZIP and advisor member bodies external; do not edit the legacy operation label.",
-      "evidence": "Run 41749790054 SUCCESS, attempt 1; H2 dry-run zero pending; Apply job NO-OP and migrations step SKIPPED; Verify target schema SUCCESS. Artifact 13286019927 ZIP SHA-256 8f24ba5adaefd627f60ebdcaadf424c37cfe6a1ed5a405f6803d96b886fd4a8a; JSON member SHA-256 c30895c94edd054fd2500293c417021c643f906558de184a1a49021e2cd2a59c. Advisor members: security e3e25ca29f639c82998a0826fb918bd6fcb4955ad9ee7098e0a11cf475a76d8e; performance 7443e8190bb56c785394be6a7f69e78d447abf47f2b60b722afa3e56e38bd1f1. Hash/presence does not prove H3 runtime/install."
+      "evidence": "Run 42170267471 SUCCESS, attempt 1; Report found 90 H2 migrations applied and 0 pending; Apply was NO-OP and migration step SKIPPED; Verify target schema SUCCESS. Artifact ID 13481325792; authentic JSON SHA-256 7082bb5a19f08a10f56cfb0d1198bb38021d575d05e18c144f81e799aed252f9. The JSON keeps operation=apply as a historical schema label although the dispatch was verify. Hash/presence does not prove H3 ledger/install or Admin runtime."
     },
     {
       "pattern": ".context/operaciones/manifest_h3req1_editorial_atomicity_pg17_2026-10-09.sha256",
@@ -15388,7 +15388,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts. The H3REQ1 follow-up admits the exact H2 main evidence path while leaving its content gate independent; frozen promotion pins are consumed only at their approved baseline for both PR and push callers. Invalid/ambiguous selection remains fail-closed. The H3 Pro DDL authorization is admitted only at the exact DRAFT path; that path does not satisfy the separate apply status/content gate. The post-#535 Pro ledger snapshot is admitted only at its exact dated path; the test rejects a neighboring filename and does not weaken the independent H2/H3 content gates.",
+        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts. The H3REQ1 follow-up admits the exact H2 main evidence path while leaving its content gate independent; frozen promotion pins are consumed only at their approved baseline for both PR and push callers. Invalid/ambiguous selection remains fail-closed. The H3 Pro DDL authorization is admitted only at the exact DRAFT path; that path does not satisfy the separate apply status/content gate. The post-#535 Pro ledger snapshot is admitted only at its exact dated path; the test rejects a neighboring filename and does not weaken the independent H2/H3 content gates. The local 2026-11-05 bootstrap candidate adds only its exact migration and evidence/test paths; it requires a fresh H2 candidate after the guard change is integrated, and no guard/manifest/PG17 result is claimed while Docker is unavailable.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
@@ -15428,7 +15428,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. The 2026-11-01 run89 checkpoint links the authenticated verify artifact and records that the actual Apply job was a NO-OP; it does not prove H3 installation in Pro. Docker results do not prove Actions, installed hooks, secrets or remote branch protection. The local continuation adds a real Git caller case for the exact DDL path and rejected neighbors in tests/test_security_flow.py, rejects apply status for a DRAFT fixture, uses only a synthetic approved-status fixture, and proves only the DDL file may change after payload; results are recorded in the linked 2026-11-01 checkpoint. The caller regressions run in the existing CI-listed security_flow suite; DRAFT and approved-state fixtures do not freeze the real authorization document status. The last authenticated H2 evidence before the #535 SQL/pin correction is DB Sync run 93 (41555682589), candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; actual workflow dispatch was verify and Apply was NO-OP. The corrected SQL/pins postdate that candidate, so #93 does not cover the resulting Certification candidate; H3 remains unapplied. Run 91 and run 89 are preserved as prior history. The canonical H2 evidence file and authenticated run are linked from the current project state and database migration record; the workflow still independently validates the run, jobs, ancestry, cohort/advisors and ZIP members. The current local follow-up adds a real guard caller fixture for the exact dated Pro ledger snapshot path and rejects a neighboring `_extra.json`; this is scope-only local evidence, not a remote ledger operation.",
+        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. The 2026-11-01 run89 checkpoint links the authenticated verify artifact and records that the actual Apply job was a NO-OP; it does not prove H3 installation in Pro. Docker results do not prove Actions, installed hooks, secrets or remote branch protection. The local continuation adds a real Git caller case for the exact DDL path and rejected neighbors in tests/test_security_flow.py, rejects apply status for a DRAFT fixture, uses only a synthetic approved-status fixture, and proves only the DDL file may change after payload; results are recorded in the linked 2026-11-01 checkpoint. The caller regressions run in the existing CI-listed security_flow suite; DRAFT and approved-state fixtures do not freeze the real authorization document status. The last authenticated H2 evidence before the #535 SQL/pin correction is DB Sync run 93 (41555682589), candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; actual workflow dispatch was verify and Apply was NO-OP. The corrected SQL/pins postdate that candidate, so #93 does not cover the resulting Certification candidate; H3 remains unapplied. Run 91 and run 89 are preserved as prior history. The canonical H2 evidence file and authenticated run are linked from the current project state and database migration record; the workflow still independently validates the run, jobs, ancestry, cohort/advisors and ZIP members. The current local follow-up adds a real guard caller fixture for the exact dated Pro ledger snapshot path and rejects a neighboring `_extra.json`; this is scope-only local evidence, not a remote ledger operation. The 2026-11-05 bootstrap candidate adds exact bootstrap paths to the guard and neighbor-rejection fixture. Docker ran the full protected-path suite successfully after its historical R21 expectation was aligned from eight to six candidate-only paths to match the current registry; no allowlist or workflow changed. This is local evidence, not GitHub Actions or remote branch-protection proof. The runner PG17 test is still pending a fresh exact one-run JIT.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15446,7 +15446,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "H2 h2-expand-compat was verified by run 93 (41555682589) on Certification candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; the actual dispatch was verify, Apply was a no-op, and H3 Pro remains not applied. The H3 DDL file is valid only when its Status and exact manifest/payload/base/digest/cohort tuple match the human decision consumed by the workflow; H2 evidence does not authorize H3 apply or production changes. For the corrected #535 manifest/pins, a new H2 verify is required on the resulting Certification SHA before fixing a new H3 payload.",
+        "note": "H2 h2-expand-compat was verified by run 93 (41555682589) on Certification candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; the actual dispatch was verify, Apply was a no-op, and H3 Pro remains not applied. The H3 DDL file is valid only when its Status and exact manifest/payload/base/digest/cohort tuple match the human decision consumed by the workflow; H2 evidence does not authorize H3 apply or production changes. For the corrected #535 manifest/pins, a new H2 verify is required on the resulting Certification SHA before fixing a new H3 payload. The local 2026-11-05 scope-guard change also requires a new H2 candidate after it is integrated into Certification; run 96 predates this local path and is not evidence for it.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
@@ -15486,6 +15486,7 @@
         "anchor": "fuentes-y-relaciones"
       },
       "candidate_only_paths": [
+        "scripts/security/protected_path_scope_guard.sh",
         "tests/test_protected_path_scope_guard.sh"
       ]
     },
@@ -20836,7 +20837,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Exact 32-file H3 inventory with SHA-256 pins and explicit precedence; shared six-manifest Pro registry imported by db_migrate and dependency-free workflow preflight. Rejects invalid registry/selection, missing SQL and H3 hash drift; validates aggregate H2 cohort inputs. Does not apply SQL. The 2026-11-02 candidate appends the legacy-withdrawal guard migration with its byte-pinned SHA-256 and explicit dependency after the price projection guard.",
+        "note": "The integrated H3 manifest is a closed 32-file inventory with SHA-256 pins and explicit precedence; the shared six-manifest Pro registry is imported by db_migrate and dependency-free workflow preflight. A local 2026-11-05 bootstrap candidate proposes a 33rd byte-pinned migration with a dependency after invitation reservation; this is not integrated, tested or applied. The existing 32-entry Report/Apply authorization does not cover it.",
         "evidence": [
           "path:scripts/maintenance/pro_h3_migration_manifest.py",
           "path:db/migrations/20260828_h3_admin_auth.sql",
@@ -20863,7 +20864,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Focused Docker tests execute the actual YAML preflight for all six manifests and reject invalid selection, registry drift, absent H2 SQL and altered H3 SQL; isolated stdlib-only import is tested. Inventory/order/hash pins, H2 inputs and main-only boundary remain covered; see current checkpoint. The candidate extends the exact ordered inventory to 32 and rejects missing, reordered, extra, changed-SQL and invalid-environment selections; the new PG17 fixture was executed once under its exact JIT, with PASS recorded in the current checkpoint.",
+        "note": "The integrated 32-entry inventory and actual YAML preflight have prior accepted Docker evidence. This 2026-11-05 local candidate extends the manifest to 33 exact byte-pinned migrations; focused manifest/bootstrap static tests passed 9/9 in Docker, and the authorized disposable PostgreSQL 17 bootstrap fixture passed once for execution tree 20ca1593822c2d7e887877b5d1fffa103d2aceb0 and patch SHA-256 bb8bb7af3fcbf94410e477bc44ee544abe374477654f51c7cc32e3b058f4a916. This is synthetic local evidence only; no remote H3 runtime or CI result is claimed.",
         "evidence": [
           "path:tests/test_h3_pro_migration_manifest.py",
           "path:tests/test_h2_pro_migration_controls.py",
@@ -20881,7 +20882,7 @@
       },
       "provenance": {
         "state": "verified",
-        "note": "This manifest file is new and uncommitted in the isolated candidate branch; no earlier upstream rationale is claimed. Its SQL inputs are pre-existing tracked migration files pinned by hash.",
+        "note": "The manifest source is integrated; this checkout has an uncommitted candidate-only update to the ordered inventory, hash pin and precedence for the first-Admin migration. No remote adoption is implied; existing SQL pins remain unchanged.",
         "evidence": [
           "path:scripts/maintenance/pro_h3_migration_manifest.py",
           "path:db/migrations/20260828_h3_admin_auth.sql"
@@ -20896,6 +20897,92 @@
         "anchor": "h3-pro-promotion-manifest"
       },
       "candidate_only_paths": []
+    },
+    {
+      "component": "database",
+      "status": "diagnostic-wip",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261105-h3-first-admin-auth-bootstrap",
+      "purpose": "One-time first Admin bootstrap from an externally sent and Auth-confirmed invitation, reusing the existing callback, acceptance, password lifecycle and truthful actor audit.",
+      "paths": [
+        "db/migrations/20261105_h3_first_admin_auth_bootstrap.sql",
+        "tests/h3_first_admin_bootstrap_pg17.sh",
+        "tests/sql/h3_first_admin_bootstrap_harness.sql",
+        "tests/sql/h3_first_admin_bootstrap_pg17_harness.sql",
+        "tests/test_h3_first_admin_bootstrap_contract.py"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "first-admin-auth-bootstrap"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261105_h3_first_admin_auth_bootstrap.sql",
+        "tests/h3_first_admin_bootstrap_pg17.sh",
+        "tests/sql/h3_first_admin_bootstrap_harness.sql",
+        "tests/sql/h3_first_admin_bootstrap_pg17_harness.sql",
+        "tests/test_h3_first_admin_bootstrap_contract.py"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Static contract review and the focused Docker contract suite verify the exact Auth UID/email/invited_at/confirmed_at and single-use guards, factual audit actor, ordinary reservation with token_hash NULL, and one call to the existing quota-wrapped lifecycle per callback. PostgreSQL 17 runtime remains pending its fresh exact one-run JIT; no remote behavior is claimed.",
+        "evidence": [
+          "path:db/migrations/20261105_h3_first_admin_auth_bootstrap.sql",
+          "path:tests/test_h3_first_admin_bootstrap_contract.py",
+          "path:tests/sql/h3_first_admin_bootstrap_harness.sql",
+          "path:.context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "Static source tracing identifies the existing Supabase invite template, BFF token_hash/type callback verification, UI callback invocation of acceptCurrentInvitation(), and admin_complete_password_setup() as the only route to ready/active. Static links do not prove an Auth identity, email or runtime deployment.",
+        "evidence": [
+          "path:supabase/templates/invite.html",
+          "path:web/functions/_lib/admin-bff.ts",
+          "path:web/src/app/admin/auth/callback/page.tsx",
+          "path:web/src/lib/admin-auth.ts",
+          "path:db/migrations/20261001_h3_invitation_reservation_compensation.sql"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Static review plus one authorized synthetic PostgreSQL 17 execution for tree 20ca1593822c2d7e887877b5d1fffa103d2aceb0/patch SHA-256 bb8bb7af3fcbf94410e477bc44ee544abe374477654f51c7cc32e3b058f4a916: the local fixture exercised the migration and callback lifecycle. Applying the migration remotely still does not create Auth identity, send mail, set a password or activate membership; no Pro runtime effect is claimed.",
+        "evidence": [
+          "path:db/migrations/20261105_h3_first_admin_auth_bootstrap.sql",
+          "path:tests/sql/h3_first_admin_bootstrap_harness.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Docker pytest passed 9/9 for the bootstrap static contract and H3 manifest suites; the full protected-path guard regression, credential scan and diff-check passed. One exact authorized PostgreSQL 17 run passed the local disposable bootstrap fixture for tree 20ca1593822c2d7e887877b5d1fffa103d2aceb0/patch SHA-256 bb8bb7af3fcbf94410e477bc44ee544abe374477654f51c7cc32e3b058f4a916; marker and log hash are recorded in the linked evidence file. Codex Security focal diff scan 5023da29-ae85-4543-8325-6e79a3a943a3 completed 2026-11-05 21:41 America/Lima over snapshot sha256:3bfe97c9e49145b04b62245da745ad59598b412f974afb30e964113aa4c4182e; its focal worklist was complete (4/4 surfaces) with zero reportable findings. It is not a repository-wide or remote runtime audit; Pro, Auth, email, Cloudflare runtime and CI remain excluded. The later local edits only reconcile documentation and do not change executable hashes. The integral documentation checker was rerun after this reconciliation in Docker using the same checker logic/configuration in clean baseline/candidate trees; only the temporary diagnostic print cap was expanded to preserve the full list. It remains FAIL 348→348 with identical lists, zero new/resolved, list SHA-256 738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92; logs and hashes are in the linked external checkpoint.",
+        "evidence": [
+          "path:tests/test_h3_first_admin_bootstrap_contract.py",
+          "path:tests/test_h3_pro_migration_manifest.py",
+          "path:tests/test_protected_path_scope_guard.sh",
+          "path:tests/h3_first_admin_bootstrap_pg17.sh",
+          "path:.context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md"
+        ],
+        "resolution": "The local PG17 execution is complete for the stated code inputs; do not repeat it absent a demonstrated regression. The focal Codex Security diff scan is complete with zero findings for its four-surface worklist; its artifacts and limitations are linked in the evidence note. Before publication, freeze and review the final package after documentation reconciliation, complete only affected documentation gates, and obtain the required current publication/disposition approvals. No remote SQL, publication or account action is implied."
+      },
+      "operations": {
+        "state": "pending",
+        "note": "No Auth invitation, mail, Pro SQL, membership write, deployment or Admin activation occurred in this local package. The exact local PostgreSQL fixture passed for the recorded source identity. The candidate still requires protected Development and Certification promotions, a new H2 verify at the real Certification SHA if required by the post-C gate, a new P/DDL tuple after consolidating non-auth evidence, and protected main promotion.",
+        "evidence": [
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:scripts/security/protected_path_scope_guard.sh",
+          "path:.context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md"
+        ],
+        "resolution": "After final local validation, request the exact authorization for publication; keep report/apply/verify, Auth invitation, configuration and Admin activation separately authorized."
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Local uncommitted implementation is isolated from other worktrees and derived from the demonstrated first-Admin lifecycle/constraint gap; no product requirement, upstream merge or remote schema adoption is asserted.",
+        "evidence": [
+          "path:db/migrations/20261105_h3_first_admin_auth_bootstrap.sql",
+          "path:.context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md"
+        ]
+      }
     }
   ],
   "active_documents": [
@@ -20958,7 +21045,7 @@
     ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-12.md",
     ".context/evidencia/h3req1_documentacion_semantica_reanudacion_2026-10-13_r10.md",
     ".context/evidencia/h3req1_editorial_contract_2026-10-28.md",
-    ".context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md",
+    ".context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md",
     ".context/evidencia/h3req1_g09_local_close_r178_2026-10-11.md",
     ".context/evidencia/h3req1_g10_r8_review_corrections_r181_2026-10-12.md",
     ".context/evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md",
@@ -20973,6 +21060,7 @@
     ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r17_public_sanitized_r18.md",
     ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-14_r18.md",
     ".context/evidencia/h3req1_pr_body_draft_local_review_2026-10-18_r19.md",
+    ".context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md",
     ".context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-body-2026-10-26.md",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-acceptance-cycle-2026-10-24.md",
     ".context/evidencia/h3req1_public_projection_local_uat_2026-10-24/candidate-pr-body-2026-10-24.md",

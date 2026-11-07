@@ -25,7 +25,7 @@ MIGRATIONS = ROOT / "db/migrations"
 
 
 def test_h3_manifest_has_exact_ordered_inventory_and_matching_sha_pins() -> None:
-    assert len(H3_PRO_MIGRATIONS) == 32
+    assert len(H3_PRO_MIGRATIONS) == 33
     assert len(set(H3_PRO_MIGRATIONS)) == len(H3_PRO_MIGRATIONS)
     assert set(H3_PRO_MIGRATION_SHA256) == set(H3_PRO_MIGRATIONS)
     assert validate_h3_manifest_tree(MIGRATIONS) == H3_PRO_MIGRATION_SHA256
@@ -79,11 +79,11 @@ def test_pro_migrator_resolves_only_the_exact_h3_manifest_and_rejects_invalid_in
 
 def test_h3_manifest_declares_and_obeys_non_lexical_dependency_edges() -> None:
     positions = {name: index for index, name in enumerate(H3_PRO_MIGRATIONS)}
-    assert len(H3_PRO_MIGRATION_PRECEDENCE) == 6
-    assert H3_PRO_MIGRATIONS[-1] == "20261102_h3_legacy_public_withdrawal_guard"
+    assert len(H3_PRO_MIGRATION_PRECEDENCE) == 7
+    assert H3_PRO_MIGRATIONS[-1] == "20261105_h3_first_admin_auth_bootstrap"
     assert H3_PRO_MIGRATION_PRECEDENCE[-1] == (
-        "20261028_h3_public_price_projection_empty_price_guard",
-        "20261102_h3_legacy_public_withdrawal_guard",
+        "20261001_h3_invitation_reservation_compensation",
+        "20261105_h3_first_admin_auth_bootstrap",
     )
     for prerequisite, dependent in H3_PRO_MIGRATION_PRECEDENCE:
         assert positions[prerequisite] < positions[dependent]

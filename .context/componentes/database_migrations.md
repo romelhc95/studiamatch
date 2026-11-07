@@ -390,6 +390,61 @@ regresión del filtrado se requiere una corrección forward-only revisada que
 restablezca la vista compatible, seguida de lectura pública controlada. No se
 reescribe la migration ya aplicada en Free.
 
+### first-admin-auth-bootstrap
+
+**Candidata local, migration 20261105:**
+
+`20261105_h3_first_admin_auth_bootstrap.sql` es una migration correctiva
+local, posterior al manifest desplegado de 32 entradas. No reescribe migrations
+aplicadas ni crea identidad, invita por correo o modifica membresías al
+aplicarse. Admite `created_by_user_id IS NULL` solo con provenance completa y
+exacta para el Auth invite confirmado de `romelhc95@gmail.com`; no cambia la
+nulabilidad existente de `token_hash`. Amplía el set de acciones de auditoría con `first_admin_bootstrap`, cuya fila usa
+`auth.uid()`/UUID real como actor. La función privada rechaza otros emails,
+identidades no invitadas/no confirmadas, Admin o invitación previa y cualquier
+segundo bootstrap. El wrapper conserva la RPC del callback, llama primero al
+lifecycle una sola vez por solicitud: con ID la procesa directamente; sin ID
+primero intenta el bootstrap acotado y entrega su ID al lifecycle. Materializa
+una membresía inactiva y conserva la transición a `password_pending`; la ruta
+existente de contraseña sigue siendo necesaria para `ready`/activa. No hay identidad,
+correo, membresía, auditoría ni password creados por el DDL.
+
+La invitación externa no tiene token de la aplicación: el bootstrap registra
+`token_hash=NULL`, como ya permite el contrato para reservas ordinarias antes
+del envío Auth. Las filas ordinarias siguen requiriendo creador real,
+`last_sent_at` y `send_count` válidos; la candidata no exige hash no nulo ni
+altera esa columna. El harness preparado prueba reserva ordinaria con hash NULL
+y rechazo de creador NULL sin provenance.
+
+El candidato local aumenta el manifest de 32 a 33 migrations y fija el hash de
+este archivo. El test de manifest del candidato ya se ejecutó en Docker como
+parte del resultado 9/9; eso valida inventario y wiring estáticos, no aplicación
+PostgreSQL. Por tanto, el DDL aprobado y los Report/Apply previos no aplican
+a los bytes nuevos. La modificación exacta del scope guard debe incorporarse
+antes del nuevo candidato H2 C: el gate post-C no admite ese path como delta
+posterior. Secuencia: completar validaciones locales y PG17; promocionar el
+paquete consolidado por PR protegidos a Certificación; report/verify H2
+autorizado para el SHA real; guardar el artefacto auténtico y toda evidencia
+documental no-auth; fijar P/base/digest; obtener aprobación humana de la nueva
+tupla DDL; promover a main; ejecutar un Report H3 y solicitar Apply/Verify por
+separado. No requiere ni autoriza una ronda de SQL manual ni reparación de
+ledger.
+
+El runner `tests/h3_first_admin_bootstrap_pg17.sh` monta la fuente de forma
+read-only, usa PG17 fijado por digest, `--network none` y almacenamiento
+efímero, aplica el delta dos veces y ejecuta solo IDs Auth sintéticos. Comprueba
+reserva ordinaria con `token_hash=NULL`, confirmación antes del callback,
+restricciones de identidad/provenance, auditoría, idempotencia, ACL, lifecycle
+y que `ready` solo se alcance por el RPC de contraseña existente. La ejecución
+única autorizada para árbol `20ca1593822c2d7e887877b5d1fffa103d2aceb0` y patch
+SHA-256 `bb8bb7af3fcbf94410e477bc44ee544abe374477654f51c7cc32e3b058f4a916`
+terminó PASS en PostgreSQL 17. El log externo es
+`/tmp/h3req1-first-admin-bootstrap-20261105-checkpoint/pg17-run-20ca-jit.log`
+(SHA-256 `2002c6ee56ec19ba4b2377a4b9973b1993f6a47d389e363be6f028f2f4af75c2`);
+el contenedor se limpió y el árbol/diff no cambió durante la prueba. Esto
+valida solo un fixture local sintético, no Pro, Auth, correo, CI ni activación.
+Ver [checkpoint de bootstrap](../evidencia/h3req1_first_admin_bootstrap_2026-11-05.md).
+
 ## Fichas exactas y relaciones por migration
 
 Las fichas siguientes asignan cada migration a su propio anchor. El objeto/identifier map procede de SQL local y del barrido léxico de tests; los nombres de tests localizan posibles aserciones, no son resultados de ejecución. Los archivos son DB-as-code. R15 leyó metadata y ledger de Pro, pero no obtuvo un diff exhaustivo del baseline ni metadata legible de Free; la aplicación de cada objeto remoto sigue pendiente. Ver [evidencia R15](../evidencia/h3req1_g10_remote_preparation_2026-10-13_r15.md#supabase).
