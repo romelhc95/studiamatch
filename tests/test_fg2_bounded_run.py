@@ -128,6 +128,36 @@ def test_budget_serializes_per_origin_and_waits_five_seconds_between_starts() ->
     asyncio.run(scenario())
 
 
+def test_budget_rejects_unreviewed_url_before_any_http_request() -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        session = FakeSession(clock)
+        budget = make_budget(clock, allowed_urls=["https://synthetic.example/approved"])
+        with pytest.raises(InvalidControlledRun, match="outside the reviewed FG2 lot"):
+            await budget.get(session, "https://synthetic.example/unreviewed")
+        assert session.calls == []
+        assert budget.snapshot() == {"http_requests": 0, "unique_urls": 0}
+
+    asyncio.run(scenario())
+
+
+def test_budget_does_not_follow_redirect_outside_reviewed_url_scope() -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        session = FakeSession(
+            clock,
+            [FakeResponse(302, {"location": "/unreviewed"})],
+        )
+        budget = make_budget(clock, allowed_urls=["https://synthetic.example/approved"])
+        with pytest.raises(OriginDeferred, match="outside the reviewed FG2 lot"):
+            await budget.get(session, "https://synthetic.example/approved")
+        assert len(session.calls) == 1
+        assert session.calls[0][0] == "https://synthetic.example/approved"
+        assert budget.snapshot() == {"http_requests": 1, "unique_urls": 1}
+
+    asyncio.run(scenario())
+
+
 def test_redirect_and_retry_requests_are_counted_and_retry_after_is_respected() -> None:
     async def scenario() -> None:
         clock = FakeClock()

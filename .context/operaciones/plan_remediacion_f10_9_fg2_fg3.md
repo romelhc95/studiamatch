@@ -345,6 +345,94 @@ focal de refresh pasó también de forma aislada. Se conserva el FAIL integral
 documental FG3 `348→348`, listas idénticas; la suite candidate-aware y este
 dry-run local no cambian ese resultado ni prueban una corrida de Pro.
 
+#### Reanudación local desde el clon íntegro validado por TL — 2026-11-09
+
+La rama `codex/h1req1-fg2-bounded-first-run-20261109` se retomó desde
+`/tmp/h1-tl-fg2-historial-20261109.IpjVdE/repo`, con `HEAD`
+`c0f19bcec33ec84a82dfc06581311ec37452fc23` y base `desarrollo`
+`c736336819bc0a927cc7224a053429e27433a748`. Se añade una barrera explícita para
+el posible bypass de presupuesto: antes de lanzar Playwright, el runner rechaza
+cualquier ruta de browser; el wrapper común de navegación también detiene
+`page.goto` antes de emitir una solicitud en modo controlado. La primera FG2
+controlada queda restringida a perfiles `traditional_ssr` y discovery HTTP
+soportado; SPA/ecommerce, extracción por scroll, stealth y anti-bot quedan
+deferidos sin contacto a la fuente. El camino de schedule no cambia.
+
+Revalidación final local en la imagen Docker fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`,
+`--network none`, sobre copia sanitaria read-only: FG2 focal **68 passed**.
+La regresión (cuatro módulos bounded, pipeline walk, contrato de credenciales y
+fase 09/10) dio **148 passed, 1 deselected**. Sin filtro: **148 passed, 1
+failed** en la aserción H2 ajena
+`test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`; el test y
+`.github/workflows/db-sync-to-pro.yml` siguen idénticos a HEAD c0f19b. La
+advertencia es deprecación PyPDF2. No hubo red productiva, fuentes, Pro ni
+escrituras. El resultado previo 67/154 se conserva en el changelog como
+checkpoint anterior a la revalidación del primer write.
+
+El self-test candidate-aware con manifest pasó con 769/769 fuentes asignadas,
+122/122 documentos activos alcanzables y 433/433 históricos enlazados. La
+comparación integral reproducible de git-archive c0 con este candidato queda
+FAIL **349→349**, listas idénticas, SHA-256 ordenado
+`7775152137258a7709396217c4e521d64a9f185f4dfc7ebfc513f8564ab64434`. Esto
+corrige el conteo 201→201 consignado antes, que no coincide con la salida íntegra
+del checker en este corte. El FAIL histórico de FG3 **348→348** permanece aparte.
+
+El lote y el refresh de este ciclo son sintéticos. No existe en este paquete un
+snapshot read-only de Pro, URLs/IDs reales, hashes o evidencia de las colas
+operativas; por ello no se presenta como dry-run productivo ni se prepara un
+dispatch ejecutable. Antes de writer/dispatch, el owner debe autorizar por
+separado la lectura mínima de Pro que permita formar el lote exacto, medir las
+filas que consumiría cada etapa, cuantificar alcance/coste y producir su efecto
+y recuperación. No resetear `processing`, reabrir `processed` ni ejecutar DML.
+
+#### Revalidación de identidad de URL — 2026-11-09
+
+La revisión detectó que el filtro exacto `url=in.(...)` del snapshot podía
+omitir filas con slash final o segmento `/en/`, aunque `normalize_url` del
+harvester las considera la misma identidad. Además, el sync no propagaba el
+`course_id` del manifest y buscaba `courses` por la URL entrante; un alias podía
+crear otra fila o perder el override editorial de la existente.
+
+El candidato local revalida con la misma normalización compartida, conserva en
+el digest las URLs crudas exactas del snapshot, consulta metadatos paginados de
+courses/staging para no ocultar aliases, rechaza duplicados y owners cruzados
+antes del harvester, vuelve a leer las filas aprobadas por ID y conserva el URL
+almacenado al promover staging/upsert courses. El sync transporta el `course_id`
+aprobado a través de las referencias staging→cleansed→enriched. `new_discovery`
+se detiene si ya aparece un curso con esa identidad; `refresh_existing` exige
+exactamente el ID aprobado y una única coincidencia canónica. Esto no deduplica,
+reabre ni repara filas históricas, y no agrega una restricción DB o atomicidad:
+la lectura y el write siguen separados, por lo que un conflicto al instante del
+upsert conserva STOP y requiere observación, sin retry alterno.
+
+Validación final local, 2026-11-09 17:16 Lima, en la imagen Docker fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`,
+`--network none`, árbol montado read-only: **106 passed** en FG2 acotado,
+pipeline walk y contrato H2; **169 passed, 1 deselected, 1 warning** en la
+regresión ampliada con contrato de credenciales y controles fase 09/10. El único
+deselected es `test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`,
+cuya expectativa H2 ya fallaba contra los archivos idénticos de HEAD c0; no se
+cuenta como PASS. La advertencia es la deprecación upstream de PyPDF2. Los casos
+de identidad verifican aliases slash y `/en/`, rechazo de ambigüedad antes del
+contacto/write, `course_id` propagado y preservación de URL/override. El
+credential scan Docker `--tree` y `git diff --check` pasaron. El checker
+candidate-aware pasa con el manifest versionado; el diagnóstico integral sigue
+FAIL 349→349, listas idénticas, SHA-256 ordenado
+`7775152137258a7709396217c4e521d64a9f185f4dfc7ebfc513f8564ab64434`. No es
+lote real ni autoriza fuente, Pro, dispatch, writer, push, PR, merge, schedule o
+promoción.
+
+La revisión Codex Security del mismo paquete local terminó el 2026-11-09
+17:38 Lima: scan `faa63933-92e9-495a-89e2-acc089e60bf7`, diff snapshot
+`codex-security-snapshot/v1:sha256:1e7f6642443ed74216c03dff0899fa64327f6fcd608a3a63b775a8c00c1781b9`, cobertura completa, cero findings. El inventario automatizado priorizó
+seis archivos runtime; la revisión manual del parent cubrió además las otras
+doce rutas cambiadas. No hubo tráfico productivo ni cambios en GitHub. El
+hallazgo operativo a considerar al armar el lote es que el control de aliases
+repite inventarios completos paginados; el costo real depende del tamaño de las
+tablas y del lote y no se midió en este ciclo. El resultado aplica al snapshot
+escaneado, no a producción ni a autorización de publicación/ejecución.
+
 ### Gates de la corrida productiva
 
 Antes de escribir debe estar en main el candidato exacto por promoción

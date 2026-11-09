@@ -11,6 +11,18 @@ on:
         required: false
         type: boolean
         default: false
+      approved_lot_reference:
+        description: "Human review reference for the exact FG2 lot"
+        required: false
+        type: string
+      approved_lot_sha256:
+        description: "SHA-256 fingerprint of the reviewed FG2 lot bytes"
+        required: false
+        type: string
+      approved_lot_manifest_b64:
+        description: "Base64 JSON payload of the reviewed FG2 lot; never log this input"
+        required: false
+        type: string
 
 concurrency:
   group: studiamatch-fg2-${{ github.ref }}
@@ -89,10 +101,13 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           JOB_START_TIME: ${{ env.JOB_START_TIME }}
           FG2_CONTROLLED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}
+          FG2_APPROVED_LOT_REFERENCE: ${{ inputs.approved_lot_reference }}
+          FG2_APPROVED_LOT_SHA256: ${{ inputs.approved_lot_sha256 }}
+          FG2_APPROVED_LOT_MANIFEST_B64: ${{ inputs.approved_lot_manifest_b64 }}
         run: |
           set -euo pipefail
           if [[ "$FG2_CONTROLLED_FIRST_RUN" == "true" ]]; then
-            python3 scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing --controlled-first-run --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json"
+            python3 scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing --controlled-first-run --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --approved-lot-manifest "$RUNNER_TEMP/fg2-approved-lot.json" --approved-lot-reference "$FG2_APPROVED_LOT_REFERENCE" --approved-lot-sha256 "$FG2_APPROVED_LOT_SHA256"
             python3 - "$RUNNER_TEMP/fg2-cohort-manifest.json" "$GITHUB_OUTPUT" <<'PY'
           import base64
           import hashlib

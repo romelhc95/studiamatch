@@ -49,14 +49,22 @@ Harvester usa content_hash SHA-256 y estados para no reprocesar contenido idént
 ## Primera corrida FG2 acotada — candidato local 2026-11-09
 
 El candidato local añade `bounded_first_run` al `workflow_dispatch`, con valor
-predeterminado `false`. El cron diario `0 5 * * *` continúa usando el camino
-ordinario, que no consume este manifest y conserva los límites vigentes. El
-camino ordinario puede leer colas globales; habilitarlo o despacharlo requiere
+predeterminado `false`, y exige referencia, SHA-256 y bytes Base64 del lote
+revisado para entrar en ese modo. El cron diario `0 5 * * *` continúa usando el
+camino ordinario, que no consume estos manifests y conserva los límites vigentes.
+El camino ordinario puede leer colas globales; habilitarlo o despacharlo requiere
 los gates propios y una revisión separada de ese alcance.
 
 La ejecución controlada mantiene el selector rotativo por
-`last_harvest_at ASC NULLS FIRST` y valida estado de perfil, elegibilidad y
-seeds antes de iniciar contacto externo. El transporte queda limitado a una
+`last_harvest_at ASC NULLS FIRST`, exige que las instituciones aprobadas sigan
+siendo el prefijo elegible de esa rotación, y valida perfiles, elegibilidad y
+seeds antes del contacto externo. El lote revisado está ligado al SHA de fuente,
+referencia humana, huella de institución, hashes de perfil/seeds y cada URL
+permitida con su hash y snapshot de IDs/estados en staging, courses y referencias
+downstream. Relee ese snapshot antes de lanzar el harvester, antes del primer
+request y antes de la primera escritura; ante deriva termina sin sustituir
+instituciones ni ampliar URLs. El manifiesto de entrada tiene un máximo de 40
+KiB. El transporte queda limitado a una
 solicitud simultánea por origen, al menos 5 segundos entre inicios, 10 URLs
 únicas incluyendo URLs de sitemap, y 20 inicios HTTP por institución; los
 redirects y reintentos cuentan para el presupuesto. Solo espera `Retry-After`
@@ -66,13 +74,23 @@ reintentar la respuesta de bloqueo. Cada salto valida DNS público y fija la IP
 validada en una sesión HTTPS directa, sin proxy de entorno, redirects ni retries
 automáticos.
 
-El manifest queda ligado a run, intento, SHA de fuente, IDs y hashes de perfil,
-seeds, URL y contenido. Cleansing, enrichment y sync verifican el mismo digest
-y solo consultan IDs relacionados incluidos en el manifest; rechazan registros
-de otra institución, etapa o cohorte. El workflow transporta el digest entre
-jobs y conserva el manifest como artifact por siete días. Un job `SUCCESS` no
-acredita que hubiera trabajo; debe revisarse el resultado funcional y el
-manifest.
+El modo bounded usa solo el transporte HTTP que pasa por ese presupuesto. El
+preflight admite perfiles `traditional_ssr` y rutas de discovery HTTP; perfiles
+SPA/ecommerce, `catalog_link_extraction`, stealth o bypass anti-bot quedan fuera
+de este primer run. Antes de iniciar Playwright, el runner vuelve a rechazar
+cualquier ruta que lo necesite; las llamadas de navegación del harvester pasan
+por una barrera que falla antes de `page.goto` en modo controlado. Esto evita
+que navegación principal o subrecursos evadan pacing, conteo, pin DNS o allowlist.
+La programación ordinaria conserva su navegación actual.
+
+El manifest de resultados queda ligado a run, intento, SHA de fuente,
+referencia/digest del lote, IDs y hashes de perfil, seeds, URL y contenido.
+Cleansing, enrichment y sync verifican el mismo digest y solo consultan IDs
+relacionados incluidos en el manifest; rechazan registros de otra institución,
+etapa o cohorte, incluidas colas globales ajenas. El workflow transporta el
+digest entre jobs y conserva el manifest como artifact por siete días. Un job
+`SUCCESS` no acredita que hubiera trabajo; debe revisarse el resultado
+funcional y el manifest.
 
 La clasificación distingue `new_discovery` (sin fila de curso conocida) de
 `refresh_existing` (misma URL asociada a un `course_id` de esa institución).
@@ -82,6 +100,27 @@ unicidad histórica de `staging_raw.url` impide reciclar silenciosamente una fil
 `processing`, `processed`, `discarded` o `skipped`: se registra el bloqueo en el
 manifest y no se reabre ni se resetea. Cualquier transición manual de esos
 estados exige un dry-run con IDs exactos y DML aprobada fuera de este ciclo.
+
+La identidad del lote usa la misma función `normalize_url` que el harvester
+(quita query/fragment y slash final, baja scheme/host y retira `/en/`). El hash
+`url_sha256` corresponde a esa identidad normalizada; el digest del lote también
+vincula la URL exacta almacenada en cada snapshot de `staging_raw`, `courses` y
+filas downstream. La revalidación consulta paginadamente las columnas mínimas de
+URL/ID/estado/hash de cursos y staging para que PostgREST no oculte aliases al
+filtrar por igualdad exacta; una segunda fila con la misma identidad canónica o
+un owner distinto detiene el lote antes del harvester. El harvester vuelve a
+leer las filas aprobadas por ID, y la primera promoción conserva el URL exacto
+existente de staging. El sync recibe el `course_id` del manifest por la cadena
+staging→cleansed→enriched, confirma que solo una fila de courses conserva esa
+identidad y escribe sobre su URL exacta. Para `new_discovery`, un curso que
+aparezca con cualquier alias después del preflight detiene el writer. Estas
+lecturas usan solo metadatos paginados, no reinician ni consumen las colas.
+
+La ventana entre lecturas y writes sigue sin transacción compartida: el sync
+revalida la identidad canónica inmediatamente antes del upsert y falla si detecta
+deriva, pero la base no impone unicidad sobre esta normalización. El control
+reduce la ventana funcionalmente y conserva evidencia exacta; no equivale a un
+lock/constraint DB ni resuelve duplicados históricos fuera del lote.
 
 La transición es aditiva: `expand` añade el modo opt-in y el manifest;
 `compatibilidad` conserva default false y el camino ordinario; `deploy` pasa por
@@ -102,9 +141,9 @@ Workflow YAML programa FG1 mensual, FG2 diario y FG3 diario UTC y deja workflow_
 
 ## Pruebas, evidencia y cómo modificar
 
-Tablas/RPC están descritas en [database.md](../database.md). `tests/test_fase121_extractors.py` cubre extractores/selectores declarativos; `tests/test_h2_pipeline_contract.py` comprueba contratos de campos y estados entre workers; `tests/test_h3req1_local_pipeline_walk.py` cubre el recorrido sintético y recuperación; `tests/test_h3req1_pipeline_discovery_boundaries.py` limita URL/esquema/host/gates; `tests/h3req1_pipeline_postgrest_pg17_integration.py` y `tests/sql/h3req1_pipeline_*_r1.*` recorren persistencia en fixture local. `tests/test_harvester.py` es una suite distinta de cuatro consultas Supabase live, con opt-in y credenciales, no un parser unitario; en R160 sus cuatro casos quedaron skipped y no se consultó servicio live. El mapa fuente→caso→resultado, límites de hash y alcance de búsqueda está en [relaciones locales del pipeline](../evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md). R178 conserva resultados funcionales locales históricos; no se repitió suite funcional porque las fuentes de producto no cambiaron durante esta documentación.
+Tablas/RPC están descritas en [database.md](../database.md). `tests/test_fase121_extractors.py` cubre extractores/selectores declarativos; `tests/test_h2_pipeline_contract.py` comprueba contratos de campos y estados entre workers; `tests/test_h3req1_local_pipeline_walk.py` cubre el recorrido sintético y recuperación; R18 conserva una suite histórica de URL/esquema/host/gates, pero su fuente `tests/test_h3req1_pipeline_discovery_boundaries.py` no existe en este checkout; el modo acotado actual se cubre con `tests/test_fg2_bounded_orchestration.py` y `tests/test_fg2_bounded_run.py`; `tests/h3req1_pipeline_postgrest_pg17_integration.py` y `tests/sql/h3req1_pipeline_*_r1.*` recorren persistencia en fixture local. `tests/test_harvester.py` es una suite distinta de cuatro consultas Supabase live, con opt-in y credenciales, no un parser unitario; en R160 sus cuatro casos quedaron skipped y no se consultó servicio live. El mapa fuente→caso→resultado, límites de hash y alcance de búsqueda está en [relaciones locales del pipeline](../evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md). R178 conserva resultados funcionales locales históricos; no se repitió suite funcional porque las fuentes de producto no cambiaron durante esta documentación.
 
-Al cambiar filtros/config de discovery, renovar `test_h3req1_pipeline_discovery_boundaries.py` y revisar tests de canario por path; extracción, `test_fase121_extractors.py`/pipeline walk (no `test_harvester.py`, que es live); locking/estados/promoción, harnesses de persistencia y atomicidad; proveedor, validación sintética de prompt/fallback sin credenciales reales; sync/publicación, consumidores ROI/editoriales y el contrato efectivo H2/H3. Schema nuevo: migration expand, compatibilidad mientras se promociona, contracción con rollback verificable y permiso SQL separado.
+Al cambiar filtros/config de discovery, renovar `test_fg2_bounded_orchestration.py` y `test_fg2_bounded_run.py`, revisar tests de canario por path y conservar R18 solo como evidencia histórica mientras falte su fuente; extracción, `test_fase121_extractors.py`/pipeline walk (no `test_harvester.py`, que es live); locking/estados/promoción, harnesses de persistencia y atomicidad; proveedor, validación sintética de prompt/fallback sin credenciales reales; sync/publicación, consumidores ROI/editoriales y el contrato efectivo H2/H3. Schema nuevo: migration expand, compatibilidad mientras se promociona, contracción con rollback verificable y permiso SQL separado.
 
 ## Navegación relacionada
 

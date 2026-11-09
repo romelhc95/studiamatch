@@ -36,6 +36,7 @@ from scripts.core.universal_harvester import UniversalHarvester
 from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
     FG2RequestBudget,
+    InvalidControlledRun,
     SourceBlocked,
     initialize_manifest,
     update_manifest_institution,
@@ -46,6 +47,7 @@ from scripts.shared.utils import normalize_url
 
 INSTITUTION_ID = "00000000-0000-0000-0000-000000000001"
 CATEGORY_ID = "10000000-0000-0000-0000-000000000001"
+STAGING_ID = "40000000-0000-0000-0000-000000000091"
 COURSE_ID = "70000000-0000-0000-0000-000000000091"
 ENRICHED_ID = "60000000-0000-0000-0000-000000000091"
 CLEANSED_ID = "50000000-0000-0000-0000-000000000091"
@@ -107,6 +109,7 @@ class SyntheticPipelineAdapter:
             "course_editorial_state": [],
         }
         self.status_events: list[dict[str, Any]] = []
+        self.upsert_calls: list[dict[str, Any]] = []
 
     @staticmethod
     def _url_from_filter(filters: str) -> str | None:
@@ -135,12 +138,19 @@ class SyntheticPipelineAdapter:
     def select_all_pipeline(self, table: str, **_kwargs: Any) -> list[dict[str, Any]]:
         return [dict(row) for row in self.tables.get(table, [])]
 
+    def select_all_service(self, table: str, **_kwargs: Any) -> list[dict[str, Any]]:
+        return [dict(row) for row in self.tables.get(table, [])]
+
     def select_service_raise(self, table: str, filters: str = "", **_kwargs: Any) -> list[dict[str, Any]]:
         if table == "institutions":
             return [{"website_url": BASE_URL}]
         if table == "categories":
             return [{"id": CATEGORY_ID, "name": "Data"}]
         if table == "courses":
+            id_marker = "id=eq."
+            if id_marker in filters:
+                course_id = filters.split(id_marker, 1)[1].split("&", 1)[0]
+                return [dict(row) for row in self.tables[table] if row.get("id") == course_id]
             url = self._url_from_filter(filters)
             return [dict(row) for row in self.tables[table] if not url or row.get("url") == url]
         if table == "course_editorial_state":
@@ -214,6 +224,7 @@ class SyntheticPipelineAdapter:
         raise AssertionError(f"unexpected local synthetic RPC: {function}")
 
     def upsert(self, table: str, data: dict[str, Any], **_kwargs: Any) -> list[dict[str, Any]]:
+        self.upsert_calls.append(dict(data))
         if table != "courses":
             raise AssertionError(f"unexpected fallback upsert: {table}")
         row = next(
@@ -1257,7 +1268,7 @@ def test_controlled_refresh_records_processed_staging_as_blocked_without_reopeni
     ]
 
 
-def test_course_sync_refresh_retains_manual_editorial_override() -> None:
+def test_course_sync_fg2_course_id_refresh_handles_url_alias_and_retains_manual_override() -> None:
     profile = {
         "institution_id": INSTITUTION_ID,
         "pipeline_enabled": True,
@@ -1270,7 +1281,7 @@ def test_course_sync_refresh_retains_manual_editorial_override() -> None:
         {
             "id": COURSE_ID,
             "institution_id": INSTITUTION_ID,
-            "url": COURSE_URL,
+            "url": f"{COURSE_URL}/",
             "name": "Título anterior",
             "last_404_at": None,
             "is_active": True,
@@ -1312,6 +1323,7 @@ def test_course_sync_refresh_retains_manual_editorial_override() -> None:
         "is_mock_data": False,
         "status": "pending",
         "metadata": {},
+        "_fg2_approved_course_id": COURSE_ID,
     }
     adapter.tables["enriched_programs"].append(enriched)
     with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
@@ -1325,6 +1337,127 @@ def test_course_sync_refresh_retains_manual_editorial_override() -> None:
     assert manual_state["manual_overrides"]["name"] == "Nombre editorial vigente"
     refreshed_course = next(row for row in adapter.tables["courses"] if row["id"] == COURSE_ID)
     assert refreshed_course["name"] == "Nombre detectado en refresh"
+
+
+def test_sync_cohort_carries_the_approved_course_id_to_the_writer() -> None:
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "pipeline_ready": True,
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    adapter.tables["cleansed_programs"].append(
+        {
+            "id": CLEANSED_ID,
+            "staging_id": STAGING_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": COURSE_URL,
+            "status": "enriched",
+        }
+    )
+    adapter.tables["enriched_programs"].append(
+        {
+            "id": ENRICHED_ID,
+            "cleansed_id": CLEANSED_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": COURSE_URL,
+            "status": "pending",
+        }
+    )
+
+    class ApprovedCohort:
+        staging_ids = [STAGING_ID]
+        payload = {
+            "entries": [
+                {
+                    "staging_id": STAGING_ID,
+                    "institution_id": INSTITUTION_ID,
+                    "course_id": COURSE_ID,
+                }
+            ]
+        }
+
+        @staticmethod
+        def assert_related_stage_records(records, *, foreign_key, allowed_ids, stage):
+            assert all(row[foreign_key] in allowed_ids for row in records), stage
+
+    with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
+        syncer = SyncVectorWorker()
+
+    records = syncer.get_pending_enriched(cohort_manifest=ApprovedCohort())
+
+    assert len(records) == 1
+    assert records[0]["_fg2_approved_course_id"] == COURSE_ID
+
+
+@pytest.mark.parametrize(
+    ("approved_course_id", "message"),
+    [
+        (COURSE_ID, "canonical course URL is ambiguous"),
+        (None, "approved FG2 new-discovery URL now resolves to a course"),
+    ],
+)
+def test_course_sync_stops_if_a_canonical_alias_appears_after_preflight(
+    approved_course_id: str | None, message: str
+) -> None:
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "pipeline_ready": True,
+        "website_url": BASE_URL,
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    adapter.tables["courses"].extend(
+        [
+            {
+                "id": COURSE_ID,
+                "institution_id": INSTITUTION_ID,
+                "url": f"{COURSE_URL}/",
+                "last_404_at": None,
+                "is_active": True,
+            },
+            {
+                "id": "70000000-0000-0000-0000-000000000099",
+                "institution_id": INSTITUTION_ID,
+                "url": f"{BASE_URL}/en/programs/analitica-aplicada",
+                "last_404_at": None,
+                "is_active": True,
+            },
+        ]
+    )
+    enriched = {
+        "id": ENRICHED_ID,
+        "cleansed_id": CLEANSED_ID,
+        "institution_id": INSTITUTION_ID,
+        "url": COURSE_URL,
+        "official_name": "Nombre detectado en refresh",
+        "duration_text": "6 meses",
+        "duration_months": 6,
+        "total_cost_est": 1250.0,
+        "requirements": "Requisitos sintéticos",
+        "graduate_profile": "Analista inicial",
+        "degree_type": "Curso",
+        "start_date": "2027-04-01",
+        "categories": ["Data"],
+        "ai_summary": "Resumen sintético.",
+        "provider_used": "synthetic-provider",
+        "is_mock_data": False,
+        "status": "pending",
+        "metadata": {},
+        "_fg2_approved_course_id": approved_course_id,
+    }
+    adapter.tables["enriched_programs"].append(enriched)
+    with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
+        syncer = SyncVectorWorker()
+
+    with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
+        with pytest.raises(InvalidControlledRun, match=message):
+            syncer.sync_to_production(enriched)
+
+    assert adapter.upsert_calls == []
+    assert len(adapter.tables["courses"]) == 2
 
 
 def test_paginated_discovery_extracts_only_allowlisted_links() -> None:

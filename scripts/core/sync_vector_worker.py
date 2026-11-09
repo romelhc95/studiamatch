@@ -17,7 +17,7 @@ except ImportError:
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
+from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date, normalize_url
 from shared.db_client import get_db_client
 from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
@@ -210,6 +210,11 @@ class SyncVectorWorker:
                 entry["staging_id"].lower(): entry["institution_id"].lower()
                 for entry in cohort_manifest.payload["entries"]
             }
+            approved_course_by_staging = {}
+            for entry in cohort_manifest.payload["entries"]:
+                if "course_id" not in entry:
+                    raise InvalidControlledRun("sync cohort entry has no approved course identity")
+                approved_course_by_staging[entry["staging_id"].lower()] = entry["course_id"]
             eligible_cleansed = []
             for row in cleansed_rows:
                 raw_id = row["staging_id"].lower()
@@ -232,6 +237,10 @@ class SyncVectorWorker:
                 row["id"].lower(): str(row["institution_id"]).lower()
                 for row in eligible_cleansed
             }
+            approved_course_by_cleansed = {
+                row["id"].lower(): approved_course_by_staging[row["staging_id"].lower()]
+                for row in eligible_cleansed
+            }
             for row in records:
                 cleansed_id = row["cleansed_id"].lower()
                 if str(row.get("institution_id", "")).lower() != institution_by_cleansed_id[cleansed_id]:
@@ -240,6 +249,7 @@ class SyncVectorWorker:
                     raise InvalidControlledRun("sync cohort row is not pending")
                 if str(row.get("institution_id")) not in self.ready_inst_ids:
                     raise InvalidControlledRun("sync cohort institution is no longer enabled")
+                row["_fg2_approved_course_id"] = approved_course_by_cleansed[cleansed_id]
             return records[:limit] if limit is not None else records
         if not self.ready_inst_ids:
             logger.info("No pipeline-enabled institutions available for sync.")
@@ -445,12 +455,66 @@ class SyncVectorWorker:
         # course_data["embedding"] = self._generate_embedding(course_data["description_long"])
 
         # Check if course was manually deactivated (don't reactivate)
-        url_encoded = quote(str(url), safe='')
-        existing = self.db.select_service_raise(
-            'courses',
-            filters=f"url=eq.{url_encoded}",
-            columns='id,institution_id,is_active,last_404_at',
-        )
+        approved_course_bound = "_fg2_approved_course_id" in enriched
+        approved_course_id = enriched.get("_fg2_approved_course_id")
+        if approved_course_bound and approved_course_id is not None:
+            if not isinstance(approved_course_id, str) or not re.fullmatch(
+                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                approved_course_id,
+            ):
+                raise InvalidControlledRun("approved FG2 course ID is malformed")
+            course_inventory = self.db.select_all_service(
+                'courses',
+                columns='id,institution_id,url,is_active,last_404_at',
+                order='id.asc',
+            )
+            if not isinstance(course_inventory, list):
+                raise InvalidControlledRun("approved FG2 course inventory is malformed at sync")
+            aliases = [
+                row for row in course_inventory
+                if isinstance(row, dict)
+                and normalize_url(row.get('url') or '') == normalize_url(validated_url)
+            ]
+            if (
+                len(aliases) != 1
+                or str(aliases[0].get('id', '')).lower() != approved_course_id.lower()
+            ):
+                raise InvalidControlledRun("canonical course URL is ambiguous at sync")
+            existing = self.db.select_service_raise(
+                'courses',
+                filters=f"id=eq.{quote(approved_course_id, safe='')}",
+                columns='id,institution_id,url,is_active,last_404_at',
+                limit=2,
+            )
+            if len(existing) != 1:
+                raise InvalidControlledRun("approved FG2 course ID is missing or ambiguous at sync")
+            if (
+                str(existing[0].get('institution_id')) != str(inst_id)
+                or normalize_url(existing[0].get('url') or '') != normalize_url(validated_url)
+            ):
+                raise InvalidControlledRun("approved FG2 course ID no longer matches its institution and URL")
+        elif approved_course_bound:
+            existing = self.db.select_all_service(
+                'courses',
+                columns='id,institution_id,url,is_active,last_404_at',
+                order='id.asc',
+            )
+            if not isinstance(existing, list):
+                raise InvalidControlledRun("approved FG2 course inventory is malformed at sync")
+            aliases = [
+                row for row in existing
+                if isinstance(row, dict)
+                and normalize_url(row.get('url') or '') == normalize_url(validated_url)
+            ]
+            if aliases:
+                raise InvalidControlledRun("approved FG2 new-discovery URL now resolves to a course")
+        else:
+            url_encoded = quote(str(url), safe='')
+            existing = self.db.select_service_raise(
+                'courses',
+                filters=f"url=eq.{url_encoded}",
+                columns='id,institution_id,is_active,last_404_at',
+            )
         existing_course = existing[0] if existing else {}
         existing_inst_id = existing_course.get('institution_id')
         if (
@@ -465,6 +529,10 @@ class SyncVectorWorker:
                 existing_metadata=enriched.get('metadata'),
             )
             return False
+        if approved_course_bound and existing_course:
+            # Keep the database's exact URL spelling so the upsert targets the
+            # approved row even when the incoming URL is a canonical alias.
+            course_data['url'] = existing_course['url']
         manually_disabled = existing_course.get('last_404_at') is not None
         if manually_disabled:
             logger.info(f"⏭️ [SKIP] {name} — manually deactivated, skipping sync")
@@ -574,7 +642,7 @@ class SyncVectorWorker:
                         )
                         return False
             try:
-                self._verify_canary_course_marker(validated_url)
+                self._verify_canary_course_marker(course_data['url'])
             except Exception:
                 logger.error(f"Canary provenance marker missing for course URL: {validated_url}")
                 self.update_enriched_status(

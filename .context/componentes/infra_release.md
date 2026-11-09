@@ -27,17 +27,32 @@ Fuente: `.github/workflows/production_pipeline.yml`. Declara ventana diaria (`0 
 `tests/test_fase09_10_pre_main_controls.py`, `tests/test_fase10_main_boundary.py` y `tests/test_supabase_credentials_contract.py` leen estos pasos para validar controles, ramas y origen de credenciales. La secuencia local no demuestra schedule activo, secrets provisionados, datos procesados o que una estación haya terminado correctamente en un run remoto.
 
 El candidato local 2026-11-09 añade la entrada manual `bounded_first_run`,
-booleana y predeterminada a `false`. Solo el `workflow_dispatch` con esa opción
-activa el manifest de cohorte; el evento `schedule` sigue la rama ordinaria y
-no hereda el presupuesto de la primera corrida. Ese camino conserva el schedule
-declarado `0 5 * * *`; su activación y alcance global siguen sujetos a los gates
-F10.9. No se cambió ni habilitó un Environment, flag, secret, schedule o workflow
-remoto.
+booleana y predeterminada a `false`, más `approved_lot_reference`,
+`approved_lot_sha256` y `approved_lot_manifest_b64`. Solo el
+`workflow_dispatch` con la opción bounded y las tres entradas coincidentes
+activa el manifest de lote revisado; el evento `schedule` sigue la rama ordinaria
+y no hereda ese presupuesto. El lote Base64 se limita a 40 KiB decodificados y
+no se imprime en logs. Este wiring no verifica una aprobación de GitHub ni
+habilita por sí mismo un writer: el hash, referencia, SHA de fuente y snapshot
+exacto se contrastan en el orquestador y el harvester antes de avanzar. Ese
+camino conserva el schedule declarado `0 5 * * *`; su activación y alcance
+global siguen sujetos a los gates F10.9. No se cambió ni habilitó un Environment,
+flag, secret, schedule o workflow remoto.
 
-En la ruta opt-in, el job de harvest entrega el manifest y SHA-256 por outputs;
-cada job siguiente comprueba el digest y los IDs antes de operar. El artifact
-sanitizado conserva la cohorte controlada por siete días. La opción y su wiring
-local no son una autorización de writer ni de dispatch: una corrida real exige
+En bounded, el orquestador falla antes de iniciar Playwright si el perfil
+requiere navegación de browser; cada `page.goto` del harvester pasa además por
+un guard que rechaza el modo controlado antes de emitir la petición. Los perfiles
+SPA/ecommerce, catálogo por scroll, stealth y bypass anti-bot no califican para
+esta primera corrida. La ruta ordinaria permanece separada y sin este límite.
+
+En la ruta opt-in, el job de harvest entrega el manifest de resultados y SHA-256
+por outputs; cada job siguiente comprueba el digest y los IDs antes de operar.
+La selección contrasta la lista aprobada con el prefijo elegible de la rotación
+actual; el snapshot incluye URLs exactas, IDs, estados y relaciones staging →
+cleansed → enriched. La deriva termina antes del contacto o de la primera
+escritura. El artifact sanitizado conserva la cohorte controlada por siete días.
+La opción y su wiring local no son una autorización de writer ni de dispatch:
+una corrida real exige
 el candidato exacto integrado por el flujo protegido, preflight actualizado de
 SHA/Environment/flags/cola/concurrencia, alcance revisado y las autorizaciones
 separadas para escritura y dispatch. Si el preflight falla, detener antes de

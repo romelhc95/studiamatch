@@ -20,6 +20,16 @@ def test_bounded_first_run_is_opt_in_and_does_not_change_the_schedule() -> None:
     assert "default: false" in bounded_input
     assert "required: false" in bounded_input
     assert "github.event_name == 'workflow_dispatch' && inputs.bounded_first_run" in workflow
+    for field in (
+        "approved_lot_reference:",
+        "approved_lot_sha256:",
+        "approved_lot_manifest_b64:",
+    ):
+        assert field in header
+    assert "--approved-lot-manifest \"$RUNNER_TEMP/fg2-approved-lot.json\"" in workflow
+    assert "--approved-lot-reference \"$FG2_APPROVED_LOT_REFERENCE\"" in workflow
+    assert "--approved-lot-sha256 \"$FG2_APPROVED_LOT_SHA256\"" in workflow
+    assert "FG2_APPROVED_LOT_MANIFEST_B64: ${{ inputs.approved_lot_manifest_b64 }}" in workflow
 
 
 def test_controlled_manifest_is_bound_through_each_downstream_job() -> None:

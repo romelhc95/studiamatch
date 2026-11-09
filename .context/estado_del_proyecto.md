@@ -109,6 +109,70 @@ el SHA. Esa autorización no abre un PR ni habilita merge, promoción, configura
 ni operación Pro; cada paso conserva su gate. E9 no está ejecutado, E10 mantiene
 cero pares y 72 horas sin iniciar, y H4 conserva su gate.
 
+#### Reanudación de FG2 desde el clon TL — 2026-11-09
+
+La revisión se reanudó en el clon con historial íntegro
+`/tmp/h1-tl-fg2-historial-20261109.IpjVdE/repo`, rama
+`codex/h1req1-fg2-bounded-first-run-20261109`, con `HEAD`
+`c0f19bcec33ec84a82dfc06581311ec37452fc23` y base `desarrollo`
+`c736336819bc0a927cc7224a053429e27433a748`. El diff local agrega la barrera
+explícita de navegación Playwright: el runner la rechaza antes de iniciar browser
+y todos los `page.goto` pasan por una función que falla antes de la solicitud en
+modo controlado. Bounded admite solo rutas HTTP de perfiles `traditional_ssr`;
+SPA/ecommerce, scroll de catálogo, stealth y bypass anti-bot no califican para
+este lote. El flujo ordinario conserva su ruta actual.
+
+Revalidación después de cerrar la ventana entre el snapshot y el primer write,
+en Docker con `--network none`, checkout sanitario read-only e imagen fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`:
+suite focal de límites, orquestación, workers y workflow **68 passed**. La
+regresión con esos cuatro módulos más pipeline walk, contrato de credenciales y
+controles fase 09/10 pasó **148 tests** con una aserción H2 excluida. Sin filtro
+dio **148 passed, 1 failed** porque
+`test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded` espera una
+cadena retirada de `db-sync-to-pro.yml`; test y workflow H2 son idénticos a
+HEAD c0f19b. El warning restante es la deprecación PyPDF2. Se verificó
+`git diff --check`. El refresh sigue siendo sintético: falta lote Pro real,
+IDs/hashes/estados y consumo de colas por etapa. No hubo request a fuentes,
+lectura/escritura Pro ni cambios remotos; la etiqueta Docker incompatible se
+descartó antes de ejecutar tests.
+
+Documentación: el gate candidate-aware con el manifest local pasó: 769/769
+fuentes asignadas, 122/122 documentos activos alcanzables y 433/433 históricos
+enlazados. La comparación integral reproducible contra el baseline
+git-archive de c0 da **FAIL 349→349 diagnósticos**, listas idénticas, SHA-256
+ordenado `7775152137258a7709396217c4e521d64a9f185f4dfc7ebfc513f8564ab64434`.
+Se corrige aquí el conteo 201→201 y SHA 2bf1fc9c… consignados en una nota
+anterior: no coinciden con la salida íntegra de la misma herramienta en este
+corte. El FAIL histórico de FG3 **348→348** se mantiene sin reetiquetar.
+
+El cierre local no cambia las autorizaciones de publicación, dispatch, writer,
+flags, schedules ni promoción. La solicitud de push, si procede, se hará solo
+para el commit final exacto y por la rama de revisión; no equivale a abrir PR.
+
+Revalidación posterior de identidad URL, 2026-11-09 17:16 Lima: Docker offline
+con la imagen fijada `sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`
+dio **106 passed** en seis suites FG2/pipeline/H2 y **169 passed, 1 deselected,
+1 warning** al incluir los contratos de credenciales y fase 09/10. El test
+deselected es la aserción H2 antigua sin relación con este diff; no se cuenta
+como PASS. El credential scan pasó. El self-test candidate-aware pasó con el
+manifest versionado (769/769 fuentes, 122/122 documentos activos, 433/433
+históricos). El checker integral conserva **FAIL 349→349**, listas idénticas,
+SHA-256 ordenado `7775152137258a7709396217c4e521d64a9f185f4dfc7ebfc513f8564ab64434`;
+el registro FG3 **348→348** sigue siendo un corte separado. No hubo contacto
+con fuentes, consulta o escritura Pro, DML, acción GitHub ni activación remota.
+
+Revisión de seguridad del diff FG2, 2026-11-09 17:38 Lima: Codex Security
+`faa63933-92e9-495a-89e2-acc089e60bf7` cerró con cobertura completa y cero
+hallazgos sobre la huella `codex-security-snapshot/v1:sha256:1e7f6642443ed74216c03dff0899fa64327f6fcd608a3a63b775a8c00c1781b9`.
+El parent revisó las 18 rutas cambiadas: seis archivos de ejecución del
+inventario y las doce rutas adicionales de workflow, pruebas y documentación.
+La revisión no consultó Pro ni fuentes. La relectura paginada de inventarios
+completos puede aumentar costo y latencia con el tamaño de catálogo/lote; se
+debe medir al formar un lote pequeño. Esta revisión no da aprobación de push,
+PR, merge, promoción ni corrida. El checker integral **FAIL 349→349** y el
+registro histórico FG3 **348→348** se mantienen separados.
+
 ### H3REQ1 — corte operativo 2026-11-06
 
 Refs contrastadas con GitHub MCP en este corte: Desarrollo

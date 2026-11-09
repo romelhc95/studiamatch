@@ -33,6 +33,19 @@ timestamps. La prueba sintética verifica `Nombre editorial vigente` con fuente
 Si la unicidad por URL impide continuar una fila existente, hace falta presentar
 el ID, estado y transición SQL exacta para aprobación DML separada.
 
+La comparación usa `normalize_url` igual que FG2; `url_sha256` identifica esa
+clave canónica mientras el digest del lote conserva la URL exacta y el estado de
+cada fila `staging_raw`/`courses`/downstream. La verificación de alias consulta
+por páginas solo columnas de metadatos (`id`, `institution_id`, `url`, estado,
+hash y referencias); no trae `raw_html` ni modifica filas. El harvester vuelve a
+resolver staging y courses por los IDs revisados, y conserva el URL almacenado al
+promover la fila conocida. Sync recibe el `course_id` aprobado a través de
+cleansed/enriched y comprueba una única identidad antes de upsert. Alias
+duplicados, cambio de owner o aparición de un curso en un lote `new_discovery`
+son deriva bloqueante, no dedupe automático. Esta lectura de inventario no
+significa que los jobs consuman las colas globales: cleansing, enrichment y
+sync siguen confinados a las relaciones incluidas en el manifest.
+
 No se atribuye aquí frescura a los 224 cursos informados por el TL ni stale a
 las 798 filas `processing` por su `created_at`. Antes de una corrida productiva
 se exige lectura fresca y acotada de perfil, seed, URL, hash y estado, además de

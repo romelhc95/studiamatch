@@ -10258,10 +10258,11 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "UniversalHarvester conserva sitemap/BFS, gates/exclusiones, canonicalización y hash de contenido. El modo controlado aplica pacing/concurrencia y presupuesto por origen, detiene ante 403/429, y clasifica discovery frente a refresh sin reabrir estados históricos; el manifest registra IDs y hashes.",
+        "note": "UniversalHarvester conserva sitemap/BFS, gates/exclusiones, canonicalización y hash de contenido. El modo controlado exige el lote revisado ligado a referencia, SHA de fuente, huella institucional y snapshot exacto de URLs/IDs/estados; vuelve a verificar perfil, seeds y alcance antes del primer request y escritura. Aplica pacing/concurrencia y presupuesto por origen, detiene ante 403/429, clasifica discovery frente a refresh y no reabre estados históricos. Toda navegación Playwright pasa por una barrera que falla antes de la solicitud en modo controlado; el runner rechaza perfiles que requieren browser.",
         "evidence": [
           "path:scripts/core/universal_harvester.py",
           "path:.context/componentes/pipeline.md",
+          "path:tests/test_fg2_bounded_orchestration.py",
           "path:tests/test_h3req1_pipeline_discovery_boundaries.py"
         ]
       },
@@ -10285,7 +10286,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La suite de límites cubre esquemas/host/assets, sitemap, gates y circuit breaker; test_fg2_bounded_run.py verifica pacing, concurrencia, redirects/reintentos, Retry-After, presupuesto y bloqueos; pipeline walk prueba refresh conocido. Docker focal FG2 73 passed y regresión 145 passed, 1 deselected. R18 se mantiene limitado a su input/handoff histórico.",
+        "note": "R18 registra históricamente 24 passed/1 warning, pero tests/test_h3req1_pipeline_discovery_boundaries.py no existe en el checkout c0 y no es ejecutable aquí. En Docker --network none, imagen fijada sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1: la revalidación actual de seis suites FG2/pipeline/H2 pasó 106; la regresión ampliada con credenciales y fase 09/10 pasó 169 con un test H2 ajeno deselectado y una advertencia PyPDF2. Los módulos actuales verifican URL/perfil, rotación, pacing, concurrencia, redirects/reintentos, Retry-After, presupuesto, bloqueos 403/429 y barrera Playwright. No es ejecución de origen.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h3req1_pipeline_discovery_boundaries.py",
@@ -10361,7 +10362,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_h2_pipeline_contract.py afirma contratos de campos/estado; test_h3req1_local_pipeline_walk.py prueba transform/recovery y refresh editorial sintéticos; test_fg2_bounded_workers.py rechaza IDs fuera del manifest en cleansing, enrichment y sync. Docker en el candidato FG2: focal 73 passed; regresión 145 passed, 1 deselected. h3req1_pipeline_postgrest_pg17_integration.py conserva output R161, limitado a su corte PG17/PostgREST.",
+        "note": "test_h2_pipeline_contract.py afirma contratos de campos/estado; test_h3req1_local_pipeline_walk.py prueba transform/recovery y refresh editorial sintéticos; test_fg2_bounded_workers.py rechaza IDs fuera del manifest en cleansing, enrichment y sync. En Docker --network none, la revalidación actual de seis suites FG2/pipeline/H2 pasó 106; la regresión ampliada con contrato de credenciales y controles fase 09/10 pasó 169, 1 deselected, 1 warning PyPDF2. El excluido es la aserción H2 antigua contra archivos sin cambios; no es PASS. h3req1_pipeline_postgrest_pg17_integration.py conserva output R161, limitado a su corte PG17/PostgreSQL.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h2_pipeline_contract.py",
@@ -10411,7 +10412,7 @@
       ],
       "contracts": {
         "state": "verified",
-        "note": "master_orchestrator decide gates/rotación y subprocesos; fg2_bounded_run valida perfil/seeds antes del origen, presupuesto HTTP y manifest ligado a run/attempt/SHA/IDs/hashes. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1.",
+        "note": "master_orchestrator decide gates/rotación y subprocesos; para el modo acotado exige que el lote sea el prefijo elegible actual, valida el snapshot/huellas antes de lanzar y rechaza Playwright antes de iniciar el runner si la ruta lo necesita. fg2_bounded_run valida referencia y SHA exactos, URLs/IDs/estados/downstream, presupuesto HTTP y manifest ligado a run/attempt/SHA/IDs/hashes. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
           "path:scripts/core/fg2_bounded_run.py",
@@ -10440,7 +10441,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight y test_fg2_bounded_run.py el presupuesto/manifest; el recorrido sintético H1 verificó refresh. Docker focal 73 passed y regresión 145 passed, 1 deselected. No es una corrida de instituciones ni ejecución remota de master_orchestrator; R161 sigue limitado a estaciones sintéticas.",
+        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight, drift, revalidación antes del primer PATCH y barrera Playwright; test_fg2_bounded_run.py el presupuesto/manifest; el recorrido sintético H1 verificó refresh. Docker --network none en el clon c0 dio 106 passed en seis suites FG2/pipeline/H2 y regresión ampliada 169 passed, 1 deselected, 1 warning PyPDF2; el excluido H2 ajeno no se cuenta como PASS. No es una corrida de instituciones ni ejecución remota de master_orchestrator; R161 sigue limitado a estaciones sintéticas.",
         "evidence": [
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
@@ -14376,13 +14377,14 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "AST de ambos checkouts da 23 paths candidato/22 original; callers exactos por symbol están en nota R11. Enrichment invoca provider orchestration, workers consumen normalizadores/TimeGuard y 11 harvesters deprecated importan transforms/PDF.",
+        "note": "AST de ambos checkouts da 23 paths candidato/22 original; callers exactos por symbol están en nota R11. El candidato FG2 ahora importa normalize_url desde este módulo para comparar la identidad canónica del lote; los workers consumen normalizadores/TimeGuard y 11 harvesters deprecated importan transforms/PDF.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
           "path:scripts/core/cleansing_worker.py",
           "path:scripts/core/enrichment_worker.py",
           "path:scripts/core/sync_vector_worker.py",
-          "path:scripts/core/universal_harvester.py"
+          "path:scripts/core/universal_harvester.py",
+          "path:scripts/core/fg2_bounded_run.py"
         ]
       },
       "data": {
@@ -14562,7 +14564,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "The YAML declares the daily schedule and manual dispatch. The bounded_first_run input is manual-only and defaults false; when true, the harvest manifest/SHA is passed to cleansing, enrichment and sync. The ordinary schedule path remains unchanged and is not bounded by that manifest.",
+        "note": "The YAML declares the daily schedule and manual dispatch. bounded_first_run is manual-only and defaults false; controlled dispatch also requires the reviewed lot reference, exact SHA-256 and Base64 bytes. The harvest result manifest/SHA is passed to cleansing, enrichment and sync. The ordinary schedule path remains unchanged and is not bounded by that manifest.",
         "evidence": [
           "path:.github/workflows/production_pipeline.yml",
           "path:.github/scripts/production_control_preflight.sh"

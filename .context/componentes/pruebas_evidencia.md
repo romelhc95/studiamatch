@@ -97,7 +97,7 @@ El cierre R178 declara 337 passed, 4 skipped y 1 warning en su suite de proyecto
 | `tests/test_fg2_bounded_orchestration.py` | Rotación, preflight antes del origen, alcance de selección y resultados de institución. | Orquestador, perfiles y fixtures sintéticos. | Incluida en Docker focal 73/73 y regresión 145 passed; no consulta perfiles reales. |
 | `tests/test_fg2_bounded_workers.py` | Rechazo de IDs ajenos al manifest y exclusión de las colas globales por cleansing, enrichment y sync. | Adaptadores sintéticos; IDs de tres estaciones. | Incluida en Docker focal 73/73 y regresión 145 passed; no ejecuta RPC remoto. |
 | `tests/test_fg2_bounded_workflow.py` | Contrato YAML del input manual, default false, outputs y transmisión del manifest/digest. | `.github/workflows/production_pipeline.yml`. | YAML local parseado; no ejecuta Actions ni habilita workflows. |
-| `tests/test_h3req1_pipeline_discovery_boundaries.py` | `test_discovery_accepts_web_schemes_for_the_configured_host`, rechazos de esquemas/host/assets, sitemap ausente/malformado, gates y circuit breaker. | `UniversalHarvester` y perfiles/respuestas sintéticos. | Handoff R18 reporta 24 passed/1 warning con hashes de suite; no acredita una institución, proveedor ni schedule remoto. |
+| `tests/test_h3req1_pipeline_discovery_boundaries.py` (R18 histórico; ausente en c0) | Suite de boundaries de discovery: esquemas/host/assets, sitemap, gates y circuit breaker. | `UniversalHarvester` y perfiles/respuestas sintéticos en el handoff R18. | Los 24 passed/1 warning son salida archivada; el módulo no existe en este checkout y no es ejecutable aquí. No acredita fuente, proveedor ni schedule remoto. |
 | `tests/test_fase121_extractors.py` | Reglas declarativas de selectores, etiquetas, transforms y extracción por pilar. | Helpers/config Fase 121 y HTML fixture. | No demuestra calidad estadística del proveedor ni performance productiva. |
 | `tests/h3req1_pipeline_postgrest_pg17_integration.py` | Ejercita workers actuales por HTTP local; discovery/checkpoint, staging, fallos 503 y recovery de cleansing/enrichment/sync, handoff persistido. | PostgREST + PostgreSQL 17.11 desechables, payloads sintéticos y proxy local. | R161 `run-r10.log` reporta PASS de fases y estado final 1/1/1/1. El log no conserva SHA del runner; resultado delimitado a ese corte local. No atribuirle G07 R51. |
 
@@ -142,6 +142,77 @@ El scope del checker local está fijado en
 `.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json`; identifica
 las fuentes de este paquete y no es el manifest exacto de un PR ni concede
 autoridad de ejecución.
+
+#### Reanudación desde el clon íntegro del TL — 2026-11-09
+
+Se retomó desde `/tmp/h1-tl-fg2-historial-20261109.IpjVdE/repo`,
+`HEAD=c0f19bcec33ec84a82dfc06581311ec37452fc23`, base `desarrollo`
+`c736336819bc0a927cc7224a053429e27433a748`. Docker con `--network none`:
+suite FG2 focal **68 passed, 1 warning** en la imagen fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`,
+con red deshabilitada y copia sanitaria read-only. La regresión exacta
+(orquestación, límites, workers, workflow, pipeline walk, credenciales y
+controles fase 09/10) dio **148 passed, 1 deselected, 1 warning**. Sin filtro
+fue 148 passed/1 failed por
+`test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`, cuya
+aserción H2 no coincide con el workflow y test idénticos a HEAD c0f19b. Warning:
+deprecación upstream de PyPDF2. La suite no incluye el módulo R18 ausente
+`tests/test_h3req1_pipeline_discovery_boundaries.py`; sus 24 passed/1 warning
+son solo evidencia histórica. El credential scan y el checker documental de
+esta huella se repiten después de consolidar estas notas; no se afirma aquí un
+resultado nuevo. No hubo conexión a fuentes, DB ni Pro.
+
+La prueba nueva verifica que Playwright no recibe `page.goto` cuando el
+harvester está en modo controlado y que todos los `page.goto` directos están
+centralizados tras esa barrera. La suite sigue usando perfiles y respuestas
+sintéticas; no es un run, un lote ni una prueba de URLs de Pro. FG3 y CA4
+permanecen sin tocar.
+
+#### Revalidación de identidad URL — 2026-11-09 17:16 Lima
+
+Tras corregir la coincidencia canónica de URLs y el transporte del `course_id`
+aprobado, Docker con `--network none`, imagen fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1` y
+checkout read-only dio **106 passed** en las seis suites FG2/pipeline/H2 que
+cubren el delta. La regresión ampliada con credenciales y controles de fase
+09/10 dio **169 passed, 1 deselected, 1 warning**. El deselected es la aserción
+H2 antigua `test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`
+(fallo ajeno reproducido contra archivos sin cambios); el warning es
+deprecación PyPDF2. `scripts/security/scan_credentials.sh --tree` pasó en el
+mismo Docker offline. Se reejecutó el self-test candidate-aware con
+`.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json`: PASS,
+769/769 fuentes asignadas, 122/122 documentos activos alcanzables y 433/433
+históricos enlazados. Estos resultados son locales/sintéticos y no sustituyen
+una corrida, lote o preflight actual de Pro.
+
+El self-test candidate-aware con manifest terminó PASS (769/769 fuentes
+asignadas; 122/122 documentos activos; 433/433 históricos). La comparación
+integral actual, desde git-archive c0 hasta este candidato, permanece FAIL
+**349→349**, listas idénticas, SHA-256 ordenado
+`7775152137258a7709396217c4e521d64a9f185f4dfc7ebfc513f8564ab64434`. Este
+conteo corrige el 201→201 anterior, que no coincide con la salida íntegra
+reproducible. El corte FG3 histórico **348→348** se conserva por separado.
+
+#### Revisión de seguridad del diff FG2 — 2026-11-09 17:38 Lima
+
+Codex Security scan `faa63933-92e9-495a-89e2-acc089e60bf7` revisó el diff del
+clon TL desde `c0f19bcec33ec84a82dfc06581311ec37452fc23`, huella
+`codex-security-snapshot/v1:sha256:1e7f6642443ed74216c03dff0899fa64327f6fcd608a3a63b775a8c00c1781b9`:
+**0 hallazgos**, cobertura `complete`. Se revisaron las 18 rutas del diff: las
+seis fuentes runtime del inventario y las doce restantes de workflow, suites y
+fichas documentales. La disponibilidad de delegación fue `fail`; el parent
+realizó la revisión completa. El informe está en
+`/home/romel/.codex/state/plugins/codex-security/scans/repo/c0f19bcec33ec84a82dfc06581311ec37452fc23_20261109T222419Z_t3qfc9rb/report.md`.
+
+La cobertura no incluyó producción, fuentes, credenciales, Environment efectivo
+ni ejecución hosted. La revisión observó que las revalidaciones antialias leen
+inventarios completos paginados varias veces; es un posible costo de lectura y
+latencia cuya medida depende del lote y del tamaño real, no un finding de
+seguridad de este scan. Las pruebas Docker/red-none **106 passed** y la
+regresión ampliada **169 passed, 1 deselected, 1 warning** son evidencia local
+separada. El checker candidate-aware PASS no elimina el **FAIL integral
+349→349**; FG3 **348→348** permanece histórico. Sin push, PR, merge, promoción,
+dispatch o escrituras Pro.
 
 ### FG3 — candidato aislado y evidencia de seguridad
 

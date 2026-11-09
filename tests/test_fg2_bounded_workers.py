@@ -153,7 +153,9 @@ def test_sync_reads_only_enriched_children_of_manifest_cleansed_ids() -> None:
     worker.db = database
     worker.ready_inst_ids = {INSTITUTION_ID}
 
-    assert worker.get_pending_enriched(cohort_manifest=manifest) == [enriched]
+    assert worker.get_pending_enriched(cohort_manifest=manifest) == [
+        dict(enriched, _fg2_approved_course_id="70000000-0000-0000-0000-000000000001")
+    ]
     assert database.calls == [
         ("cleansed_programs", f"staging_id=in.({RAW_ID})"),
         ("enriched_programs", f"status=eq.pending&cleansed_id=in.({CLEANSED_ID})"),
