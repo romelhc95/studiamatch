@@ -26,6 +26,28 @@ Fuente: `.github/workflows/production_pipeline.yml`. Declara ventana diaria (`0 
 
 `tests/test_fase09_10_pre_main_controls.py`, `tests/test_fase10_main_boundary.py` y `tests/test_supabase_credentials_contract.py` leen estos pasos para validar controles, ramas y origen de credenciales. La secuencia local no demuestra schedule activo, secrets provisionados, datos procesados o que una estación haya terminado correctamente en un run remoto.
 
+El candidato local 2026-11-09 añade la entrada manual `bounded_first_run`,
+booleana y predeterminada a `false`. Solo el `workflow_dispatch` con esa opción
+activa el manifest de cohorte; el evento `schedule` sigue la rama ordinaria y
+no hereda el presupuesto de la primera corrida. Ese camino conserva el schedule
+declarado `0 5 * * *`; su activación y alcance global siguen sujetos a los gates
+F10.9. No se cambió ni habilitó un Environment, flag, secret, schedule o workflow
+remoto.
+
+En la ruta opt-in, el job de harvest entrega el manifest y SHA-256 por outputs;
+cada job siguiente comprueba el digest y los IDs antes de operar. El artifact
+sanitizado conserva la cohorte controlada por siete días. La opción y su wiring
+local no son una autorización de writer ni de dispatch: una corrida real exige
+el candidato exacto integrado por el flujo protegido, preflight actualizado de
+SHA/Environment/flags/cola/concurrencia, alcance revisado y las autorizaciones
+separadas para escritura y dispatch. Si el preflight falla, detener antes de
+solicitar una ejecución.
+
+Compatibilidad: con la opción ausente o `false`, se conserva el flujo existente.
+Rollback: revertir el delta por el flujo protegido; no se ha desplegado ni
+activado esta opción. La fase `contract` se mantiene pendiente hasta acreditar
+resultados funcionales y las ventanas de observación del plan.
+
 ### workflow-opencode
 
 Fuente: `.github/workflows/opencode.yml`. Sus eventos declarados son `issue_comment` y `pull_request_review_comment`; ejecuta la acción externa `anomalyco/opencode/github@latest`. No se encontró un caller local adicional en workflows, scripts, tests o código en ninguno de los dos checkouts. Esto acredita el grafo local de archivos, no la instalación/configuración de la app, su ejecución remota o el contenido de comentarios. No se trata como un endpoint de StudIAMatch ni como parte del pipeline de datos.

@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 import requests
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+from curl_cffi import CurlOpt
 from curl_cffi.requests import AsyncSession
 from dotenv import load_dotenv
 
@@ -28,6 +29,7 @@ except ImportError:
     STEALTH_AVAILABLE = False
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from shared.utils import (
     clean_course_name,
     infer_course_type,
@@ -39,6 +41,22 @@ from shared.utils import (
     normalize_url
 )
 from shared.db_client import DatabaseAPIError, get_db_client
+from scripts.core.fg2_bounded_run import (
+    FG2CohortManifest,
+    FG2RequestBudget,
+    InvalidControlledRun,
+    OriginDeferred,
+    public_url_resolve_entry,
+    RunBudgetExceeded,
+    SourceBlocked,
+    append_manifest_entry,
+    append_manifest_blocker,
+    append_manifest_discovery_row,
+    update_manifest_institution,
+    update_manifest_origin_state,
+    validate_controlled_profile,
+    url_sha256,
+)
 
 logger = setup_lima_logging("UniversalHarvester")
 load_dotenv()
@@ -162,20 +180,50 @@ def _is_f10_production_canary():
     return bool(os.getenv("F10_PRODUCTION_CANARY_RUN_ID", "").strip())
 
 
+def _is_sensitive_log_context():
+    return _is_f10_production_canary() or os.getenv("FG2_CONTROLLED_FIRST_RUN", "").strip().lower() == "true"
+
+
 def _safe_url_label(url=None):
-    return "source_url=redacted" if _is_f10_production_canary() else str(url)
+    return "source_url=redacted" if _is_sensitive_log_context() else str(url)
 
 
 def _safe_institution_label(value=None):
-    return "canary_cohort=redacted" if _is_f10_production_canary() else str(value)
+    return "canary_cohort=redacted" if _is_sensitive_log_context() else str(value)
 
 
 def _safe_error_label(error):
-    return type(error).__name__ if _is_f10_production_canary() else str(error)
+    return type(error).__name__ if _is_sensitive_log_context() else str(error)
 
 
 def _safe_pattern_label(pattern=None):
-    return "profile_pattern=redacted" if _is_f10_production_canary() else str(pattern)
+    return "profile_pattern=redacted" if _is_sensitive_log_context() else str(pattern)
+
+
+def _prepare_controlled_request(url):
+    resolve_entry = public_url_resolve_entry(url)
+    return {CurlOpt.RESOLVE: resolve_entry} if resolve_entry else {}
+
+
+async def _send_controlled_request(_session, url, curl_options, impersonate, timeout):
+    """Use a fresh direct connection pinned to the validated public DNS result."""
+    async with AsyncSession(
+        trust_env=False,
+        proxies={},
+        curl_options=curl_options or {},
+        verify=True,
+        allow_redirects=False,
+        max_redirects=0,
+        retry=0,
+    ) as pinned_session:
+        return await pinned_session.get(
+            url,
+            impersonate=impersonate,
+            timeout=timeout,
+            allow_redirects=False,
+            proxies={},
+            verify=True,
+        )
 
 
 def _mark_canary_metadata(metadata):
@@ -206,7 +254,15 @@ class HarvesterPartialError(HarvesterRunError):
 
 
 class UniversalHarvester:
-    def __init__(self, institution, global_start=None, max_discovered_urls=None):
+    def __init__(
+        self,
+        institution,
+        global_start=None,
+        max_discovered_urls=None,
+        controlled=False,
+        cohort_manifest=None,
+        _controlled_transport=None,
+    ):
         import time
         self.institution = institution
         self.db = get_db_client()
@@ -217,13 +273,70 @@ class UniversalHarvester:
         self._discovery_fetch_attempts = 0
         self._discovery_fetch_successes = 0
         self.max_discovered_urls = max_discovered_urls
+        self.controlled = bool(controlled)
+        self.cohort_manifest_path = cohort_manifest
+        self.request_budget = None
+        self.controlled_stop_reason = None
+        self.controlled_seed_urls = []
+        self._staging_rows_by_url = {}
+        self._recorded_blocker_ids = set()
+        self._recorded_discovery_ids = set()
         self.impersonate = "chrome110"
         self.error_count = 0
         self.BLOCK_THRESHOLD = 5
         self.MAX_DEPTH = 3
         self.semaphore = asyncio.Semaphore(3)
         self.circuit_open = False
-        self.profile = self._load_site_profile()
+        self.profile = self._load_site_profile(allow_auto_detect=not self.controlled)
+        if self.controlled:
+            if not self.cohort_manifest_path or not self.profile:
+                raise HarvesterRunError("controlled run requires a configured profile and cohort manifest")
+            try:
+                preflight = validate_controlled_profile(self.institution, self.profile)
+            except InvalidControlledRun as exc:
+                raise HarvesterRunError("controlled profile preflight rejected this institution") from exc
+            if preflight["profile_sha256"] != institution.get("_controlled_profile_sha256"):
+                raise HarvesterRunError("controlled profile changed after master preflight")
+            if preflight["seed_sha256"] != institution.get("_controlled_seed_sha256"):
+                raise HarvesterRunError("controlled seeds changed after master preflight")
+            self.profile = preflight["effective_profile"]
+            self.controlled_seed_urls = preflight["seed_urls"]
+            if self.profile.get("discovery_mode") == "hardcoded_urls":
+                self.profile["seed_urls"] = list(self.controlled_seed_urls)
+            elif self.profile.get("discovery_mode") == "paginated_catalog":
+                self.profile["catalog_url_patterns"] = list(self.controlled_seed_urls)
+                self.profile["catalog_max_pages"] = 1
+            try:
+                self._controlled_manifest = FG2CohortManifest.load(
+                    self.cohort_manifest_path,
+                    expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
+                    expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
+                    expected_source_sha=os.getenv("GITHUB_SHA", ""),
+                    allow_empty=True,
+                )
+            except (InvalidControlledRun, TypeError, ValueError) as exc:
+                raise HarvesterRunError("controlled cohort context is invalid") from exc
+            self.request_budget = FG2RequestBudget(
+                request_preparer=(
+                    _controlled_transport.prepare
+                    if _controlled_transport is not None
+                    else _prepare_controlled_request
+                ),
+                requester=(
+                    _controlled_transport.request
+                    if _controlled_transport is not None
+                    else _send_controlled_request
+                ),
+                origin_state=self._controlled_manifest.payload.get("origin_state", {}),
+                on_origin_state_change=lambda origin_sha256, last_started, stop_reason: update_manifest_origin_state(
+                    self.cohort_manifest_path,
+                    origin_sha256=origin_sha256,
+                    last_started_monotonic=last_started,
+                    stop_reason=stop_reason,
+                ),
+            )
+        else:
+            self._controlled_manifest = None
         self.exclusions = self._load_exclusions()
 
         # Fase 62: Perfil-driven config — todo el comportamiento diferenciado sale del perfil
@@ -309,7 +422,7 @@ class UniversalHarvester:
             logger.warning(f"Profile regex rejected: {_safe_pattern_label(pattern)} ({_safe_error_label(e)})")
             return None
 
-    def _load_site_profile(self):
+    def _load_site_profile(self, allow_auto_detect=True):
         inst_id = self.institution.get('id')
         profiles = self.db.select_pipeline_raise(
             'institution_site_profiles',
@@ -329,6 +442,8 @@ class UniversalHarvester:
                 logger.info(f"Loaded site profile: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}")
                 return profile
             logger.info(f"Profile exists but incomplete for {_safe_institution_label(self.institution.get('slug'))}, will auto-detect.")
+        if not allow_auto_detect:
+            return {}
         return self._auto_detect_profile()
 
     def _auto_detect_profile(self):
@@ -481,6 +596,24 @@ class UniversalHarvester:
         return "<html" in lowered or "<!doctype html" in lowered
 
     async def _safe_request(self, session, url):
+        if self.controlled:
+            try:
+                return await self.request_budget.get(
+                    session,
+                    url,
+                    allowed_origin=self.institution.get("website_url"),
+                    impersonate=self.impersonate,
+                    timeout=25,
+                )
+            except (SourceBlocked, OriginDeferred, RunBudgetExceeded) as exc:
+                self.controlled_stop_reason = type(exc).__name__
+                self.circuit_open = True
+                logger.warning(
+                    "Controlled source stopped for %s: %s",
+                    _safe_institution_label(self.institution.get("name")),
+                    self.controlled_stop_reason,
+                )
+                raise
         try:
             await asyncio.sleep(random.uniform(2, 5))
             resp = await session.get(url, impersonate=self.impersonate, timeout=25)
@@ -531,7 +664,7 @@ class UniversalHarvester:
                     links.append(loc)
         except Exception as e:
             logger.warning(f"Failed to parse sitemap {_safe_url_label(sitemap_url)}: {type(e).__name__}")
-        return list(set(links))
+        return list(dict.fromkeys(links)) if self.controlled else list(set(links))
 
     async def _bfs_crawl(self, start_url, existing_urls):
         queue = [(start_url, 0)]
@@ -628,7 +761,8 @@ class UniversalHarvester:
 
     def _merge_resumable_urls(self, urls):
         final_urls = []
-        for url in self._resumable_urls + list(urls):
+        resumable = [] if self.controlled else self._resumable_urls
+        for url in resumable + list(urls):
             normalized = normalize_url(url)
             if normalized not in final_urls:
                 final_urls.append(normalized)
@@ -640,6 +774,9 @@ class UniversalHarvester:
             "id": row.get('id'),
             "url": normalized,
             "status": row.get('status'),
+            "content_hash": row.get('content_hash'),
+            "kind": row.get('kind'),
+            "course_id": row.get('course_id'),
         }
 
     def _select_staging_rows_by_url(self, url):
@@ -647,13 +784,69 @@ class UniversalHarvester:
             rows = self.db.select_pipeline_raise(
                 "staging_raw",
                 filters=f"url=eq.{quote(normalize_url(url), safe='')}",
-                columns="id,url,status,institution_id",
+                columns="id,url,status,institution_id,content_hash",
             )
         except Exception as exc:
             raise HarvesterRunError("failed to verify URL ownership") from exc
         if not isinstance(rows, list):
             raise HarvesterRunError("malformed URL ownership payload")
         return rows
+
+    def _record_existing_staging_blocker(self, normalized_url):
+        row = self._staging_rows_by_url.get(normalized_url)
+        if row and row.get("status") in PROTECTED_STAGING_STATUSES:
+            self._record_refresh_blocker(row)
+
+    def _record_discovery_row(self, row):
+        if not self.controlled or not isinstance(row, dict) or row.get("status") != DISCOVERED_STATUS:
+            return
+        staging_id = row.get("id")
+        if not staging_id or staging_id in self._recorded_discovery_ids:
+            return
+        append_manifest_discovery_row(
+            self.cohort_manifest_path,
+            {
+                "institution_id": self.institution["id"],
+                "staging_id": staging_id,
+                "url_sha256": url_sha256(row.get("url") or ""),
+                "initial_status": DISCOVERED_STATUS,
+                "kind": row.get("kind") or "new_discovery",
+                "course_id": row.get("course_id"),
+            },
+        )
+        self._recorded_discovery_ids.add(staging_id)
+
+    def _course_for_refresh(self, normalized_url):
+        rows = self.db.select_service_raise(
+            "courses",
+            filters=f"url=eq.{quote(normalized_url, safe='')}",
+            columns="id,institution_id,url",
+            limit=2,
+        )
+        if len(rows) > 1:
+            raise HarvesterRunError("known course URL does not resolve to one courses row")
+        if not rows:
+            return {"kind": "new_discovery", "course_id": None}
+        if str(rows[0].get("institution_id")) != str(self.institution.get("id")):
+            raise HarvesterRunError("known course URL belongs to another institution")
+        return {"kind": "refresh_existing", "course_id": rows[0].get("id")}
+
+    def _record_refresh_blocker(self, row):
+        if not self.controlled or not isinstance(row, dict):
+            return
+        staging_id = row.get("id")
+        if not staging_id or staging_id in self._recorded_blocker_ids:
+            return
+        blocker = {
+            "institution_id": self.institution["id"],
+            "staging_id": staging_id,
+            "url_sha256": url_sha256(row.get("url") or ""),
+            "content_sha256": row.get("content_hash"),
+            "status": row.get("status"),
+            "reason": "historical_staging_state_protected",
+        }
+        append_manifest_blocker(self.cohort_manifest_path, blocker)
+        self._recorded_blocker_ids.add(staging_id)
 
     def _discovered_row_for_url(self, url):
         normalized = normalize_url(url)
@@ -667,7 +860,7 @@ class UniversalHarvester:
                 f"&url=eq.{quote(normalized, safe='')}"
                 "&status=eq.discovered"
             ),
-            columns="id,url,status",
+            columns="id,url,status,content_hash",
             limit=2,
         )
         if len(rows) != 1:
@@ -721,6 +914,7 @@ class UniversalHarvester:
             pipeline_enabled = self._gate_enabled('pipeline_enabled')
         self._resumable_urls = []
         self._discovered_rows_by_url = {}
+        self._staging_rows_by_url = {}
         statuses = "discovered,pending,processing,processed,discarded,skipped,error"
         try:
             data = self.db.select_all_pipeline(
@@ -729,7 +923,7 @@ class UniversalHarvester:
                     f"institution_id=eq.{quote(str(inst_id), safe='')}"
                     f"&status=in.({statuses})"
                 ),
-                columns="id,url,status",
+                columns="id,url,status,content_hash",
                 order="url.asc,id.asc",
             )
         except Exception as exc:
@@ -754,9 +948,10 @@ class UniversalHarvester:
             if normalized in existing:
                 raise HarvesterRunError(f"duplicate URL in staging inventory: {normalized}")
             existing.add(normalized)
+            self._staging_rows_by_url[normalized] = dict(row, url=normalized)
             if status == DISCOVERED_STATUS:
-                self._remember_discovered_row({"id": row_id, "url": normalized, "status": status})
-                if pipeline_enabled:
+                self._remember_discovered_row(row)
+                if pipeline_enabled and not self.controlled:
                     self._resumable_urls.append(normalized)
 
         logger.info(
@@ -799,6 +994,14 @@ class UniversalHarvester:
                 if row["status"] == DISCOVERED_STATUS:
                     new_urls.append(normalized)
                     self.course_urls.add(normalized)
+            elif self.controlled and normalized in existing_urls:
+                existing = self._staging_rows_by_url.get(normalized, {})
+                if existing.get("status") == DISCOVERED_STATUS:
+                    self._save_discovered_url(normalized)
+                    new_urls.append(normalized)
+                    self.course_urls.add(normalized)
+                else:
+                    self._record_existing_staging_blocker(normalized)
         logger.info(f"Total Discovery (hardcoded): {len(new_urls)} NEW from {len(clean_seeds)} seeds.")
         return self._limit_urls(new_urls)
 
@@ -855,11 +1058,21 @@ class UniversalHarvester:
                         if not self._can_discover_more():
                             break
                         full_url = normalize_url(link)
-                        if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
-                            row = self._save_discovered_url(full_url)
-                            if row["status"] == DISCOVERED_STATUS:
-                                new_urls.append(full_url)
-                                self.course_urls.add(full_url)
+                        if self._is_valid_crawl_url(full_url):
+                            if full_url in existing_urls:
+                                if self.controlled:
+                                    existing = self._staging_rows_by_url.get(full_url, {})
+                                    if existing.get("status") == DISCOVERED_STATUS:
+                                        self._save_discovered_url(full_url)
+                                        new_urls.append(full_url)
+                                        self.course_urls.add(full_url)
+                                    else:
+                                        self._record_existing_staging_blocker(full_url)
+                            else:
+                                row = self._save_discovered_url(full_url)
+                                if row["status"] == DISCOVERED_STATUS:
+                                    new_urls.append(full_url)
+                                    self.course_urls.add(full_url)
                     logger.debug(f"  Page {page_num}: {len(links)} links found")
         logger.info(f"Total Paginated Catalog: {len(new_urls)} NEW URLs")
         return self._limit_urls(new_urls)
@@ -938,6 +1151,33 @@ class UniversalHarvester:
         existing_urls = await self._load_existing_urls()
         discovery_mode = self.profile.get('discovery_mode', '')
 
+        if self.controlled and discovery_mode == "sitemap_bfs":
+            sitemap_links = []
+            async with AsyncSession() as session:
+                for sitemap_seed in self.controlled_seed_urls:
+                    if self.check_time_guard() or not self._can_discover_more():
+                        break
+                    sitemap_links.extend(await self._fetch_sitemap(session, sitemap_seed))
+            for link in sitemap_links:
+                if self.check_time_guard() or not self._can_discover_more():
+                    break
+                if not self._is_valid_crawl_url(link):
+                    continue
+                normalized = normalize_url(link)
+                if normalized in existing_urls:
+                    existing = self._staging_rows_by_url.get(normalized, {})
+                    if existing.get("status") == DISCOVERED_STATUS:
+                        row = self._save_discovered_url(normalized)
+                        if row["status"] == DISCOVERED_STATUS:
+                            self.course_urls.add(normalized)
+                    else:
+                        self._record_existing_staging_blocker(normalized)
+                    continue
+                row = self._save_discovered_url(normalized)
+                if row["status"] == DISCOVERED_STATUS:
+                    self.course_urls.add(normalized)
+            return self._limit_urls(self._merge_resumable_urls(self.course_urls))
+
         if discovery_mode == 'hardcoded_urls':
             hardcoded_result = await self.discover_hardcoded_urls()
             if hardcoded_result is not None:
@@ -961,15 +1201,26 @@ class UniversalHarvester:
             if not self._can_discover_more(): break
             if self._is_valid_crawl_url(link):
                 normalized = normalize_url(link)
-                if normalized not in self.course_urls and normalized not in existing_urls:
+                if normalized in existing_urls:
+                    existing = self._staging_rows_by_url.get(normalized, {})
+                    if self.controlled and existing.get("status") == DISCOVERED_STATUS:
+                        self._save_discovered_url(normalized)
+                        self.course_urls.add(normalized)
+                    else:
+                        self._record_existing_staging_blocker(normalized)
+                elif normalized not in self.course_urls:
                     row = self._save_discovered_url(normalized)
                     if row["status"] == DISCOVERED_STATUS:
                         self.course_urls.add(normalized)
-        if len(self.course_urls) > 50:
+        if self.controlled:
+            # Controlled mode never expands into an unbounded breadth-first crawl.
+            pass
+        elif len(self.course_urls) > 50:
             logger.info(f"🚀 [FAST PATH] Found {len(self.course_urls)} courses via Sitemap. Skipping slow BFS crawl.")
         elif not self.circuit_open:
             await self._bfs_crawl(start_url, existing_urls)
-        final_urls = self._limit_urls(self._merge_resumable_urls([url for url in list(self.course_urls) if url not in existing_urls]))
+        selected_urls = list(self.course_urls) if self.controlled else [url for url in list(self.course_urls) if url not in existing_urls]
+        final_urls = self._limit_urls(self._merge_resumable_urls(selected_urls))
         logger.info(f"Total Discovery: {len(final_urls)} NEW potential courses.")
         return final_urls
 
@@ -1330,10 +1581,14 @@ class UniversalHarvester:
             if owner != self.institution.get('id'):
                 raise HarvesterRunError(f"cross-institution URL collision for {normalized}")
             if status == DISCOVERED_STATUS:
-                stored = {"id": row["id"], "url": normalized, "status": DISCOVERED_STATUS}
+                course = self._course_for_refresh(normalized) if self.controlled else {}
+                stored = {"id": row["id"], "url": normalized, "status": DISCOVERED_STATUS, **course}
                 self._remember_discovered_row(stored)
+                self._record_discovery_row(stored)
                 return stored
             if status in PROTECTED_STAGING_STATUSES:
+                if self.controlled:
+                    self._record_refresh_blocker(row)
                 return {"id": row["id"], "url": normalized, "status": status}
             raise HarvesterRunError(f"unknown staging status for {normalized}: {status}")
 
@@ -1342,6 +1597,7 @@ class UniversalHarvester:
             "institution_id": self.institution['id'],
             "status": DISCOVERED_STATUS,
         }
+        course = self._course_for_refresh(normalized) if self.controlled else {}
         discovered_metadata = _mark_canary_metadata({})
         if discovered_metadata:
             discovered_data["metadata"] = json.dumps(discovered_metadata)
@@ -1360,12 +1616,32 @@ class UniversalHarvester:
         )
         if len(rows) != 1:
             raise HarvesterRunError(f"failed to verify discovered URL {normalized}")
-        stored = {"id": rows[0]["id"], "url": normalize_url(rows[0]["url"]), "status": rows[0]["status"]}
+        stored = {
+            "id": rows[0]["id"],
+            "url": normalize_url(rows[0]["url"]),
+            "status": rows[0]["status"],
+            **course,
+        }
         self._remember_discovered_row(stored)
+        self._record_discovery_row(stored)
         return stored
 
     def _save_to_staging(self, item):
         row = self._discovered_row_for_url(item.get("url"))
+        if self.controlled and not row.get("kind"):
+            row.update(self._course_for_refresh(normalize_url(item.get("url") or "")))
+        if self.controlled:
+            append_manifest_entry(
+                self.cohort_manifest_path,
+                {
+                    "institution_id": self.institution["id"],
+                    "staging_id": row["id"],
+                    "course_id": row.get("course_id"),
+                    "url_sha256": url_sha256(item["url"]),
+                    "content_sha256": item["content_hash"],
+                    "kind": row.get("kind") or "new_discovery",
+                },
+            )
         promoted = self._promote_discovered_to_pending(row, item)
         logger.info(f"Harvested to Staging: {_safe_url_label(item['url'])}")
         return promoted
@@ -1379,18 +1655,32 @@ async def main():
     parser.add_argument("institution", help="JSON string of the institution")
     parser.add_argument("--global-start", type=float, help="Timestamp when the master orchestrator started")
     parser.add_argument("--max-urls", type=int, default=None, help="Maximum discovered URLs to harvest in this run")
+    parser.add_argument("--controlled", action="store_true", help="Enable the approved first-run request/cohort limits")
+    parser.add_argument("--cohort-manifest", help="Exact manifest path shared by the controlled run")
     args = parser.parse_args()
+    if args.controlled:
+        os.environ["FG2_CONTROLLED_FIRST_RUN"] = "true"
 
     start_time = time.time()
     global_start = args.global_start or start_time
     MAX_RUN_TIME = 20400
 
     inst = json.loads(args.institution)
-    harvester = UniversalHarvester(inst, global_start=global_start, max_discovered_urls=args.max_urls)
+    if args.controlled and args.max_urls != 10:
+        logger.error("Controlled run requires the approved 10 URL limit.")
+        return 1
+    harvester = None
     browser = None
     pw = None
 
     try:
+        harvester = UniversalHarvester(
+            inst,
+            global_start=global_start,
+            max_discovered_urls=args.max_urls,
+            controlled=args.controlled,
+            cohort_manifest=args.cohort_manifest,
+        )
         # Fase 75: Require profile
         if not harvester.profile:
             logger.error(f"SKIP {_safe_institution_label(inst['name'])}: No existe entrada en institution_site_profiles. "
@@ -1426,6 +1716,18 @@ async def main():
             urls = await harvester.discover_courses(browser)
         else:
             urls = await harvester.discover_courses()
+
+        if args.controlled and harvester.controlled_stop_reason:
+            result = "blocked" if harvester.controlled_stop_reason == "SourceBlocked" else "deferred"
+            snapshot = harvester.request_budget.snapshot()
+            update_manifest_institution(
+                args.cohort_manifest,
+                institution_id=inst["id"],
+                http_requests=snapshot["http_requests"],
+                unique_urls=snapshot["unique_urls"],
+                result=result,
+            )
+            return 0
 
         if (
             pipeline_enabled
@@ -1468,13 +1770,39 @@ async def main():
                 except Exception as exc:
                     failures.append((url, str(exc)))
                     logger.error(f"Partial harvesting failure for {_safe_url_label(url)}: {type(exc).__name__}")
+                    if args.controlled and harvester.controlled_stop_reason:
+                        break
                 finally:
                     if page:
                         await page.close()
 
         if failures:
+            if args.controlled and harvester.controlled_stop_reason:
+                result = "blocked" if harvester.controlled_stop_reason == "SourceBlocked" else "deferred"
+                snapshot = harvester.request_budget.snapshot()
+                update_manifest_institution(
+                    args.cohort_manifest,
+                    institution_id=inst["id"],
+                    http_requests=snapshot["http_requests"],
+                    unique_urls=snapshot["unique_urls"],
+                    result=result,
+                )
+                return 0
             logger.error(f"FG2 finished PARTIAL/FAIL for {_safe_institution_label(inst['name'])}: {len(failures)} failures, {promoted_count} promoted.")
             return 1
+
+        if args.controlled:
+            snapshot = harvester.request_budget.snapshot()
+            outcome = "complete" if promoted_count else "no_op"
+            update_manifest_institution(
+                args.cohort_manifest,
+                institution_id=inst["id"],
+                http_requests=snapshot["http_requests"],
+                unique_urls=snapshot["unique_urls"],
+                result=outcome,
+            )
+            if not promoted_count:
+                return 0
 
         duration = int(time.time() - start_time)
         harvester.db.patch_exact_one_raise("institutions", filters=f"id=eq.{quote(str(inst['id']), safe='')}", data={
@@ -1485,6 +1813,17 @@ async def main():
         return 0
     except Exception as exc:
         logger.error(f"FG2 failed closed for {_safe_institution_label(inst.get('name'))}: {type(exc).__name__}")
+        if args.controlled and harvester and harvester.controlled_stop_reason:
+            result = "blocked" if harvester.controlled_stop_reason == "SourceBlocked" else "deferred"
+            snapshot = harvester.request_budget.snapshot()
+            update_manifest_institution(
+                args.cohort_manifest,
+                institution_id=inst["id"],
+                http_requests=snapshot["http_requests"],
+                unique_urls=snapshot["unique_urls"],
+                result=result,
+            )
+            return 0
         return 1
     finally:
         if browser:

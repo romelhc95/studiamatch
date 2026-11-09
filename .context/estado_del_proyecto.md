@@ -6,6 +6,92 @@
 
 ## Corte vigente
 
+### H1REQ1 — checkpoint local FG2/FG3, 2026-11-09 10:32 America/Lima
+
+La decisión de Romel permite una primera FG2 controlada antes de llegar a cero
+cursos activos incompletos; cero sigue siendo condición de cierre y se conservan
+los demás umbrales y los tres pares naturales FG2→FG3 durante al menos 72 horas.
+H2/H3 aceptados se reutilizan; H3 no se repitió y H4 mantiene su gate.
+
+FG2 se implementó y probó únicamente en el worktree aislado
+`/home/romel/.codex/worktrees/h1req1-fg2-bounded-harvest-20261109/studiamatch-h1req1-20261108-source`, detached en
+`main@646f14afa845ea3200f40ce919e273f090059c63`. El modo nuevo es opt-in por
+`workflow_dispatch`, con `bounded_first_run=false` por defecto; el cron ordinario
+permanece `0 5 * * *` y conserva su camino existente. La rotación por
+`last_harvest_at ASC NULLS FIRST` continúa. El modo controlado exige perfil y
+seeds elegibles antes de contactar el origen; aplica concurrencia 1/origen,
+intervalo mínimo de 5 s, hasta 10 URLs únicas (incluido sitemap) y 20 inicios
+HTTP por institución (redirects y reintentos incluidos), `Retry-After` de hasta 30 s y parada sin
+reintento ante 403/429. Manifest y SHA vinculan run, intento, SHA de fuente,
+IDs y hashes; los tres workers downstream validan ese digest y no leen las
+colas globales cuando reciben el manifest.
+
+El dry-run de refresh es enteramente sintético y no representa una cohorte de
+Pro. Reutiliza una fila `staging_raw=discovered` existente para el curso
+`70000000-0000-0000-0000-000000000091`: conserva `staging_id`
+`40000000-0000-0000-0000-000000000095`, clasifica `refresh_existing`, y reemplaza
+el hash de contenido previo por el nuevo. El presupuesto real informa 1 URL
+única y 1 solicitud HTTP; la ruta pasa por cleansing, enrichment sintético y
+sync conservando el mismo `course_id` y el override editorial
+`Nombre editorial vigente`. Los hashes URL/contenido y los efectos por etapa
+quedan en el plan F10.9 y el changelog. Una fila histórica `staging_raw` en
+estado protegido se registra como bloqueador y no se reabre; `processing` no se
+resetea y `processed` no se reencola. El próximo paquete productivo requiere un
+snapshot read-only que fije IDs, estados, URLs y hashes reales, desglose de
+colas, efecto por etapa y recuperación antes de pedir autorización de
+writer/dispatch.
+
+El último dato comunicado por el TL (2026-11-09 01:04 Lima) fue 224 cursos
+activos, todos con `last_scraped_at` anterior a 30 días (máximo
+`2026-07-18`), y 798 filas `processing`; se conserva como observación aportada,
+no como lectura repetida en este ciclo ni como permiso para DML. No se deduce
+stale desde `created_at`, ni se deduplican conteos. El último tablero consultado
+mantiene E9 preparado con bloqueos, E10 pendiente, 0 pares válidos y 72 horas
+sin iniciar; los runs `42477302202` FG2 y `42502107547` FG3 son intentos con
+writer bloqueado y jobs funcionales `SKIPPED`. El canary FG1 `31272290614` se
+reutiliza solo como soporte; su cron sigue pendiente. Antes de cualquier acción
+operativa se vuelven a verificar SHA, Environments, flags, cola y concurrencia.
+
+El candidato FG3 permanece intacto en
+`/tmp/studiamatch-h1req1-20261108-source`, HEAD
+`c736336819bc0a927cc7224a053429e27433a748`, diff SHA-256
+`0252e5c96caf72881c8ccac7bcccf8ed2674d6a3c9fee401bb228b37b0aa7c7e`.
+Se reutiliza la suite focal de 36 pruebas y 9 subpruebas mientras coincida esa
+huella. La selección usa `courses_public_effective`; el estado base se lee solo
+para IDs elegidos y las escrituras siguen limitadas a `courses`.
+
+Para FG3, antes de cada PATCH el candidato vuelve a consultar la vista pública y
+usa un PATCH condicional sobre el ID, `is_active` y `last_404_at` esperados. La
+lectura de vista y el PATCH no comparten transacción: queda una ventana TOCTOU
+estrecha entre ambas llamadas. El candidato omite si el curso ya no está en la
+vista y reconcilia conflicto exact-one, pero no presenta esto como atomicidad; la
+mitigación transaccional requeriría otro contrato DB/JIT y queda pendiente. La
+revisión manual, el credential scan y el scanner Codex de diff son evidencia
+distinta: el credential scan local figura PASS; el scanner Codex no emitió
+`scanId` y no se declara PASS. Para un PR protegido el gate versionado exige
+una aprobación humana y el check `security-audit`; ninguna de esas evidencias equivale
+a una corrida funcional o a promoción.
+
+FG2 Docker local, revalidación final de este candidato: **84 passed, 1
+deselected, 1 advertencia de deprecación PyPDF2**; el test excluido es
+`test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`, ajeno al
+alcance. El test de refresh primero detectó que el fake evitaba el presupuesto
+(0/0); al conectar `FG2RequestBudget` con transporte sintético pasó con el
+conteo correcto 1/1. Credential scan de todos los paths cambiados,
+`git diff --check` y el gate documental candidato-aware pasaron. Fixtures
+sintéticos, contenedor con `--network none` y checkout read-only; sin solicitudes
+a fuentes, Pro, proveedores, GitHub ni Actions. No hubo DML, configuración,
+cambios de flags, dispatch, schedules, push, PR, merge o promoción. El FAIL
+documental integral FG3 continúa como **348→348, listas idénticas**; no se
+convierte en PASS.
+
+La transición del candidato es `expand` = modo bounded opt-in y manifest;
+`compatibilidad` = default false y cron ordinario sin cambios; `deploy` = solo
+por flujo protegido y aprobaciones separadas; `contract` = no se activa en este
+ciclo. El rollback local es descartar el checkout/diff aislado; si se integra,
+revertirlo por el mismo flujo protegido. La primera corrida funcional espera a
+que el candidato exacto llegue a main y supere el preflight/JIT de producción.
+
 ### H3REQ1 — corte operativo 2026-11-06
 
 Refs contrastadas con GitHub MCP en este corte: Desarrollo

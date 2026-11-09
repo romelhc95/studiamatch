@@ -10258,7 +10258,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "UniversalHarvester valida esquema/host/asset, sitemap/BFS, gates y exclusiones; canonicaliza, extrae y calcula hash de contenido antes de staging. Casos/errores están desglosados en la ficha y nota R11.",
+        "note": "UniversalHarvester conserva sitemap/BFS, gates/exclusiones, canonicalización y hash de contenido. El modo controlado aplica pacing/concurrencia y presupuesto por origen, detiene ante 403/429, y clasifica discovery frente a refresh sin reabrir estados históricos; el manifest registra IDs y hashes.",
         "evidence": [
           "path:scripts/core/universal_harvester.py",
           "path:.context/componentes/pipeline.md",
@@ -10285,18 +10285,19 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La suite de límites cubre esquemas/host/assets, sitemap, gates y circuit breaker; pipeline walk cubre modos, resume y handoff. R18 conserva 24 passed/1 warning; el handoff limita los hashes: test R18 y harvester input documentado R14 coincide con el candidato, pero no atribuye un digest de harvester específico al R18.",
+        "note": "La suite de límites cubre esquemas/host/assets, sitemap, gates y circuit breaker; test_fg2_bounded_run.py verifica pacing, concurrencia, redirects/reintentos, Retry-After, presupuesto y bloqueos; pipeline walk prueba refresh conocido. Docker focal FG2 73 passed y regresión 145 passed, 1 deselected. R18 se mantiene limitado a su input/handoff histórico.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h3req1_pipeline_discovery_boundaries.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
+          "path:tests/test_fg2_bounded_run.py",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-walk-r2-handoff-2026-10-11.md",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-discovery-r18.stdout.txt"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "El proceso puede leer sitios externos y escribir staging; gate cerrado, host/scheme inválido, sitemap defectuoso o circuit breaker deben fallar/omitir de forma cerrada. Reproducción exclusivamente con fixture aislado.",
+        "note": "El proceso puede leer sitios externos y escribir staging. El candidato controlado se validó con fixture sintético/red none; una ejecución de origen exige preflight elegible, seeds, alcance congelado y autorización JIT de writer/dispatch.",
         "evidence": [
           "path:scripts/core/universal_harvester.py",
           "path:.github/workflows/production_pipeline.yml",
@@ -10360,11 +10361,13 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_h2_pipeline_contract.py afirma contratos de campos/estado; test_h3req1_local_pipeline_walk.py prueba transform y recovery sintéticos; h3req1_pipeline_postgrest_pg17_integration.py tiene output R161 de failure/recovery y handoff persistido. R161 log no trae SHA del runner; el resultado queda acotado a ese corte PG17/PostgREST.",
+        "note": "test_h2_pipeline_contract.py afirma contratos de campos/estado; test_h3req1_local_pipeline_walk.py prueba transform/recovery y refresh editorial sintéticos; test_fg2_bounded_workers.py rechaza IDs fuera del manifest en cleansing, enrichment y sync. Docker en el candidato FG2: focal 73 passed; regresión 145 passed, 1 deselected. h3req1_pipeline_postgrest_pg17_integration.py conserva output R161, limitado a su corte PG17/PostgREST.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h2_pipeline_contract.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
+          "path:tests/test_fg2_bounded_workers.py",
+          "path:tests/test_fg2_bounded_run.py",
           "path:tests/h3req1_pipeline_postgrest_pg17_integration.py",
           "path:.context/evidencia/h3req1_g09_pipeline_postgrest_r161/run-r10.log",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-walk-r2-handoff-2026-10-11.md"
@@ -10397,17 +10400,21 @@
         "anchor": "fuentes-y-relaciones"
       },
       "id": "pipeline-orchestration-integrity",
-      "purpose": "Orquestación de estaciones, límites del job y verificación de vigencia por URL.",
+      "purpose": "Orquestación de estaciones, límites/cohortes de FG2 y verificación de vigencia por URL.",
       "paths": [
         "scripts/core/integrity_ping.py",
-        "scripts/core/master_orchestrator.py"
+        "scripts/core/master_orchestrator.py",
+        "scripts/core/fg2_bounded_run.py"
       ],
-      "candidate_only_paths": [],
+      "candidate_only_paths": [
+        "scripts/core/fg2_bounded_run.py"
+      ],
       "contracts": {
         "state": "verified",
-        "note": "master_orchestrator decide gates/cohorte/recencia, inicia subprocesos con time guard y circuit breaker; integrity_ping fija DNS/IP pública y limita patch a curso exacto con gracia para 404. Contratos concretos en la ficha pipeline. CA4 candidate: old start dates, expired/unknown enrollment and transient failures do not deactivate; repeated 404/410 after grace does. HTTP 200 is reachability only; semantic catalog membership is outside H3 and traced to H1.",
+        "note": "master_orchestrator decide gates/rotación y subprocesos; fg2_bounded_run valida perfil/seeds antes del origen, presupuesto HTTP y manifest ligado a run/attempt/SHA/IDs/hashes. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
+          "path:scripts/core/fg2_bounded_run.py",
           "path:scripts/core/integrity_ping.py",
           "path:.context/componentes/pipeline.md"
         ]
@@ -10433,7 +10440,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_fase09_9_certification_canary.py, test_fase10_production_canary.py y credential contract inspeccionan límites/wiring del orquestador; pipeline walk y R161 aportan casos sintéticos para validadores/patch de integrity. No se encontró una ejecución dedicada del runtime completo de master_orchestrator; R160 es agregado y R161 prueba las estaciones, no schedule.",
+        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight y test_fg2_bounded_run.py el presupuesto/manifest; el recorrido sintético H1 verificó refresh. Docker focal 73 passed y regresión 145 passed, 1 deselected. No es una corrida de instituciones ni ejecución remota de master_orchestrator; R161 sigue limitado a estaciones sintéticas.",
         "evidence": [
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
@@ -10441,6 +10448,8 @@
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_fase09_9_certification_canary.py",
           "path:tests/test_fase10_production_canary.py",
+          "path:tests/test_fg2_bounded_orchestration.py",
+          "path:tests/test_fg2_bounded_run.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
           "path:tests/test_integrity_ping_retirement_contract.py",
           "path:tests/test_supabase_credentials_contract.py"
@@ -10448,7 +10457,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "Orquestador lanza procesos potencialmente writer y la verificación hace requests y PATCH; solo ejecutar con preflight/identidad autorizada. YAML schedule es definición, no prueba de instalación o ejecución.",
+        "note": "Orquestador/worker pueden escribir y integrity_ping hace requests/PATCH. El modo FG2 controlado solo se valida en Docker offline en este corte; un run operativo exige revalidar preflight, cola, SHA y JIT. YAML schedule es definición, no prueba de instalación o ejecución.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
           "path:scripts/core/integrity_ping.py",
@@ -14553,7 +14562,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "The YAML declares daily/manual execution and a sequential gated chain: master_orchestrator, cleansing, enrichment, sync and audit. Jobs install the hash-locked pipeline requirements.",
+        "note": "The YAML declares the daily schedule and manual dispatch. The bounded_first_run input is manual-only and defaults false; when true, the harvest manifest/SHA is passed to cleansing, enrichment and sync. The ordinary schedule path remains unchanged and is not bounded by that manifest.",
         "evidence": [
           "path:.github/workflows/production_pipeline.yml",
           "path:.github/scripts/production_control_preflight.sh"
@@ -14569,6 +14578,7 @@
           "path:scripts/core/sync_vector_worker.py",
           "path:requirements-pipeline.txt",
           "path:tests/test_fase09_10_pre_main_controls.py",
+          "path:tests/test_fg2_bounded_workflow.py",
           "path:tests/test_fase10_main_boundary.py",
           "path:tests/test_supabase_credentials_contract.py"
         ]
@@ -14594,7 +14604,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "The candidate defines the job order, per-stage enforced gates and dependencies. No schedule activation, secret provisioning, database writes or completion on a hosted runner is claimed.",
+        "note": "The candidate defines the job order and per-stage gates. The bounded dispatch path can reach real writers only after preflight; no workflow run, schedule activation, secret provisioning, database write, or hosted-runner completion is claimed.",
         "evidence": [
           "path:.github/workflows/production_pipeline.yml",
           "path:.github/scripts/production_control_preflight.sh"
@@ -16547,9 +16557,14 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Cada suite está asociada a sus casos/inputs en pruebas_evidencia.md#pipeline-cases. R160 cubre el selector tests/test_*.py de forma agregada: 337 passed, 4 skipped, 1 warning; en test_harvester.py los cuatro casos live fueron skipped. Pipeline walk/discovery conserva resultado R18 con salida/hash de suites; R161 registra el runner PG17/PostgREST y sus fases, pero no su SHA de runner. Esto acredita relaciones/evidencia disponible, no PASS uniforme ni ejecución remota.",
+        "note": "Cada suite está asociada a sus casos/inputs en pruebas_evidencia.md#pipeline-cases. R160 sigue siendo el agregado histórico; los cuatro casos live de test_harvester.py fueron skipped. El paquete local FG2 2026-11-09 pasó focal 73 tests y regresión 145 con 1 deselected; fixtures sintéticos, Docker --network none, sin fuentes, Pro o proveedor. Esto no acredita run funcional ni ejecución remota.",
         "evidence": [
           "path:.context/componentes/pruebas_evidencia.md",
+          "path:tests/test_fg2_bounded_run.py",
+          "path:tests/test_fg2_bounded_orchestration.py",
+          "path:tests/test_fg2_bounded_workers.py",
+          "path:tests/test_fg2_bounded_workflow.py",
+          "path:tests/test_h3req1_local_pipeline_walk.py",
           "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-walk-r2-handoff-2026-10-11.md",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-discovery-r18.stdout.txt",
@@ -16579,6 +16594,10 @@
         "tests/test_h2_pipeline_contract.py",
         "tests/test_h3req1_local_pipeline_walk.py",
         "tests/test_h3req1_pipeline_discovery_boundaries.py",
+        "tests/test_fg2_bounded_run.py",
+        "tests/test_fg2_bounded_orchestration.py",
+        "tests/test_fg2_bounded_workers.py",
+        "tests/test_fg2_bounded_workflow.py",
         "tests/test_harvester.py"
       ],
       "source_document": {
@@ -16587,7 +16606,11 @@
       },
       "candidate_only_paths": [
         "tests/h3req1_pipeline_postgrest_pg17_integration.py",
-        "tests/test_h3req1_pipeline_discovery_boundaries.py"
+        "tests/test_h3req1_pipeline_discovery_boundaries.py",
+        "tests/test_fg2_bounded_run.py",
+        "tests/test_fg2_bounded_orchestration.py",
+        "tests/test_fg2_bounded_workers.py",
+        "tests/test_fg2_bounded_workflow.py"
       ]
     },
     {

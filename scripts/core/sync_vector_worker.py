@@ -16,8 +16,15 @@ except ImportError:
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
+from scripts.core.fg2_bounded_run import (
+    FG2CohortManifest,
+    InvalidControlledRun,
+    require_manifest_sha256,
+    uuid_in_filter,
+)
 from shared.editorial_contract import CONTRACT_VERSION, canonical_quality_hash, compute_editorial_state
 from integrity_ping import is_safe_public_url
 from shared.roi_engine import (
@@ -183,7 +190,57 @@ class SyncVectorWorker:
             return "\n".join(lines) if lines else None
         return str(curriculum_summary).strip() or None
 
-    def get_pending_enriched(self, limit=500, institution_id=None):
+    def get_pending_enriched(self, limit=500, institution_id=None, cohort_manifest=None):
+        if cohort_manifest is not None:
+            raw_ids = cohort_manifest.staging_ids
+            if not raw_ids:
+                return []
+            cleansed_rows = self.db.select_all_pipeline(
+                "cleansed_programs",
+                filters=uuid_in_filter("staging_id", raw_ids),
+                order="id.asc",
+            )
+            cohort_manifest.assert_related_stage_records(
+                cleansed_rows,
+                foreign_key="staging_id",
+                allowed_ids=raw_ids,
+                stage="sync cleansed lookup",
+            )
+            raw_institution = {
+                entry["staging_id"].lower(): entry["institution_id"].lower()
+                for entry in cohort_manifest.payload["entries"]
+            }
+            eligible_cleansed = []
+            for row in cleansed_rows:
+                raw_id = row["staging_id"].lower()
+                if str(row.get("institution_id", "")).lower() != raw_institution[raw_id]:
+                    raise InvalidControlledRun("sync cleansed cohort institution changed")
+                if row.get("status") == "enriched":
+                    eligible_cleansed.append(row)
+            cleansed_ids = [row["id"] for row in eligible_cleansed]
+            if not cleansed_ids:
+                return []
+            filters = f"status=eq.pending&{uuid_in_filter('cleansed_id', cleansed_ids)}"
+            records = self.db.select_all_pipeline("enriched_programs", filters=filters, order="id.asc")
+            cohort_manifest.assert_related_stage_records(
+                records,
+                foreign_key="cleansed_id",
+                allowed_ids=cleansed_ids,
+                stage="sync",
+            )
+            institution_by_cleansed_id = {
+                row["id"].lower(): str(row["institution_id"]).lower()
+                for row in eligible_cleansed
+            }
+            for row in records:
+                cleansed_id = row["cleansed_id"].lower()
+                if str(row.get("institution_id", "")).lower() != institution_by_cleansed_id[cleansed_id]:
+                    raise InvalidControlledRun("sync enriched cohort institution changed")
+                if row.get("status") != "pending":
+                    raise InvalidControlledRun("sync cohort row is not pending")
+                if str(row.get("institution_id")) not in self.ready_inst_ids:
+                    raise InvalidControlledRun("sync cohort institution is no longer enabled")
+            return records[:limit] if limit is not None else records
         if not self.ready_inst_ids:
             logger.info("No pipeline-enabled institutions available for sync.")
             return []
@@ -560,11 +617,34 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run sync vector worker")
     parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
     parser.add_argument("--limit", type=int, default=None, help="Maximum enriched records to sync")
+    parser.add_argument("--cohort-manifest", help="Exact controlled-run manifest; disables global queue selection")
+    parser.add_argument("--cohort-manifest-sha256", help="Expected manifest digest from the harvesting job")
     args = parser.parse_args()
+
+    try:
+        args.cohort_manifest_sha256 = require_manifest_sha256(
+            args.cohort_manifest, args.cohort_manifest_sha256
+        )
+    except InvalidControlledRun as exc:
+        parser.error(str(exc))
+
+    cohort_manifest = None
+    if args.cohort_manifest:
+        cohort_manifest = FG2CohortManifest.load(
+            args.cohort_manifest,
+            expected_sha256=args.cohort_manifest_sha256,
+            expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
+            expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
+            expected_source_sha=os.getenv("GITHUB_SHA", ""),
+        )
 
     worker = SyncVectorWorker()
     guard = TimeGuard(max_seconds=1800, logger=logger)
-    pending = worker.get_pending_enriched(limit=args.limit, institution_id=args.institution_id)
+    pending = worker.get_pending_enriched(
+        limit=args.limit,
+        institution_id=args.institution_id,
+        cohort_manifest=cohort_manifest,
+    )
     logger.info(f"Found {len(pending)} pending enriched records.")
     synced = 0
     failed = 0

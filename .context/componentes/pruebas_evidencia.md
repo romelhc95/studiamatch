@@ -93,9 +93,91 @@ El cierre R178 declara 337 passed, 4 skipped y 1 warning en su suite de proyecto
 | `tests/test_harvester.py` | Cuatro checks de API live: precio, duplicados, instituciones piloto y salud PostgREST. El fixture requiere `RUN_SUPABASE_INTEGRATION_TESTS=1` y URL/key. | Consulta `/rest/v1/courses` e `/institutions`; no importa ni prueba `UniversalHarvester`. | R160: los cuatro casos quedaron skipped por no habilitar integración/credenciales. No es parser unitario ni resultado runtime; no se consultó Supabase live. |
 | `tests/test_h2_pipeline_contract.py` | Gates, transiciones, persistencia/recuperación y seguridad entre workers. | Config/perfiles, código pipeline y SQL helpers. | Ver casos/assertions en la fuente; resultado histórico se limita a G03 R178. |
 | `tests/test_h3req1_local_pipeline_walk.py` | Recorrido local FG1→workers y salidas/estados del flujo. | Fixture local y workers aislados por sus helpers. | No es un schedule ni run de proveedores reales. |
+| `tests/test_fg2_bounded_run.py` | Validación de perfil/seeds, manifest, pacing, concurrencia, presupuesto, Retry-After, redirects/reintentos y parada 403/429. | `fg2_bounded_run.py`; transportes sintéticos. | Incluida en Docker focal 73/73 y regresión 145 passed; no abre red. |
+| `tests/test_fg2_bounded_orchestration.py` | Rotación, preflight antes del origen, alcance de selección y resultados de institución. | Orquestador, perfiles y fixtures sintéticos. | Incluida en Docker focal 73/73 y regresión 145 passed; no consulta perfiles reales. |
+| `tests/test_fg2_bounded_workers.py` | Rechazo de IDs ajenos al manifest y exclusión de las colas globales por cleansing, enrichment y sync. | Adaptadores sintéticos; IDs de tres estaciones. | Incluida en Docker focal 73/73 y regresión 145 passed; no ejecuta RPC remoto. |
+| `tests/test_fg2_bounded_workflow.py` | Contrato YAML del input manual, default false, outputs y transmisión del manifest/digest. | `.github/workflows/production_pipeline.yml`. | YAML local parseado; no ejecuta Actions ni habilita workflows. |
 | `tests/test_h3req1_pipeline_discovery_boundaries.py` | `test_discovery_accepts_web_schemes_for_the_configured_host`, rechazos de esquemas/host/assets, sitemap ausente/malformado, gates y circuit breaker. | `UniversalHarvester` y perfiles/respuestas sintéticos. | Handoff R18 reporta 24 passed/1 warning con hashes de suite; no acredita una institución, proveedor ni schedule remoto. |
 | `tests/test_fase121_extractors.py` | Reglas declarativas de selectores, etiquetas, transforms y extracción por pilar. | Helpers/config Fase 121 y HTML fixture. | No demuestra calidad estadística del proveedor ni performance productiva. |
 | `tests/h3req1_pipeline_postgrest_pg17_integration.py` | Ejercita workers actuales por HTTP local; discovery/checkpoint, staging, fallos 503 y recovery de cleansing/enrichment/sync, handoff persistido. | PostgREST + PostgreSQL 17.11 desechables, payloads sintéticos y proxy local. | R161 `run-r10.log` reporta PASS de fases y estado final 1/1/1/1. El log no conserva SHA del runner; resultado delimitado a ese corte local. No atribuirle G07 R51. |
+
+### Corrida local FG2 acotada — 2026-11-09
+
+El candidato `/tmp/h1req1-fg2-bounded-harvest-20261109`, base
+`646f14afa845ea3200f40ce919e273f090059c63`, se validó en Docker con la imagen
+local fijada `sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`,
+`--network none` y checkout read-only. Los tests focales pasaron **73/73** con
+dos warnings. La regresión ampliada pasó **145 tests**, con un test deselected y
+dos warnings. El excluido fue
+`tests/test_fase09_10_pre_main_controls.py::test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`;
+una ejecución anterior de ese caso falló por una expectativa de texto H2 ausente
+en `.github/workflows/db-sync-to-pro.yml`, que permanece igual a HEAD y no forma
+parte del diff FG2. No se convierte ese resultado en fallo del candidato FG2.
+
+`scripts/security/scan_credentials.sh --tree`, compilación Python en memoria,
+parseo YAML y `git diff --check` pasaron. La advertencia restante es deprecación
+upstream PyPDF2 y cache pytest deshabilitada por montaje read-only. El dry-run
+funcional usa solo IDs sintéticos: institución
+`00000000-0000-0000-0000-000000000001`; staging
+`40000000-0000-0000-0000-000000000091`; cleansed
+`50000000-0000-0000-0000-000000000091`; enriched
+`60000000-0000-0000-0000-000000000091`; course
+`70000000-0000-0000-0000-000000000091`. URL:
+`https://synthetic.h3.example/programs/analitica-aplicada`, SHA-256
+`cc741735bd878822d09ac0756132ae2e4da1a50ef7b7b503467f2c5a3e26672d`; HTML
+sintético SHA-256
+`82d0ed446d6756f761c437105a1767338c45d35f793dba201221fb519f9d98c2`. El refresh mantiene el
+mismo `course_id`, staging pasa a `pending` y luego `processed`, cleansing y
+enrichment producen las filas fixture asociadas, sync termina `synced` y
+conserva `Nombre editorial vigente` como `manual_override`. Todo es sintético;
+no es el dry-run de la cohorte productiva ni una prueba de escrituras Pro.
+
+No hubo llamadas a instituciones, DNS productivo, proveedores AI, Supabase,
+Pro, GitHub ni Actions. Un error previo de referencia Docker y una invocación
+que no localizó el test correcto no ejecutaron pruebas ni afectaron datos; los
+resultados que se acreditan aquí son solo las corridas completadas con la
+imagen local verificada.
+
+El scope del checker local está fijado en
+`.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json`; identifica
+las fuentes de este paquete y no es el manifest exacto de un PR ni concede
+autoridad de ejecución.
+
+### FG3 — candidato aislado y evidencia de seguridad
+
+Se conserva sin edición el candidato
+`/tmp/studiamatch-h1req1-20261108-source`, HEAD
+`c736336819bc0a927cc7224a053429e27433a748`, diff SHA-256
+`0252e5c96caf72881c8ccac7bcccf8ed2674d6a3c9fee401bb228b37b0aa7c7e`. Mientras
+esa huella coincida, se reutilizan la suite focal **36 passed, 9 subtests** y la
+regresión **90 passed, 1 deselected, 9 subtests**; el excluido
+`test_f99_certification_canary_workflow_was_retired_for_h2_main_gate` no se
+declara PASS. El candidato selecciona desde `courses_public_effective`, lee
+`last_404_at` en `courses` solo por IDs seleccionados y mantiene las escrituras
+permitidas exactas en `courses`. La evidencia no autoriza una corrida FG3.
+
+El chequeo de seguridad del paquete conserva tres resultados separados: la
+revisión manual identificó y corrigió el redirect privado/log sensible, y dejó
+documentada la ventana de elegibilidad/PATCH; el credential scan local fue
+PASS; el scanner gestionado de diff no emitió `scanId`, por lo que no hay un
+resultado PASS que atribuirle. El gate versionado de promoción requiere PR con
+una aprobación humana y check obligatorio `security-audit`; ese CI todavía debe correr
+contra el PR exacto. No se sustituye por la revisión manual ni por el credential
+scan local.
+
+Antes de cada PATCH FG3 se vuelve a leer la vista pública para el ID y se hace
+PATCH condicional por ID/estado activo/`last_404_at` esperado. Si el ID ya no
+aparece en `courses_public_effective`, se omite; si el estado base cambió, el
+PATCH condicional/reconciliación no acepta una fila distinta. Como consulta de
+vista y PATCH no son atómicos, persiste una ventana TOCTOU estrecha entre ambas
+llamadas. La limitación queda abierta y visible; cerrarla con garantía
+transaccional requiere diseño/DDL/JIT separado, no inferible del test local.
+
+El registro previo de comparación integral FG3 se corrige como
+**FAIL 348→348, listas idénticas**, cero nuevos/cero resueltos, lista SHA-256
+`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`. Ese
+resultado pertenece a la comparación documental registrada en el changelog;
+no es PASS integral ni resultado del checkout FG2 actual.
 
 ## Canary contract suites
 

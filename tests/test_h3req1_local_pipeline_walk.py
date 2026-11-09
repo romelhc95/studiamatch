@@ -13,8 +13,10 @@ import hashlib
 import json
 import os
 import sys
+import pytest
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from unittest.mock import Mock, patch
 
 # Workers import sibling modules by script path; mirror that runtime context
@@ -31,6 +33,14 @@ from scripts.core.cleansing_worker import CleansingWorker
 from scripts.core.enrichment_worker import EnrichmentWorker
 from scripts.core.sync_vector_worker import SyncVectorWorker
 from scripts.core.universal_harvester import UniversalHarvester
+from scripts.core.fg2_bounded_run import (
+    FG2CohortManifest,
+    FG2RequestBudget,
+    SourceBlocked,
+    initialize_manifest,
+    update_manifest_institution,
+    validate_controlled_profile,
+)
 from scripts.shared.utils import normalize_url
 
 
@@ -70,6 +80,20 @@ class SyntheticResponse:
         self.text = body.decode() if isinstance(body, bytes) else body
 
 
+class SyntheticControlledTransport:
+    def prepare(self, url: str) -> dict[str, str]:
+        return {"synthetic-origin": urlparse(url).netloc}
+
+    async def request(self, session, url, prepared, impersonate, timeout):
+        assert prepared == {"synthetic-origin": urlparse(url).netloc}
+        return await session.get(
+            url,
+            impersonate=impersonate,
+            timeout=timeout,
+            allow_redirects=False,
+        )
+
+
 class SyntheticPipelineAdapter:
     """Small PostgREST-shaped adapter that only stores this test's records."""
 
@@ -80,6 +104,7 @@ class SyntheticPipelineAdapter:
             "cleansed_programs": [],
             "enriched_programs": [],
             "courses": [],
+            "course_editorial_state": [],
         }
         self.status_events: list[dict[str, Any]] = []
 
@@ -88,7 +113,9 @@ class SyntheticPipelineAdapter:
         marker = "url=eq."
         if marker not in filters:
             return None
-        return filters.split(marker, 1)[1].split("&", 1)[0]
+        from urllib.parse import unquote
+
+        return unquote(filters.split(marker, 1)[1].split("&", 1)[0])
 
     def select_pipeline_raise(self, table: str, filters: str = "", **_kwargs: Any) -> list[dict[str, Any]]:
         if table == "institution_site_profiles":
@@ -117,7 +144,9 @@ class SyntheticPipelineAdapter:
             url = self._url_from_filter(filters)
             return [dict(row) for row in self.tables[table] if not url or row.get("url") == url]
         if table == "course_editorial_state":
-            return []
+            marker = "course_id=eq."
+            course_id = filters.split(marker, 1)[1].split("&", 1)[0] if marker in filters else None
+            return [dict(row) for row in self.tables[table] if course_id is None or row.get("course_id") == course_id]
         return []
 
     def insert(self, table: str, data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -174,7 +203,13 @@ class SyntheticPipelineAdapter:
             )
             return [{"success": True}]
         if function == "h2_update_course_quality":
-            self.status_events.append({"table": "course_editorial_state", "course_id": params["p_course_id"], "status": "quality-updated"})
+            self.status_events.append({
+                "table": "course_editorial_state",
+                "course_id": params["p_course_id"],
+                "status": "quality-updated",
+                "field_sources": dict(params.get("p_field_sources") or {}),
+                "field_timestamps": dict(params.get("p_field_timestamps") or {}),
+            })
             return [{"success": True}]
         raise AssertionError(f"unexpected local synthetic RPC: {function}")
 
@@ -607,6 +642,689 @@ def test_hardcoded_discovery_resumes_discovered_rows_without_reprocessing_pendin
     assert len(adapter.tables["staging_raw"]) == 3
     assert len({row["url"] for row in adapter.tables["staging_raw"]}) == 3
     assert next(row for row in adapter.tables["staging_raw"] if row["url"] == pending_url)["status"] == "pending"
+
+
+def test_controlled_refresh_of_known_course_creates_manifest_entry_and_keeps_editorial_override(tmp_path: Path) -> None:
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "site_type": "traditional_ssr",
+        "discovery_mode": "hardcoded_urls",
+        "discovery_enabled": True,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "circuit_open": False,
+        "seed_urls": [COURSE_URL],
+        "exclusion_patterns": [],
+        "field_defaults": {},
+    }
+    institution = {"id": INSTITUTION_ID, "name": "Synthetic Academy", "slug": "synthetic", "website_url": BASE_URL}
+    adapter = SyntheticPipelineAdapter(profile)
+    existing_staging = {
+        "id": "40000000-0000-0000-0000-000000000095",
+        "institution_id": INSTITUTION_ID,
+        "url": COURSE_URL,
+        "status": "discovered",
+        "content_hash": hashlib.sha256(b"previous synthetic source body").hexdigest(),
+    }
+    adapter.tables["staging_raw"].append(existing_staging)
+    adapter.tables["courses"].append(
+        {
+            "id": COURSE_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": COURSE_URL,
+            "name": "Old pipeline title",
+            "last_404_at": None,
+            "is_active": True,
+        }
+    )
+    manual_state = {
+        "course_id": COURSE_ID,
+        "manual_overrides": {"name": "Nombre editorial vigente"},
+        "field_sources": {"name": "manual_override"},
+        "field_timestamps": {"name": "2026-10-30T12:00:00+00:00"},
+        "manual_updated_at": "2026-10-30T12:00:00+00:00",
+        "editorial_status": "active",
+    }
+    adapter.tables["course_editorial_state"].append(manual_state)
+    preflight = validate_controlled_profile(institution, profile)
+    manifest_path = tmp_path / "fg2_cohort.json"
+    initialize_manifest(
+        manifest_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha="a" * 40,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_ID,
+                "profile_sha256": preflight["profile_sha256"],
+                "seed_sha256": preflight["seed_sha256"],
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "preflight_passed",
+            }
+        ],
+    )
+    with patch.dict(
+        os.environ,
+        {"GITHUB_RUN_ID": "123456789", "GITHUB_RUN_ATTEMPT": "1", "GITHUB_SHA": "a" * 40},
+    ), patch.object(harvester_module, "get_db_client", return_value=adapter):
+        controlled_institution = dict(
+            institution,
+            _controlled_profile_sha256=preflight["profile_sha256"],
+            _controlled_seed_sha256=preflight["seed_sha256"],
+        )
+        harvester = UniversalHarvester(
+            controlled_institution,
+            max_discovered_urls=10,
+            controlled=True,
+            cohort_manifest=str(manifest_path),
+            _controlled_transport=SyntheticControlledTransport(),
+        )
+
+    discovered = asyncio.run(harvester.discover_courses())
+    assert discovered == [COURSE_URL]
+    assert existing_staging["status"] == "discovered"
+    assert harvester._discovered_rows_by_url[COURSE_URL]["kind"] == "refresh_existing"
+    assert harvester._discovered_rows_by_url[COURSE_URL]["course_id"] == COURSE_ID
+    assert harvester._discovered_rows_by_url[COURSE_URL]["id"] == existing_staging["id"]
+
+    class CourseSession:
+        async def get(self, url: str, **_kwargs: Any) -> SyntheticResponse:
+            assert url == COURSE_URL
+            return SyntheticResponse(url, COURSE_HTML, "text/html; charset=utf-8")
+
+    pending = asyncio.run(harvester._scrape_http(CourseSession(), COURSE_URL))
+    assert pending is not None
+    staged = harvester._save_to_staging(pending)
+    assert staged["id"] == existing_staging["id"]
+    assert len(adapter.tables["staging_raw"]) == 1
+    assert existing_staging["status"] == "pending"
+    assert staged["status"] == "pending"
+    assert staged["content_hash"] == hashlib.sha256(COURSE_HTML.encode()).hexdigest()
+
+    budget_snapshot = harvester.request_budget.snapshot()
+    assert budget_snapshot == {"http_requests": 1, "unique_urls": 1}
+    update_manifest_institution(manifest_path, institution_id=INSTITUTION_ID, **budget_snapshot, result="complete")
+    manifest = FG2CohortManifest.load(manifest_path, allow_empty=False)
+    assert manifest.payload["entries"] == [
+        {
+            "institution_id": INSTITUTION_ID,
+            "staging_id": staged["id"],
+            "course_id": COURSE_ID,
+            "url_sha256": hashlib.sha256(COURSE_URL.encode()).hexdigest(),
+            "content_sha256": staged["content_hash"],
+            "kind": "refresh_existing",
+        }
+    ]
+
+    cleanser = CleansingWorker(db_client=adapter)
+    assert cleanser.process_batch([staged]) == 1
+    assert existing_staging["status"] == "processed"
+    assert manual_state["manual_overrides"]["name"] == "Nombre editorial vigente"
+
+    cleansed = adapter.tables["cleansed_programs"][0]
+    with patch.object(enrichment_module, "get_db_client", return_value=adapter):
+        enricher = EnrichmentWorker()
+    enricher._fetch_sr_enrichment_data = lambda *_args: ({}, {}, {})
+    simulated = {
+        "official_name": cleansed["clean_name"],
+        "duration_text": "6 meses",
+        "duration_months": 6,
+        "total_cost_est": "S/ 1,250",
+        "requirements": ["Requisitos sintéticos"],
+        "graduate_profile": "Analista inicial",
+        "curriculum_summary": {"module": "Modelado"},
+        "target_audience": "Profesionales",
+        "objectives": "Modelar datos",
+        "benefits": "Proyecto práctico",
+        "certifications": "Constancia sintética",
+        "modality": "online",
+        "primary_campus": "Virtual",
+        "degree_type": "Curso",
+        "start_date": "2027-04-01",
+        "categories": ["Data"],
+        "difficulty_level": "intermediate",
+        "ai_summary": "Refresh sintético de un curso ya publicado.",
+    }
+    enricher._call_llm_for_pillars = lambda *_args, **_kwargs: (dict(simulated), "synthetic-provider")
+    assert enricher.enrich_record(cleansed) is True
+    enriched = adapter.tables["enriched_programs"][0]
+
+    with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
+        syncer = SyncVectorWorker()
+    with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
+        assert syncer.sync_to_production(enriched) is True
+    quality = next(event for event in adapter.status_events if event["status"] == "quality-updated")
+    assert quality["field_sources"]["name"] == "manual_override"
+    assert manual_state["manual_overrides"]["name"] == "Nombre editorial vigente"
+    assert enriched["status"] == "synced"
+    assert adapter.tables["courses"][0]["id"] == COURSE_ID
+
+
+def test_default_controlled_transport_pins_dns_and_disables_environment_proxy() -> None:
+    created: list[dict[str, Any]] = []
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    class CapturedSession:
+        def __init__(self, **kwargs: Any) -> None:
+            created.append(kwargs)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: Any) -> None:
+            return None
+
+        async def get(self, url: str, **kwargs: Any) -> SyntheticResponse:
+            calls.append((url, kwargs))
+            return SyntheticResponse(url, "<html>synthetic</html>", "text/html")
+
+    pin = {harvester_module.CurlOpt.RESOLVE: "synthetic.example:443:93.184.216.34"}
+    with patch.object(harvester_module, "AsyncSession", CapturedSession):
+        response = asyncio.run(
+            harvester_module._send_controlled_request(
+                object(),
+                "https://synthetic.example/program",
+                pin,
+                "chrome110",
+                25,
+            )
+        )
+
+    assert response.status_code == 200
+    assert created == [
+        {
+            "trust_env": False,
+            "proxies": {},
+            "curl_options": pin,
+            "verify": True,
+            "allow_redirects": False,
+            "max_redirects": 0,
+            "retry": 0,
+        }
+    ]
+    assert calls[0][0] == "https://synthetic.example/program"
+    assert calls[0][1]["allow_redirects"] is False
+    assert calls[0][1]["verify"] is True
+    assert calls[0][1]["proxies"] == {}
+
+
+def test_fg2_controlled_logs_redact_urls_and_profiles() -> None:
+    secret_url = "https://synthetic.example/program?token=fixture-secret"
+    with patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": "true"}, clear=False):
+        assert harvester_module._safe_url_label(secret_url) == "source_url=redacted"
+        assert harvester_module._safe_institution_label("private fixture institution") == "canary_cohort=redacted"
+        assert harvester_module._safe_error_label(RuntimeError(secret_url)) == "RuntimeError"
+
+
+def test_direct_controlled_harvester_entrypoint_enables_redaction_before_validation() -> None:
+    with patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": ""}, clear=False), patch.object(
+        sys,
+        "argv",
+        ["universal_harvester.py", "{}", "--controlled"],
+    ):
+        result = asyncio.run(harvester_module.main())
+
+        assert result == 1
+        assert os.environ["FG2_CONTROLLED_FIRST_RUN"] == "true"
+        assert harvester_module._safe_url_label("https://synthetic.example/?token=secret") == "source_url=redacted"
+
+
+def test_controlled_harvest_shares_pacing_across_institutions_with_same_origin(tmp_path: Path) -> None:
+    second_institution_id = "00000000-0000-0000-0000-000000000002"
+    profiles = [
+        {
+            "institution_id": institution_id,
+            "site_type": "traditional_ssr",
+            "discovery_mode": "hardcoded_urls",
+            "discovery_enabled": True,
+            "pipeline_enabled": True,
+            "production_enabled": True,
+            "circuit_open": False,
+            "seed_urls": [f"{BASE_URL}/programs/{slug}"],
+            "exclusion_patterns": [],
+        }
+        for institution_id, slug in ((INSTITUTION_ID, "a"), (second_institution_id, "b"))
+    ]
+    institutions = [
+        {
+            "id": profile["institution_id"],
+            "name": f"Synthetic {profile['institution_id'][-1]}",
+            "slug": f"synthetic-{profile['institution_id'][-1]}",
+            "website_url": BASE_URL,
+        }
+        for profile in profiles
+    ]
+    preflights = [
+        validate_controlled_profile(institution, profile)
+        for institution, profile in zip(institutions, profiles)
+    ]
+    manifest_path = tmp_path / "fg2_cohort.json"
+    initialize_manifest(
+        manifest_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha="a" * 40,
+        institutions=[
+            {
+                "institution_id": institution["id"],
+                "profile_sha256": preflight["profile_sha256"],
+                "seed_sha256": preflight["seed_sha256"],
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "preflight_passed",
+            }
+            for institution, preflight in zip(institutions, preflights)
+        ],
+    )
+
+    class FakeClock:
+        def __init__(self) -> None:
+            self.now = 0.0
+
+        def monotonic(self) -> float:
+            return self.now
+
+        def utcnow(self):
+            from datetime import datetime, timezone
+
+            return datetime(2026, 11, 9, tzinfo=timezone.utc)
+
+        async def sleep(self, seconds: float) -> None:
+            self.now += seconds
+            await asyncio.sleep(0)
+
+    class RecordingSession:
+        def __init__(self, clock: FakeClock) -> None:
+            self.clock = clock
+            self.starts: list[float] = []
+
+        async def get(self, url: str, **_kwargs: Any) -> SyntheticResponse:
+            self.starts.append(self.clock.monotonic())
+            return SyntheticResponse(url, "<html><body>synthetic</body></html>", "text/html")
+
+    clock = FakeClock()
+    real_budget_class = FG2RequestBudget
+
+    def controlled_budget(**kwargs: Any) -> FG2RequestBudget:
+        return real_budget_class(
+            **kwargs,
+            monotonic=clock.monotonic,
+            sleeper=clock.sleep,
+            utcnow=clock.utcnow,
+        )
+
+    with patch.dict(
+        os.environ,
+        {"GITHUB_RUN_ID": "123456789", "GITHUB_RUN_ATTEMPT": "1", "GITHUB_SHA": "a" * 40},
+    ), patch.object(harvester_module, "get_db_client", side_effect=[
+        SyntheticPipelineAdapter(profiles[0]), SyntheticPipelineAdapter(profiles[1])
+    ]), patch.object(harvester_module, "FG2RequestBudget", side_effect=controlled_budget):
+        first_harvester = UniversalHarvester(
+            dict(
+                institutions[0],
+                _controlled_profile_sha256=preflights[0]["profile_sha256"],
+                _controlled_seed_sha256=preflights[0]["seed_sha256"],
+            ),
+            max_discovered_urls=10,
+            controlled=True,
+            cohort_manifest=str(manifest_path),
+            _controlled_transport=SyntheticControlledTransport(),
+        )
+        first_session = RecordingSession(clock)
+        asyncio.run(first_harvester._safe_request(first_session, profiles[0]["seed_urls"][0]))
+
+        second_harvester = UniversalHarvester(
+            dict(
+                institutions[1],
+                _controlled_profile_sha256=preflights[1]["profile_sha256"],
+                _controlled_seed_sha256=preflights[1]["seed_sha256"],
+            ),
+            max_discovered_urls=10,
+            controlled=True,
+            cohort_manifest=str(manifest_path),
+            _controlled_transport=SyntheticControlledTransport(),
+        )
+        second_session = RecordingSession(clock)
+        asyncio.run(second_harvester._safe_request(second_session, profiles[1]["seed_urls"][0]))
+
+    assert second_session.starts[0] - first_session.starts[0] >= 5
+    manifest = FG2CohortManifest.load(manifest_path, allow_empty=True)
+    assert len(manifest.payload["origin_state"]) == 1
+    assert "synthetic.h3.example" not in manifest_path.read_text(encoding="utf-8")
+
+
+def test_controlled_harvest_never_resumes_discovered_rows_outside_current_seeds(tmp_path: Path) -> None:
+    unrelated_url = f"{BASE_URL}/programs/not-in-current-seeds"
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "site_type": "traditional_ssr",
+        "discovery_mode": "hardcoded_urls",
+        "discovery_enabled": True,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "circuit_open": False,
+        "seed_urls": [COURSE_URL],
+        "exclusion_patterns": [],
+    }
+    institution = {
+        "id": INSTITUTION_ID,
+        "name": "Synthetic Academy",
+        "slug": "synthetic",
+        "website_url": BASE_URL,
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    historical_discovered = {
+        "id": "40000000-0000-0000-0000-000000000092",
+        "institution_id": INSTITUTION_ID,
+        "url": unrelated_url,
+        "status": "discovered",
+        "content_hash": None,
+    }
+    adapter.tables["staging_raw"].append(historical_discovered)
+    preflight = validate_controlled_profile(institution, profile)
+    manifest_path = tmp_path / "fg2_cohort.json"
+    initialize_manifest(
+        manifest_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha="a" * 40,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_ID,
+                "profile_sha256": preflight["profile_sha256"],
+                "seed_sha256": preflight["seed_sha256"],
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "preflight_passed",
+            }
+        ],
+    )
+    with patch.dict(
+        os.environ,
+        {"GITHUB_RUN_ID": "123456789", "GITHUB_RUN_ATTEMPT": "1", "GITHUB_SHA": "a" * 40},
+    ), patch.object(harvester_module, "get_db_client", return_value=adapter):
+        harvester = UniversalHarvester(
+            dict(
+                institution,
+                _controlled_profile_sha256=preflight["profile_sha256"],
+                _controlled_seed_sha256=preflight["seed_sha256"],
+            ),
+            max_discovered_urls=10,
+            controlled=True,
+            cohort_manifest=str(manifest_path),
+            _controlled_transport=SyntheticControlledTransport(),
+        )
+
+    discovered = asyncio.run(harvester.discover_courses())
+
+    assert discovered == [COURSE_URL]
+    assert historical_discovered["status"] == "discovered"
+    assert all(url != unrelated_url for url in discovered)
+    manifest = FG2CohortManifest.load(manifest_path, allow_empty=True)
+    assert manifest.payload["entries"] == []
+    assert [row["staging_id"] for row in manifest.payload["discovery_rows"]] == [
+        "40000000-0000-0000-0000-000000000091"
+    ]
+    assert manifest.payload["discovery_rows"][0]["url_sha256"] == hashlib.sha256(COURSE_URL.encode()).hexdigest()
+
+    class BlockedResponse:
+        status_code = 429
+        headers = {"Retry-After": "0"}
+        url = COURSE_URL
+
+    class BlockingSession:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def get(self, _url: str, **_kwargs: Any) -> BlockedResponse:
+            self.calls += 1
+            return BlockedResponse()
+
+    session = BlockingSession()
+    with pytest.raises(SourceBlocked):
+        asyncio.run(harvester._safe_request(session, COURSE_URL))
+    with pytest.raises(SourceBlocked):
+        asyncio.run(harvester._safe_request(session, COURSE_URL))
+    assert session.calls == 1
+    assert harvester.controlled_stop_reason == "SourceBlocked"
+    assert adapter.tables["staging_raw"][1]["status"] == "discovered"
+
+
+def test_controlled_sitemap_resumes_discovered_rows_only_when_present_in_current_sitemap(tmp_path: Path) -> None:
+    sitemap_url = f"{BASE_URL}/sitemap.xml"
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "site_type": "traditional_ssr",
+        "discovery_mode": "sitemap_bfs",
+        "discovery_enabled": True,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "circuit_open": False,
+        "seed_urls": [sitemap_url],
+        "exclusion_patterns": [],
+    }
+    institution = {
+        "id": INSTITUTION_ID,
+        "name": "Synthetic Academy",
+        "slug": "synthetic",
+        "website_url": BASE_URL,
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    existing_discovered = {
+        "id": "40000000-0000-0000-0000-000000000093",
+        "institution_id": INSTITUTION_ID,
+        "url": COURSE_URL,
+        "status": "discovered",
+        "content_hash": None,
+    }
+    outside_sitemap = {
+        "id": "40000000-0000-0000-0000-000000000094",
+        "institution_id": INSTITUTION_ID,
+        "url": f"{BASE_URL}/programs/old-not-listed",
+        "status": "discovered",
+        "content_hash": None,
+    }
+    adapter.tables["staging_raw"].extend([existing_discovered, outside_sitemap])
+    preflight = validate_controlled_profile(institution, profile)
+    manifest_path = tmp_path / "fg2_cohort.json"
+    initialize_manifest(
+        manifest_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha="a" * 40,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_ID,
+                "profile_sha256": preflight["profile_sha256"],
+                "seed_sha256": preflight["seed_sha256"],
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "preflight_passed",
+            }
+        ],
+    )
+
+    class FakeSitemapSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: Any) -> None:
+            return None
+
+        async def get(self, url: str, **_kwargs: Any) -> SyntheticResponse:
+            assert url == sitemap_url
+            return SyntheticResponse(url, SITEMAP, "application/xml")
+
+    with patch.dict(
+        os.environ,
+        {"GITHUB_RUN_ID": "123456789", "GITHUB_RUN_ATTEMPT": "1", "GITHUB_SHA": "a" * 40},
+    ), patch.object(harvester_module, "get_db_client", return_value=adapter), patch.object(
+        harvester_module, "AsyncSession", FakeSitemapSession
+    ):
+        harvester = UniversalHarvester(
+            dict(
+                institution,
+                _controlled_profile_sha256=preflight["profile_sha256"],
+                _controlled_seed_sha256=preflight["seed_sha256"],
+            ),
+            max_discovered_urls=10,
+            controlled=True,
+            cohort_manifest=str(manifest_path),
+            _controlled_transport=SyntheticControlledTransport(),
+        )
+        discovered = asyncio.run(harvester.discover_courses())
+
+    assert discovered == [COURSE_URL]
+    assert existing_discovered["status"] == "discovered"
+    assert outside_sitemap["status"] == "discovered"
+    manifest = FG2CohortManifest.load(manifest_path, allow_empty=True)
+    assert manifest.payload["blocked_staging_rows"] == []
+    assert [row["staging_id"] for row in manifest.payload["discovery_rows"]] == [
+        existing_discovered["id"]
+    ]
+
+
+def test_controlled_refresh_records_processed_staging_as_blocked_without_reopening(tmp_path: Path) -> None:
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "site_type": "traditional_ssr",
+        "discovery_mode": "hardcoded_urls",
+        "discovery_enabled": True,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "circuit_open": False,
+        "seed_urls": [COURSE_URL],
+        "exclusion_patterns": [],
+    }
+    institution = {"id": INSTITUTION_ID, "name": "Synthetic Academy", "slug": "synthetic", "website_url": BASE_URL}
+    adapter = SyntheticPipelineAdapter(profile)
+    protected = {
+        "id": "40000000-0000-0000-0000-000000000098",
+        "institution_id": INSTITUTION_ID,
+        "url": COURSE_URL,
+        "status": "processed",
+        "content_hash": "f" * 64,
+    }
+    adapter.tables["staging_raw"].append(protected)
+    preflight = validate_controlled_profile(institution, profile)
+    manifest_path = tmp_path / "fg2_cohort.json"
+    initialize_manifest(
+        manifest_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha="a" * 40,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_ID,
+                "profile_sha256": preflight["profile_sha256"],
+                "seed_sha256": preflight["seed_sha256"],
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "preflight_passed",
+            }
+        ],
+    )
+    with patch.dict(
+        os.environ,
+        {"GITHUB_RUN_ID": "123456789", "GITHUB_RUN_ATTEMPT": "1", "GITHUB_SHA": "a" * 40},
+    ), patch.object(harvester_module, "get_db_client", return_value=adapter):
+        controlled_institution = dict(
+            institution,
+            _controlled_profile_sha256=preflight["profile_sha256"],
+            _controlled_seed_sha256=preflight["seed_sha256"],
+        )
+        harvester = UniversalHarvester(
+            controlled_institution,
+            max_discovered_urls=10,
+            controlled=True,
+            cohort_manifest=str(manifest_path),
+        )
+
+    assert asyncio.run(harvester.discover_courses()) == []
+    assert protected["status"] == "processed"
+    manifest = FG2CohortManifest.load(manifest_path, allow_empty=True)
+    assert manifest.payload["entries"] == []
+    assert manifest.payload["blocked_staging_rows"] == [
+        {
+            "institution_id": INSTITUTION_ID,
+            "staging_id": protected["id"],
+            "url_sha256": hashlib.sha256(COURSE_URL.encode()).hexdigest(),
+            "content_sha256": "f" * 64,
+            "status": "processed",
+            "reason": "historical_staging_state_protected",
+        }
+    ]
+
+
+def test_course_sync_refresh_retains_manual_editorial_override() -> None:
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "pipeline_ready": True,
+        "website_url": BASE_URL,
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    adapter.tables["courses"].append(
+        {
+            "id": COURSE_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": COURSE_URL,
+            "name": "Título anterior",
+            "last_404_at": None,
+            "is_active": True,
+        }
+    )
+    manual_state = {
+        "course_id": COURSE_ID,
+        "manual_overrides": {"name": "Nombre editorial vigente"},
+        "field_sources": {"name": "manual_override"},
+        "field_timestamps": {"name": "2026-10-30T12:00:00+00:00"},
+        "manual_updated_at": "2026-10-30T12:00:00+00:00",
+        "editorial_status": "active",
+    }
+    adapter.tables["course_editorial_state"].append(manual_state)
+    enriched = {
+        "id": ENRICHED_ID,
+        "cleansed_id": CLEANSED_ID,
+        "institution_id": INSTITUTION_ID,
+        "url": COURSE_URL,
+        "official_name": "Nombre detectado en refresh",
+        "duration_text": "6 meses",
+        "duration_months": 6,
+        "total_cost_est": 1250.0,
+        "requirements": "Requisitos sintéticos",
+        "graduate_profile": "Analista inicial",
+        "curriculum_summary": {"module": "Modelado"},
+        "target_audience": "Profesionales",
+        "objectives": "Modelar datos",
+        "benefits": "Proyecto práctico",
+        "certifications": "Constancia sintética",
+        "modality": "Remoto",
+        "primary_campus": "Virtual",
+        "degree_type": "Curso",
+        "start_date": "2027-04-01",
+        "categories": ["Data"],
+        "difficulty_level": "intermediate",
+        "ai_summary": "Resumen sintético.",
+        "provider_used": "synthetic-provider",
+        "is_mock_data": False,
+        "status": "pending",
+        "metadata": {},
+    }
+    adapter.tables["enriched_programs"].append(enriched)
+    with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
+        syncer = SyncVectorWorker()
+
+    with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
+        assert syncer.sync_to_production(enriched) is True
+
+    quality = next(event for event in adapter.status_events if event["status"] == "quality-updated")
+    assert quality["field_sources"]["name"] == "manual_override"
+    assert manual_state["manual_overrides"]["name"] == "Nombre editorial vigente"
+    refreshed_course = next(row for row in adapter.tables["courses"] if row["id"] == COURSE_ID)
+    assert refreshed_course["name"] == "Nombre detectado en refresh"
 
 
 def test_paginated_discovery_extracts_only_allowlisted_links() -> None:

@@ -17,6 +17,7 @@ except ImportError:
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from shared.utils import (
     infer_course_type,
@@ -28,6 +29,12 @@ from shared.utils import (
     ProviderOrchestrator,
 )
 from shared.db_client import get_db_client
+from scripts.core.fg2_bounded_run import (
+    FG2CohortManifest,
+    InvalidControlledRun,
+    require_manifest_sha256,
+    uuid_in_filter,
+)
 
 # Setup logging
 load_dotenv()
@@ -145,9 +152,40 @@ class EnrichmentWorker:
             return bool(profile.get(gate_name))
         return bool(profile.get('pipeline_ready'))
 
-    def get_pending_cleansed(self, limit=None, institution_id=None):
+    def get_pending_cleansed(self, limit=None, institution_id=None, cohort_manifest=None):
         """Obtiene pendientes; el loop materializa skips para gates deshabilitados."""
         try:
+            if cohort_manifest is not None:
+                raw_ids = cohort_manifest.staging_ids
+                if not raw_ids:
+                    return []
+                if not self.ready_inst_ids:
+                    raise InvalidControlledRun("controlled cohort has no pipeline-enabled institutions")
+                filters = f"status=eq.pending&{uuid_in_filter('staging_id', raw_ids)}"
+                records = self.db.select_all_pipeline(
+                    'cleansed_programs',
+                    filters=filters,
+                    order="id.asc",
+                )
+                cohort_manifest.assert_related_stage_records(
+                    records,
+                    foreign_key="staging_id",
+                    allowed_ids=raw_ids,
+                    stage="enrichment",
+                )
+                institution_by_raw_id = {
+                    entry["staging_id"].lower(): entry["institution_id"].lower()
+                    for entry in cohort_manifest.payload["entries"]
+                }
+                for row in records:
+                    raw_id = row["staging_id"].lower()
+                    if str(row.get("institution_id", "")).lower() != institution_by_raw_id[raw_id]:
+                        raise InvalidControlledRun("enrichment cohort institution changed")
+                    if row.get("status") != "pending":
+                        raise InvalidControlledRun("enrichment cohort row is not pending")
+                    if str(row.get("institution_id")) not in self.ready_inst_ids:
+                        raise InvalidControlledRun("enrichment cohort institution is no longer enabled")
+                return records[:limit] if limit is not None else records
             filters = "status=eq.pending"
             if institution_id:
                 if str(institution_id) not in self.ready_inst_ids:
@@ -1034,7 +1072,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run AI Enrichment Worker")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of records to process")
     parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
+    parser.add_argument("--cohort-manifest", help="Exact controlled-run manifest; disables global queue selection")
+    parser.add_argument("--cohort-manifest-sha256", help="Expected manifest digest from the harvesting job")
     args = parser.parse_args()
+
+    try:
+        args.cohort_manifest_sha256 = require_manifest_sha256(
+            args.cohort_manifest, args.cohort_manifest_sha256
+        )
+    except InvalidControlledRun as exc:
+        parser.error(str(exc))
+
+    cohort_manifest = None
+    if args.cohort_manifest:
+        cohort_manifest = FG2CohortManifest.load(
+            args.cohort_manifest,
+            expected_sha256=args.cohort_manifest_sha256,
+            expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
+            expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
+            expected_source_sha=os.getenv("GITHUB_SHA", ""),
+        )
 
     worker = EnrichmentWorker()
     guard = TimeGuard(max_seconds=20400, logger=logger)
@@ -1060,7 +1117,11 @@ if __name__ == "__main__":
             if remaining <= 0: break
             fetch_limit = min(batch_size, remaining)
 
-        records = worker.get_pending_cleansed(limit=fetch_limit, institution_id=args.institution_id)
+        records = worker.get_pending_cleansed(
+            limit=fetch_limit,
+            institution_id=args.institution_id,
+            cohort_manifest=cohort_manifest,
+        )
 
         if not records or len(records) == 0:
             logger.info("✅ No hay más registros pendientes por enriquecer.")

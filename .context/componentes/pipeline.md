@@ -46,6 +46,50 @@ La implementación actual usa los gates Fase 100 discovery_enabled, pipeline_ena
 
 Harvester usa content_hash SHA-256 y estados para no reprocesar contenido idéntico. SQL lock_staging_records/lock_cleansed_records marca trabajo y evita que workers consuman dos veces una misma cohorte; RPC atómicas preservan estados de origen/destino. Orchestrator time guard y circuit breaker limitan un job largo; gate cerrado salta institución. Los workers registran processing_error/reason/error y no consideran output LLM como schema garantizado. La regla de retry/requeue está en RPCs y scripts; no requeue en esta transferencia.
 
+## Primera corrida FG2 acotada — candidato local 2026-11-09
+
+El candidato local añade `bounded_first_run` al `workflow_dispatch`, con valor
+predeterminado `false`. El cron diario `0 5 * * *` continúa usando el camino
+ordinario, que no consume este manifest y conserva los límites vigentes. El
+camino ordinario puede leer colas globales; habilitarlo o despacharlo requiere
+los gates propios y una revisión separada de ese alcance.
+
+La ejecución controlada mantiene el selector rotativo por
+`last_harvest_at ASC NULLS FIRST` y valida estado de perfil, elegibilidad y
+seeds antes de iniciar contacto externo. El transporte queda limitado a una
+solicitud simultánea por origen, al menos 5 segundos entre inicios, 10 URLs
+únicas incluyendo URLs de sitemap, y 20 inicios HTTP por institución; los
+redirects y reintentos cuentan para el presupuesto. Solo espera `Retry-After`
+válido de hasta 30 segundos; si
+excede ese máximo, difiere el origen. Ante 403 o 429 detiene ese origen sin
+reintentar la respuesta de bloqueo. Cada salto valida DNS público y fija la IP
+validada en una sesión HTTPS directa, sin proxy de entorno, redirects ni retries
+automáticos.
+
+El manifest queda ligado a run, intento, SHA de fuente, IDs y hashes de perfil,
+seeds, URL y contenido. Cleansing, enrichment y sync verifican el mismo digest
+y solo consultan IDs relacionados incluidos en el manifest; rechazan registros
+de otra institución, etapa o cohorte. El workflow transporta el digest entre
+jobs y conserva el manifest como artifact por siete días. Un job `SUCCESS` no
+acredita que hubiera trabajo; debe revisarse el resultado funcional y el
+manifest.
+
+La clasificación distingue `new_discovery` (sin fila de curso conocida) de
+`refresh_existing` (misma URL asociada a un `course_id` de esa institución).
+Un refresh sintético conserva el ID de curso y `course_editorial_state`; el
+contrato editorial mantiene `manual_override` y su timestamp en sync. La
+unicidad histórica de `staging_raw.url` impide reciclar silenciosamente una fila
+`processing`, `processed`, `discarded` o `skipped`: se registra el bloqueo en el
+manifest y no se reabre ni se resetea. Cualquier transición manual de esos
+estados exige un dry-run con IDs exactos y DML aprobada fuera de este ciclo.
+
+La transición es aditiva: `expand` añade el modo opt-in y el manifest;
+`compatibilidad` conserva default false y el camino ordinario; `deploy` pasa por
+promoción protegida; `contract` queda pendiente de evidencia funcional y gates
+posteriores. Rollback local: descartar el diff aislado. Tras una eventual
+integración, revertir por el mismo flujo protegido; ninguna etapa de este
+contrato activa schedules o cambia flags.
+
 ## Proveedores, simulación y discrepancia documental
 
 El código actual construye dos proveedores: DeepSeek v4 Flash por endpoint OpenCode-compatible, seguido de Cloudflare Workers AI Meta Llama 3.1 8B. Si proveedores fallan, el worker puede usar mock/smart-mock y marcar provider_used/is_mock_data. Variables por nombre: OPENCODE_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN. No se leyeron valores ni se invocaron servicios.
