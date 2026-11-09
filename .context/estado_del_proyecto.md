@@ -6,7 +6,7 @@
 
 ## Corte vigente
 
-### H1REQ1 — checkpoint local FG2/FG3, 2026-11-09 10:32 America/Lima
+### H1REQ1 — checkpoint local FG2/FG3, 2026-11-09 12:03 America/Lima
 
 La decisión de Romel permite una primera FG2 controlada antes de llegar a cero
 cursos activos incompletos; cero sigue siendo condición de cierre y se conservan
@@ -91,6 +91,23 @@ por flujo protegido y aprobaciones separadas; `contract` = no se activa en este
 ciclo. El rollback local es descartar el checkout/diff aislado; si se integra,
 revertirlo por el mismo flujo protegido. La primera corrida funcional espera a
 que el candidato exacto llegue a main y supere el preflight/JIT de producción.
+
+#### Estado de publicación local
+
+La implementación FG2 y su suite quedaron consolidadas en una rama local de
+revisión; el detalle de SHA exacto, árbol, paquete reproducible y evidencias
+está en el changelog H1REQ1 externo
+`/tmp/h3req1-installation-audit-20261104/CHANGELOG-H1REQ1.md`. El paquete
+continúa sin publicar. El
+clon temporal usado para preparar el commit tiene `origin` apuntando al checkout
+FG2 local, no a GitHub; no ejecutar `git push` usando ese remoto. La decisión
+humana pendiente es autorizar o rechazar únicamente la publicación del commit
+exacto que figure en el último checkpoint del changelog. Si se autoriza, antes
+de publicar se debe apuntar el checkout aislado al repositorio GitHub correcto,
+verificar que la rama remota no tenga contenido divergente y confirmar de nuevo
+el SHA. Esa autorización no abre un PR ni habilita merge, promoción, configuración
+ni operación Pro; cada paso conserva su gate. E9 no está ejecutado, E10 mantiene
+cero pares y 72 horas sin iniciar, y H4 conserva su gate.
 
 ### H3REQ1 — corte operativo 2026-11-06
 
