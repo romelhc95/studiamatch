@@ -114,6 +114,23 @@ if [ -n "$changed" ]; then
    allowed_h3_extra='^(\.gitattributes|AGENTS\.md|\.githooks/pre-push|tests/h3_admin_(auth_error_uat|invite_edge_typecheck|quota_uat|quota_runtime|quota_postgrest|safe_suspend_uat|safe_suspend_runtime_uat)\.mjs|tests/h3_local_runtime_(server|quota_fixture)\.mjs|tests/h3req1_c03_(cache_digest|startup_healthz_probe|safe_postgrest_error_code|replay_state_diagnostic)\.mjs|tests/h3req1_pipeline_postgrest_pg17_integration\.py|tests/h3req1-c03-(bootstrap/package\.json|edge-lock-output-r3/deno-edge-runtime-v1\.74\.3-r3\.lock|edge-lock-resolver/deno\.json|edge-main/index\.ts|startup-source-s1-v6\.sha256)|tests/h3req1_c03_postgrest_probe\.mjs|tests/h3req1_c03_docker_daemon_identity_f2d\.py|tests/test_h3req1_c03_docker_daemon_identity_f2d\.py|tests/sql/h3_admin_rpc_signed_gateway_harness\.sql|tests/sql/h3_invitation_(edge_runtime|onboarding)_harness\.sql|tests/sql/(h2_pro_pg17_harness|h3_from_h2_pro_pg17_harness|h3_safe_suspend_harness|h3_admin_quota_harness|h3_quota_postgrest_(fixture|assert))\.sql|db/(rollback/h3req1_safe_suspend|migrations/20261002_h3_admin_(quotas|quota_expand))\.sql|workers/admin-quota/(index\.ts|wrangler\.jsonc)|web/functions/_lib/admin-quota\.ts|scripts/security/(h2_web_mock_smoke\.sh|protected_workflow_review\.py|protected_path_scope_guard\.sh|scan_credentials\.sh|scan_worktree_file\.py)|scripts/security/pwi_worker/(README\.md|github\.mjs|index\.mjs|package\.json|package-lock\.json|policy\.mjs|test/pwi_worker\.test\.mjs|runtime-test/pwi_worker\.runtime\.test\.mjs|vitest\.config\.mjs|wrangler\.jsonc)|tests/test_(protected_workflow_review|obsidian_context_state)\.py|scripts/maintenance/taxonomy_roi_audit\.py|scripts/shared/site_diagnostics\.py|supabase/functions/send-lead-emails/index\.ts|tests/(test_(site_diagnostics_security|taxonomy_roi_audit_privacy)\.py|h3_send_lead_error_uat\.mjs)|web/eslint\.config\.mjs|\.context/evidencia/h3req1_(g10_remote_preparation_2026-10-18_r19|development_integration_package_2026-10-18_r19|pr_body_draft_local_review_2026-10-18_r19|remote_preparation_checks_2026-10-18_r19|remote_preparation_independent_review_2026-10-18_r19|pr_scope_manifest_2026-10-18_r19_reconciled|pr_scope_manifest_2026-10-19_r19_pwi_r3_reconciled|visual_evidence_redaction_2026-10-18_r19)\.(md|txt|json)|\.context/evidencia/(h3req1_g08_credentials_contract_r159_focused\.log|h3req1_g08_current_pytest_r160\.log|h3req1_g08_final_2026-10-10_r2/(h3req1_g08_app_regressions_inputs_r1\.sha256|quota-uat\.out)|h3req1_g09_onboarding_2026-10-11_r7/source-provenance-r7/source-inputs-r7\.sha256)|\.context/(sistema_db_supabase\.md|operaciones/(plan_go_h3req1_local_development_2026-10-02|h3req1_remediation_plan_2026-09-24|h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06)\.md|evidencia/planes_historicos/(plan_go_h3req1_local_development_2026-10-02|h3req1_remediation_plan_2026-09-24|h3req1_ruta_ejecutable_go_pr_y_remoto_2026-10-06)\.md))$'
    # Exact H3 Pro manifest/remediation additions; siblings remain rejected.
    allowed_h3_migration_manifest='^(\.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28\.json|\.context/hitos/hito_001\.md|\.github/workflows/db-sync-to-pro\.yml|scripts/maintenance/(pro_h3_migration_manifest|check_db_parity|db_migrate|h2_pro_preflight_report)\.py|tests/(test_h3_pro_migration_manifest|test_fase10_main_boundary|test_h2_pro_preflight_report)\.py|tests/admin_audit_changes\.test\.mjs|web/src/lib/admin-audit-changes\.mjs|db/migrations/20261105_h3_first_admin_auth_bootstrap\.sql)$'
+   # H1 bounded FG2 admission is limited to the exact paths the current guard rejected.
+   allowed_h1_local=$(cat <<'H1_LOCAL_PATHS'
+.context/componentes/utilidades_compartidas.md
+.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json
+.context/operaciones/plan_cierre_hito1_ca1_only.md
+.context/operaciones/plan_remediacion_f10_9_fg2_fg3.md
+scripts/core/cleansing_worker.py
+scripts/core/enrichment_worker.py
+scripts/core/fg2_bounded_run.py
+scripts/core/master_orchestrator.py
+scripts/core/sync_vector_worker.py
+tests/test_fg2_bounded_orchestration.py
+tests/test_fg2_bounded_run.py
+tests/test_fg2_bounded_workers.py
+tests/test_fg2_bounded_workflow.py
+H1_LOCAL_PATHS
+)
    # Exact retired paths stay allowlisted so scoped deletions still run this gate.
    # R19's exact reconciled candidate and catalog-reference closure are checked against this list by
    # tests/test_protected_path_scope_guard.sh; keep deletions and ignored evidence explicit.
@@ -1366,6 +1383,10 @@ H3_LOCAL_PATHS
        set +e
        grep -Fqx -- "$candidate" <<< "$allowed_h3_local"
        matcher_status=$?
+       if [ "$matcher_status" -eq 1 ]; then
+         grep -Fqx -- "$candidate" <<< "$allowed_h1_local"
+         matcher_status=$?
+       fi
        set -e
        if [ "$matcher_status" -eq 1 ]; then
          if [ -z "$scoped_disallowed" ]; then

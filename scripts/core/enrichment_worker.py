@@ -17,6 +17,7 @@ except ImportError:
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from shared.utils import (
     infer_course_type,
@@ -28,6 +29,13 @@ from shared.utils import (
     ProviderOrchestrator,
 )
 from shared.db_client import get_db_client
+from scripts.core.fg2_bounded_run import (
+    FG2CohortManifest,
+    InvalidControlledRun,
+    require_manifest_sha256,
+    url_sha256,
+    uuid_in_filter,
+)
 
 # Setup logging
 load_dotenv()
@@ -145,9 +153,54 @@ class EnrichmentWorker:
             return bool(profile.get(gate_name))
         return bool(profile.get('pipeline_ready'))
 
-    def get_pending_cleansed(self, limit=None, institution_id=None):
+    def get_pending_cleansed(self, limit=None, institution_id=None, cohort_manifest=None):
         """Obtiene pendientes; el loop materializa skips para gates deshabilitados."""
         try:
+            if cohort_manifest is not None:
+                raw_ids = cohort_manifest.staging_ids
+                if not raw_ids:
+                    return []
+                if not self.ready_inst_ids:
+                    raise InvalidControlledRun("controlled cohort has no pipeline-enabled institutions")
+                filters = f"status=eq.pending&{uuid_in_filter('staging_id', raw_ids)}"
+                records = self.db.select_all_pipeline(
+                    'cleansed_programs',
+                    filters=filters,
+                    order="id.asc",
+                )
+                cohort_manifest.assert_related_stage_records(
+                    records,
+                    foreign_key="staging_id",
+                    allowed_ids=raw_ids,
+                    stage="enrichment",
+                )
+                institution_by_raw_id = {
+                    entry["staging_id"].lower(): entry["institution_id"].lower()
+                    for entry in cohort_manifest.payload["entries"]
+                }
+                entry_by_raw_id = {
+                    entry["staging_id"].lower(): entry
+                    for entry in cohort_manifest.payload["entries"]
+                }
+                for row in records:
+                    raw_id = row["staging_id"].lower()
+                    if str(row.get("institution_id", "")).lower() != institution_by_raw_id[raw_id]:
+                        raise InvalidControlledRun("enrichment cohort institution changed")
+                    if row.get("status") != "pending":
+                        raise InvalidControlledRun("enrichment cohort row is not pending")
+                    if str(row.get("institution_id")) not in self.ready_inst_ids:
+                        raise InvalidControlledRun("enrichment cohort institution is no longer enabled")
+                    entry = entry_by_raw_id[raw_id]
+                    expected_cleaned_url_sha = entry.get(
+                        "cleansed_url_sha256", entry["url_sha256"]
+                    )
+                    if url_sha256(row.get("url", "")) != expected_cleaned_url_sha:
+                        raise InvalidControlledRun("enrichment cohort URL identity changed")
+                    row["_fg2_expected_url_sha256"] = expected_cleaned_url_sha
+                    row["_fg2_expected_raw_url_sha256"] = entry["url_sha256"]
+                    row["_fg2_manifest_staging_id"] = entry["staging_id"]
+                    row["_fg2_manifest_content_sha256"] = entry["content_sha256"]
+                return records[:limit] if limit is not None else records
             filters = "status=eq.pending"
             if institution_id:
                 if str(institution_id) not in self.ready_inst_ids:
@@ -169,6 +222,51 @@ class EnrichmentWorker:
 
         logger.info("No hay registros pendientes en cleansed_programs.")
         return []
+
+    def _verify_fg2_manifest_url_identity(self, cleansed):
+        """Recheck staging→cleansed URL identity immediately around enrichment writes."""
+        expected_url_sha = cleansed.get("_fg2_expected_url_sha256")
+        if expected_url_sha is None:
+            return
+        cleansed_id = str(cleansed.get("id") or "")
+        staging_id = str(cleansed.get("_fg2_manifest_staging_id") or cleansed.get("staging_id") or "")
+        institution_id = str(cleansed.get("institution_id") or "").lower()
+        try:
+            current_cleansed = self.db.select_pipeline_raise(
+                "cleansed_programs",
+                filters=f"id=eq.{quote(cleansed_id, safe='')}",
+                columns="id,staging_id,institution_id,url,status",
+                limit=2,
+            )
+            current_raw = self.db.select_pipeline_raise(
+                "staging_raw",
+                filters=f"id=eq.{quote(staging_id, safe='')}",
+                columns="id,institution_id,url,status,content_hash",
+                limit=2,
+            )
+        except Exception as exc:
+            raise InvalidControlledRun("failed to revalidate enrichment URL identity") from exc
+        if not isinstance(current_cleansed, list) or len(current_cleansed) != 1:
+            raise InvalidControlledRun("enrichment URL identity is missing or duplicated")
+        if not isinstance(current_raw, list) or len(current_raw) != 1:
+            raise InvalidControlledRun("enrichment staging URL identity is missing or duplicated")
+        cleansed_row = current_cleansed[0]
+        raw_row = current_raw[0]
+        if (
+            str(cleansed_row.get("id")) != cleansed_id
+            or str(cleansed_row.get("staging_id")) != staging_id
+            or str(cleansed_row.get("institution_id", "")).lower() != institution_id
+            or cleansed_row.get("status") != "pending"
+            or url_sha256(cleansed_row.get("url", "")) != expected_url_sha
+            or str(raw_row.get("id")) != staging_id
+            or str(raw_row.get("institution_id", "")).lower() != institution_id
+            or raw_row.get("status") != "processed"
+            or url_sha256(raw_row.get("url", "")) != cleansed.get(
+                "_fg2_expected_raw_url_sha256", expected_url_sha
+            )
+            or raw_row.get("content_hash") != cleansed.get("_fg2_manifest_content_sha256")
+        ):
+            raise InvalidControlledRun("enrichment cohort URL identity changed before write")
 
     def _call_deepseek(self, prompt):
         if not OPENCODE_API_KEY or OpenAI is None:
@@ -723,6 +821,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         return sections
 
     def enrich_record(self, cleansed):
+        self._verify_fg2_manifest_url_identity(cleansed)
         c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
         inst_id = cleansed.get('institution_id')
         staging_id = cleansed.get('staging_id')
@@ -916,11 +1015,13 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             }]
             # RPC errors fail closed. Only a falsey normal response permits the
             # idempotent upsert fallback.
+            self._verify_fg2_manifest_url_identity(cleansed)
             rpc_result = self.db.rpc_raise('atomic_enrichment_promote', {
                 "p_enriched_data": rpc_data,
                 "p_cleansed_id": str(c_id)
             })
             if not rpc_result:
+                self._verify_fg2_manifest_url_identity(cleansed)
                 upsert_result = self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
                 if not upsert_result:
                     raise RuntimeError("Fallback upsert failed for enriched_programs")
@@ -1034,7 +1135,27 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run AI Enrichment Worker")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of records to process")
     parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
+    parser.add_argument("--cohort-manifest", help="Exact controlled-run manifest; disables global queue selection")
+    parser.add_argument("--cohort-manifest-sha256", help="Expected manifest digest from the harvesting job")
     args = parser.parse_args()
+
+    try:
+        args.cohort_manifest_sha256 = require_manifest_sha256(
+            args.cohort_manifest, args.cohort_manifest_sha256
+        )
+    except InvalidControlledRun as exc:
+        parser.error(str(exc))
+
+    cohort_manifest = None
+    if args.cohort_manifest:
+        cohort_manifest = FG2CohortManifest.load(
+            args.cohort_manifest,
+            expected_sha256=args.cohort_manifest_sha256,
+            expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
+            expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
+            expected_source_sha=os.getenv("GITHUB_SHA", ""),
+            allow_empty=True,
+        )
 
     worker = EnrichmentWorker()
     guard = TimeGuard(max_seconds=20400, logger=logger)
@@ -1060,7 +1181,11 @@ if __name__ == "__main__":
             if remaining <= 0: break
             fetch_limit = min(batch_size, remaining)
 
-        records = worker.get_pending_cleansed(limit=fetch_limit, institution_id=args.institution_id)
+        records = worker.get_pending_cleansed(
+            limit=fetch_limit,
+            institution_id=args.institution_id,
+            cohort_manifest=cohort_manifest,
+        )
 
         if not records or len(records) == 0:
             logger.info("✅ No hay más registros pendientes por enriquecer.")

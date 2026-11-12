@@ -127,10 +127,10 @@
     },
     "integration_projection": {
       "name": "bootstrap inicial del primer Admin — candidato local 2026-11-05",
-      "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap y el path existente del scope guard reclasificado como candidate-only por su cambio. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.",
-      "candidate_only_path_count_at_cut": 318,
-      "note": "Recuento recalculado en copias Git limpias del candidato: 764 fuentes, 318 candidate-only (312 del corte anterior, cinco fuentes nuevas y un path existente del guard reclasificado), dejando 446 fuentes en la proyección. El residual histórico del checker se compara por listas completas con el mismo baseline y no se convierte en PASS integral.",
-      "refresh": "Este corte local incluye únicamente las cinco fuentes nuevas declaradas; si cambia el scope, recalcular listas y revisar asignaciones antes de congelar el candidato.",
+      "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap, el path existente del scope guard reclasificado como candidate-only por su cambio y cinco fuentes nuevas exactas del candidato local FG2 H1: scripts/core/fg2_bounded_run.py y sus cuatro pruebas. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.",
+      "candidate_only_path_count_at_cut": 323,
+      "note": "Recuento recalculado en el candidato local H1: 769 fuentes, 323 candidate-only (318 del corte previo más cinco fuentes FG2 nuevas exactas), dejando 446 fuentes en la proyección. El resultado integral permanece separado del resultado acotado y se compara contra la lista completa del baseline limpio.",
+      "refresh": "Este corte local suma únicamente las cinco fuentes FG2 nuevas declaradas; si cambia el scope, recalcular listas y revisar asignaciones antes de congelar el candidato.",
       "projected_relevant_source_paths_at_cut": 446
     }
   },
@@ -10258,10 +10258,11 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "UniversalHarvester valida esquema/host/asset, sitemap/BFS, gates y exclusiones; canonicaliza, extrae y calcula hash de contenido antes de staging. Casos/errores están desglosados en la ficha y nota R11.",
+        "note": "UniversalHarvester conserva sitemap/BFS, gates/exclusiones, canonicalización y hash de contenido. El modo controlado exige el lote revisado ligado a referencia, SHA de fuente, huella institucional y snapshot exacto de URLs/IDs/estados; vuelve a verificar perfil, seeds y alcance antes del primer request y escritura. Aplica pacing/concurrencia y presupuesto por origen, detiene ante 403/429, clasifica discovery frente a refresh y no reabre estados históricos. Su GET usa content_callback y acumula como máximo 2 MiB por respuesta sin confiar en Content-Length; el callback aborta libcurl al superar el límite y difiere el origen antes del parseo/staging. Las URLs nuevas no se persisten durante discovery y staging se crea después de un GET de detalle completo y parseable, por lo que un exceso no deja filas nuevas. Toda navegación Playwright pasa por una barrera que falla antes de la solicitud en modo controlado; el runner rechaza perfiles que requieren browser. En el modo ordinario no se instala el interceptor y se conserva page.goto tras validar la forma inicial de URL; esa ruta no usa pin DNS ni los presupuestos del transporte bounded y no acredita E9/E10.",
         "evidence": [
           "path:scripts/core/universal_harvester.py",
           "path:.context/componentes/pipeline.md",
+          "path:tests/test_fg2_bounded_orchestration.py",
           "path:tests/test_h3req1_pipeline_discovery_boundaries.py"
         ]
       },
@@ -10285,18 +10286,19 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La suite de límites cubre esquemas/host/assets, sitemap, gates y circuit breaker; pipeline walk cubre modos, resume y handoff. R18 conserva 24 passed/1 warning; el handoff limita los hashes: test R18 y harvester input documentado R14 coincide con el candidato, pero no atribuye un digest de harvester específico al R18.",
+        "note": "R18 registra históricamente 24 passed/1 warning, pero tests/test_h3req1_pipeline_discovery_boundaries.py no existe en el checkout c0 y no es ejecutable aquí. En Docker --network none, imagen fijada sha256:ebbf777792ee636179660638264c3d7b501f79e8efec731296d5ef41d07d18e6: el ciclo actual cubre callback válido, respuesta chunked sin Content-Length, aborto de transferencia al exceder 2 MiB, cero writes por exceso y persistencia tras body válido. Los módulos verifican URL/perfil, rotación, pacing, concurrencia, redirects/reintentos, Retry-After, presupuesto, bloqueos 403/429 y barrera Playwright. La regresión sintética confirma que la ruta ordinaria conserva page.goto y que la ruta controlada falla antes de llamarlo. El detalle y la regresión del paquete quedan registrados en el checkpoint local de pruebas. No es ejecución de origen.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h3req1_pipeline_discovery_boundaries.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
+          "path:tests/test_fg2_bounded_run.py",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-walk-r2-handoff-2026-10-11.md",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-discovery-r18.stdout.txt"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "El proceso puede leer sitios externos y escribir staging; gate cerrado, host/scheme inválido, sitemap defectuoso o circuit breaker deben fallar/omitir de forma cerrada. Reproducción exclusivamente con fixture aislado.",
+        "note": "El proceso puede leer sitios externos y escribir staging. El candidato controlado se validó con fixture sintético/red none; una ejecución de origen exige preflight elegible, seeds, alcance congelado y autorización JIT de writer/dispatch.",
         "evidence": [
           "path:scripts/core/universal_harvester.py",
           "path:.github/workflows/production_pipeline.yml",
@@ -10360,11 +10362,13 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_h2_pipeline_contract.py afirma contratos de campos/estado; test_h3req1_local_pipeline_walk.py prueba transform y recovery sintéticos; h3req1_pipeline_postgrest_pg17_integration.py tiene output R161 de failure/recovery y handoff persistido. R161 log no trae SHA del runner; el resultado queda acotado a ese corte PG17/PostgREST.",
+        "note": "test_h2_pipeline_contract.py afirma contratos de campos/estado; test_h3req1_local_pipeline_walk.py prueba transform/recovery y refresh editorial sintéticos; test_fg2_bounded_workers.py rechaza IDs fuera del manifest en cleansing, enrichment y sync. En Docker --network none, la revalidación actual de seis suites FG2/pipeline/H2 pasó 106; la regresión ampliada con contrato de credenciales y controles fase 09/10 pasó 169, 1 deselected, 1 warning PyPDF2. El excluido es la aserción H2 antigua contra archivos sin cambios; no es PASS. h3req1_pipeline_postgrest_pg17_integration.py conserva output R161, limitado a su corte PG17/PostgreSQL.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h2_pipeline_contract.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
+          "path:tests/test_fg2_bounded_workers.py",
+          "path:tests/test_fg2_bounded_run.py",
           "path:tests/h3req1_pipeline_postgrest_pg17_integration.py",
           "path:.context/evidencia/h3req1_g09_pipeline_postgrest_r161/run-r10.log",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-walk-r2-handoff-2026-10-11.md"
@@ -10397,17 +10401,21 @@
         "anchor": "fuentes-y-relaciones"
       },
       "id": "pipeline-orchestration-integrity",
-      "purpose": "Orquestación de estaciones, límites del job y verificación de vigencia por URL.",
+      "purpose": "Orquestación de estaciones, límites/cohortes de FG2 y verificación de vigencia por URL.",
       "paths": [
         "scripts/core/integrity_ping.py",
-        "scripts/core/master_orchestrator.py"
+        "scripts/core/master_orchestrator.py",
+        "scripts/core/fg2_bounded_run.py"
       ],
-      "candidate_only_paths": [],
+      "candidate_only_paths": [
+        "scripts/core/fg2_bounded_run.py"
+      ],
       "contracts": {
         "state": "verified",
-        "note": "master_orchestrator decide gates/cohorte/recencia, inicia subprocesos con time guard y circuit breaker; integrity_ping fija DNS/IP pública y limita patch a curso exacto con gracia para 404. Contratos concretos en la ficha pipeline. CA4 candidate: old start dates, expired/unknown enrollment and transient failures do not deactivate; repeated 404/410 after grace does. HTTP 200 is reachability only; semantic catalog membership is outside H3 and traced to H1.",
+        "note": "master_orchestrator decide gates/rotación y subprocesos; para el modo acotado exige que las instituciones aprobadas sigan siendo el prefijo elegible actual. Dentro de cada perfil aprobado, el lote puede seleccionar un subconjunto ordenado, único, de mismo origen y dentro del máximo de URLs de los seeds configurados; el preflight vuelve a compararlo con el perfil antes del contacto. Valida snapshot/huellas antes de lanzar y rechaza Playwright antes del runner si la ruta lo necesita. fg2_bounded_run liga referencia/SHA, URLs/IDs/estados/downstream, presupuesto HTTP y manifest al run/attempt/SHA/IDs/hashes. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
+          "path:scripts/core/fg2_bounded_run.py",
           "path:scripts/core/integrity_ping.py",
           "path:.context/componentes/pipeline.md"
         ]
@@ -10433,7 +10441,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_fase09_9_certification_canary.py, test_fase10_production_canary.py y credential contract inspeccionan límites/wiring del orquestador; pipeline walk y R161 aportan casos sintéticos para validadores/patch de integrity. No se encontró una ejecución dedicada del runtime completo de master_orchestrator; R160 es agregado y R161 prueba las estaciones, no schedule.",
+        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight, selección de seeds, drift, revalidación antes del primer PATCH y barrera Playwright; test_fg2_bounded_run.py cubre presupuesto/manifest; el recorrido sintético H1 verificó refresh. La regresión del paquete actual se registra en el checkpoint del ciclo. No es una corrida de instituciones ni ejecución remota de master_orchestrator; R161 sigue limitado a estaciones sintéticas.",
         "evidence": [
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
@@ -10441,6 +10449,8 @@
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_fase09_9_certification_canary.py",
           "path:tests/test_fase10_production_canary.py",
+          "path:tests/test_fg2_bounded_orchestration.py",
+          "path:tests/test_fg2_bounded_run.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
           "path:tests/test_integrity_ping_retirement_contract.py",
           "path:tests/test_supabase_credentials_contract.py"
@@ -10448,7 +10458,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "Orquestador lanza procesos potencialmente writer y la verificación hace requests y PATCH; solo ejecutar con preflight/identidad autorizada. YAML schedule es definición, no prueba de instalación o ejecución.",
+        "note": "Orquestador/worker pueden escribir y integrity_ping hace requests/PATCH. FG2 controlado se valida con fixtures Docker offline; un run operativo exige candidato en main, revalidar SHA, preflight/colas y JIT. El guard local exige refs/heads/main antes de Environments/credenciales para FG1/FG2/FG3/canary. YAML schedule es definición, no prueba de instalación o ejecución.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
           "path:scripts/core/integrity_ping.py",
@@ -10600,7 +10610,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "workflow_dispatch on main, Production environment, fixed SHA/target inputs and ordered preflight→manifest→snapshot→restore/attestation steps are declared locally.",
+        "note": "El workflow conserva solo workflow_dispatch; la condición de job requiere el ref exacto refs/heads/main antes de asignar Production. El SHA lock, manifest/snapshot, etapas autorizadas, restore y preflights por etapa se conservan. No es una schedule ni acredita dispatch remoto.",
         "evidence": [
           "path:.github/workflows/production_canary.yml"
         ]
@@ -10625,7 +10635,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "This workflow orchestrates modules and does not directly read or mutate DB rows; its modules have separate source assignments.",
+        "note": "test_fase09_10_pre_main_controls.py, test_fase10_production_canary.py y test_fase10_main_boundary.py verifican condición exacta main y orden antes de Environment. Incluidos en Docker offline agregado de 172 passed con una advertencia PyPDF2; no es un run real del canary.",
         "evidence": [
           "path:tests/test_fase10_production_canary.py",
           "path:tests/test_fase10_main_boundary.py"
@@ -10633,7 +10643,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "The workflow can reach Production and run the state restore path if dispatched; local YAML is not proof of installed permission/secrets/run. Dispatch requires separate authorization.",
+        "note": "La definición local limita el job a refs/heads/main antes del Environment y vuelve a ejecutar preflight en las etapas. No se despachó, no se cambió Production y no se infiere adopción GitHub.",
         "evidence": [
           "path:.github/workflows/production_canary.yml"
         ]
@@ -10915,20 +10925,20 @@
     {
       "id": "canary-test-pre-main-controls",
       "component": "canarios",
-      "purpose": "F9.10 fail-closed pre-main controls, writer pause and guarded DB-sync contract tests.",
+      "purpose": "F10.9 main-only fail-closed controls, writer preflight and unchanged DB Sync contract tests.",
       "status": "current",
       "inline_comment": "none",
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Exact suite responsibilities and assertions are documented by path/symbol in the canary test table.",
+        "note": "La suite comprueba ref completa main-only en guard y preflight, FG1/FG2/FG3/canary, bloqueo con flags permisivos en desarrollo/certificacion/tags, dependencias de jobs antes de Environment/credenciales y contrato DB Sync separado.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py"
         ]
       },
       "consumers": {
         "state": "verified",
-        "note": "The suite inspects the named modules/workflows in its assertions. Exact search in local workflow files found no direct pytest invocation of these four suite paths; no external runner is inferred.",
+        "note": "La suite inspecciona `.github/scripts/production_control_preflight.sh`, FG1/FG2/FG3, DB Sync y Production Canary, y ejecuta los bloques shell del guard/preflight con refs/flags sintéticos; no consulta ambientes.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py",
           "path:.github/workflows/fg1_inventory.yml",
@@ -10946,14 +10956,14 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "A test module defines the named contract cases; this verifies suite-to-contract mapping only. It was not executed during this documentation cycle and no PASS is claimed.",
+        "note": "Docker --network none ejecutó la regresión agregada exacta del candidato: 172 passed, una advertencia de deprecación PyPDF2. La suite incluye casos positivos de main, rechazo de refs no-main aunque flags permitan, guard sin Environment/secrets y dependencias de writers. El resultado no demuestra ejecución de Actions.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "The contract tests are locally defined to use static inputs/fakes and do not dispatch a real canary workflow or perform an operational restore.",
+        "note": "La prueba usa source inspection, shell local y fixtures sintéticos; no hace dispatch, contacta instituciones ni escribe en Pro. No acredita adopción remota del guard.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py"
         ]
@@ -14367,13 +14377,14 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "AST de ambos checkouts da 23 paths candidato/22 original; callers exactos por symbol están en nota R11. Enrichment invoca provider orchestration, workers consumen normalizadores/TimeGuard y 11 harvesters deprecated importan transforms/PDF.",
+        "note": "AST de ambos checkouts da 23 paths candidato/22 original; callers exactos por symbol están en nota R11. El candidato FG2 ahora importa normalize_url desde este módulo para comparar la identidad canónica del lote; los workers consumen normalizadores/TimeGuard y 11 harvesters deprecated importan transforms/PDF.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
           "path:scripts/core/cleansing_worker.py",
           "path:scripts/core/enrichment_worker.py",
           "path:scripts/core/sync_vector_worker.py",
-          "path:scripts/core/universal_harvester.py"
+          "path:scripts/core/universal_harvester.py",
+          "path:scripts/core/fg2_bounded_run.py"
         ]
       },
       "data": {
@@ -14420,7 +14431,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "The workflow declares monthly schedule and manual dispatch, runs FG1 preflight twice, then invokes discovery_institutions.py.",
+        "note": "El workflow declara schedule mensual y workflow_dispatch. Un job main_ref_guard sin Environment/secrets/vars, checkout ni permisos de contenido (`contents: none`) exige refs/heads/main; preflight y job de inventario dependen de su éxito. El preflight de FG1 también rechaza refs no-main con flags permisivos antes de discovery.",
         "evidence": [
           "path:.github/workflows/fg1_inventory.yml",
           "path:.github/scripts/production_control_preflight.sh"
@@ -14446,7 +14457,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Workflow source assertions are in test_scheduled_workflows_use_environment_bound_preflight_outputs and test_fg1_and_fg3_check_writer_pause_before_mutation. This relation does not claim a test execution result.",
+        "note": "test_fase09_10_pre_main_controls.py ejecuta el shell guard/preflight y comprueba dependencias del workflow, refs no-main y main; test_fase10_main_boundary.py lee los límites. Incluidos en la regresión Docker --network none de 172 passed, una advertencia. Son contratos locales; no prueban Actions, schedule, credenciales o ejecución real.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py",
           "path:tests/test_fase10_main_boundary.py"
@@ -14454,7 +14465,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "The YAML defines a scheduled/manual runner and enforced preflight before mutation. Active schedule and remote run remain unverified.",
+        "note": "El YAML define un runner manual/programado que solo llega al Environment Production en refs/heads/main; el job de guard es previo, sin credenciales. Active schedule y run remoto no se infieren del checkout.",
         "evidence": [
           "path:.github/workflows/fg1_inventory.yml",
           "path:.github/scripts/production_control_preflight.sh"
@@ -14486,7 +14497,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "The workflow declares a daily schedule and manual dispatch, installs requirements-fg3, runs enforced FG3 preflight, then calls integrity_ping.py from scripts/core.",
+        "note": "El workflow declara schedule diario y workflow_dispatch. El primer job main_ref_guard no usa Environment/secrets/vars/checkout y exige refs/heads/main; el preflight FG3 y el worker integrity dependen de ese éxito. El preflight compartido también falla cerrado en refs no-main aunque los flags sean permisivos; la etapa conserva el contrato FG3 de integridad.",
         "evidence": [
           "path:.github/workflows/fg3_integrity.yml",
           "path:.github/scripts/production_control_preflight.sh",
@@ -14513,7 +14524,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_scheduled_workflows_use_environment_bound_preflight_outputs and test_fg1_and_fg3_check_writer_pause_before_mutation read FG3; no current execution result is claimed.",
+        "note": "test_fase09_10_pre_main_controls.py ejecuta el shell guard y verifica dependencias sin Environment/secrets; test_fase10_main_boundary.py y el test de contrato de credenciales inspeccionan el YAML. Incluidos en la regresión Docker --network none de 172 passed, una advertencia. No prueba runs, cron o writes remotos.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py",
           "path:tests/test_fase10_main_boundary.py"
@@ -14521,7 +14532,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "The YAML defines a scheduled/manual runner with enforced preflight and the current integrity worker. Remote schedule, database and run status are unverified.",
+        "note": "El writer FG3 solo puede alcanzar Environment/worker desde refs/heads/main después del guard y preflight. Schedule declarado no demuestra activación. La función e integridad efectiva requieren run de producción autorizado.",
         "evidence": [
           "path:.github/workflows/fg3_integrity.yml",
           "path:scripts/core/integrity_ping.py"
@@ -14553,7 +14564,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "The YAML declares daily/manual execution and a sequential gated chain: master_orchestrator, cleansing, enrichment, sync and audit. Jobs install the hash-locked pipeline requirements.",
+        "note": "El YAML declara el schedule diario y workflow_dispatch. Un job main_ref_guard sin Environment/secrets/vars, checkout ni permisos de contenido (`contents: none`) exige refs/heads/main; preflight y todas las estaciones dependen de su éxito. El preflight por estación vuelve a bloquear refs no-main aun con flags permisivos. bounded_first_run sigue manual-only/default false, exige lote revisado por referencia/SHA/Base64, y pasa manifest/SHA a cleansing/enrichment/sync. El camino ordinario de schedule sigue separado y no hereda el manifest bounded.",
         "evidence": [
           "path:.github/workflows/production_pipeline.yml",
           "path:.github/scripts/production_control_preflight.sh"
@@ -14569,6 +14580,7 @@
           "path:scripts/core/sync_vector_worker.py",
           "path:requirements-pipeline.txt",
           "path:tests/test_fase09_10_pre_main_controls.py",
+          "path:tests/test_fg2_bounded_workflow.py",
           "path:tests/test_fase10_main_boundary.py",
           "path:tests/test_supabase_credentials_contract.py"
         ]
@@ -14585,7 +14597,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_scheduled_workflows_use_environment_bound_preflight_outputs and test_fg2_checks_writer_pause_before_every_mutating_station inspect the exact preflight ordering; test_fase10_main_boundary and credentials contract also read the YAML.",
+        "note": "test_fase09_10_pre_main_controls.py prueba guard, dependencias y preflight; test_fg2_bounded_workflow.py prueba el handoff del manifest; test_fase10_main_boundary.py y el contrato de credenciales inspeccionan el YAML. Regresión Docker --network none: 172 passed, una advertencia PyPDF2. No prueba Actions alojado, secrets, writers, schedule o alcance Pro.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py",
           "path:tests/test_fase10_main_boundary.py",
@@ -14594,7 +14606,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "The candidate defines the job order, per-stage enforced gates and dependencies. No schedule activation, secret provisioning, database writes or completion on a hosted runner is claimed.",
+        "note": "El candidato define orden de jobs y gates por etapa; solo refs/heads/main superan el guard. El bounded puede llegar a writers reales solo después de aprobación de lote, preflight y JIT; no se afirma run, activación de schedule, provisionamiento de secretos, escritura DB ni hosted runner.",
         "evidence": [
           "path:.github/workflows/production_pipeline.yml",
           "path:.github/scripts/production_control_preflight.sh"
@@ -15388,7 +15400,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts. The H3REQ1 follow-up admits the exact H2 main evidence path while leaving its content gate independent; frozen promotion pins are consumed only at their approved baseline for both PR and push callers. Invalid/ambiguous selection remains fail-closed. The H3 Pro DDL authorization is admitted only at the exact DRAFT path; that path does not satisfy the separate apply status/content gate. The post-#535 Pro ledger snapshot is admitted only at its exact dated path; the test rejects a neighboring filename and does not weaken the independent H2/H3 content gates. The local 2026-11-05 bootstrap candidate adds only its exact migration and evidence/test paths; it requires a fresh H2 candidate after the guard change is integrated, and no guard/manifest/PG17 result is claimed while Docker is unavailable.",
+        "note": "Credential identity patterns, protected path scope, local hook scans and workflow contracts. The H3REQ1 follow-up admits the exact H2 main evidence path while leaving its content gate independent; frozen promotion pins are consumed only at their approved baseline for both PR and push callers. Invalid/ambiguous selection remains fail-closed. The H3 Pro DDL authorization is admitted only at the exact DRAFT path; that path does not satisfy the separate apply status/content gate. The post-#535 Pro ledger snapshot is admitted only at its exact dated path; the test rejects a neighboring filename and does not weaken the independent H2/H3 content gates. The local 2026-11-05 bootstrap candidate adds only its exact migration and evidence/test paths; it requires a fresh H2 candidate after the guard change is integrated, and no guard/manifest/PG17 result is claimed while Docker is unavailable. H1 local candidate: FG1/FG2/FG3/Production Canary now require exact refs/heads/main; DB-SYNC retains its independent route. H1 2026-11-10 scope update: before the adjustment, the accumulated c736 development diff had 28 unique routes; the 21 modified since d18 overlap that set. The adjustment adds three routes (guard, regression and security-audit workflow), yielding 31 distinct routes. Existing rules admit 17 of the original 28; the H1 exact addition is limited to the 11 rejected FG2 plan/manifest/runtime/test paths. The scope guard retains its H2/H3 allowlists and does not add directory patterns. The H1 documentation selector contract pins the exact H1 manifest path, manifest_id and schema_version; its role is kept distinct from an exact PR-path manifest and grants no execution authority.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
@@ -15403,14 +15415,15 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "security-audit workflow calls the credential scanner, H2 writer scan, protected path guard and focused tests. The exact H2 evidence file is independently parsed by h2-main-production-expand-gate; the path allowlist does not satisfy its content, run, ancestry, jobs or artifact checks. tests/test_protected_path_scope_guard.sh covers the exact route, both promotion callers on PR and push, later baselines, source/hash drift and a neighboring path. Hooks run only if installed. The DB Sync apply caller resolves the authorization ID to one file and still requires its approved status and immutable payload checks; the registered H3 Pro file is explicitly non-authorizing until a later human-approved change.",
+        "note": "security-audit workflow calls the credential scanner, H2 writer scan, protected path guard and focused tests. The exact H2 evidence file is independently parsed by h2-main-production-expand-gate; the path allowlist does not satisfy its content, run, ancestry, jobs or artifact checks. tests/test_protected_path_scope_guard.sh covers the exact route, both promotion callers on PR and push, later baselines, source/hash drift and a neighboring path. Hooks run only if installed. The DB Sync apply caller resolves the authorization ID to one file and still requires its approved status and immutable payload checks; the registered H3 Pro file is explicitly non-authorizing until a later human-approved change. The H1 candidate uses this exact guard addition for the 11 previously rejected FG2 paths; the guard and its regression suite were already explicitly admitted by existing rules. The H1 selector consumes the versioned local manifest only for documentation selection; it does not authorize source access, Pro writes, schedules or dispatch.",
         "evidence": [
           "path:.github/workflows/security-audit.yml",
           "path:tests/test_protected_path_scope_guard.sh",
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
           "path:.github/workflows/db-sync-to-pro.yml",
-          "path:.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md"
+          "path:.context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md",
+          "path:.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json"
         ]
       },
       "data": {
@@ -15428,7 +15441,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. The 2026-11-01 run89 checkpoint links the authenticated verify artifact and records that the actual Apply job was a NO-OP; it does not prove H3 installation in Pro. Docker results do not prove Actions, installed hooks, secrets or remote branch protection. The local continuation adds a real Git caller case for the exact DDL path and rejected neighbors in tests/test_security_flow.py, rejects apply status for a DRAFT fixture, uses only a synthetic approved-status fixture, and proves only the DDL file may change after payload; results are recorded in the linked 2026-11-01 checkpoint. The caller regressions run in the existing CI-listed security_flow suite; DRAFT and approved-state fixtures do not freeze the real authorization document status. The last authenticated H2 evidence before the #535 SQL/pin correction is DB Sync run 93 (41555682589), candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; actual workflow dispatch was verify and Apply was NO-OP. The corrected SQL/pins postdate that candidate, so #93 does not cover the resulting Certification candidate; H3 remains unapplied. Run 91 and run 89 are preserved as prior history. The canonical H2 evidence file and authenticated run are linked from the current project state and database migration record; the workflow still independently validates the run, jobs, ancestry, cohort/advisors and ZIP members. The current local follow-up adds a real guard caller fixture for the exact dated Pro ledger snapshot path and rejects a neighboring `_extra.json`; this is scope-only local evidence, not a remote ledger operation. The 2026-11-05 bootstrap candidate adds exact bootstrap paths to the guard and neighbor-rejection fixture. Docker ran the full protected-path suite successfully after its historical R21 expectation was aligned from eight to six candidate-only paths to match the current registry; no allowlist or workflow changed. This is local evidence, not GitHub Actions or remote branch-protection proof. The runner PG17 test is still pending a fresh exact one-run JIT.",
+        "note": "The R11 evidence maps scanner, scope guard, workflow contract, H2 controls and credential/policy tests. The focused guard regression exercises both frozen callers on PR/push, later-baseline skip, invalid source, blob/content drift, real accumulated candidate comparison and exact-path neighbor rejection; main boundary tests preserve the independent H2 content gate. The 2026-11-01 run89 checkpoint links the authenticated verify artifact and records that the actual Apply job was a NO-OP; it does not prove H3 installation in Pro. Docker results do not prove Actions, installed hooks, secrets or remote branch protection. The local continuation adds a real Git caller case for the exact DDL path and rejected neighbors in tests/test_security_flow.py, rejects apply status for a DRAFT fixture, uses only a synthetic approved-status fixture, and proves only the DDL file may change after payload; results are recorded in the linked 2026-11-01 checkpoint. The caller regressions run in the existing CI-listed security_flow suite; DRAFT and approved-state fixtures do not freeze the real authorization document status. The last authenticated H2 evidence before the #535 SQL/pin correction is DB Sync run 93 (41555682589), candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; actual workflow dispatch was verify and Apply was NO-OP. The corrected SQL/pins postdate that candidate, so #93 does not cover the resulting Certification candidate; H3 remains unapplied. Run 91 and run 89 are preserved as prior history. The canonical H2 evidence file and authenticated run are linked from the current project state and database migration record; the workflow still independently validates the run, jobs, ancestry, cohort/advisors and ZIP members. The current local follow-up adds a real guard caller fixture for the exact dated Pro ledger snapshot path and rejects a neighboring `_extra.json`; this is scope-only local evidence, not a remote ledger operation. The 2026-11-05 bootstrap candidate adds exact bootstrap paths to the guard and neighbor-rejection fixture. Docker ran the full protected-path suite successfully after its historical R21 expectation was aligned from eight to six candidate-only paths to match the current registry; no allowlist or workflow changed. This is local evidence, not GitHub Actions or remote branch-protection proof. The runner PG17 test is still pending a fresh exact one-run JIT. The current main-only FG1/FG2/FG3/canary guard delta was covered by the 172-test Docker offline regression; it does not verify hosted Actions or remote configuration. The current regression adds an exact-set assertion, positive cases for the 11 H1 paths, a neighboring FG2 rejection and invalid-baseline fail-closed coverage. The workflow selector test extracts the real YAML block and exercises a pull_request targeting desarrollo, H1 schema rejection and the promotion full-union path. Runtime results are recorded only after the Docker cycle completes.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15441,12 +15454,14 @@
           "path:tests/test_fase10_main_boundary.py",
           "path:tests/test_h2_pro_migration_controls.py",
           "path:.context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md",
-          "path:.context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json"
+          "path:.context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json",
+          "path:.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json",
+          "path:.github/workflows/security-audit.yml"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "H2 h2-expand-compat was verified by run 93 (41555682589) on Certification candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; the actual dispatch was verify, Apply was a no-op, and H3 Pro remains not applied. The H3 DDL file is valid only when its Status and exact manifest/payload/base/digest/cohort tuple match the human decision consumed by the workflow; H2 evidence does not authorize H3 apply or production changes. For the corrected #535 manifest/pins, a new H2 verify is required on the resulting Certification SHA before fixing a new H3 payload. The local 2026-11-05 scope-guard change also requires a new H2 candidate after it is integrated into Certification; run 96 predates this local path and is not evidence for it.",
+        "note": "H2 h2-expand-compat was verified by run 93 (41555682589) on Certification candidate 257b77471e1f0b6bb8714eeaa975b3815668aea9; the actual dispatch was verify, Apply was a no-op, and H3 Pro remains not applied. The H3 DDL file is valid only when its Status and exact manifest/payload/base/digest/cohort tuple match the human decision consumed by the workflow; H2 evidence does not authorize H3 apply or production changes. For the corrected #535 manifest/pins, a new H2 verify is required on the resulting Certification SHA before fixing a new H3 payload. The local 2026-11-05 scope-guard change also requires a new H2 candidate after it is integrated into Certification; run 96 predates this local path and is not evidence for it. The local preflight blocks non-main refs for FG1/FG2/FG3/canary; DB-SYNC policy is unchanged.",
         "evidence": [
           "path:.githooks/pre-commit",
           "path:.githooks/pre-push",
@@ -15574,7 +15589,7 @@
       "comment_target": ".context/componentes/seguridad_tooling.md#registro-de-fuentes-y-gate",
       "contracts": {
         "state": "verified",
-        "note": "Credential scan, protected path guard, source/documentation integrity and offline checks. Promotion selector generates the full package/diff union for desarrollo -> certificacion and certificacion -> main, plus the corresponding post-merge pushes; ordinary PR ambiguity remains fail-closed. Consumer/regression: tests/test_protected_path_scope_guard.sh; documentation: seguridad_tooling.md, selección documental de promoción. The local candidate updates the exact Certification-to-main selector/path union and keeps the integral source-documentation result distinct from candidate-aware PASS. The H2 main checkout uses full history so its verified ancestor is available to cat-file and merge-base after the PR/main fetch; content/run/artifact checks are unchanged.",
+        "note": "Credential scan, protected path guard, source/documentation integrity and offline checks. Promotion selector generates the full package/diff union for desarrollo -> certificacion and certificacion -> main, plus the corresponding post-merge pushes; ordinary PR ambiguity remains fail-closed. Consumer/regression: tests/test_protected_path_scope_guard.sh; documentation: seguridad_tooling.md, selección documental de promoción. The local candidate updates the exact Certification-to-main selector/path union and keeps the integral source-documentation result distinct from candidate-aware PASS. The H2 main checkout uses full history so its verified ancestor is available to cat-file and merge-base after the PR/main fetch; content/run/artifact checks are unchanged. The H1 manifest is selected by its exact versioned path, manifest_id and schema_version when changed. Promotion continues to aggregate each selected package and the full base-to-head diff; ordinary PR ambiguity remains fail-closed. H3 R21/D04 selection and the promotion union contract are preserved.",
         "evidence": [
           "path:.github/workflows/security-audit.yml",
           "path:scripts/maintenance/h3req1_documentation_integrity.mjs",
@@ -15599,7 +15614,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker. Candidate scope and integral results are recorded separately in the current checkpoint; a scoped PASS is not treated as an integral PASS. test_h2_main_gate_checkout_resolves_verified_ancestor executes the actual YAML depth/fetch against a file:// Git fixture, reproducing the old depth-1 failure and full-history success; this does not claim GitHub Actions execution. The current main-gate H2 evidence is authenticated verify run 93 (C=257b77471e1f0b6bb8714eeaa975b3815668aea9); actual Apply was NO-OP and this does not establish H3 installation. Runs 91 and 89 remain historical.",
+        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker. Candidate scope and integral results are recorded separately in the current checkpoint; a scoped PASS is not treated as an integral PASS. test_h2_main_gate_checkout_resolves_verified_ancestor executes the actual YAML depth/fetch against a file:// Git fixture, reproducing the old depth-1 failure and full-history success; this does not claim GitHub Actions execution. The current main-gate H2 evidence is authenticated verify run 93 (C=257b77471e1f0b6bb8714eeaa975b3815668aea9); actual Apply was NO-OP and this does not establish H3 installation. Runs 91 and 89 remain historical. The protected-path suite executes the actual selector block extracted from security-audit.yml for H1 pull_request selection and promotion union, in addition to existing R21/D04, certification and main cases. These tests establish local behavior only; they do not claim a hosted Actions run.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15609,7 +15624,8 @@
           "path:tests/test_h2_writer_scan.py",
           "path:.github/workflows/security-audit.yml",
           "path:.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
-          "path:.context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md"
+          "path:.context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md",
+          "path:.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json"
         ]
       },
       "operations": {
@@ -16547,9 +16563,14 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Cada suite está asociada a sus casos/inputs en pruebas_evidencia.md#pipeline-cases. R160 cubre el selector tests/test_*.py de forma agregada: 337 passed, 4 skipped, 1 warning; en test_harvester.py los cuatro casos live fueron skipped. Pipeline walk/discovery conserva resultado R18 con salida/hash de suites; R161 registra el runner PG17/PostgREST y sus fases, pero no su SHA de runner. Esto acredita relaciones/evidencia disponible, no PASS uniforme ni ejecución remota.",
+        "note": "Cada suite está asociada a sus casos/inputs en pruebas_evidencia.md#pipeline-cases. R160 sigue siendo el agregado histórico; los cuatro casos live de test_harvester.py fueron skipped. El paquete local FG2 2026-11-09 pasó focal 73 tests y regresión 145 con 1 deselected; fixtures sintéticos, Docker --network none, sin fuentes, Pro o proveedor. Esto no acredita run funcional ni ejecución remota.",
         "evidence": [
           "path:.context/componentes/pruebas_evidencia.md",
+          "path:tests/test_fg2_bounded_run.py",
+          "path:tests/test_fg2_bounded_orchestration.py",
+          "path:tests/test_fg2_bounded_workers.py",
+          "path:tests/test_fg2_bounded_workflow.py",
+          "path:tests/test_h3req1_local_pipeline_walk.py",
           "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-walk-r2-handoff-2026-10-11.md",
           "path:.context/evidencia/h3req1_g09_uat_2026-10-10_r4/local-pipeline-discovery-r18.stdout.txt",
@@ -16579,6 +16600,10 @@
         "tests/test_h2_pipeline_contract.py",
         "tests/test_h3req1_local_pipeline_walk.py",
         "tests/test_h3req1_pipeline_discovery_boundaries.py",
+        "tests/test_fg2_bounded_run.py",
+        "tests/test_fg2_bounded_orchestration.py",
+        "tests/test_fg2_bounded_workers.py",
+        "tests/test_fg2_bounded_workflow.py",
         "tests/test_harvester.py"
       ],
       "source_document": {
@@ -16587,7 +16612,11 @@
       },
       "candidate_only_paths": [
         "tests/h3req1_pipeline_postgrest_pg17_integration.py",
-        "tests/test_h3req1_pipeline_discovery_boundaries.py"
+        "tests/test_h3req1_pipeline_discovery_boundaries.py",
+        "tests/test_fg2_bounded_run.py",
+        "tests/test_fg2_bounded_orchestration.py",
+        "tests/test_fg2_bounded_workers.py",
+        "tests/test_fg2_bounded_workflow.py"
       ]
     },
     {

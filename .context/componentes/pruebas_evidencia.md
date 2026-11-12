@@ -93,18 +93,263 @@ El cierre R178 declara 337 passed, 4 skipped y 1 warning en su suite de proyecto
 | `tests/test_harvester.py` | Cuatro checks de API live: precio, duplicados, instituciones piloto y salud PostgREST. El fixture requiere `RUN_SUPABASE_INTEGRATION_TESTS=1` y URL/key. | Consulta `/rest/v1/courses` e `/institutions`; no importa ni prueba `UniversalHarvester`. | R160: los cuatro casos quedaron skipped por no habilitar integración/credenciales. No es parser unitario ni resultado runtime; no se consultó Supabase live. |
 | `tests/test_h2_pipeline_contract.py` | Gates, transiciones, persistencia/recuperación y seguridad entre workers. | Config/perfiles, código pipeline y SQL helpers. | Ver casos/assertions en la fuente; resultado histórico se limita a G03 R178. |
 | `tests/test_h3req1_local_pipeline_walk.py` | Recorrido local FG1→workers y salidas/estados del flujo. | Fixture local y workers aislados por sus helpers. | No es un schedule ni run de proveedores reales. |
-| `tests/test_h3req1_pipeline_discovery_boundaries.py` | `test_discovery_accepts_web_schemes_for_the_configured_host`, rechazos de esquemas/host/assets, sitemap ausente/malformado, gates y circuit breaker. | `UniversalHarvester` y perfiles/respuestas sintéticos. | Handoff R18 reporta 24 passed/1 warning con hashes de suite; no acredita una institución, proveedor ni schedule remoto. |
+| `tests/test_fg2_bounded_run.py` | Validación de perfil/seeds, manifest, pacing, concurrencia, presupuesto, Retry-After, redirects/reintentos y parada 403/429. | `fg2_bounded_run.py`; transportes sintéticos. | Incluida en Docker focal 73/73 y regresión 145 passed; no abre red. |
+| `tests/test_fg2_bounded_orchestration.py` | Rotación, preflight antes del origen, alcance de selección y resultados de institución. | Orquestador, perfiles y fixtures sintéticos. | Incluida en Docker focal 73/73 y regresión 145 passed; no consulta perfiles reales. |
+| `tests/test_fg2_bounded_workers.py` | Rechazo de IDs ajenos al manifest y exclusión de las colas globales por cleansing, enrichment y sync. | Adaptadores sintéticos; IDs de tres estaciones. | Incluida en Docker focal 73/73 y regresión 145 passed; no ejecuta RPC remoto. |
+| `tests/test_fg2_bounded_workflow.py` | Contrato YAML del input manual, default false, outputs, transmisión del manifest/digest y dependencia del guard main-only. | `.github/workflows/production_pipeline.yml`. | Suite local incluida en la regresión Docker de 172 casos; no ejecuta Actions ni habilita workflows. |
+| `tests/test_h3req1_pipeline_discovery_boundaries.py` (R18 histórico; ausente en c0) | Suite de boundaries de discovery: esquemas/host/assets, sitemap, gates y circuit breaker. | `UniversalHarvester` y perfiles/respuestas sintéticos en el handoff R18. | Los 24 passed/1 warning son salida archivada; el módulo no existe en este checkout y no es ejecutable aquí. No acredita fuente, proveedor ni schedule remoto. |
 | `tests/test_fase121_extractors.py` | Reglas declarativas de selectores, etiquetas, transforms y extracción por pilar. | Helpers/config Fase 121 y HTML fixture. | No demuestra calidad estadística del proveedor ni performance productiva. |
 | `tests/h3req1_pipeline_postgrest_pg17_integration.py` | Ejercita workers actuales por HTTP local; discovery/checkpoint, staging, fallos 503 y recovery de cleansing/enrichment/sync, handoff persistido. | PostgREST + PostgreSQL 17.11 desechables, payloads sintéticos y proxy local. | R161 `run-r10.log` reporta PASS de fases y estado final 1/1/1/1. El log no conserva SHA del runner; resultado delimitado a ese corte local. No atribuirle G07 R51. |
+
+### Corrida local FG2 acotada — 2026-11-09
+
+El candidato `/tmp/h1req1-fg2-bounded-harvest-20261109`, base
+`646f14afa845ea3200f40ce919e273f090059c63`, se validó en Docker con la imagen
+local fijada `sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`,
+`--network none` y checkout read-only. Los tests focales pasaron **73/73** con
+dos warnings. La regresión ampliada pasó **145 tests**, con un test deselected y
+dos warnings. El excluido fue
+`tests/test_fase09_10_pre_main_controls.py::test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`;
+una ejecución anterior de ese caso falló por una expectativa de texto H2 ausente
+en `.github/workflows/db-sync-to-pro.yml`, que permanece igual a HEAD y no forma
+parte del diff FG2. No se convierte ese resultado en fallo del candidato FG2.
+
+`scripts/security/scan_credentials.sh --tree`, compilación Python en memoria,
+parseo YAML y `git diff --check` pasaron. La advertencia restante es deprecación
+upstream PyPDF2 y cache pytest deshabilitada por montaje read-only. El dry-run
+funcional usa solo IDs sintéticos: institución
+`00000000-0000-0000-0000-000000000001`; staging
+`40000000-0000-0000-0000-000000000091`; cleansed
+`50000000-0000-0000-0000-000000000091`; enriched
+`60000000-0000-0000-0000-000000000091`; course
+`70000000-0000-0000-0000-000000000091`. URL:
+`https://synthetic.h3.example/programs/analitica-aplicada`, SHA-256
+`cc741735bd878822d09ac0756132ae2e4da1a50ef7b7b503467f2c5a3e26672d`; HTML
+sintético SHA-256
+`82d0ed446d6756f761c437105a1767338c45d35f793dba201221fb519f9d98c2`. El refresh mantiene el
+mismo `course_id`, staging pasa a `pending` y luego `processed`, cleansing y
+enrichment producen las filas fixture asociadas, sync termina `synced` y
+conserva `Nombre editorial vigente` como `manual_override`. Todo es sintético;
+no es el dry-run de la cohorte productiva ni una prueba de escrituras Pro.
+
+No hubo llamadas a instituciones, DNS productivo, proveedores AI, Supabase,
+Pro, GitHub ni Actions. Un error previo de referencia Docker y una invocación
+que no localizó el test correcto no ejecutaron pruebas ni afectaron datos; los
+resultados que se acreditan aquí son solo las corridas completadas con la
+imagen local verificada.
+
+El scope del checker local está fijado en
+`.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json`; identifica
+las fuentes de este paquete y no es el manifest exacto de un PR ni concede
+autoridad de ejecución.
+
+#### Reanudación desde el clon íntegro del TL — 2026-11-09
+
+Se retomó desde `/tmp/h1-tl-fg2-historial-20261109.IpjVdE/repo`,
+`HEAD=c0f19bcec33ec84a82dfc06581311ec37452fc23`, base `desarrollo`
+`c736336819bc0a927cc7224a053429e27433a748`. Docker con `--network none`:
+suite FG2 focal **68 passed, 1 warning** en la imagen fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`,
+con red deshabilitada y copia sanitaria read-only. La regresión exacta
+(orquestación, límites, workers, workflow, pipeline walk, credenciales y
+controles fase 09/10) dio **148 passed, 1 deselected, 1 warning**. Sin filtro
+fue 148 passed/1 failed por
+`test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`, cuya
+aserción H2 no coincide con el workflow y test idénticos a HEAD c0f19b. Warning:
+deprecación upstream de PyPDF2. La suite no incluye el módulo R18 ausente
+`tests/test_h3req1_pipeline_discovery_boundaries.py`; sus 24 passed/1 warning
+son solo evidencia histórica. El credential scan y el checker documental de
+esta huella se repiten después de consolidar estas notas; no se afirma aquí un
+resultado nuevo. No hubo conexión a fuentes, DB ni Pro.
+
+La prueba nueva verifica que Playwright no recibe `page.goto` cuando el
+harvester está en modo controlado y que todos los `page.goto` directos están
+centralizados tras esa barrera. La suite sigue usando perfiles y respuestas
+sintéticas; no es un run, un lote ni una prueba de URLs de Pro. FG3 y CA4
+permanecen sin tocar.
+
+#### Revalidación de identidad URL — 2026-11-09 17:16 Lima
+
+Tras corregir la coincidencia canónica de URLs y el transporte del `course_id`
+aprobado, Docker con `--network none`, imagen fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1` y
+checkout read-only dio **106 passed** en las seis suites FG2/pipeline/H2 que
+cubren el delta. La regresión ampliada con credenciales y controles de fase
+09/10 dio **169 passed, 1 deselected, 1 warning**. El deselected es la aserción
+H2 antigua `test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded`
+(fallo ajeno reproducido contra archivos sin cambios); el warning es
+deprecación PyPDF2. `scripts/security/scan_credentials.sh --tree` pasó en el
+mismo Docker offline. Se reejecutó el self-test candidate-aware con
+`.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json`: PASS,
+769/769 fuentes asignadas, 122/122 documentos activos alcanzables y 433/433
+históricos enlazados. Estos resultados son locales/sintéticos y no sustituyen
+una corrida, lote o preflight actual de Pro.
+
+El self-test candidate-aware con manifest terminó PASS (769/769 fuentes
+asignadas; 122/122 documentos activos; 433/433 históricos). La comparación
+integral actual, desde git-archive c0 hasta este candidato, permanece FAIL
+**349→349**, listas idénticas, SHA-256 ordenado
+`7775152137258a7709396217c4e521d64a9f185f4dfc7ebfc513f8564ab64434`. Este
+conteo corrige el 201→201 anterior, que no coincide con la salida íntegra
+reproducible. El corte FG3 histórico **348→348** se conserva por separado.
+
+#### Revisión de seguridad del diff FG2 — 2026-11-09 17:38 Lima
+
+Codex Security scan `faa63933-92e9-495a-89e2-acc089e60bf7` revisó el diff del
+clon TL desde `c0f19bcec33ec84a82dfc06581311ec37452fc23`, huella
+`codex-security-snapshot/v1:sha256:1e7f6642443ed74216c03dff0899fa64327f6fcd608a3a63b775a8c00c1781b9`:
+**0 hallazgos**, cobertura `complete`. Se revisaron las 18 rutas del diff: las
+seis fuentes runtime del inventario y las doce restantes de workflow, suites y
+fichas documentales. La disponibilidad de delegación fue `fail`; el parent
+realizó la revisión completa. El informe está en
+`/home/romel/.codex/state/plugins/codex-security/scans/repo/c0f19bcec33ec84a82dfc06581311ec37452fc23_20261109T222419Z_t3qfc9rb/report.md`.
+
+La cobertura no incluyó producción, fuentes, credenciales, Environment efectivo
+ni ejecución hosted. La revisión observó que las revalidaciones antialias leen
+inventarios completos paginados varias veces; es un posible costo de lectura y
+latencia cuya medida depende del lote y del tamaño real, no un finding de
+seguridad de este scan. Las pruebas Docker/red-none **106 passed** y la
+regresión ampliada **169 passed, 1 deselected, 1 warning** son evidencia local
+separada. El checker candidate-aware PASS no elimina el **FAIL integral
+349→349**; FG3 **348→348** permanece histórico. Sin push, PR, merge, promoción,
+dispatch o escrituras Pro.
+
+#### Revalidacion local FG2 CWE-400 — 2026-11-10
+
+Sobre el candidato de FG2 en `/tmp/h1req1-fg2-approved-seed-selection-20261109`,
+el transporte del GET controlado limita la respuesta acumulada a 2 MiB. La
+prueba valida un cuerpo dentro del limite y una respuesta superior al tope sin
+`Content-Length` confiable; el callback aborta y cierra el stream, evita
+materializar/parsing del cuerpo completo y difiere el origen. La prueba de
+orquestacion verifica que el exceso no crea filas staging. Una respuesta
+chunked contra un servidor loopback sintetico comprueba que el receptor corta
+la transferencia antes de que el servidor finalice. No se contactaron fuentes.
+
+Docker Desktop, imagen fijada
+`sha256:ebbf777792ee636179660638264c3d7b501f79e8efec731296d5ef41d07d18e6`,
+`--network none`, checkout montado read-only: los casos focales dieron **6
+passed, 27 deselected, 1 warning PyPDF2**; incluyen hardcoded y sitemap, con
+respuesta oversized sin alta de staging. La regresion de nueve suites FG2,
+gates main-only, pipeline walk y contrato de credenciales dio **223 passed, 1
+warning**. El credential scanner reporto PASS; el test del protected-path
+scope guard reporto PASS para las 1.196 rutas, 13 catalogos/1.173 destinos,
+rechazo de vecinos y alcance invalido fail-closed. `bash -n` y `git diff
+--check` tambien pasaron. El checker candidate-aware, tras renderizar las
+vistas desde el JSON canonico, dio `DOC_GATE_PASS`: 769/769 fuentes, 122/122
+documentos activos y 433/433 historicos. `actionlint` no esta disponible en
+la imagen; los contratos YAML de los workflows se cubren por las suites
+locales, sin afirmar un check de GitHub Actions.
+
+Este resultado local no acredita un run, el control en main ni la ausencia de
+hallazgos de seguridad del diff final. El FAIL integral **348→348, listas
+identicas** permanece separado del PASS candidate-aware. Sin trafico a
+instituciones, Pro writes, RPC, Actions mutativos, flags, Environment,
+dispatch, schedules, push o PR.
+
+#### Revisión por impacto FG2 ordinario y lote controlado — 2026-11-11
+
+El dictamen sanitizado del revisor confirmó la base `c736336819bc0a927cc7224a053429e27433a748` y revisó estáticamente el candidato anterior de 35 rutas, SHA-256 `7bb2f49199e1e2d986c079fa342145a1869fd85dd96a611aac7eb51d57a8f0ba`. El scan reutilizado `371e1513-379a-4d05-820e-4d97da8ada21` fue standard sobre 1.847 archivos y cerró con cobertura general parcial de 6/9 unidades; cinco registros se deduplican en tres familias (SSRF, XSS y activación OpenCode por comentario). El dictamen fue **NO-GO** para FG2 ordinario/readiness H1. El diff local cambió después de esa revisión; no se atribuye al SHA actual su aprobación ni cobertura 35/35 del scanner.
+
+El delta evaluado por pruebas atiende los tres bloqueos de implementación H1: (1) la ruta HTTP ordinaria valida/pinea destinos iniciales y cada redirect antes de la siguiente solicitud, y los sitemaps anidados y seeds de diagnóstico pasan por el mismo control; (2) `--controlled-first-run` exige `--skip-cleansing` y la delegación del manifest antes de seleccionar DB o workers; (3) enrichment y sync revalidan la URL y sus referencias contra el manifest antes del proveedor/writer. Los casos negativos de deriva URL conservan IDs/institución y demuestran parada anterior a efectos.
+
+Revalidación del candidato actual: Docker `studiamatch-dev:local`, red `none`, filesystem del repo montado read-only. Cuatro suites FG2 y cuatro casos adicionales de harvester/diagnóstico dieron **94 passed, 1 warning** de deprecación PyPDF2. Incluye redirects privados sin segundo request, límites de presupuesto/rotación controlada, rechazo de lote derivado antes del worker, URLs downstream sustituidas, diagnóstico con cuerpo excesivo y redirects. No hubo solicitudes institucionales, llamadas a proveedores ni escrituras Pro. `test_noncontrolled_sitemap_does_not_apply_controlled_body_cap` confirma también un residual: el transporte HTTP ordinario aún recibe cuerpos sin el cap de 2 MiB; páginas Playwright tampoco tienen ese cap ni DNS pin de curl.
+
+Lectura estática del YAML y selectores actuales (no evidencia remota): schedule FG2 cosecha hasta diez instituciones, pero no transmite el manifest. Cleansing reclama `staging_raw.pending` global en lotes de 100, `inst_id=NULL`, hasta el time guard y puede mover filas de instituciones no habilitadas a `skipped`; tras fallos RPC su fallback también consulta pending global. Enrichment y sync recorren sus propias filas `pending` de instituciones `pipeline_enabled`, no limitadas al lote cosechado. `discovered`, `processing` y `processed` no se reencolan automáticamente. Sin IDs no se infiere qué filas concretas consumiría una corrida. E10 permanece bloqueado hasta limitar y verificar ese recorrido; no se resetearon estados.
+
+El scan general conserva dos hallazgos fuera del delta: XSS JSON-LD puede afectar una publicación H1 posterior y está fuera del allowlist CA1 (`web/**` prohibido); el hallazgo bajo del workflow OpenCode no es parte de FG2. No se modificaron esas rutas. La foto previa de UTEC es histórica: el prefijo vigente de rotación ofrece discovery-only; una excepción para refrescar las tres URLs observadas requiere decisión humana y una lectura Pro fresca antes de cualquier contacto. FG3 no se cambia: el owner conserva pendiente la decisión sobre la ventana lectura/PATCH TOCTOU. El FAIL integral FG3 **348→348, listas idénticas** sigue separado.
+
+#### Corrección de P2 de Code Reviewer sobre lote manual y refresh ordinary — 2026-11-11
+
+Code Reviewer evaluó el diff `f7aa2472…` y emitió NO-GO con dos P2: en `sitemap_bfs`, un seed manual de página podía enviarse al parser XML; y un alias de detalle como `/presentacion` podía clasificarse `new_discovery` aunque cleansing lo agrupa con un curso existente. Se agregaron pruebas RED para ambos casos. La primera regresión también detectó que un seed `.xml` real dentro de un lote no debía perder su parseo; se preservó ese camino separando los seeds de página de los de sitemap.
+
+El candidato corregido pasó **167 pruebas** en Docker Desktop, imagen `studiamatch-dev:local` (`sha256:ebbf777792ee636179660638264c3d7b501f79e8efec731296d5ef41d07d18e6`), `--network none`, repo montado read-only. Incluye las seis suites de FG2, manifest/workers, workflow, controles main/manual y recorrido local del pipeline. Una advertencia de deprecación PyPDF2. No hubo red institucional, llamadas a proveedores ni escrituras Pro. El checker candidate-aware, ejecutado después de consolidar las adiciones documentales, dio `DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`: 769/769 fuentes asignadas, 122/122 documentos activos y 433/433 históricos. El FAIL integral histórico `348→348`, listas idénticas, se conserva aparte; no se convierte en PASS. El Code Reviewer debe dictaminar todavía la huella final.
+
+#### Regresión Code Reviewer FG2 — 2026-11-11
+
+Sobre el NO-GO del diff `e22455c0…` se añadieron tres reproducciones: upsert de
+`new_discovery` con inventario no vacío, deferral DNS antes de HTTP persistido
+en manifest y presencia de las cuatro suites FG2 en el pytest efectivo de CI.
+Las tres fallaron primero en Docker sin red y pasaron tras el arreglo local.
+Luego seis suites de `fg2_bounded_run`, orquestación, workers, workflow,
+controles pre-main y recorrido de pipeline dieron **169 passed, 1 warning** de
+deprecación PyPDF2. El candidato se montó read-only y el contenedor usó
+`--network none`; esto no acredita el CI remoto, las colas Pro ni ejecución
+funcional. El checker documental candidate-aware pasó `DOC_SELF_TEST_PASS` y
+`DOC_GATE_PASS` (769/769 fuentes, 122/122 documentos activos, 433/433
+históricos), y el credential scan exacto de las 35 rutas pasó. El FAIL integral
+`348→348` sigue separado.
+
+#### Concurrencia de cleansing en FG2 — 2026-11-11
+
+El Code Reviewer encontró que FG2 schedule y el caller cleansing de Production
+Canary podían solaparse. Se añadió un test que compara el grupo root y la
+política de cancelación de ambos YAML; falló con los grupos distintos y pasó al
+asignar a los dos `studiamatch-fg2-${{ github.ref }}` y mantener
+`cancel-in-progress: false`. Con esa corrección, las seis suites completas pasan
+**170 passed, 1 warning** en Docker `--network none` y checkout read-only. Es un
+contrato estático más regresiones sintéticas, no una simulación de scheduler
+remoto ni un claim DB atómico. Tras las notas nuevas, `DOC_SELF_TEST_PASS`,
+`DOC_GATE_PASS` (769/769 fuentes asignadas, 122/122 docs activos y 433/433
+históricos), credential scan de 35 rutas y `git diff --check` pasaron. CI remoto,
+colas actuales y E9 siguen pendientes.
+
+#### Regresión Code Reviewer FG2 — 2026-11-11
+
+Sobre el NO-GO del diff `e22455c0…` se añadieron tres reproducciones: upsert de
+`new_discovery` con inventario no vacío, deferral DNS antes de HTTP persistido
+en manifest y presencia de las cuatro suites FG2 en el pytest efectivo de CI.
+Las tres fallaron primero en Docker sin red y pasaron tras el arreglo local.
+Luego seis suites de `fg2_bounded_run`, orquestación, workers, workflow,
+controles pre-main y recorrido de pipeline dieron **169 passed, 1 warning** de
+deprecación PyPDF2. El candidato se montó read-only y el contenedor usó
+`--network none`; esto no acredita el CI remoto, las colas Pro ni ejecución
+funcional. Checker documental y credential scan del diff final quedan pendientes
+tras consolidar el paquete; el FAIL integral `348→348` sigue separado.
+
+### FG3 — candidato aislado y evidencia de seguridad
+
+Se conserva sin edición el candidato
+`/tmp/studiamatch-h1req1-20261108-source`, HEAD
+`c736336819bc0a927cc7224a053429e27433a748`, diff SHA-256
+`0252e5c96caf72881c8ccac7bcccf8ed2674d6a3c9fee401bb228b37b0aa7c7e`. Mientras
+esa huella coincida, se reutilizan la suite focal **36 passed, 9 subtests** y la
+regresión **90 passed, 1 deselected, 9 subtests**; el excluido
+`test_f99_certification_canary_workflow_was_retired_for_h2_main_gate` no se
+declara PASS. El candidato selecciona desde `courses_public_effective`, lee
+`last_404_at` en `courses` solo por IDs seleccionados y mantiene las escrituras
+permitidas exactas en `courses`. La evidencia no autoriza una corrida FG3.
+
+El chequeo de seguridad del paquete conserva tres resultados separados: la
+revisión manual identificó y corrigió el redirect privado/log sensible, y dejó
+documentada la ventana de elegibilidad/PATCH; el credential scan local fue
+PASS; el scanner gestionado de diff no emitió `scanId`, por lo que no hay un
+resultado PASS que atribuirle. El gate versionado de promoción requiere PR con
+una aprobación humana y check obligatorio `security-audit`; ese CI todavía debe correr
+contra el PR exacto. No se sustituye por la revisión manual ni por el credential
+scan local.
+
+Antes de cada PATCH FG3 se vuelve a leer la vista pública para el ID y se hace
+PATCH condicional por ID/estado activo/`last_404_at` esperado. Si el ID ya no
+aparece en `courses_public_effective`, se omite; si el estado base cambió, el
+PATCH condicional/reconciliación no acepta una fila distinta. Como consulta de
+vista y PATCH no son atómicos, persiste una ventana TOCTOU estrecha entre ambas
+llamadas. La limitación queda abierta y visible; cerrarla con garantía
+transaccional requiere diseño/DDL/JIT separado, no inferible del test local.
+
+El registro previo de comparación integral FG3 se corrige como
+**FAIL 348→348, listas idénticas**, cero nuevos/cero resueltos, lista SHA-256
+`738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`. Ese
+resultado pertenece a la comparación documental registrada en el changelog;
+no es PASS integral ni resultado del checkout FG2 actual.
 
 ## Canary contract suites
 
 | Suite | Contrato/código inspeccionado | Datos/consumidor | Evidencia y límite |
 |---|---|---|---|
 | `tests/test_fase09_9_certification_canary.py` | Retiro de workflow F99, redacción de manifest, cohort selectivo, marca de filas y snapshot/restore | Fakes/contratos estáticos contra módulos F99 y gates locales; no conecta a Certification. | Tiene tests definidos; no hay run de esta suite acreditado en este corte. El test de credenciales clasifica identidad, no ejecuta canary. |
-| `tests/test_fase09_10_pre_main_controls.py` | Fail-closed de preflight previo a main, writers pausados antes de mutaciones y protección DB sync/manual apply | Lee workflows FG1/FG2/FG3, DB sync y production canary por path/símbolos. | La búsqueda exacta en `.github/workflows/` de ambos árboles no encontró un runner de esta suite; no atribuirle PASS. |
-| `tests/test_fase10_main_boundary.py` | Gate de promoción a main, no auto-aplicación DB y canary manual antes de schedules | Lee `security-audit.yml`, workflows programados y `production_canary.yml`. | Contrato estático local; no certifica branch protection/configuración remota. No se acreditó ejecución en este ciclo. |
-| `tests/test_fase10_production_canary.py` | Workflow manual/SHA lock, host allowlist, sanitización, fakes de DB, snapshots/restores, idempotencia y fallos parciales | Módulos `production_canary_*` y YAML local; todos los datos de pruebas son sintéticos/fakes. | Suite amplia de contrato local, no run remoto. No se ejecutó de nuevo porque sus inputs no cambiaron en este ciclo documental. |
+| `tests/test_fase09_10_pre_main_controls.py` | Ref exacta main-only, preflight fail-closed, guard antes de Environment/credenciales, dependencias de jobs y preservación de DB Sync | Lee workflows FG1/FG2/FG3, DB Sync y Production Canary; ejecuta los bloques shell del guard y preflight. | Incluida en Docker `--network none`: regresión agregada 172 passed con una advertencia PyPDF2. No es run de Actions ni prueba de adopción remota. |
+| `tests/test_fase10_main_boundary.py` | Gate de promoción a main, no auto-aplicación DB y canary manual antes de schedules | Lee `security-audit.yml`, workflows programados y `production_canary.yml`. | Incluida en la regresión Docker de 172 tests; no certifica branch protection/configuración remota. |
+| `tests/test_fase10_production_canary.py` | Workflow manual/SHA lock, host allowlist, sanitización, fakes de DB, snapshots/restores, idempotencia, fallos parciales y condición exacta main antes de Environment | Módulos `production_canary_*` y YAML local; datos sintéticos/fakes. | Incluida en la regresión Docker de 172 tests; no es canary remoto. |
 
 Los cuatro paths son relaciones distintas y sus callers se listan en el [registro verificable](../trazabilidad/registro_fuentes_componentes.md#pruebas-y-evidencia). Una prueba definida confirma una relación test→contrato, no que la suite se haya ejecutado o pasado. Ninguno se ejecutó solo para documentar la ausencia de resultados.
 
@@ -237,6 +482,64 @@ El lock `tests/h3req1-c03-edge-lock-output-r3/deno-edge-runtime-v1.74.3-r3.lock`
 | Tarballs `source-candidate-r2/r3.tar` de G08 | Captura de fuente R2/R3; cada uno contiene la dependencia braces | Dos snapshots preservados en candidato/checkpoint supersedido y excluidos del checkpoint filtrado; no modificar evidencia sellada. |
 
 El índice por path, componente, ficha/anchor, referencias y estado está en el [registro verificable](../trazabilidad/registro_fuentes_componentes.md#asignaciones-por-fuente). La tabla de familias evita tratar miles de logs, snapshots o capturas como componentes independientes.
+
+### Guardia de modo del lote manual FG2 — 2026-11-11
+
+El Code Reviewer del diff previo 3d66cb01… encontró que el validador
+controlled_first_run aceptaba un evento schedule en main cuando recibía la
+huella del lote manual. La regresión
+tests/test_fg2_bounded_run.py::test_controlled_first_run_requires_manual_dispatch_on_main
+reprodujo el fallo en Docker --network none; tras la guarda, confirma que solo
+workflow_dispatch en refs/heads/main entra en ese modo y que schedule y
+refs/heads/desarrollo se rechazan. El modo scheduled_cohort conserva su
+contrato schedule/main.
+
+La regresión focal final de siete suites en Docker --network none dio
+181 passed, 10 subtests passed y 1 warning de deprecación PyPDF2. Es evidencia
+local offline, no una corrida de Actions ni una lectura de Pro. El Code Reviewer
+y el checker documental candidate-aware deben cerrar sobre la huella final.
+
+### Presupuesto y alias de identidad FG2 — 2026-11-11
+
+El Code Reviewer del diff anterior c603b3fd… identificó tres P2: sitemap
+partial persistido como discovered sin poder entrar al manifest; URL `/en/`
+equivalente no encontrada por el lookup schedule; y un seed `/presentacion`
+del lote manual sin enlace al course_id del padre.
+
+Cada regresión se ejecutó primero contra el candidato anterior en Docker
+`--network none` y falló; tras el cambio pasa: el crawler no crea candidatos
+descubiertos cuando ya está deferred/blocked por presupuesto, el schedule
+resuelve aliases de URL al mismo course_id, y el snapshot revisado permite
+guardar la URL detail junto con el URL/id/estado real del curso padre. También
+se rechaza un lote con dos entradas que derivan a la misma identidad. Las siete
+suites focales dieron 185 passed, 10 subtests passed y una advertencia de
+deprecación PyPDF2. El número de hijos downstream no se infiere de las 100
+entradas máximas: requiere el manifest y las relaciones del run Pro.
+
+Resultado local offline; no acredita Pro, fuentes, E9, E10 ni ejecución
+funcional. El candidato actualizado requiere checker candidate-aware y nuevo
+Code Reviewer sobre la huella completa.
+
+### Alias almacenado y resultados parciales FG2 — 2026-11-11
+
+El Code Reviewer del SHA `03d52e43…` detectó que el lookup no incluía cursos
+almacenados con sufijo de detalle y que una falla no bloqueante posterior a una
+URL exitosa podía saltarse downstream. Las nuevas regresiones reprodujeron
+ambos casos en Docker sin red. La búsqueda incluye URL solicitada, identidad
+normalizada y sufijos de detalle conocidos, y falla si el regex encuentra más
+de una fila. Una corrida con resultados mixtos registra `partial` y permite a
+los tres workers continuar únicamente con entradas exitosas del manifest; cada
+worker mantiene los filtros por staging IDs/foreign keys, estado e institución.
+Una corrida sin entradas exitosas sigue fallando. El marcador de harvest solo
+avanza la rotación; no prueba refresh.
+
+Seis suites FG2/pre-main/pipeline: **187 passed, 1 warning** de deprecación
+PyPDF2 en Docker `--network none`, candidato read-only. Los 10 casos focales
+nuevos pasan; antes, cuatro configuraciones de alias/partial fallaban con
+fixtures. El snapshot de IDs Pro no forma parte de esta evidencia y la cantidad
+de filas downstream depende de las relaciones del manifest real. El Code
+Reviewer, checker documental y escaneo de credenciales del SHA nuevo siguen
+pendientes.
 
 ## Navegación histórica local
 

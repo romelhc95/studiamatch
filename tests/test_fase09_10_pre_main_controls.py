@@ -20,11 +20,13 @@ def run_preflight(
     automation_enabled: str | None = None,
     writer: str = "FG2-HARVEST",
     output_path: Path | None = None,
+    full_ref: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = {
         "PATH": "/usr/bin:/bin",
         "GITHUB_EVENT_NAME": event,
         "GITHUB_REF_NAME": ref,
+        "GITHUB_REF": full_ref or f"refs/heads/{ref}",
     }
     if writers_paused is not None:
         env["PRODUCTION_WRITERS_PAUSED"] = writers_paused
@@ -37,6 +39,43 @@ def run_preflight(
         capture_output=True,
         check=False,
         env=env,
+        text=True,
+    )
+
+
+def workflow_job_block(workflow: str, job: str) -> str:
+    match = re.search(
+        rf"(?ms)^  {re.escape(job)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+        workflow,
+    )
+    assert match, f"missing workflow job: {job}"
+    return match.group("body")
+
+
+def run_workflow_main_ref_guard(relative: str, ref: str) -> subprocess.CompletedProcess[str]:
+    workflow = source(relative)
+    guard = workflow_job_block(workflow, "main_ref_guard")
+    lines = guard.splitlines()
+    script_lines: list[str] = []
+    for index, line in enumerate(lines):
+        if line == "        run: |":
+            for body_line in lines[index + 1 :]:
+                if body_line.startswith("          "):
+                    script_lines.append(body_line[10:])
+                elif not body_line.strip():
+                    script_lines.append("")
+                else:
+                    break
+            break
+    assert script_lines, "main ref guard must have an executable shell block"
+    return subprocess.run(
+        ["bash", "-euo", "pipefail", "-c", "\n".join(script_lines)],
+        capture_output=True,
+        check=False,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "GITHUB_REF": ref,
+        },
         text=True,
     )
 
@@ -55,11 +94,12 @@ def test_production_control_preflight_is_fail_closed_and_output_based() -> None:
     assert "production_canary_allowed" in script
     assert "db_sync_requires_manual_dispatch" in script
     assert "production_db_sync_allowed" in script
-    assert "development_writers_paused_or_unset" in script
-    assert "development_manual_allowed" in script
+    assert "non_main_production_ref_blocked" in script
+    assert "development_manual_allowed" not in script
+    assert "non_production_manual_allowed" not in script
     assert "--enforce" in script
     assert '"$reason" != "automation_disabled"' in script
-    assert '"$reason" != "non_main_schedule_blocked"' in script
+    assert '"$reason" != "non_main_schedule_blocked"' not in script
     assert "GITHUB_STEP_SUMMARY" in script
     assert "Production Control Preflight" in script
     for output in (
@@ -72,28 +112,6 @@ def test_production_control_preflight_is_fail_closed_and_output_based() -> None:
         assert output in script
 
 
-def test_development_manual_writer_pause_is_fail_closed_and_scoped() -> None:
-    blocked = run_preflight("workflow_dispatch", "desarrollo", "true")
-    assert blocked.returncode == 1
-    assert "allow_writer=false" in blocked.stdout
-    assert "reason=development_writers_paused_or_unset" in blocked.stdout
-
-    unset = run_preflight("workflow_dispatch", "desarrollo", None)
-    assert unset.returncode == 1
-    assert "allow_writer=false" in unset.stdout
-    assert "reason=development_writers_paused_or_unset" in unset.stdout
-
-    explicitly_unpaused = run_preflight("workflow_dispatch", "desarrollo", "false")
-    assert explicitly_unpaused.returncode == 0
-    assert "allow_writer=true" in explicitly_unpaused.stdout
-    assert "reason=development_manual_allowed" in explicitly_unpaused.stdout
-
-    certification_unchanged = run_preflight("workflow_dispatch", "certificacion", None)
-    assert certification_unchanged.returncode == 0
-    assert "allow_writer=true" in certification_unchanged.stdout
-    assert "reason=non_production_manual_allowed" in certification_unchanged.stdout
-
-
 def test_development_pause_matrix_and_event_allowlist() -> None:
     development_writers = (
         "FG1",
@@ -103,47 +121,56 @@ def test_development_pause_matrix_and_event_allowlist() -> None:
         "FG2-SYNC",
         "FG2-AUDIT",
         "FG3",
+        "PRODUCTION-CANARY",
     )
     for writer in development_writers:
-        for pause in (None, "true", "TRUE", "1", ""):
+        for pause in (None, "true", "TRUE", "1", "", "false"):
             blocked = run_preflight(
                 "workflow_dispatch", "desarrollo", pause, writer=writer
             )
             assert blocked.returncode == 1
             assert "allow_writer=false" in blocked.stdout
-            assert "reason=development_writers_paused_or_unset" in blocked.stdout
-
-        allowed = run_preflight(
-            "workflow_dispatch", "desarrollo", "false", writer=writer
-        )
-        assert allowed.returncode == 0
-        assert "allow_writer=true" in allowed.stdout
-        assert "reason=development_manual_allowed" in allowed.stdout
+            assert "reason=non_main_production_ref_blocked" in blocked.stdout
 
         scheduled = run_preflight("schedule", "desarrollo", "false", writer=writer)
         assert scheduled.returncode == 1
         assert "allow_writer=false" in scheduled.stdout
-        assert "reason=non_main_schedule_blocked" in scheduled.stdout
+        assert "reason=non_main_production_ref_blocked" in scheduled.stdout
 
         for event in ("push", "pull_request", "repository_dispatch"):
             blocked = run_preflight(event, "desarrollo", "false", writer=writer)
             assert blocked.returncode == 1
             assert "allow_writer=false" in blocked.stdout
-            assert "reason=development_requires_manual_dispatch" in blocked.stdout
+            assert "reason=non_main_production_ref_blocked" in blocked.stdout
 
 
-def test_certification_and_main_decisions_remain_unchanged() -> None:
-    for pause in (None, "true", "false"):
-        certification_manual = run_preflight("workflow_dispatch", "certificacion", pause)
-        assert certification_manual.returncode == 0
-        assert "allow_writer=true" in certification_manual.stdout
-        assert "reason=non_production_manual_allowed" in certification_manual.stdout
+def test_certification_manual_is_blocked_even_with_permissive_flags() -> None:
+    production_writers = (
+        "FG1",
+        "FG2-HARVEST",
+        "FG2-CLEANSING",
+        "FG2-ENRICHMENT",
+        "FG2-SYNC",
+        "FG2-AUDIT",
+        "FG3",
+        "PRODUCTION-CANARY",
+    )
+    for writer in production_writers:
+        for pause in (None, "true", "false"):
+            for event in ("workflow_dispatch", "schedule"):
+                blocked = run_preflight(
+                    event,
+                    "certificacion",
+                    pause,
+                    automation_enabled="true",
+                    writer=writer,
+                )
+                assert blocked.returncode == 1
+                assert "allow_writer=false" in blocked.stdout
+                assert "reason=non_main_production_ref_blocked" in blocked.stdout
 
-        certification_schedule = run_preflight("schedule", "certificacion", pause)
-        assert certification_schedule.returncode == 1
-        assert "allow_writer=false" in certification_schedule.stdout
-        assert "reason=non_main_schedule_blocked" in certification_schedule.stdout
 
+def test_main_decisions_remain_flag_controlled() -> None:
     for pause in (None, "true"):
         main_manual = run_preflight("workflow_dispatch", "main", pause)
         assert main_manual.returncode == 1
@@ -173,6 +200,41 @@ def test_certification_and_main_decisions_remain_unchanged() -> None:
     assert main_schedule_automation_unset.returncode == 1
     assert "allow_writer=false" in main_schedule_automation_unset.stdout
     assert "reason=automation_disabled" in main_schedule_automation_unset.stdout
+
+    production_writers = (
+        "FG1",
+        "FG2-HARVEST",
+        "FG2-CLEANSING",
+        "FG2-ENRICHMENT",
+        "FG2-SYNC",
+        "FG2-AUDIT",
+        "FG3",
+    )
+    for writer in production_writers:
+        manual_allowed = run_preflight(
+            "workflow_dispatch", "main", "false", writer=writer
+        )
+        assert manual_allowed.returncode == 0
+        assert "allow_writer=true" in manual_allowed.stdout
+        assert "reason=production_writer_allowed" in manual_allowed.stdout
+
+        manual_blocked = run_preflight(
+            "workflow_dispatch", "main", "true", writer=writer
+        )
+        assert manual_blocked.returncode == 1
+        assert "allow_writer=false" in manual_blocked.stdout
+
+        schedule_allowed = run_preflight(
+            "schedule", "main", "false", automation_enabled="true", writer=writer
+        )
+        assert schedule_allowed.returncode == 0
+        assert "allow_writer=true" in schedule_allowed.stdout
+
+        schedule_blocked = run_preflight(
+            "schedule", "main", "false", automation_enabled="false", writer=writer
+        )
+        assert schedule_blocked.returncode == 1
+        assert "allow_writer=false" in schedule_blocked.stdout
 
     canary_allowed = run_preflight(
         "workflow_dispatch",
@@ -215,6 +277,61 @@ def test_certification_and_main_decisions_remain_unchanged() -> None:
     assert "reason=production_canary_requires_manual_dispatch" in canary_scheduled.stdout
 
 
+def test_station_workflows_require_main_before_environment_or_credentials() -> None:
+    workflows = {
+        "fg1": ".github/workflows/fg1_inventory.yml",
+        "fg2": ".github/workflows/production_pipeline.yml",
+        "fg3": ".github/workflows/fg3_integrity.yml",
+    }
+    for name, relative in workflows.items():
+        workflow = source(relative)
+        guard = workflow_job_block(workflow, "main_ref_guard")
+        assert "permissions:\n      contents: none" in guard, name
+        assert "environment:" not in guard, name
+        assert "secrets." not in guard, name
+        assert "vars." not in guard, name
+        assert "actions/checkout" not in guard, name
+
+        protected = workflow_job_block(workflow, "production_control_preflight")
+        assert "needs: main_ref_guard" in protected, name
+        assert "environment:" in protected, name
+
+        for ref in ("refs/heads/desarrollo", "refs/heads/certificacion"):
+            rejected = run_workflow_main_ref_guard(relative, ref)
+            assert rejected.returncode == 1, (name, ref, rejected.stderr)
+        accepted = run_workflow_main_ref_guard(relative, "refs/heads/main")
+        assert accepted.returncode == 0, (name, accepted.stderr)
+
+        jobs_by_workflow = {
+            "fg1": ("inventory",),
+            "fg2": (
+                "phase_1_harvesting",
+                "phase_1_5_cleansing",
+                "phase_2_enrichment",
+                "phase_3_sync",
+                "phase_4_audit",
+            ),
+            "fg3": ("integrity",),
+        }
+        for job in jobs_by_workflow[name]:
+            block = workflow_job_block(workflow, job)
+            needs_line = next(line for line in block.splitlines() if line.startswith("    needs:"))
+            assert "main_ref_guard" in needs_line
+            assert "needs.main_ref_guard.result == 'success'" in block
+
+
+def test_main_ref_is_a_branch_ref_not_a_tag_named_main() -> None:
+    tagged_main = run_preflight(
+        "workflow_dispatch",
+        "main",
+        "false",
+        full_ref="refs/tags/main",
+    )
+    assert tagged_main.returncode == 1
+    assert "allow_writer=false" in tagged_main.stdout
+    assert "reason=non_main_production_ref_blocked" in tagged_main.stdout
+
+
 def test_other_controlled_writer_paths_keep_their_existing_policy() -> None:
     db_sync_manual_paused = run_preflight(
         "workflow_dispatch", "main", "true", writer="DB-SYNC"
@@ -229,6 +346,13 @@ def test_other_controlled_writer_paths_keep_their_existing_policy() -> None:
     assert db_sync_unpaused.returncode == 1
     assert "allow_writer=false" in db_sync_unpaused.stdout
     assert "reason=production_writers_not_paused_for_db_sync" in db_sync_unpaused.stdout
+
+    db_sync_certification = run_preflight(
+        "workflow_dispatch", "certificacion", "true", writer="DB-SYNC"
+    )
+    assert db_sync_certification.returncode == 0
+    assert "allow_writer=true" in db_sync_certification.stdout
+    assert "reason=production_db_sync_allowed" in db_sync_certification.stdout
 
     db_sync_workflow = source(".github/workflows/db-sync-to-pro.yml")
     assert "if: github.ref_name == 'main' || github.ref_name == 'certificacion'" in db_sync_workflow
@@ -250,6 +374,21 @@ def test_scheduled_workflows_use_environment_bound_preflight_outputs() -> None:
         assert forbidden_job_if not in workflow, name
         assert "PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}" in workflow, name
         assert "AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}" in workflow, name
+
+
+def test_fg2_schedule_and_production_canary_share_cross_workflow_concurrency() -> None:
+    fg2 = source(".github/workflows/production_pipeline.yml")
+    canary = source(".github/workflows/production_canary.yml")
+
+    def root_concurrency(workflow: str) -> tuple[str, str]:
+        block = workflow.split("\nconcurrency:\n", 1)[1].split("\njobs:", 1)[0]
+        group = re.search(r"(?m)^  group: (.+)$", block)
+        cancel = re.search(r"(?m)^  cancel-in-progress: (.+)$", block)
+        assert group and cancel
+        return group.group(1), cancel.group(1)
+
+    assert root_concurrency(fg2) == ("studiamatch-fg2-${{ github.ref }}", "false")
+    assert root_concurrency(canary) == root_concurrency(fg2)
 
 
 def test_fg2_checks_writer_pause_before_every_mutating_station() -> None:
@@ -311,7 +450,7 @@ def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
     assert 'test "$(git rev-parse "origin/${GITHUB_REF_NAME}")" = "$CANDIDATE_SHA"' in workflow
     assert 'h2-expand-compat)' in workflow
     assert 'test "${GITHUB_REF_NAME}" = "certificacion"' in workflow
-    assert 'h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract)' in workflow
+    assert 'h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract|h3-editorial-expand)' in workflow
     assert 'test "${GITHUB_REF_NAME}" = "main"' in workflow
     assert "production_control_preflight.sh DB-SYNC --enforce" in workflow
     assert "python3 scripts/maintenance/db_migrate.py --env pro --manifest" in workflow
@@ -335,12 +474,28 @@ def test_f910_certification_transition_is_exact_baseline_and_allowlisted() -> No
     assert "F910_CERTIFICATION_BASELINE" not in workflow
 
 
+def test_security_audit_runs_all_fg2_bounded_suites_in_python_check() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
+    python_check = workflow.split("  python-check:", 1)[1].split("\n  lint:", 1)[0]
+    pytest_allowlist = python_check.split("python3 -m pytest \\\n", 1)[1].split("-q", 1)[0]
+
+    for path in (
+        "tests/test_fg2_bounded_run.py",
+        "tests/test_fg2_bounded_orchestration.py",
+        "tests/test_fg2_bounded_workers.py",
+        "tests/test_fg2_bounded_workflow.py",
+    ):
+        assert path in pytest_allowlist
+
+
 def test_production_canary_workflow_is_present_but_never_scheduled() -> None:
     workflow = source(".github/workflows/production_canary.yml")
 
     assert "workflow_dispatch:" in workflow
     assert "schedule:" not in workflow
-    assert "if: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' }}" in workflow
+    canary_job = workflow_job_block(workflow, "production_canary")
+    assert "github.ref_name == 'main' && github.ref == 'refs/heads/main'" in canary_job
+    assert canary_job.index("if:") < canary_job.index("environment:")
     assert "candidate_sha:" in workflow
     assert "PRODUCTION-CANARY --enforce" in workflow
     assert "mutable_authorized:" in workflow
