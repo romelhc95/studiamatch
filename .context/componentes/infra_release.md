@@ -2,6 +2,35 @@
 
 > Alcance: configuración versionada, workflows y guías de operación local. Las definiciones en YAML describen el candidato; no prueban que GitHub, Cloudflare, Docker remoto o un editor hayan instalado, activado o ejecutado esos contratos.
 
+## Guard de ejecución productiva solo en `main` — candidato local 2026-11-09
+
+Los workflows FG1, FG2 y FG3 empiezan con `main_ref_guard`, un job sin checkout,
+Environment, secrets ni vars y con `contents: none`. Solo acepta el ref completo
+`refs/heads/main`. Sus preflights de control y todos los jobs funcionales
+dependen de ese guard; cada etapa vuelve a pasar
+`.github/scripts/production_control_preflight.sh`, que también falla cerrado en
+refs no-main aunque los flags sean permisivos. Así `workflow_dispatch` en
+`desarrollo`, `certificacion`, tags u otra ref no llega al Environment, a la
+fuente o al writer. `production_canary.yml` conserva su única entrada manual:
+el `if` del job exige el mismo ref exacto antes de declarar `Production`, y sus
+preflights vuelven a comprobarlo antes de cada etapa.
+
+El contrato independiente DB Sync no se cambia: su caller y su autorización
+siguen en su ruta propia, incluida la política de Certification. La CI normal y
+la promoción protegida Desarrollo → Certification → main tampoco cambian. Esta
+es una definición local del candidato; no acredita publicación, adopción por
+GitHub, activación de schedules ni ejecución remota.
+
+Transición y recuperación: `expand` agrega el guard explícito y estrecha el
+preflight solo para writers FG1/FG2/FG3 y canary; `compatibilidad` conserva el
+canary de `main`, DB Sync y los flujos de CI/promoción; `deploy` exige el flujo
+protegido y el SHA efectivo antes de depender del bloqueo; `contract` conserva
+solo la regla main-only para writers productivos. Para rollback primero se
+detienen nuevos dispatches mediante el control remoto autorizado, se confirma
+que no haya runs activos y luego se revierte por el flujo protegido. Esta
+preparación no cambia Environments, flags, secretos, schedules ni workflows
+remotos.
+
 ## Límites y dependencias
 
 Docker local prepara los runtimes de Python/Node y fixtures de prueba. GitHub Actions define controles y automatización; sus jobs consumen scripts del repo y variables por nombre. Next.js produce el export estático que Pages puede servir; Pages Functions y Worker tienen sus contratos propios en [Runtime Admin](admin_runtime.md). Supabase y Cloudflare son dependencias externas. Las páginas [Tecnologías](../tecnologias.md), [Operación](../operacion.md), [CI/CD](../ci_cd.md), [Seguridad](../seguridad.md) y [Arquitectura](../arquitectura.md) explican ambiente, secretos por nombre, permisos y recuperación.
@@ -26,37 +55,39 @@ Fuente: `.github/workflows/production_pipeline.yml`. Declara ventana diaria (`0 
 
 `tests/test_fase09_10_pre_main_controls.py`, `tests/test_fase10_main_boundary.py` y `tests/test_supabase_credentials_contract.py` leen estos pasos para validar controles, ramas y origen de credenciales. La secuencia local no demuestra schedule activo, secrets provisionados, datos procesados o que una estación haya terminado correctamente en un run remoto.
 
-El candidato local 2026-11-09 añade la entrada manual `bounded_first_run`,
-booleana y predeterminada a `false`, más `approved_lot_reference`,
-`approved_lot_sha256` y `approved_lot_manifest_b64`. Solo el
-`workflow_dispatch` con la opción bounded y las tres entradas coincidentes
-activa el manifest de lote revisado; el evento `schedule` sigue la rama ordinaria
-y no hereda ese presupuesto. El lote Base64 se limita a 40 KiB decodificados y
-no se imprime en logs. Este wiring no verifica una aprobación de GitHub ni
-habilita por sí mismo un writer: el hash, referencia, SHA de fuente y snapshot
-exacto se contrastan en el orquestador y el harvester antes de avanzar. Ese
-camino conserva el schedule declarado `0 5 * * *`; su activación y alcance
-global siguen sujetos a los gates F10.9. No se cambió ni habilitó un Environment,
-flag, secret, schedule o workflow remoto.
+El candidato local añade la entrada manual `bounded_first_run`, booleana y
+predeterminada a `false`, además de `approved_lot_reference`,
+`approved_lot_sha256` y `approved_lot_manifest_b64`. El dispatch bounded conserva
+el lote revisado, limitado a 40 KiB y no impreso en logs. El evento `schedule`
+de `main` usa `--scheduled-cohort`: selecciona hasta diez perfiles elegibles
+para transporte HTTP bounded, fija un manifiesto al run/intento/SHA y aplica los
+límites FG2 configurados. El cron declarado sigue `0 5 * * *`; el schedule sigue
+requiriendo los gates E9/E10 y no se habilitó ni cambió en GitHub.
 
-En bounded, el orquestador falla antes de iniciar Playwright si el perfil
-requiere navegación de browser; cada `page.goto` del harvester pasa además por
-un guard que rechaza el modo controlado antes de emitir la petición. Los perfiles
-SPA/ecommerce, catálogo por scroll, stealth y bypass anti-bot no califican para
-esta primera corrida. La ruta ordinaria permanece separada y sin este límite.
+Los jobs downstream restauran el manifiesto desde el output del harvest, validan
+su digest y consultan solo IDs relacionados de la corrida. Cleansing selecciona
+`staging_raw` por ID del manifiesto; enrichment filtra `cleansed_programs` por
+`staging_id`; sync deriva los `cleansed_id` del mismo conjunto y filtra
+`enriched_programs.pending`. Las colas globales ajenas no pueden entrar en este
+camino; estados históricos `processing`/`processed` no se reabren ni reencolan.
+El artifact de cada corrida se conserva por siete días.
 
-En la ruta opt-in, el job de harvest entrega el manifest de resultados y SHA-256
-por outputs; cada job siguiente comprueba el digest y los IDs antes de operar.
-La selección contrasta la lista aprobada con el prefijo elegible de la rotación
-actual; el snapshot incluye URLs exactas, IDs, estados y relaciones staging →
-cleansed → enriched. La deriva termina antes del contacto o de la primera
-escritura. El artifact sanitizado conserva la cohorte controlada por siete días.
-La opción y su wiring local no son una autorización de writer ni de dispatch:
-una corrida real exige
-el candidato exacto integrado por el flujo protegido, preflight actualizado de
-SHA/Environment/flags/cola/concurrencia, alcance revisado y las autorizaciones
-separadas para escritura y dispatch. Si el preflight falla, detener antes de
-solicitar una ejecución.
+El bounded runner rechaza antes del contacto perfiles SPA/ecommerce,
+`catalog_link_extraction`, stealth y bypass anti-bot. La ruta de navegador
+ordinaria ahora aborta HTTP(S) porque Chromium no comparte el pin DNS del socket
+curl. El snapshot read-only Pro del 2026-11-11 identificó once perfiles de
+producción, discovery y pipeline habilitados que dependen de Playwright:
+coderhouse, datapath, digitalhouse, dmc, educacionit, idat, lewagon, smartdata,
+soyhenry, tripleten y upc. Quedan fuera del cohort schedule bounded hasta que se
+implemente y revise un transporte de navegador con pin DNS y presupuesto, o el
+owner acepte expresamente el alcance reducido. La selección sigue la rotación de
+perfiles bounded elegibles y no reabre estados ni reemplaza URLs del lote manual.
+
+La aprobación inicial de E10 y la activación gradual siguen separadas de cada
+run. Tras activación, el schedule automático en `main` no pide aprobación por
+corrida; `workflow_dispatch` manual conserva el reviewer de `Production`. Este
+cambio local no verifica reviewers, flags, secretos ni ejecuciones remotas y no
+habilita writers.
 
 Compatibilidad: con la opción ausente o `false`, se conserva el flujo existente.
 Rollback: revertir el delta por el flujo protegido; no se ha desplegado ni
@@ -178,6 +209,11 @@ R15 registró `main` como default y `desarrollo` en el SHA base del candidato, c
 
 ## H3REQ1 — pausa de writers manuales en Development
 
+**Estado histórico:** la descripción siguiente quedó sustituida para FG1,
+FG2, FG3 y Production Canary por el guard main-only del candidato local
+2026-11-09, descrito al inicio de esta ficha. No se hereda como permiso vigente
+de ejecución en Development o Certification.
+
 **Cambio local propuesto sobre `f79ff9c7cebc55da9b6540baeb9fdd7275120d4f`:** `.github/scripts/production_control_preflight.sh` permite en `desarrollo` únicamente `workflow_dispatch` cuando `PRODUCTION_WRITERS_PAUSED` es exactamente `false`. `true`, ausente, vacío, formato no reconocido y eventos no manuales bloquean; `schedule` queda bloqueado. `AUTOMATION_ENABLED` y `PRODUCTION_WRITERS_PAUSED` se normalizan antes de escribir outputs de GitHub Actions para impedir que un valor multilínea añada outputs duplicados. Las decisiones de `certificacion` y `main` se conservan. El regresor es `tests/test_fase09_10_pre_main_controls.py`.
 
 **Consumidores revisados:** `fg1_inventory.yml`, `production_pipeline.yml` y `fg3_integrity.yml` enlazan el output `allow_writer` y repiten el preflight con `--enforce` inmediatamente antes de sus writers; los schedules quedan condicionados por el output previo. `production_canary.yml` limita su ejecución a `workflow_dispatch` sobre `main` y revalida el preflight en cada etapa. `db-sync-to-pro.yml` limita su job a `main` o `certificacion` y usa su control propio. No se encontró otro caller del script en workflows o scripts shell.
@@ -216,3 +252,15 @@ Evidencia preservada por proceso; cada catálogo enlaza sus documentos históric
 - [Seguimiento y handoffs históricos](../catalogos_historicos/seguimiento_historico.md#documentos-preservados)
 - [C03 — diagnóstico de arranque de runtimes locales](../catalogos_historicos/c03_inicio_runtime.md#documentos-preservados)
 - [C03 — diagnósticos Docker, F1 y clasificadores](../catalogos_historicos/c03_diagnosticos_runtime.md#documentos-preservados)
+
+## Selección documental H1 en CI — 10-nov-2026
+
+`security-audit.yml` debe seleccionar el paquete H1 cuando el PR modifica el
+manifiesto `.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json`.
+La identificación exige la ruta exacta, `manifest_id` H1 y `schema_version: 1`;
+si el archivo existe con estructura inválida, el selector falla cerrado. Los
+manifiestos H3 R21/D04 y su fallback se conservan para sus propios cambios.
+Para promociones, el selector sigue sumando los manifiestos afectados y todo el
+diff entre base y candidato, con validación de inputs. La prueba ejecuta el
+bloque extraído del workflow para `pull_request` y para promoción; no representa
+un run remoto de Actions.

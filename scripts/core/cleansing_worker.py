@@ -32,6 +32,7 @@ from shared.db_client import get_db_client, DatabaseClient
 from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
     InvalidControlledRun,
+    cleanse_course_url,
     require_manifest_sha256,
     url_sha256,
     uuid_in_filter,
@@ -388,12 +389,7 @@ class CleansingWorker:
         return extract_price(text)
 
     def _get_base_url(self, url: str) -> str:
-        suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal', 'contactenos/', 'contactenos']
-        clean_url = url.rstrip('/') + '/'
-        for s in suffixes:
-            pattern = re.escape(s.rstrip('/')) + r'/?$'
-            if re.search(pattern, clean_url, re.IGNORECASE): return re.sub(pattern, '', clean_url, flags=re.IGNORECASE).rstrip('/') + '/'
-        return clean_url
+        return cleanse_course_url(url)
 
     def stream_pending_staging(
         self,
@@ -721,6 +717,7 @@ if __name__ == "__main__":
             expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
             expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
             expected_source_sha=os.getenv("GITHUB_SHA", ""),
+            allow_empty=True,
         )
     for record in worker.stream_pending_staging(
         batch_size=batch_size,

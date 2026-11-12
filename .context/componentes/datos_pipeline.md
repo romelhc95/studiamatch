@@ -42,9 +42,34 @@ resolver staging y courses por los IDs revisados, y conserva el URL almacenado a
 promover la fila conocida. Sync recibe el `course_id` aprobado a través de
 cleansed/enriched y comprueba una única identidad antes de upsert. Alias
 duplicados, cambio de owner o aparición de un curso en un lote `new_discovery`
-son deriva bloqueante, no dedupe automático. Esta lectura de inventario no
-significa que los jobs consuman las colas globales: cleansing, enrichment y
-sync siguen confinados a las relaciones incluidas en el manifest.
+son deriva bloqueante, no dedupe automático. Solo la ejecución que recibe y
+verifica el manifest queda confinada a sus relaciones.
+
+### Consumidores de la ruta schedule FG2
+
+En `schedule`, el workflow ejecuta el orquestador ordinario con
+`--limit 10 --skip-cleansing`; la fase de cleansing corre después en otro job y
+ninguno recibe el manifest. El límite del harvesting no restringe esas colas:
+
+- Cleansing llama `lock_staging_records(inst_id=NULL, batch_size=100)` y repite
+  hasta el time guard, sin `max_records`. La RPC bloquea filas `staging_raw`
+  `pending` de cualquier institución y las mueve a `processing`; si la
+  institución no tiene pipeline habilitado, el worker las marca `skipped`.
+  Tras fallos repetidos de RPC, el fallback consulta también `status=pending`
+  global.
+- Enrichment selecciona `cleansed_programs.status=pending` para todos los IDs
+  de instituciones con `pipeline_enabled`, por lotes hasta su límite temporal.
+  Puede invocar proveedores sobre filas que no produjo ese harvesting.
+- Sync selecciona `enriched_programs.status=pending` para las instituciones
+  habilitadas y procesa esa selección hasta su time guard; no recibe un límite
+  de cohorte desde el cron.
+
+Los estados `discovered`, `processing` y `processed` no son seleccionados por
+esas consultas normales de cleansing; activar cron no los reencola ni refresca.
+Los agregados `processing` observados no permiten concluir qué IDs se moverán.
+Antes de E10 se requiere un alcance de consumo por IDs y el control programado
+que preserve filas históricas; no se reabre `processed`, no se resetea
+`processing` y no se deduplican filas por conteos.
 
 No se atribuye aquí frescura a los 224 cursos informados por el TL ni stale a
 las 798 filas `processing` por su `created_at`. Antes de una corrida productiva
@@ -52,6 +77,26 @@ se exige lectura fresca y acotada de perfil, seed, URL, hash y estado, además d
 la proyección de consumo de cada etapa. Los cursos elegibles y el backlog se
 comparan por IDs; los conteos sirven como resumen, no como criterio de dedupe ni
 como sustituto del manifest. La prueba local no es un snapshot de Pro.
+
+El GET controlado usa `stream=False` y `content_callback` con un máximo
+acumulado de 2 MiB antes de crear `response.content` o parsear HTML/XML. Al
+detectar que el próximo chunk excedería el tope, el callback devuelve
+`CURL_WRITEFUNC_ERROR` para abortar la transferencia; no usa
+`Content-Length` como autoridad ni depende de devolver una escritura parcial.
+El contexto de la sesión cierra el transporte al terminar o abortar la llamada.
+Un exceso en HTTP 200 difiere el origen y no crea staging. Para 403/429 conserva
+la clasificación de bloqueo sin reintento; para otros estados HTTP conserva
+cabeceras necesarias para procesar redirects o `Retry-After`, sin parsear el
+cuerpo parcial. El transporte ordinario no usa este callback y no tiene este
+límite de bytes; tampoco lo tiene el cuerpo renderizado por Playwright. Este
+riesgo no se resuelve al acotar las colas de workers.
+
+Las URLs descubiertas nuevas quedan en memoria y solo crean staging tras un
+body válido y parseable. Las filas históricas preexistentes quedan intactas.
+Docker `--network none` valida cuerpo válido, respuesta chunked sin longitud,
+desconexión temprana, cero staging writes por exceso y creación de staging tras
+un parseo válido. No es una consulta a fuentes institucionales ni un resultado
+productivo.
 
 No existe un único snapshot SQL que represente el remoto actual: restore_full_schema.sql y MASTER son fuentes locales históricas; Pro es el baseline de comparación. Los fixtures PG17 son desechables.
 

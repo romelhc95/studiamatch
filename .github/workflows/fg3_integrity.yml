@@ -14,9 +14,26 @@ permissions:
   contents: read
 
 jobs:
+  main_ref_guard:
+    name: "Require main ref before production resources"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: none
+    steps:
+      - name: Reject non-main execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF:-}" != "refs/heads/main" ]]; then
+            echo "::error::FG3 production execution is restricted to refs/heads/main."
+            exit 1
+          fi
+          echo "FG3 production ref guard passed."
+
   production_control_preflight:
     name: "FG3 Production Control Preflight"
-    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref)
+    needs: main_ref_guard
+    if: needs.main_ref_guard.result == 'success' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.event_name == 'schedule' && github.ref_name == 'main' && 'Production-Scheduled-FG3') || (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -39,8 +56,8 @@ jobs:
 
   integrity:
     name: "3. Daily Integrity Ping"
-    needs: production_control_preflight
-    if: needs.production_control_preflight.outputs.allow_writer == 'true'
+    needs: [main_ref_guard, production_control_preflight]
+    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:

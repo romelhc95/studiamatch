@@ -41,6 +41,48 @@ snapshot read-only que fije IDs, estados, URLs y hashes reales, desglose de
 colas, efecto por etapa y recuperación antes de pedir autorización de
 writer/dispatch.
 
+#### Relectura Pro de alcance FG2 y efecto downstream — 2026-11-10
+
+La lectura Pro de solo lectura de este ciclo confirma que el prefijo exacto
+permitido por rotación sigue siendo Universidad de Lima (rango 10, 10 URLs
+seleccionadas) y Certus (rango 11, 2 URLs): 12 semillas, cero coincidencias
+actuales con staging/courses/cleansed. Ese lote acredita descubrimiento nuevo,
+no el refresh de los cursos activos incompletos.
+
+UTEC está en el rango 17, fuera de ese prefijo. Tres de sus cinco seeds ya
+coinciden con cursos públicos; el snapshot anterior a cualquier escritura es:
+
+| URL | staging (estado; SHA-256) | cleansed / enriched | course |
+|---|---|---|---|
+| posgrado.utec.edu.pe/cursos/data-science-fundamentals | bba1ef8f-c721-4bd6-85ac-b43a6b71b526, discovered; fa3800f5796f5abf18898b498ca543b9a282d670e9b2ae4d5e602da431928ded | 4ad808f9-16f9-4be2-a8b6-99e9bba7a4eb, enriched / 86cc1214-6966-47e1-8f61-0d9fe0fed588, synced | 1d723bd7-67c3-47d7-82e3-1994b44703b3, active+verified, visible en courses_public_effective |
+| posgrado.utec.edu.pe/cursos/big-data | 8fc17004-7f0d-4b7b-8e02-72ae364f3898, discovered; 57fb8dd8e5e139311d03501ca060f22836ac235e0e287e15c477b7520f82f084 | 064cbc02-ef9a-4bf8-8bba-b3646495d7ed, enriched / cd10bfda-eb6e-4bf9-a499-4d269fb5ae8c, synced | 4e3faad9-1d43-4b63-82c5-6e8a6dce6933, active+verified, visible en courses_public_effective |
+| posgrado.utec.edu.pe/programas/programa-en-arquitectura-de-datos | d31feadd-a478-45c7-aa50-ab808d6c9e9d, discovered; 4c5bc1b1ec964863307ec3cf2da5a435c8fb0bc674c6c3cc1d40cb162fb1ad7e | a0d2727f-7283-4290-9770-48e2699de8c6, enriched / 24cd2d22-89c6-4434-9070-7356f09ebe78, synced | 7d9b3203-4255-434c-8015-33df7ac3d45c, active+verified, visible en courses_public_effective |
+
+Los tres cursos tenían last_scraped_at del 2026-06-27, last_404_at nulo y
+editorial_status pending_review; el snapshot no mostró campos de override
+editorial manual. Esto identifica un refresh realista sin reabrir estados
+históricos, pero no constituye autorización de contacto o escritura.
+
+Con un manifiesto controlado que contenga solo esos tres IDs/URLs, el efecto
+esperado es staging discovered→pending al iniciar el refresh y luego
+processed por cleansing; las filas cleansed existentes se vuelven pending y
+después enriched; las enriched existentes se vuelven pending y después synced.
+Sync actualizaría los tres cursos por identidad existente, con revisión de
+hash/contenido, last_scraped_at, estado editorial y vista pública. Las RPC Pro
+leídas hacen esos upserts y transiciones; no se ejecutaron. El contrato de sync
+preserva manual_overrides; el postflight debe confirmar que course IDs,
+overrides, elegibilidad pública y estados coinciden con lo esperado. Las otras
+dos seeds UTEC no tienen course ni downstream y son descubrimiento, no refresh.
+
+El lote de rotación actual no puede seleccionar únicamente UTEC: el verificador
+exige el prefijo exacto y Cibertec rango 16 está antes, con cinco filas
+processed que se preservan. NewHorizons conserva cinco filas processing que
+tampoco se resetean. Por tanto se requiere una decisión explícita: conservar el
+prefijo y aceptar que el primer lote solo descubra 12 URLs, o autorizar una
+excepción de selección para las tres seeds UTEC enumeradas. La excepción
+requiere delta local revisado y pruebas; no se aplicará por inferencia. E10
+permanece bloqueado aparte porque el schedule ordinario aún no pasa el manifiesto
+a las estaciones y sus workers downstream pueden consumir colas globales.
 El último dato comunicado por el TL (2026-11-09 01:04 Lima) fue 224 cursos
 activos, todos con `last_scraped_at` anterior a 30 días (máximo
 `2026-07-18`), y 798 filas `processing`; se conserva como observación aportada,
@@ -94,20 +136,17 @@ que el candidato exacto llegue a main y supere el preflight/JIT de producción.
 
 #### Estado de publicación local
 
-La implementación FG2 y su suite quedaron consolidadas en una rama local de
-revisión; el detalle de SHA exacto, árbol, paquete reproducible y evidencias
-está en el changelog H1REQ1 externo
-`/tmp/h3req1-installation-audit-20261104/CHANGELOG-H1REQ1.md`. El paquete
-continúa sin publicar. El
-clon temporal usado para preparar el commit tiene `origin` apuntando al checkout
-FG2 local, no a GitHub; no ejecutar `git push` usando ese remoto. La decisión
-humana pendiente es autorizar o rechazar únicamente la publicación del commit
-exacto que figure en el último checkpoint del changelog. Si se autoriza, antes
-de publicar se debe apuntar el checkout aislado al repositorio GitHub correcto,
-verificar que la rama remota no tenga contenido divergente y confirmar de nuevo
-el SHA. Esa autorización no abre un PR ni habilita merge, promoción, configuración
-ni operación Pro; cada paso conserva su gate. E9 no está ejecutado, E10 mantiene
-cero pares y 72 horas sin iniciar, y H4 conserva su gate.
+La base FG2 de 21 rutas fue publicada en la rama
+`codex/h1req1-fg2-bounded-first-run-20261109` como commit
+`d18dac6d23f59e7066d2098fbf8e2c51839c676b`. No se repite ese push. El checkout
+local actual `/tmp/h1req1-fg2-approved-seed-selection-20261109` parte de ese
+HEAD y añade un delta no publicado de guard main-only, cobertura de pruebas y
+documentación. Su huella debe volver a fijarse antes de cualquier solicitud de
+publicación; la autorización anterior de push cubrió únicamente el commit/diff
+publicado, no el delta actual. PR, merge, promoción y corrida conservan gates
+separados. El changelog H1REQ1 externo registra el historial y el estado de
+publicación. E9 sigue incompleto, E10 pendiente, los pares FG2→FG3 válidos son
+cero y la observación de 72 h no ha empezado; H4 mantiene su gate.
 
 #### Reanudación de FG2 desde el clon TL — 2026-11-09
 
@@ -172,6 +211,661 @@ completos puede aumentar costo y latencia con el tamaño de catálogo/lote; se
 debe medir al formar un lote pequeño. Esta revisión no da aprobación de push,
 PR, merge, promoción ni corrida. El checker integral **FAIL 349→349** y el
 registro histórico FG3 **348→348** se mantienen separados.
+
+#### Reanudación local FG2 main-only y #119 — 2026-11-09 23:42 America/Lima
+
+El delta local sobre FG2 publicado `d18dac6d23f59e7066d2098fbf8e2c51839c676b`
+agrega bloqueo main-only al entrypoint de FG1/FG2/FG3, preflight de estación y
+Production Canary. Los controles no acceden a Environments/credenciales desde
+refs distintas de `refs/heads/main`, aun con flags permisivos. DB Sync mantiene
+su contrato separado; el canary aprobado, CI y promoción protegida se conservan.
+
+La regresión Docker `--network none` pasó **172 tests**, con una advertencia de
+deprecación upstream PyPDF2. Cubre ref de rama/tag, flags, bloqueos de
+Development/Certification, dependencia de etapas y límites de Environment;
+no ejecuta Actions alojado ni demuestra adopción remota. La primera llamada al
+entrypoint Docker se detuvo antes de pytest por el chequeo de sincronía de
+`node_modules`; se repitió usando la misma imagen fijada y entrypoint Python,
+sin red, y el conjunto pasó. Tres aserciones obsoletas se actualizaron y la
+suite completa quedó verde.
+
+El run #119 (`42700475185`) se conserva como **preflight SUCCESS / FG3
+integrity SKIPPED**. No es prueba funcional ni par FG2→FG3. E9 continúa
+incompleto, E10 pendiente, pares válidos=0, 72 h sin iniciar; F10.9 mantiene
+cero cursos activos incompletos como condición de cierre y H4 conserva su gate.
+No hubo contacto institucional, ejecución real, escrituras Pro, cambios de
+Environment/flags/secrets/schedules ni acciones GitHub remotas en este ciclo.
+
+#### Reconciliacion de politica E10 y run FG2 #252 — 2026-11-10 10:11 America/Lima
+
+La decision de Romel conserva la aprobacion humana inicial para activar E10 y
+retira la aprobacion por corrida de los schedules. Una vez activados, FG1, FG2 y
+FG3 deben correr automaticamente en main sin esperar Approve. El workflow_dispatch
+manual sigue usando Production con reviewer humano por corrida. Desarrollo y
+Certificacion conservan validaciones offline; esta politica no cambia el
+criterio cliente CA1 ni los umbrales de cierre F10.9.
+
+GitHub Actions muestra que FG2 #252 (42823711354) fue un evento schedule en
+main@646f14afa845ea3200f40ce919e273f090059c63, obtuvo aprobacion de deployment
+de romelhc95-approver en Production-Scheduled-FG2 y termino Success. El
+preflight fue SUCCESS, Allow writer=false, Reason=automation_disabled;
+harvesting, cleansing, enrichment, sync y CA1 audit quedaron SKIPPED. La
+ejecucion confirma el comportamiento actual de espera por aprobacion, pero no
+refresh ni E9 funcional. No se acredita E10 ni un par FG2→FG3.
+
+Lectura de Environments por UI visible a las 09:58–10:00 Lima: los tres
+Production-Scheduled-* tenian Required reviewers y Prevent self-review
+activados, sin wait timer, una branch rule permitida, AUTOMATION_ENABLED=false
+y PRODUCTION_WRITERS_PAUSED=true. La rama exacta main se habia confirmado el
+09-Nov y debe releerse antes de cualquier cambio. La lista reporto presencia de
+secrets/variables (sin valores): FG1 2/2, FG2 7/2, FG3 2/2. El Environment
+manual Production mantuvo Required reviewers y Prevent self-review activados,
+sin wait timer, dos branch rules y flags cerrados; su reviewer y sus secretos
+no se modifican. El estado terminal de #252 no acredita que la cola completa
+este vacia.
+
+Relectura del run a las 10:55 Lima: #252 seguía terminal Success y registra
+la aprobación de romelhc95-approver; no aparecía ejecutándose. El detalle
+confirma que el evento fue schedule, el preflight terminó SUCCESS con
+Allow writer=false y Reason=automation_disabled, y los cinco jobs
+funcionales/auditoría quedaron SKIPPED. La autorización permitió que
+continuara el run programado, pero su resultado no acredita E9 funcional.
+
+El destino preparado, no aplicado, es quitar solo Required reviewers de
+Production-Scheduled-FG1 (ID 19282377587), Production-Scheduled-FG2 (ID
+19282596241) y Production-Scheduled-FG3 (ID 19282759758), uno por uno al
+activar E10. Mantener main, reglas restantes, secrets/variables, cron, limites,
+concurrency y kill switch; no tocar Production manual. Antes de cada cambio se
+requiere E9 funcional, SHA/flags y configuracion releidos y cero runs queued,
+waiting, con deployment pendiente o activos. Despues, releer cada Environment
+antes del siguiente. Configuracion, habilitacion del workflow, flags/writers y
+dispatch siguen siendo acciones separadas. No se hizo cambio remoto; E9 sigue
+incompleto, E10 pendiente, 0 pares/72 h; H4 conserva su gate.
+
+#### Remediacion local CWE-400 y preflight E9/E10 — 2026-11-10
+
+El candidato FG2 del ciclo sigue en `HEAD=d18dac6d23f59e7066d2098fbf8e2c51839c676b`,
+contra Desarrollo `c736336819bc0a927cc7224a053429e27433a748`. El digest inicial
+de 32 rutas ya no identifica los bytes actuales: el acumulado medido contiene
+35 rutas y la huella final se registra en el changelog externo después del
+último chequeo. FG3 y CA4 permanecen en sus checkouts separados.
+
+En el GET controlado, `universal_harvester.py` ahora acumula como maximo 2 MiB
+mediante `content_callback`; al recibir el chunk que excederia el tope, aborta
+la transferencia antes de crear `response.content` o parsear HTML/XML. No usa
+`Content-Length` como autoridad. El transporte cierra la respuesta y el origen
+queda diferido sin reintento; un candidato oversized no crea una fila de
+staging. El cambio queda confinado al transporte controlado; SSRF, TLS, DNS
+fijado, redirects deshabilitados y presupuestos existentes se conservan.
+
+Docker Desktop, imagen `sha256:ebbf777792ee636179660638264c3d7b501f79e8efec731296d5ef41d07d18e6`,
+`--network none`, checkout read-only: regresion pertinente **223 passed, 1
+advertencia PyPDF2**; los seis casos focales de cuerpo valido, exceso sin
+`Content-Length`, respuesta chunked que se corta y ausencia de staging write
+dieron **6 passed**. El credential scanner de arbol, el test del scope guard y
+el checker documental candidato-aware tambien pasaron en Docker. `bash -n` y
+`git diff --check` pasaron. `actionlint` no esta instalado en la imagen local;
+los tests de contrato de workflows forman parte de la regresion, pero no se
+afirma ejecucion de CI alojado.
+
+El checker candidato-aware dio `DOC_GATE_PASS` con 769/769 fuentes asignadas,
+122/122 documentos activos alcanzables y 433/433 historicos enlazados. Este
+resultado acotado no cambia el FAIL integral documental **348→348, listas
+identicas**, que se conserva separado. La revision Codex Security de la huella
+final se registra en el changelog; el scan previo corresponde a bytes antiguos.
+
+La lectura Pro sigue sin un lote de refresh compatible con el prefijo actual:
+Universidad de Lima y Certus ofrecen seeds sin filas existentes y solo prueban
+descubrimiento. Las tres filas refresh elegibles observadas en UTEC quedan
+despues de Cibertec, cuyas filas `processed` se preservan; no se salta el orden
+ni se reabren estados. E9 requiere elegir entre una primera corrida de
+descubrimiento que no refresca cursos o una excepcion explicita de seleccion
+UTEC con las tres URLs/IDs/hashes documentados.
+
+En Actions, FG2 #252 (`42823711354`) figura `schedule`, terminal `success`; su
+preflight fue SUCCESS, pero harvesting, cleansing, enrichment y sync quedaron
+SKIPPED. FG3 #120 (`42874819447`) tambien figura terminal `success`, con el
+job funcional FG3 `SKIPPED`; ninguno acredita E9. La lista reciente de todos
+los workflows no muestra una corrida pendiente/activa entre sus entradas mas
+nuevas, pero no sustituye el preflight de cola requerido antes de activar E10.
+La ruta schedule de FG2 en main no pasa el manifiesto controlado a los workers
+y puede consumir colas globales; E10 sigue bloqueado. No se cambiaron flags,
+Environments, secretos, schedules o writers; no hubo dispatch, llamadas a
+fuentes institucionales ni escrituras Pro. H4 conserva su gate.
+
+#### Relectura Pro, cola y ruta programada — 2026-11-10
+
+Lecturas Pro de solo lectura, proyecto xwhtiqmboljkshrtviyw, aproximadamente
+17:30–17:36 America/Lima: la selección exacta del primer lote sigue siendo las
+primeras 10 seeds de Universidad de Lima y las 2 de Certus. La comparación
+canónica de esas 12 URLs devolvió cero filas coincidentes de staging, courses o
+courses_public_effective; el lote es de descubrimiento y no refresca cursos.
+Los estados globales leídos fueron staging: processing 798, discovered 372,
+processed 290, skipped 228, discarded 162 y pending 14; cleansed 351; enriched
+synced 349 y error 2. Esos conteos describen las colas, no se usan para deducir
+stale, deduplicar cursos ni ampliar la cohorte.
+
+La rotación elegible posterior incluye PBS en rango 14, Cibertec en rango 16 y
+UTEC en rango 17. PBS tiene una seed con staging processing
+146f7ad0-4b10-4989-a018-795032cf54fc y no tiene course asociado. Las cinco
+seeds de Cibertec ya tienen staging processed y cursos públicos; esos estados
+no se reabren. Las tres seeds UTEC de refresh son las posiciones 3–5 del perfil,
+no las primeras tres: sus staging siguen discovered y sus cursos están
+activos, verificados y visibles en la vista. Sus IDs, hashes y referencias
+están en el plan F10.9. Mantener la rotación y no reabrir históricos impide
+llegar directamente a UTEC en el primer lote; un cambio de orden requiere
+decisión humana explícita. E9 no acredita refresh con el lote Lima+Certus.
+
+En la ruta local E10, FG2 schedule no entrega el manifiesto aprobado:
+FG2_CONTROLLED_FIRST_RUN solo puede activarse por workflow_dispatch, y el
+ramal programado usa el flujo ordinario que deja cleansing, enrichment y sync
+en sus selectores globales. Aunque los guards de main y el preflight de flags
+están antes del trabajo funcional, esta ruta no cumple el aislamiento de
+cohorte exigido para habilitar el schedule. La corrección y promoción de esa
+ruta son gates separados; E10 queda sin activar. El dispatch manual conserva
+Production y su reviewer.
+
+La página de Actions se recargó en modo lectura a las 17:35:59 America/Lima.
+Las 30 entradas más recientes visibles no mostraron estado queued, waiting,
+pending, requested o in progress; FG2 #252/42823711354 y FG3
+#120/42874819447 figuran terminales success, con etapas funcionales SKIPPED.
+Es una lectura acotada de interfaz, no una captura completa de cola ni crédito
+E9. Antes de E10 se requiere la consulta completa de cola y el control efectivo
+de cada Environment. No se modificaron Environments, flags, workflows,
+schedules, writers ni runs.
+
+#### Dictamen del revisor y delta local para H1-CA1 — 2026-11-11
+
+La atestación sanitizada vigente define CA1 como schedules automáticos del
+harvester/pipeline bajo gates, circuit breakers y controles de credenciales, y
+exige evidencia de funcionamiento productivo. No exige por sí misma refrescar
+un ID específico. El objetivo operacional de recuperar cursos desactualizados
+no se considera cumplido por una corrida que solo descubra URLs; ese resultado
+se registra aparte de E9 funcional y del cierre F10.9.
+
+Se retoma el candidato aislado
+`/tmp/h1req1-fg2-ordinary-guard-20261111`, `HEAD=d18dac6d23f59e7066d2098fbf8e2c51839c676b`,
+base Desarrollo `c736336819bc0a927cc7224a053429e27433a748`, con el alcance
+acumulado de 35 rutas. La huella congelada de ese diff se registra en el
+changelog externo H1REQ1 después de cerrar las validaciones. FG3 y CA4 se
+mantienen en sus checkouts separados.
+
+El dictamen sanitizado del revisor revisó las 35 rutas de la huella anterior
+`7bb2f49199e1e2d986c079fa342145a1869fd85dd96a611aac7eb51d57a8f0ba` y dio
+NO-GO para FG2 ordinario/readiness H1. El scan
+`371e1513-379a-4d05-820e-4d97da8ada21` fue standard sobre 1.847 archivos, con
+cobertura general parcial 6/9 y cinco registros deduplicados en las familias
+SSRF, XSS y activación OpenCode por comentario. El candidato local cambió
+después de esa revisión; no se atribuye al nuevo diff aprobación de seguridad
+ni cobertura exacta del scan.
+
+El delta local cierra los tres bloqueos de implementación para el lote
+controlado: el transporte HTTP ordinario y `site_diagnostics.py` validan y
+pinean destinos públicos en cada salto; el orquestador rechaza el modo
+`--controlled-first-run` si no delega cleansing mediante el manifest; y
+enrichment/sync revalidan URL e identidad del manifest antes de proveedor y
+writer. Docker `--network none`, imagen `studiamatch-dev:local`, filesystem del
+candidato read-only: cuatro suites FG2 y cuatro casos de transporte/diagnóstico
+dieron **94 passed, 1 warning** de deprecación PyPDF2. El checker documental
+candidate-aware dio `DOC_GATE_PASS` (769/769 fuentes, 122/122 documentos activos,
+433/433 históricos); el credential scan y el test del scope guard/selector H1
+dieron PASS. El checker integral FG3 **FAIL 348→348, listas idénticas** sigue
+separado.
+
+La lectura estática de `.github/workflows/production_pipeline.yml` y los
+workers muestra que el schedule no transmite manifest: harvesting limita a
+diez instituciones, cleansing consume `staging_raw.pending` global por lotes
+de 100 hasta el time guard y puede marcar `skipped` instituciones no
+habilitadas; enrichment y sync consumen sus respectivas colas `pending` de
+instituciones habilitadas sin cohorte del harvester. Activar el cron no
+reencola `discovered`, `processing` ni `processed`. La ruta programada todavía
+tiene GET ordinario sin cap de cuerpo de 2 MiB y Playwright sin ese cap ni pin
+DNS de curl. Estos límites, el consumo global por IDs y el control de cola
+mantienen E10 bloqueado; esta lectura de YAML/código no es estado remoto actual.
+
+El lote observado el 10-Nov bajo la rotación vigente permite discovery, no
+refresh de cursos existentes. La posibilidad de refrescar tres URLs UTEC es
+histórica y no habilita saltar el prefijo ni reabrir `processed`; antes de una
+corrida se requiere lectura fresca y una decisión explícita si el criterio
+operacional exige ese refresh. La revisión del XSS JSON-LD queda fuera del
+allowlist CA1 (`web/**`); el hallazgo OpenCode no corresponde al delta FG2. No
+se tocaron esas rutas.
+
+FG3 no se modificó: el owner conserva pendiente la decisión de riesgo sobre la
+ventana TOCTOU entre lectura de elegibilidad y PATCH condicional. Sin tráfico
+institucional, Pro, proveedores, Actions mutativos, flags, environments,
+schedules, dispatch, push, PR o promoción. E9/E10/E11 y conformidad CA1 siguen
+pendientes; H2/H3 se reutilizan y H4 conserva su gate. La publicación requiere
+que un revisor emita un nuevo dictamen sobre la huella final, porque el dictamen
+disponible cubre la huella anterior.
+
+#### Corrección local de hallazgos FG2 y aislamiento del schedule — 2026-11-11
+
+Este corte supersede la descripción anterior del recorrido programado para el
+candidato local. La base sigue siendo Desarrollo
+`c736336819bc0a927cc7224a053429e27433a748`, el HEAD del checkout aislado es
+`d18dac6d23f59e7066d2098fbf8e2c51839c676b` y el acumulado conserva 35 rutas.
+La huella final se registra en el changelog después de cerrar las validaciones.
+
+La remediación local de los hallazgos aplicables a `5399fc66…` hace tres cosas:
+(1) Playwright rechaza toda navegación HTTP(S) antes de continuarla, y la ruta
+bounded de FG2 difiere perfiles que necesitan ese navegador antes de contactar
+sus fuentes; (2) el manifest conserva identidades y hashes separados para URL
+cruda y URL resultante de cleansing, y enrichment/sync vuelven a validar sus
+referencias antes de proveedor o escritura; (3) la paginación deduplica una URL
+normalizada antes de agregarla a la cola de la misma corrida.
+
+El workflow candidato invoca `--scheduled-cohort` solo para evento `schedule`
+en `refs/heads/main`, con run ID, intento y SHA presentes. Guarda el manifest y
+su SHA-256 y los transmite a cleansing, enrichment y sync. Cleansing consulta
+`staging_raw` solo por los IDs de staging del manifest; enrichment obtiene
+`cleansed_programs.pending` por esos `staging_id`; sync deriva los `cleansed_id`
+de los mismos registros y consulta únicamente sus `enriched_programs.pending`.
+Cada worker compara IDs, institución, URL y hashes relacionados. Un manifest
+vacío produce cero selección y cero fallback a las colas globales. Esto limita
+la cohorte del run, pero no resuelve ni modifica el backlog histórico; no
+resetea `processing` ni reabre `processed`.
+
+Los límites preparados para esa ruta son: diez instituciones por corrida,
+diez URLs únicas por institución y veinte solicitudes HTTP por institución;
+concurrencia máxima de una solicitud por origen y al menos cinco segundos entre
+inicios; hasta tres intentos por URL dentro del presupuesto total; como máximo
+cinco redirecciones, contadas dentro del mismo presupuesto; `Retry-After`
+respetado hasta 30 segundos y origen diferido si supera ese máximo; respuesta
+acumulada limitada a 2 MiB antes de parseo. Un `403` o `429` detiene el origen
+para el resto de la corrida. El manifest enlaza el estado del origen entre las
+instituciones procesadas en serie. Estos valores y el workflow son solo
+candidato local; no se modificó configuración GitHub ni se activó E10.
+
+La última lectura read-only Pro del 2026-11-11 encontró once perfiles
+productivos, discovery y pipeline habilitados que requieren Playwright:
+`coderhouse`, `datapath`, `digitalhouse`, `dmc`, `educacionit`, `idat`,
+`lewagon`, `smartdata`, `soyhenry`, `tripleten` y `upc`. La ruta bounded los
+omite antes de iniciar tráfico; no quedan cubiertos por FG2 programado. El
+guard fail-closed de navegación también impide el recorrido browser del
+workflow manual para esos perfiles hasta disponer de transporte con pin DNS;
+las demás rutas manuales conservan Production y aprobación. La decisión de
+alcance para E10 sigue pendiente: aceptar expresamente la exclusión temporal
+y dejar esas instituciones diferidas, o autorizar como trabajo local separado
+el diseño y validación de un transporte de navegador con pin DNS y los mismos
+límites antes de E10. No se agrega institución sustituta fuera del prefijo de
+rotación.
+
+La validación Docker offline del candidato ejecutó siete suites focales:
+bounded run/workers/orquestación/workflow, controles pre-main, recorrido local
+del pipeline y contrato de credenciales Supabase: **199 passed, 1 warning**
+(PyPDF2 deprecated). También pasaron el selector/guard de rutas con negativos,
+el checker documental candidate-aware con self-test (`DOC_GATE_PASS`, 769/769
+fuentes asignadas, 122/122 documentos activos y 433/433 históricos), el scan
+de credenciales del diff y la comparación exacta del guard sobre un commit
+temporal con las 35 rutas contra Desarrollo. El FAIL documental integral H3
+`348→348`, listas idénticas, se conserva separado; el resultado acotado no lo
+convierte en PASS. Sin red, contacto institucional, escritura Pro ni ejecución
+de workflows. Falta el dictamen del Code Reviewer sobre la huella final antes
+de solicitar publicación.
+
+La política operativa E10 sigue siendo schedule automático en `main` para
+FG1–FG3 sin aprobación humana por corrida después de una activación autorizada;
+el workflow manual conserva `Production` y aprobación humana. E9 debe
+acreditarse primero. E10 permanece inactivo y sin autorización de activación;
+E11/conformidad CA1 y H4 conservan sus gates.
+
+#### Ajustes posteriores al Code Reviewer — 2026-11-11
+
+Sobre el mismo checkout local de 35 rutas, el Code Reviewer no volvió a
+reportar los dos P1 ni el P2 originales de `5399fc66…`. Encontró además dos
+P2 que se corrigieron antes de solicitar el siguiente dictamen: el CLI de
+diagnóstico usaba un contexto de paquete distinto al import nuevo de
+`scripts.core`, y las URLs protegidas de sitemap podían crecer sin límite en
+`blocked_staging_rows`. Los módulos ahora soportan ambos contextos de paquete y
+el CLI mantiene su helper compatible de enlaces de ruido. Seeds, sitemap y
+paginación cuentan cada URL única válida examinada contra el máximo de diez por
+institución. Una URL protegida queda solo como bloqueo; no entra a los workers
+ni cambia de estado.
+
+Las pruebas nuevas fallaron primero en Docker `--network none` por ambas
+condiciones y después pasaron **2/2** tras el ajuste. La prueba de diagnóstico
+invoca el CLI sin `PYTHONPATH`, URL ni red; la prueba controlada ofrece doce
+filas sintéticas `processed` y demuestra que solo se registran diez bloqueos y
+ninguna se reabre. La regresión ampliada y el dictamen del Code Reviewer para
+la nueva huella son gates antes de solicitar una única publicación/PR a
+Desarrollo. La verificación E10 sigue local: no se leyó cola/configuración
+remota en este ciclo, no se cambió ambiente ni writer y E9 antecede a E10.
+
+#### Correcciones del Code Reviewer para schedule FG2 — 2026-11-11
+
+La revisión posterior de `8d3af1a9…` encontró tres defectos en el camino E10:
+el child no distinguía schedule del lote manual revisado, el digest de URL no
+usaba la misma precedencia canonical/effective que cleansing y un `no_op` podía
+estancar la rotación. El candidato actual separa `--scheduled-cohort` de
+`--controlled`, verifica schedule en `main` sin exigir lote manual, enlaza el
+hash downstream a la URL normalizada elegida por cleansing y avanza
+`last_harvest_at` tras un NO-OP de schedule manteniendo el resultado `no_op`.
+Ese timestamp es marcador de intento; no acredita refresh ni una corrida
+funcional.
+
+Las siete suites Docker offline afectadas pasan **207/207**, con una advertencia
+deprecada PyPDF2. El siguiente gate es el Code Reviewer sobre la huella corregida
+y la revalidación documental candidate-aware. El snapshot Pro previo identifica
+once perfiles Playwright que el modo seguro difiere sin sustituirlos; E10
+requiere decisión humana sobre diferirlos mientras la cobertura browser se
+mantiene cerrada o mantener E10 inactivo hasta entregar transporte con DNS pin
+y presupuesto equivalente. La consulta Pro vigente falló en OAuth antes de
+leer filas; los IDs/hashes de colas siguen pendientes de una nueva lectura.
+E9 no se ejecutó, E10 sigue inactivo y H4 conserva su gate.
+
+#### P2 adicionales y alcance preparado E10 — 2026-11-11
+
+El Code Reviewer sobre `f7aa2472…` emitió NO-GO con dos P2: los seeds de página
+del lote manual `sitemap_bfs` se enviaban al parser XML, y un alias de detalle
+como `/presentacion` no se asociaba al curso que cleansing agrupa. El cambio
+local procesa directamente las páginas exactas del lote, conserva el parseo de
+seeds `.xml` reales y clasifica el refresh con la URL tras la limpieza de
+sufijos. Docker `--network none` pasó las seis suites focales en **167/167**,
+con una advertencia deprecada PyPDF2. Se añadieron dos pruebas que fallaron
+antes del ajuste; la suite ampliada incluye manifests/workers, workflow,
+controles main/manual y recorrido sintético. El checker candidate-aware sobre
+las adiciones documentales pasó `DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`
+(769/769 fuentes, 122/122 documentos activos, 433/433 históricos). El FAIL
+integral histórico `348→348`, listas idénticas, queda separado. El nuevo
+dictamen del Code Reviewer sobre la huella final sigue pendiente.
+
+El schedule candidato liga cada corrida por run ID, intento y SHA al manifest
+y su digest. Cleansing consume solo `staging_raw` pending cuyos IDs están en el
+manifest; enrichment consulta únicamente `cleansed_programs.pending` ligado a
+esos staging IDs; sync toma solo `enriched_programs.pending` ligado a los
+cleansed IDs derivados. El máximo teórico es diez instituciones por corrida y
+diez URLs por institución: hasta 100 filas staging candidatas. El control es
+por IDs/relaciones/estado/hash; no se deducen filas Pro de conteos. No reabre
+`processing` ni `processed`, y un manifest vacío no cae a la cola global. El
+transporte limita 10 URLs únicas y 20 solicitudes HTTP por institución,
+concurrencia 1/origen, 5 s entre inicios, hasta 3 intentos, 5 redirects,
+`Retry-After` hasta 30 s y cuerpo de 2 MiB; 403/429 detiene el origen.
+
+La lectura Pro histórica de 2026-11-11 dejó sin cobertura de este camino a
+`coderhouse`, `datapath`, `digitalhouse`, `dmc`, `educacionit`, `idat`,
+`lewagon`, `smartdata`, `soyhenry`, `tripleten` y `upc`: sus perfiles requieren
+Playwright y permanecen fail-closed, sin sustitución fuera del prefijo de
+rotación. Esto aplaza su actualización y puede mantener cursos incompletos;
+no equivale a evidencia de que hoy tengan filas elegibles. La cola Pro actual
+no se pudo releer por fallo de renovación OAuth; no se intentó otra vía. La
+decisión pendiente para E10 es aceptar su diferimiento temporal o mantener
+E10 cerrado hasta validar transporte browser con pin DNS y límites iguales.
+En cualquier caso E9 debe completarse antes de E10; el schedule sigue inactivo.
+
+#### Revisión del diff corregido y regresiones adicionales — 2026-11-11
+
+El Code Reviewer evaluó el candidato de 35 rutas `e22455c0…` contra Desarrollo
+`c736336819bc0a927cc7224a053429e27433a748` y dejó NO-GO con tres hallazgos:
+una fila no relacionada podía convertirse en target del upsert de `new_discovery`;
+una denegación DNS previa a HTTP no podía persistirse como diferida; y las cuatro
+suites FG2 no estaban en el allowlist efectivo de pytest del workflow
+`security-audit`. Se corrigen localmente dentro del mismo alcance: la cohorte
+nueva usa el inventario solo para detectar alias y conserva vacío el destino
+existente; el manifest permite estado `deferred` sin inicio HTTP (pero mantiene
+`blocked` solo después de un request); y CI invoca explícitamente las cuatro
+suites FG2.
+
+Docker `--network none` reproduce los tres fallos antes de corregirlos y pasa
+después **169/169** en las seis suites focales afectadas, con una advertencia de
+deprecación PyPDF2. El diff sigue local, sin commit, publicación ni PR; checker
+documental y escaneo de credenciales del diff se ejecutaron tras consolidar la
+documentación: `DOC_SELF_TEST_PASS`, `DOC_GATE_PASS` (769/769 fuentes asignadas,
+122/122 documentos activos, 433/433 históricos) y credential scan PASS en las
+35 rutas. El Code Reviewer debe evaluar la nueva huella. E9 no se ejecutó,
+E10 sigue inactivo y H4 conserva su gate.
+
+#### Serialización FG2 y Production Canary — 2026-11-11
+
+La misma revisión reportó un P2 de carrera entre `CleansingWorker` por manifest
+y `production_canary.yml`: los grupos root distintos podían permitir que ambos
+procesaran el mismo staging ID `pending`. Sin DDL ni cambio del estado de filas,
+los dos workflows locales ahora comparten `studiamatch-fg2-${{ github.ref }}` y
+mantienen `cancel-in-progress: false`; la suite `test_fase09_10_pre_main_controls`
+verifica que no haya drift entre grupos. El test nuevo falló antes y pasó tras
+el ajuste. Las seis suites afectadas pasan **170/170** en Docker `--network
+none`, una advertencia PyPDF2; la serialización es un lock de Actions entre los
+callers declarados, no un claim transaccional de fila. El CI remoto todavía no
+corre. El Code Reviewer debe revisar la huella nueva. No cambió el remoto:
+E9 no está acreditado, E10 sigue inactivo, FG1–FG3 no se ejecutaron y H4 conserva
+su gate.
+
+#### Guard del lote manual frente al schedule — 2026-11-11
+
+El Code Reviewer del diff de 35 rutas (3d66cb01…) encontró un P2 en el
+validador local: controlled_first_run aceptaba un lote con hash/referencia
+válidos desde un evento schedule en main. El modo ahora exige
+workflow_dispatch y refs/heads/main; scheduled_cohort continúa exigiendo
+schedule/main sin lote manual. La regresión reprodujo primero el fallo y luego
+pasó en Docker sin red. Las siete suites afectadas dieron
+181 passed, 10 subtests passed, con una advertencia PyPDF2.
+
+El dictamen del Code Reviewer sobre la huella corregida y la revalidación
+candidate-aware quedan pendientes. No se ejecutaron fuentes, Pro, DML,
+workflows ni cambios remotos. E9 no está acreditado y E10 sigue apagado; los
+once perfiles Playwright no quedan cubiertos y requieren transporte browser con
+pin DNS y límites equivalentes antes de incluirlos. Se conserva la política de
+schedule automático en main solo tras activación autorizada, y aprobación
+Production para dispatch manual. H4 sigue gated.
+
+#### Cohorte FG2: deferred y alias de curso — 2026-11-11
+
+El Code Reviewer sobre el diff de 35 rutas c603b3fd… emitió NO-GO con tres
+P2. Si el presupuesto se agotaba al recorrer un sitemap, las URLs parciales
+podían persistirse como discovered aunque no hubiera una solicitud disponible
+para procesarlas ni una entrada de manifest. Además, el schedule comparaba URL
+exacta con courses y podía clasificar /en/ como new_discovery; el lote manual
+no asociaba /presentacion con el curso padre que cleansing/sync resuelven.
+
+La corrección local corta la selección tras un stop de presupuesto antes de
+persistir candidatos no procesables. Harvester, manifest revisado y verificación
+de snapshot ahora usan una identidad de curso común que aplica normalize_url y
+la limpieza de sufijos que usa cleansing; los filtros acotados reconocen las
+formas /en/ y slash final. El lote rechaza dos URLs aprobadas que convergen a
+una misma identidad. Los tres casos nuevos fueron RED y luego GREEN con fixtures
+en Docker sin red. Siete suites dan 185 passed, 10 subtests passed y una
+advertencia de deprecación PyPDF2.
+
+La nueva huella todavía requiere checker documental y Code Reviewer. Ningún
+test identificó filas actuales de Pro. No hubo tráfico institucional, Pro,
+writes ni Actions. E9 sigue pendiente, E10 permanece inactivo y los 11 perfiles
+Playwright continúan diferidos; H4 conserva su gate.
+
+#### Correcciones adicionales de cohorte FG2 — 2026-11-11
+
+El Code Reviewer del candidato `03d52e43…` dio NO-GO con dos P2: el lookup no
+encontraba un curso cuando `courses.url` ya almacenaba `/presentacion`; y un
+error posterior a una URL cosechada hacía fallar el job y saltar cleansing,
+dejando la fila pending fuera de workers posteriores.
+
+La búsqueda ahora considera la URL pedida, la identidad normalizada y sufijos
+de detalle reconocidos por cleansing dentro de un regex anclado; conserva el
+rechazo si más de una fila coincide. Cuando un lote tiene al menos una entrada
+exitosa y otras fallan por un error no bloqueante, registra `partial`, permite
+procesar únicamente las entradas del manifest y actualiza el marcador de intento
+para la rotación programada. Sin entradas exitosas el job sigue fallando. No
+reabre ni resetea estados previos.
+
+La regresión focal Docker --network none pasó 10/10; seis suites FG2/pre-main/
+pipeline dieron 187 passed y una advertencia de deprecación PyPDF2. El candidato
+continúa local y sin lectura de filas Pro; la revisión documental, credential
+scan y Code Reviewer de la nueva huella quedan pendientes. E9 no está acreditado,
+E10 no se activa y H4 conserva su gate.
+
+#### Validación final del alias persistido en sync — 2026-11-11
+
+El Code Reviewer del candidato local `e055a6db…` encontró un P2: aunque el
+harvester vincula una URL de detalle al `course_id` existente, sync comparaba
+la URL guardada (`/presentacion`) con la URL base usando solo `normalize_url`
+y rechazaba la fila antes del upsert. La regresión sintética con la fila
+guardada como `/presentacion/` falló primero y pasó luego al unificar ambas
+comprobaciones de sync con `course_identity_url`. Se conserva la verificación
+de una fila, ID aprobado, institución y URL exacta; si pasa, el destino del
+upsert sigue usando la escritura exacta ya almacenada.
+
+Las siete suites de impacto corrieron en Docker `--network none`: **233 passed**
+y una advertencia PyPDF2. Checker documental con el manifiesto local H1:
+`DOC_SELF_TEST_PASS`, `DOC_GATE_PASS`, 769/769 fuentes asignadas, 122/122
+documentos activos y 433/433 históricos; guard de rutas y escaneo de
+credenciales: PASS. El dictamen sobre la huella corregida queda pendiente.
+Este resultado local no demuestra filas actuales de Pro ni acredita E9. E10
+sigue inactivo, los once perfiles Playwright continúan fuera de cobertura y
+H4 conserva su gate. No hubo contacto institucional, lectura/escritura Pro,
+ejecuciones ni mutaciones remotas.
+
+#### Avance del sitemap y corte temprano 403/429 — 2026-11-11
+
+Code Reviewer revisó `6b99c9e7…` y emitió NO-GO por dos hallazgos de E10:
+filas staging en estados protegidos al inicio del sitemap consumían las diez
+URLs máximas antes de llegar a URLs nuevas; y el GET controlado acumulaba cuerpo
+de 403/429 antes de detener el origen. El sitemap ahora registra esos estados
+como blockers con presupuesto propio, sin cobrarlos al máximo de URLs
+cosechables, y continúa hasta las URLs `discovered` o nuevas elegibles. El GET
+controlado usa stream, consulta el estado 403/429 y cierra sin iterar ni
+materializar el cuerpo; el límite de 2 MiB no depende de `Content-Length` y el
+exceso aborta antes de parsear o insertar staging. El cierre señala el evento
+de parada y espera la finalización asíncrona de `curl_cffi`, evitando doble
+limpieza del handle.
+
+El fixture sintético modela el primer chunk que puede quedar en la cola del
+transporte antes de que el GET entregue el response y diferencia esos bytes de
+los consumidos por el harvester. Fixtures loopback dentro de Docker verifican
+desconexión temprana para body excedido y estados 403/429; los tests de budget
+confirman que no hay reintento ni nueva solicitud tras bloqueo. Docker
+`--network none`: **10 pruebas focales passed**; siete suites FG2, workers,
+workflow, gates main/manual, pipeline y contrato de credenciales: **235 passed**,
+una advertencia de deprecación PyPDF2.
+
+La comprobación instalada de `curl_cffi` mostró que el stream puede encolar el
+primer chunk de escritura antes de entregar la respuesta; el código no lo
+consume, pero este detalle queda reflejado en la prueba y el contrato. El
+resultado local no valida tráfico institucional ni el estado de colas de Pro.
+El checker documental candidate-aware/self-test quedó en
+`DOC_SELF_TEST_PASS`/`DOC_GATE_PASS` (769/769 fuentes, 122/122 documentos
+activos, 433/433 históricos) y el escaneo de credenciales del árbol pasó. Se
+reutiliza el guard aprobado para las mismas 35 rutas: el delta no agregó ni
+retiró rutas protegidas. El dictamen del Code Reviewer sobre el diff corregido
+sigue pendiente antes de publicar. E9 no acreditado; E10
+inactivo; 0/3 pares FG2→FG3, ventana 72 h sin iniciar; E11/CA1 pendientes y H4
+conserva su gate. Los once perfiles Playwright siguen sin cobertura; no se
+sustituyen ni se cambia la rotación.
+
+#### Marcador de rotación tras bloqueo o diferimiento — 2026-11-11
+
+El Code Reviewer del snapshot anterior detectó un P2: las salidas programadas
+`blocked`/`deferred` actualizaban el manifest, pero no
+`institutions.last_harvest_at`. Como la selección diaria ordena por ese campo
+con `NULLS FIRST`, el mismo perfil más antiguo podía ocupar repetidamente el
+prefijo y postergar a los siguientes. La corrección local registra el intento
+en las tres salidas de `universal_harvester.py` que pueden terminar así, solo en
+schedule y después de fijar el resultado del manifest. No altera filas de
+cursos/staging, no crea un refresh y mantiene el resultado `blocked` o
+`deferred`.
+
+Docker `--network none`, árbol montado en solo lectura: prueba focal **4 passed**
+(NO-OP, bloqueado, diferido y helper de timestamp); siete suites FG2/pre-main/
+pipeline/credenciales **237 passed**, con advertencia PyPDF2 y advertencia de
+cache por filesystem read-only. E9 sigue pendiente; E10 sigue cerrado; no hubo
+contacto institucional, lectura/escritura Pro ni acciones remotas. La huella
+actualizada requiere checker documental y Code Reviewer antes de la solicitud
+de publicación. La omisión de los once perfiles Playwright queda como decisión
+separada de cobertura; H4 conserva su gate.
+
+#### URL exacta en manifest y lectura acotada de staging — 2026-11-11
+
+El Code Reviewer del diff `0415a7e…` encontró dos P2: para un staging
+`discovered` cuyo URL almacenado incluye `/en/` o slash final, el manifest
+registraba el hash de la URL de solicitud ya normalizada, aunque la promoción
+preservaba el URL exacto del snapshot; cleansing compara contra ese valor
+persistido y podía rechazar la entrada. Además, sin staging en el snapshot, el
+harvester paginaba toda la tabla `staging_raw` para cada URL nueva aprobada.
+
+El candidato calcula `entries[].url_sha256` sobre el URL exacto del snapshot que
+la promoción preservará y mantiene separado el hash normalizado del scope. Para
+un scope sin staging previo, verifica deriva con un filtro conjunto por la
+institución aprobada y aliases de una sola URL, `limit=2`; no pagina la cola
+global ni mezcla filas de otras instituciones. Un alias nuevo de la institución
+seleccionada detiene antes de escribir. Las dos regresiones reprodujeron ambos
+hallazgos antes del arreglo; después, las cuatro pruebas focales pasan y las
+siete suites afectadas pasan **239 pruebas** en Docker `--network none`. El
+checker candidate-aware/self-test pasa con 769/769 fuentes asignadas, 122/122
+documentos activos y 433/433 históricos. El escaneo de credenciales del árbol,
+el guard de scope para las 35 rutas y `git diff --check` pasan. El Code Reviewer
+de la huella final aún debe cerrar antes de solicitar publicación.
+
+La corrección solo cambia el candidato local, sin writes Pro ni requests a
+fuentes. E9 pendiente, E10 inactivo; filas reales de Pro y cardinalidad
+downstream siguen sin lectura. Decisión Playwright de los once perfiles
+pendiente; H4 conserva su gate.
+
+#### Reanudación de presupuesto sitemap y seeds comprimidos — 2026-11-11
+
+El Code Reviewer de la huella `3eca3d7a…` emitió NO-GO con tres P2: los
+enlaces leídos antes de agotar el presupuesto del sitemap se descartaban; la
+semilla `.xml.gz` se trataba como XML sin descompresión; y un dispatch de
+Production Canary podía reemplazar el único run FG2 pendiente del grupo de
+concurrencia compartido.
+
+El delta local en curso conserva las URLs que ya estaban en respuestas
+completas del sitemap. En schedule las registra como `staging_raw.discovered`
+y `manifest.discovery_rows`, deja el resultado `deferred` y no las incluye en
+`manifest.entries`; por tanto los workers no las consumen en ese run y pueden
+retomarse en una corrida posterior. El lote manual mantiene su scope exacto y
+no persiste candidatos parciales no procesables. El preflight controlado
+rechaza una seed `.xml.gz`; si aparece anidada, se difiere antes de solicitar
+ese recurso. No se añade descompresión.
+
+El control de la cola compartida se añade al gate E10, sin cambiar YAML ni
+concurrencia: no dispatch de FG2/Canary mientras cualquiera de los dos flujos
+FG2 esté queued, waiting o in progress; además, todo manual en espera de
+Production debe resolverse antes de la siguiente ventana diaria 05:00 UTC.
+Una corrida programada cancelada/reemplazada no es un par válido y obliga a
+pausar/reiniciar la observación según el plan. El calendario diario (24 h) y
+timeout de seis horas reducen el solapamiento schedule-schedule; esta regla
+operativa y la cola efectiva aún deben verificarse por lectura antes de E10.
+
+Esta corrección y sus pruebas son locales; no hubo tráfico institucional ni
+lecturas/escrituras Pro ni acciones GitHub. E9 sigue pendiente, E10 inactivo,
+Playwright continúa con once perfiles sin cobertura, los pares siguen 0/3 y
+72 h no iniciadas; H4 conserva su gate.
+
+#### Compatibilidad Playwright ordinaria tras revisión — 2026-11-11
+
+El Code Reviewer del diff `53ecb6d…` detectó un P1: el interceptor añadido
+para cerrar Playwright también abortaba las navegaciones HTTP(S) de FG2
+ordinario. Se retiró el interceptor, manteniendo la validación de forma de la
+URL inicial y el rechazo de `page.goto` antes de iniciar tráfico cuando
+`self.controlled` es verdadero. Las corridas ordinarias recuperan la navegación
+Playwright preexistente; esto no les proporciona pin DNS, límites del transporte
+acotado ni evidencia para E9/E10. Los once perfiles siguen excluidos del camino
+acotado y E10 requiere resolver esa cobertura o una decisión humana explícita
+de diferimiento. El dictamen de la nueva huella queda pendiente.
+
+Las cinco regresiones sintéticas de navegación ordinaria, filtros de catálogo,
+recuperación de URLs `discovered` y bloqueo del modo controlado pasan en Docker
+`--network none`. Sin fuentes, Pro, writers o acciones remotas. E9 sigue
+pendiente, E10 inactivo, pares 0/3 y ventana de 72 h sin iniciar; H4 conserva su
+gate.
+
+#### Retener el modo de cohorte programada en FG2 — 2026-11-11
+
+La revisión del acumulado `a9a8853e…` encontró que el constructor de
+`UniversalHarvester` recibía `scheduled_cohort`, pero no lo guardaba en la
+instancia. Una interrupción de sitemap podía así tratar un run schedule como
+manual y perder los candidatos ya leídos. La prueba anterior asignaba el
+atributo directamente y ocultaba el defecto. El constructor conserva ahora el
+booleano recibido; la regresión usa el parámetro del constructor y verifica que
+links parciales queden `discovered`, fuera del manifest consumible del run
+diferido, y puedan retomarse después.
+
+La regresión pasó en Docker sin red; siete suites FG2, pre-main, pipeline y
+credenciales pasaron **245 pruebas** (un warning deprecación PyPDF2). La
+reevaluación del Code Reviewer del nuevo acumulado sigue pendiente. No hubo
+fuentes institucionales, lectura/escritura Pro ni acciones remotas. E9 sigue
+sin acreditar y precede a E10; E10 permanece inactivo, con programación
+automática en `main` y aprobación Production para dispatch manual como contrato
+vigente. Once perfiles Playwright siguen fuera de cobertura acotada; no se
+afirma completitud ni se acepta su omisión. H4 conserva su gate.
 
 ### H3REQ1 — corte operativo 2026-11-06
 

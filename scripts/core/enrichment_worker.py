@@ -33,6 +33,7 @@ from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
     InvalidControlledRun,
     require_manifest_sha256,
+    url_sha256,
     uuid_in_filter,
 )
 
@@ -177,6 +178,10 @@ class EnrichmentWorker:
                     entry["staging_id"].lower(): entry["institution_id"].lower()
                     for entry in cohort_manifest.payload["entries"]
                 }
+                entry_by_raw_id = {
+                    entry["staging_id"].lower(): entry
+                    for entry in cohort_manifest.payload["entries"]
+                }
                 for row in records:
                     raw_id = row["staging_id"].lower()
                     if str(row.get("institution_id", "")).lower() != institution_by_raw_id[raw_id]:
@@ -185,6 +190,16 @@ class EnrichmentWorker:
                         raise InvalidControlledRun("enrichment cohort row is not pending")
                     if str(row.get("institution_id")) not in self.ready_inst_ids:
                         raise InvalidControlledRun("enrichment cohort institution is no longer enabled")
+                    entry = entry_by_raw_id[raw_id]
+                    expected_cleaned_url_sha = entry.get(
+                        "cleansed_url_sha256", entry["url_sha256"]
+                    )
+                    if url_sha256(row.get("url", "")) != expected_cleaned_url_sha:
+                        raise InvalidControlledRun("enrichment cohort URL identity changed")
+                    row["_fg2_expected_url_sha256"] = expected_cleaned_url_sha
+                    row["_fg2_expected_raw_url_sha256"] = entry["url_sha256"]
+                    row["_fg2_manifest_staging_id"] = entry["staging_id"]
+                    row["_fg2_manifest_content_sha256"] = entry["content_sha256"]
                 return records[:limit] if limit is not None else records
             filters = "status=eq.pending"
             if institution_id:
@@ -207,6 +222,51 @@ class EnrichmentWorker:
 
         logger.info("No hay registros pendientes en cleansed_programs.")
         return []
+
+    def _verify_fg2_manifest_url_identity(self, cleansed):
+        """Recheck staging→cleansed URL identity immediately around enrichment writes."""
+        expected_url_sha = cleansed.get("_fg2_expected_url_sha256")
+        if expected_url_sha is None:
+            return
+        cleansed_id = str(cleansed.get("id") or "")
+        staging_id = str(cleansed.get("_fg2_manifest_staging_id") or cleansed.get("staging_id") or "")
+        institution_id = str(cleansed.get("institution_id") or "").lower()
+        try:
+            current_cleansed = self.db.select_pipeline_raise(
+                "cleansed_programs",
+                filters=f"id=eq.{quote(cleansed_id, safe='')}",
+                columns="id,staging_id,institution_id,url,status",
+                limit=2,
+            )
+            current_raw = self.db.select_pipeline_raise(
+                "staging_raw",
+                filters=f"id=eq.{quote(staging_id, safe='')}",
+                columns="id,institution_id,url,status,content_hash",
+                limit=2,
+            )
+        except Exception as exc:
+            raise InvalidControlledRun("failed to revalidate enrichment URL identity") from exc
+        if not isinstance(current_cleansed, list) or len(current_cleansed) != 1:
+            raise InvalidControlledRun("enrichment URL identity is missing or duplicated")
+        if not isinstance(current_raw, list) or len(current_raw) != 1:
+            raise InvalidControlledRun("enrichment staging URL identity is missing or duplicated")
+        cleansed_row = current_cleansed[0]
+        raw_row = current_raw[0]
+        if (
+            str(cleansed_row.get("id")) != cleansed_id
+            or str(cleansed_row.get("staging_id")) != staging_id
+            or str(cleansed_row.get("institution_id", "")).lower() != institution_id
+            or cleansed_row.get("status") != "pending"
+            or url_sha256(cleansed_row.get("url", "")) != expected_url_sha
+            or str(raw_row.get("id")) != staging_id
+            or str(raw_row.get("institution_id", "")).lower() != institution_id
+            or raw_row.get("status") != "processed"
+            or url_sha256(raw_row.get("url", "")) != cleansed.get(
+                "_fg2_expected_raw_url_sha256", expected_url_sha
+            )
+            or raw_row.get("content_hash") != cleansed.get("_fg2_manifest_content_sha256")
+        ):
+            raise InvalidControlledRun("enrichment cohort URL identity changed before write")
 
     def _call_deepseek(self, prompt):
         if not OPENCODE_API_KEY or OpenAI is None:
@@ -761,6 +821,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         return sections
 
     def enrich_record(self, cleansed):
+        self._verify_fg2_manifest_url_identity(cleansed)
         c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
         inst_id = cleansed.get('institution_id')
         staging_id = cleansed.get('staging_id')
@@ -954,11 +1015,13 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             }]
             # RPC errors fail closed. Only a falsey normal response permits the
             # idempotent upsert fallback.
+            self._verify_fg2_manifest_url_identity(cleansed)
             rpc_result = self.db.rpc_raise('atomic_enrichment_promote', {
                 "p_enriched_data": rpc_data,
                 "p_cleansed_id": str(c_id)
             })
             if not rpc_result:
+                self._verify_fg2_manifest_url_identity(cleansed)
                 upsert_result = self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
                 if not upsert_result:
                     raise RuntimeError("Fallback upsert failed for enriched_programs")
@@ -1091,6 +1154,7 @@ if __name__ == "__main__":
             expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
             expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
             expected_source_sha=os.getenv("GITHUB_SHA", ""),
+            allow_empty=True,
         )
 
     worker = EnrichmentWorker()

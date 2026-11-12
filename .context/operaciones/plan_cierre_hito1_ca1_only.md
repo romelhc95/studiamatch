@@ -651,23 +651,52 @@ autorizaciones.
 
 ## Environments Y Schedules
 
-Las ejecuciones manuales conservan environments humanos. Las programadas usan
-environments dedicados, main-only y secrets minimos:
+Los flujos reales de FG1, FG2 y FG3 se limitan a main/Producción.
+Desarrollo y Certificación conservan validaciones offline, fixtures y
+respuestas simuladas.
 
-- `Production-Scheduled-FG1`.
-- `Production-Scheduled-FG2`.
-- `Production-Scheduled-FG3`.
+- Los eventos schedule usan Production-Scheduled-FG1,
+  Production-Scheduled-FG2 y Production-Scheduled-FG3.
+- workflow_dispatch manual desde main usa Production, con reviewer humano
+  requerido antes de cada run.
+- Después de la activación inicial aprobada de E10, los eventos programados
+  deben avanzar automáticamente sin reviewer humano por corrida. La aprobación
+  inicial de E10 se conserva; no se repite para cada evento schedule. Esta es
+  la política operativa decidida por el owner, no un requisito contractual CA1
+  adicional.
+- Cada Environment programado permanece restringido a main, conserva sus
+  secretos y variables separados, los cron, límites, concurrencia y el
+  interruptor PRODUCTION_WRITERS_PAUSED. La configuración inicial mantiene
+  AUTOMATION_ENABLED=false y PRODUCTION_WRITERS_PAUSED=true.
+- E10 espera la acreditación funcional de E9. Antes de retirar protección,
+  revalidar SHA de main, flags efectivos, configuración del Environment y
+  toda la cola de Actions. Debe haber cero runs queued, waiting, con deployment
+  pendiente o activos. Si existe uno, detener el cambio y resolver ese run
+  mediante su gate propio; nunca permitir que la retirada del reviewer lo
+  libere accidentalmente.
+- Durante la activación gradual, modificar solo Required reviewers de los
+  Environments programados, de uno en uno en orden FG1 → FG2 → FG3. Mantener
+  intactas la restricción exacta a main, reglas restantes, secrets, variables,
+  cron, límites y pausa. Leer de vuelta cada Environment antes de pasar al
+  siguiente. Production manual no se modifica.
+- La configuración de cada Environment, el cambio de flags que abre writers,
+  habilitar un workflow y ejecutar workflow_dispatch son operaciones
+  separadas y requieren sus autorizaciones específicas. El plan no las ejecuta.
 
-Cada environment empieza con `AUTOMATION_ENABLED=false`. Despues del canary
-Production se habilita de forma controlada. `Production` mantiene reviewer para
-operaciones manuales.
+Cadencias vigentes:
 
-Cadencias:
+- FG1 mensual: 0 0 1 * *.
+- FG2 diario: 0 5 * * *.
+- FG3 diario: 0 11 * * *.
+- FG2 y FG3 se serializan con concurrencia compartida y
+  cancel-in-progress=false.
 
-- FG2 y FG3 siguen la cadencia CA1 definida en los workflows aprobados.
-- FG3 se serializa despues de FG2 mediante concurrency compartida.
-- FG1 mensual es soporte operacional interno y no un criterio cliente.
-
+Tras E10, verificar que el primer run natural de cada flujo programado avance
+sin pulsar Approve y que ejecute su trabajo funcional. SKIPPED, un preflight
+sin writer o un SUCCESS vacío no acreditan E9 ni E10. El canary aceptado de
+FG1 se reutiliza solo dentro de su alcance; el run natural acredita por separado
+la ruta schedule. La cadencia mensual de FG1 puede extender esta observación;
+no se cambia el cron para acelerarla.
 ## Validacion Local
 
 Todo comando de desarrollo corre dentro de `studiamatch-dev`:
@@ -730,7 +759,12 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 
 - Antes de cualquier PR a `main` deben cerrarse como checklist bloqueante:
   - `db-sync-to-pro.yml`: push a `main` solo dry-run/report-only; apply automatico prohibido; apply solo por `workflow_dispatch`, confirmacion explicita, aprobacion Production, backup/PITR verificado, autorizacion DDL separada, Actions pinneadas por SHA y dependencias hash-locked.
-  - Environments `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` con reviewer humano, branch policy `main`, secrets minimos separados y `AUTOMATION_ENABLED=false` inicial.
+  - Environments Production-Scheduled-FG1, Production-Scheduled-FG2 y
+    Production-Scheduled-FG3 main-only, con secrets mínimos separados y flags
+    iniciales cerrados. El reviewer humano por corrida queda en Production para
+    workflow_dispatch. Al activar E10 se retira Required reviewers solo de cada
+    Environment programado, uno por uno; la aprobación humana inicial de E10
+    se conserva y no se exige por cada run natural.
   - Gate de automatizacion con preflight asociado al environment programado, sin depender ambiguamente de variable de environment en job-level `if`, y output explicito por writer.
   - `PRODUCTION_WRITERS_PAUSED` efectivo y fail-closed antes de cada estacion mutante y tambien para migraciones.
   - Gate main/F10 reconstruido en `certificacion` con boundary CA1-only, cero CA2, credential scan, workflows validos, tests obligatorios, candidate commit/tree/count/digest inmutables, variables no secretas aprobadas, review humano y aprobacion SDLC.
@@ -738,14 +772,17 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
   - Cloudflare Pages con auto-deploy de `main` prevenido y verificado antes del PR a `main`; si un deployment arranca, F10.7 se detiene como incidente.
   - Freeze F10.7 nuevo y UAT nuevo; el freeze F9.10 de 32 objetos no puede reutilizarse como autoridad de promocion.
   - Rollback con backup/restore ensayados, responsable, RTO/RPO, cancelacion de jobs, schedules off, rollback de datos, migracion compensatoria si existiera DDL y revert de codigo solo por PR forward-only.
-- El primer gate operativo Production de F10 es el canary manual acotado; no es precondicion para cerrar F9.9 ni para iniciar F10.
+- El canary manual acotado ya aceptado se reutiliza solo dentro de su alcance. E10 no inicia hasta acreditar E9 funcional; el canary no sustituye la evidencia de runs programados.
 - PR `certificacion -> main`.
 - Candidate/tree inmutable y aprobacion humana.
 - Backup/rollback operativo proporcionado por el ambiente vigente.
 - Canary Production acotado, solo `workflow_dispatch`, SHA exacto de `main`, environment Production con aprobacion, host Pro allowlisted, una cohorte, limites acotados, snapshot privado, restore exacto, segundo restore NOOP y artifacts sanitizados.
 - Cero mutaciones fuera de cohorte y cero cambios CA2.
-- FG2/FG3 automaticos observados; FG1 manual equivalente con cron mensual
-  activo y primera ventana natural como observacion post-cierre.
+- FG1, FG2 y FG3 deben observarse en sus runs naturales de schedule sin
+  aprobacion por corrida y con trabajo funcional acreditado; FG1 reutiliza el
+  canary aceptado dentro de su alcance. Las tres parejas consecutivas FG2→FG3
+  durante al menos 72 h siguen siendo obligatorias. Los workflow_dispatch
+  manuales mantienen la aprobacion humana de Production.
 
 ### Observacion Production
 
@@ -754,11 +791,19 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Requiere tres pares consecutivos FG2 -> FG3, seis runs completos; puede exceder 72 horas.
 - Un run skipped, cancelled, timeout, partial, `401/403/429/5xx` o false-green no cuenta.
 - Ante cualquier fallo: `PRODUCTION_WRITERS_PAUSED=true`, automation false, cancelar jobs activos, preservar evidencia y reiniciar la secuencia despues de remediar.
-- FG1 mensual no se considera observado en 72 horas; exige FG1 manual equivalente PASS y cron activo, o waiver explicita con responsable y fecha de primera ventana natural.
+- El schedule mensual de FG1 no extiende la ventana de 72 h ni cuenta como
+  pareja FG2→FG3. Para E9 se reutiliza el canary FG1 aceptado dentro de su
+  alcance; su primer run natural despues de E10 acredita por separado la ruta
+  programada. No se exige un run manual equivalente adicional ni un waiver
+  solo por la cadencia mensual.
 
 ### Cierre Control-Plane F10.6
 
-- `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` existen con branch policy exacta `main`, reviewer humano autorizado y self-review bloqueado.
+- En el corte historico F10.6, los tres Environments programados tenian rama
+  main, reviewer humano autorizado y self-review bloqueado. Ese snapshot
+  describe la proteccion inicial, no el destino E10: al activarlo, solo se
+  elimina Required reviewers de esos tres Environments. Production manual
+  conserva su reviewer y no se altera.
 - `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true` estan configuradas en `Production`, `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3`.
 - Los secrets requeridos existen por nombre en cada environment programado; sus valores no se leyeron ni documentaron.
 - Runs legacy schedule `30681941694`, `29678093566` y `29677885934` quedaron `cancelled`; todos sus jobs conservaron `steps=[]` y no quedaron pending deployments.

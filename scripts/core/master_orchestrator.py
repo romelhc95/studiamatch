@@ -36,7 +36,11 @@ def _is_f10_production_canary():
 
 
 def _is_sensitive_log_context():
-    return _is_f10_production_canary() or os.getenv("FG2_CONTROLLED_FIRST_RUN", "").strip().lower() == "true"
+    return (
+        _is_f10_production_canary()
+        or os.getenv("FG2_CONTROLLED_FIRST_RUN", "").strip().lower() == "true"
+        or os.getenv("FG2_COHORT_SCOPED", "").strip().lower() == "true"
+    )
 
 
 def _cohort_label(value=None):
@@ -106,6 +110,7 @@ def get_institutions(
     now=None,
     controlled=False,
     approved_lot=None,
+    scheduled_cohort=False,
 ):
     """Return eligible institutions after all gates, then apply the limit."""
     if limit <= 0:
@@ -191,7 +196,12 @@ def get_institutions(
             ):
                 continue
             try:
-                validate_controlled_profile(institution, profile, now=current_time)
+                validate_controlled_profile(
+                    institution,
+                    profile,
+                    now=current_time,
+                    scheduled_cohort=scheduled_cohort,
+                )
             except InvalidControlledRun:
                 continue
             eligible_prefix.append(institution_id)
@@ -224,8 +234,14 @@ def get_institutions(
                 ) > 50
             ):
                 raise InvalidControlledRun("an approved FG2 lot institution is no longer freshness eligible")
-            preflight = validate_controlled_profile(institution, profile, now=current_time)
             expected = approved_lot.institution(institution_id)
+            preflight = validate_controlled_profile(
+                institution,
+                profile,
+                now=current_time,
+                selected_seed_urls=expected["seed_urls"],
+                scheduled_cohort=scheduled_cohort,
+            )
             approved_lot.assert_institution_origin(
                 institution_id,
                 str(institution.get("website_url") or ""),
@@ -287,7 +303,12 @@ def get_institutions(
 
         if controlled:
             try:
-                preflight = validate_controlled_profile(institution, profile, now=current_time)
+                preflight = validate_controlled_profile(
+                    institution,
+                    profile,
+                    now=current_time,
+                    scheduled_cohort=scheduled_cohort,
+                )
             except InvalidControlledRun as exc:
                 logger.info(
                     "[CONTROLLED PREFLIGHT] Skipping %s: %s",
@@ -306,6 +327,7 @@ def get_institutions(
 
     return eligible
 
+# StudIAMatch-Docs: .context/componentes/pipeline.md#primera-corrida-fg2-acotada
 def main(argv=None):
     import argparse
 
@@ -323,6 +345,11 @@ def main(argv=None):
         action="store_true",
         help="Opt in to the first-run request and cohort budgets; manual use only",
     )
+    parser.add_argument(
+        "--scheduled-cohort",
+        action="store_true",
+        help="Build a run-scoped bounded cohort for the main-branch schedule",
+    )
     parser.add_argument("--cohort-manifest", help="Path for the controlled-run cohort manifest")
     parser.add_argument("--approved-lot-manifest", help="Private path for the reviewed FG2 lot payload")
     parser.add_argument("--approved-lot-reference", help="Human review reference bound to the approved lot")
@@ -330,8 +357,18 @@ def main(argv=None):
     parser.add_argument("--skip-cleansing", action="store_true", help="Skip the cleansing phase (Station 1.5)")
     args = parser.parse_args(argv)
     approved_lot = None
+    cohort_scoped = args.controlled_first_run or args.scheduled_cohort
+
+    if args.controlled_first_run and args.scheduled_cohort:
+        logger.error("A run cannot be both a reviewed manual first run and an ordinary schedule.")
+        return 1
 
     if args.controlled_first_run:
+        if not args.skip_cleansing:
+            logger.error(
+                "Controlled first run requires --skip-cleansing so the workflow can pass the verified cohort manifest to cleansing."
+            )
+            return 1
         os.environ["FG2_CONTROLLED_FIRST_RUN"] = "true"
         if not args.cohort_manifest or not args.approved_lot_manifest:
             logger.error("Controlled first run requires both cohort and approved-lot manifests")
@@ -361,6 +398,30 @@ def main(argv=None):
         except (InvalidControlledRun, TypeError, ValueError) as exc:
             logger.error("Approved FG2 lot rejected before database selection: %s", _safe_error_label(exc))
             return 1
+    elif args.scheduled_cohort:
+        if (
+            not args.skip_cleansing
+            or not args.cohort_manifest
+            or any((args.approved_lot_manifest, args.approved_lot_reference, args.approved_lot_sha256))
+        ):
+            logger.error("Scheduled FG2 requires only a cohort manifest and delegated cleansing.")
+            return 1
+        if args.limit != 10 or args.max_urls != FG2_LIMITS["max_urls_per_institution"]:
+            logger.error("Scheduled FG2 requires the configured institution and URL bounds.")
+            return 1
+        run_id = os.getenv("GITHUB_RUN_ID", "")
+        run_attempt = os.getenv("GITHUB_RUN_ATTEMPT", "")
+        source_sha = os.getenv("GITHUB_SHA", "")
+        if (
+            os.getenv("GITHUB_EVENT_NAME") != "schedule"
+            or os.getenv("GITHUB_REF") != "refs/heads/main"
+            or not run_id.isdigit()
+            or not run_attempt.isdigit()
+            or not source_sha
+        ):
+            logger.error("Scheduled FG2 cohort requires a schedule event on main with exact run metadata.")
+            return 1
+        os.environ["FG2_COHORT_SCOPED"] = "true"
     elif any((args.approved_lot_manifest, args.approved_lot_reference, args.approved_lot_sha256)):
         logger.error("Approved FG2 lot inputs are only accepted for a controlled first run")
         return 1
@@ -379,16 +440,18 @@ def main(argv=None):
                     limit=args.limit,
                     excluded_slugs=excluded_slugs,
                     only_slug=args.institution_slug,
-                    controlled=args.controlled_first_run,
+                    controlled=cohort_scoped,
                     approved_lot=approved_lot,
+                    scheduled_cohort=args.scheduled_cohort,
                 )
         else:
             institutions = get_institutions(
                 limit=args.limit,
                 excluded_slugs=excluded_slugs,
                 only_slug=args.institution_slug,
-                controlled=args.controlled_first_run,
+                controlled=cohort_scoped,
                 approved_lot=approved_lot,
+                scheduled_cohort=args.scheduled_cohort,
             )
     except Exception as exc:
         logger.error(f"Failed to select eligible institutions: {_safe_error_label(exc)}")
@@ -407,7 +470,7 @@ def main(argv=None):
 
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
 
-    if args.controlled_first_run:
+    if cohort_scoped:
         if not institutions:
             logger.error("Controlled first-run preflight found no eligible seeded institutions.")
             return 1
@@ -428,8 +491,8 @@ def main(argv=None):
             run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
             source_sha=os.getenv("GITHUB_SHA", ""),
             institutions=initial_institutions,
-            approved_lot_reference=approved_lot.reference,
-            approved_lot_sha256=approved_lot.sha256,
+            approved_lot_reference=approved_lot.reference if approved_lot else None,
+            approved_lot_sha256=approved_lot.sha256 if approved_lot else None,
         )
 
     for inst in institutions:
@@ -443,26 +506,25 @@ def main(argv=None):
 
         logger.info(f"### Processing Institution: {_cohort_label(inst_name)}")
         child_institution = dict(inst)
-        if args.controlled_first_run:
+        if cohort_scoped:
             child_institution["_controlled_profile_sha256"] = inst["_controlled_profile_sha256"]
             child_institution["_controlled_seed_sha256"] = inst["_controlled_seed_sha256"]
-            child_institution.pop("_controlled_seed_urls", None)
         inst_json = json.dumps(child_institution)
         harvester_args = [inst_json, "--global-start", str(global_start)]
-        if args.controlled_first_run:
+        if cohort_scoped:
             harvester_args.extend([
-                "--controlled",
+                "--controlled" if args.controlled_first_run else "--scheduled-cohort",
                 "--cohort-manifest",
                 args.cohort_manifest,
-                "--approved-lot-manifest",
-                args.approved_lot_manifest,
-                "--approved-lot-reference",
-                args.approved_lot_reference,
-                "--approved-lot-sha256",
-                args.approved_lot_sha256,
                 "--max-urls",
                 str(FG2_LIMITS["max_urls_per_institution"]),
             ])
+            if approved_lot is not None:
+                harvester_args.extend([
+                    "--approved-lot-manifest", args.approved_lot_manifest,
+                    "--approved-lot-reference", args.approved_lot_reference,
+                    "--approved-lot-sha256", args.approved_lot_sha256,
+                ])
         elif args.max_urls is not None:
             harvester_args.extend(["--max-urls", str(args.max_urls)])
         # Pass global start to sub-process
@@ -472,11 +534,11 @@ def main(argv=None):
             timeout=remaining,
         ):
             failures.append("harvester:redacted" if _is_sensitive_log_context() else f"harvester:{inst.get('slug')}")
-            if args.controlled_first_run:
+            if cohort_scoped:
                 logger.error("Controlled FG2 stops after a failed institution subprocess; no later source is contacted.")
                 return 1
 
-    if args.controlled_first_run:
+    if cohort_scoped:
         try:
             completed_manifest = FG2CohortManifest.load(
                 args.cohort_manifest,
@@ -488,7 +550,7 @@ def main(argv=None):
         except (InvalidControlledRun, TypeError, ValueError) as exc:
             logger.error("Controlled cohort manifest failed postflight: %s", _safe_error_label(exc))
             return 1
-        if not completed_manifest.payload["entries"]:
+        if args.controlled_first_run and not completed_manifest.payload["entries"]:
             logger.error("Controlled first run produced no cohort rows; no downstream stage may run.")
             return 1
 

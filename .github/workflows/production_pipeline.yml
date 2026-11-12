@@ -32,9 +32,26 @@ permissions:
   contents: read
 
 jobs:
+  main_ref_guard:
+    name: "Require main ref before production resources"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: none
+    steps:
+      - name: Reject non-main execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF:-}" != "refs/heads/main" ]]; then
+            echo "::error::FG2 production execution is restricted to refs/heads/main."
+            exit 1
+          fi
+          echo "FG2 production ref guard passed."
+
   production_control_preflight:
     name: "FG2 Production Control Preflight"
-    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref)
+    needs: main_ref_guard
+    if: needs.main_ref_guard.result == 'success' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.event_name == 'schedule' && github.ref_name == 'main' && 'Production-Scheduled-FG2') || (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -59,8 +76,8 @@ jobs:
   # -------------------------------------------------------------
   phase_1_harvesting:
     name: "1. Massive Harvesting"
-    needs: production_control_preflight
-    if: needs.production_control_preflight.outputs.allow_writer == 'true'
+    needs: [main_ref_guard, production_control_preflight]
+    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true'
     outputs:
       cohort_manifest_b64: ${{ steps.harvest.outputs.cohort_manifest_b64 }}
       cohort_manifest_sha256: ${{ steps.harvest.outputs.cohort_manifest_sha256 }}
@@ -101,13 +118,21 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           JOB_START_TIME: ${{ env.JOB_START_TIME }}
           FG2_CONTROLLED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}
+          FG2_SCHEDULED_COHORT: ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/main' }}
+          FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run) }}
           FG2_APPROVED_LOT_REFERENCE: ${{ inputs.approved_lot_reference }}
           FG2_APPROVED_LOT_SHA256: ${{ inputs.approved_lot_sha256 }}
           FG2_APPROVED_LOT_MANIFEST_B64: ${{ inputs.approved_lot_manifest_b64 }}
         run: |
           set -euo pipefail
-          if [[ "$FG2_CONTROLLED_FIRST_RUN" == "true" ]]; then
+          if [[ "$FG2_SCHEDULED_COHORT" == "true" ]]; then
+            python3 scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing --scheduled-cohort --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json"
+          elif [[ "$FG2_CONTROLLED_FIRST_RUN" == "true" ]]; then
             python3 scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing --controlled-first-run --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --approved-lot-manifest "$RUNNER_TEMP/fg2-approved-lot.json" --approved-lot-reference "$FG2_APPROVED_LOT_REFERENCE" --approved-lot-sha256 "$FG2_APPROVED_LOT_SHA256"
+          else
+            python3 scripts/core/master_orchestrator.py --limit 10 --skip-cleansing
+          fi
+          if [[ "$FG2_COHORT_SCOPED" == "true" ]]; then
             python3 - "$RUNNER_TEMP/fg2-cohort-manifest.json" "$GITHUB_OUTPUT" <<'PY'
           import base64
           import hashlib
@@ -119,11 +144,9 @@ jobs:
               output.write("cohort_manifest_b64=" + base64.b64encode(raw).decode("ascii") + "\n")
               output.write("cohort_manifest_sha256=" + hashlib.sha256(raw).hexdigest() + "\n")
           PY
-          else
-            python3 scripts/core/master_orchestrator.py --limit 10 --skip-cleansing
           fi
       - name: Preserve controlled FG2 cohort manifest for review and recovery
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.bounded_first_run
+        if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run))
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fg2-bounded-cohort-${{ github.run_id }}-${{ github.run_attempt }}
@@ -135,8 +158,8 @@ jobs:
   # -------------------------------------------------------------
   phase_1_5_cleansing:
     name: "1.5. High Fidelity Cleansing"
-    needs: [production_control_preflight, phase_1_harvesting]
-    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_1_harvesting.result == 'success'
+    needs: [production_control_preflight, phase_1_harvesting, main_ref_guard]
+    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_1_harvesting.result == 'success'
     timeout-minutes: 60
     runs-on: ubuntu-latest
     environment:
@@ -144,7 +167,7 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      FG2_CONTROLLED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}
+      FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}
     steps:
@@ -164,7 +187,7 @@ jobs:
           PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
         run: bash .github/scripts/production_control_preflight.sh FG2-CLEANSING --enforce
       - name: Restore exact controlled cohort manifest
-        if: github.event_name == 'workflow_dispatch' && inputs.bounded_first_run
+        if: env.FG2_COHORT_SCOPED == 'true'
         run: |
           python3 - "$RUNNER_TEMP/fg2-cohort-manifest.json" <<'PY'
           import base64
@@ -186,7 +209,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
-          if [[ "$FG2_CONTROLLED_FIRST_RUN" == "true" ]]; then
+          if [[ "$FG2_COHORT_SCOPED" == "true" ]]; then
             python scripts/core/cleansing_worker.py --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --cohort-manifest-sha256 "$FG2_COHORT_MANIFEST_SHA256"
           else
             python scripts/core/cleansing_worker.py
@@ -196,8 +219,8 @@ jobs:
   # -------------------------------------------------------------
   phase_2_enrichment:
     name: "2. AI Enrichment (14 Pillars)"
-    needs: [production_control_preflight, phase_1_harvesting, phase_1_5_cleansing]
-    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_1_5_cleansing.result == 'success'
+    needs: [production_control_preflight, phase_1_harvesting, phase_1_5_cleansing, main_ref_guard]
+    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_1_5_cleansing.result == 'success'
     timeout-minutes: 350
     runs-on: ubuntu-latest
     environment:
@@ -205,7 +228,7 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      FG2_CONTROLLED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}
+      FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}
     steps:
@@ -225,7 +248,7 @@ jobs:
           PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
         run: bash .github/scripts/production_control_preflight.sh FG2-ENRICHMENT --enforce
       - name: Restore exact controlled cohort manifest
-        if: github.event_name == 'workflow_dispatch' && inputs.bounded_first_run
+        if: env.FG2_COHORT_SCOPED == 'true'
         run: |
           python3 - "$RUNNER_TEMP/fg2-cohort-manifest.json" <<'PY'
           import base64
@@ -250,7 +273,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
-          if [[ "$FG2_CONTROLLED_FIRST_RUN" == "true" ]]; then
+          if [[ "$FG2_COHORT_SCOPED" == "true" ]]; then
             python scripts/core/enrichment_worker.py --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --cohort-manifest-sha256 "$FG2_COHORT_MANIFEST_SHA256"
           else
             python scripts/core/enrichment_worker.py
@@ -260,8 +283,8 @@ jobs:
   # -------------------------------------------------------------
   phase_3_sync:
     name: "3. Integrity & Sync"
-    needs: [production_control_preflight, phase_1_harvesting, phase_2_enrichment]
-    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_2_enrichment.result == 'success'
+    needs: [production_control_preflight, phase_1_harvesting, phase_2_enrichment, main_ref_guard]
+    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_2_enrichment.result == 'success'
     timeout-minutes: 60
     runs-on: ubuntu-latest
     environment:
@@ -269,7 +292,7 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      FG2_CONTROLLED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}
+      FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}
     steps:
@@ -289,7 +312,7 @@ jobs:
           PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
         run: bash .github/scripts/production_control_preflight.sh FG2-SYNC --enforce
       - name: Restore exact controlled cohort manifest
-        if: github.event_name == 'workflow_dispatch' && inputs.bounded_first_run
+        if: env.FG2_COHORT_SCOPED == 'true'
         run: |
           python3 - "$RUNNER_TEMP/fg2-cohort-manifest.json" <<'PY'
           import base64
@@ -311,7 +334,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
-          if [[ "$FG2_CONTROLLED_FIRST_RUN" == "true" ]]; then
+          if [[ "$FG2_COHORT_SCOPED" == "true" ]]; then
             python scripts/core/sync_vector_worker.py --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --cohort-manifest-sha256 "$FG2_COHORT_MANIFEST_SHA256"
           else
             python scripts/core/sync_vector_worker.py
@@ -319,8 +342,8 @@ jobs:
 
   phase_4_audit:
     name: "4. CA1 Audit Boundary"
-    needs: [production_control_preflight, phase_3_sync]
-    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_3_sync.result == 'success'
+    needs: [production_control_preflight, phase_3_sync, main_ref_guard]
+    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_3_sync.result == 'success'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     permissions:

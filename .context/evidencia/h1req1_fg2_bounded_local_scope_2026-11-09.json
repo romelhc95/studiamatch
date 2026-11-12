@@ -3,27 +3,152 @@
   "manifest_role": "local candidate-aware documentation integrity scope; not a PR exact-path manifest and not execution authority",
   "scope": {
     "entries": [
-      {"path": ".github/workflows/production_pipeline.yml", "status": "included"},
-      {"path": "scripts/core/cleansing_worker.py", "status": "included"},
-      {"path": "scripts/core/enrichment_worker.py", "status": "included"},
-      {"path": "scripts/core/fg2_bounded_run.py", "status": "included"},
-      {"path": "scripts/core/master_orchestrator.py", "status": "included"},
-      {"path": "scripts/core/sync_vector_worker.py", "status": "included"},
-      {"path": "scripts/core/universal_harvester.py", "status": "included"},
-      {"path": "tests/test_fg2_bounded_orchestration.py", "status": "included"},
-      {"path": "tests/test_fg2_bounded_run.py", "status": "included"},
-      {"path": "tests/test_fg2_bounded_workers.py", "status": "included"},
-      {"path": "tests/test_fg2_bounded_workflow.py", "status": "included"},
-      {"path": "tests/test_h3req1_local_pipeline_walk.py", "status": "included"},
-      {"path": ".context/componentes/datos_pipeline.md", "status": "included"},
-      {"path": ".context/componentes/infra_release.md", "status": "included"},
-      {"path": ".context/componentes/pipeline.md", "status": "included"},
-      {"path": ".context/componentes/pruebas_evidencia.md", "status": "included"},
-      {"path": ".context/estado_del_proyecto.md", "status": "included"},
-      {"path": ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md", "status": "included"},
-      {"path": ".context/trazabilidad/registro_fuentes_componentes.json", "status": "included"},
-      {"path": ".context/trazabilidad/registro_fuentes_componentes.md", "status": "included"}
+      {
+        "path": ".context/componentes/utilidades_compartidas.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/componentes/canarios.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/componentes/datos_pipeline.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/componentes/infra_release.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/componentes/pipeline.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/componentes/pruebas_evidencia.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/componentes/seguridad_tooling.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/estado_del_proyecto.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/operaciones/plan_cierre_hito1_ca1_only.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
+        "status": "included"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.json",
+        "status": "included"
+      },
+      {
+        "path": ".context/trazabilidad/registro_fuentes_componentes.md",
+        "status": "included"
+      },
+      {
+        "path": ".github/scripts/production_control_preflight.sh",
+        "status": "included"
+      },
+      {
+        "path": ".github/workflows/fg1_inventory.yml",
+        "status": "included"
+      },
+      {
+        "path": ".github/workflows/fg3_integrity.yml",
+        "status": "included"
+      },
+      {
+        "path": ".github/workflows/production_canary.yml",
+        "status": "included"
+      },
+      {
+        "path": ".github/workflows/production_pipeline.yml",
+        "status": "included"
+      },
+      {
+        "path": ".github/workflows/security-audit.yml",
+        "status": "included"
+      },
+      {
+        "path": "scripts/core/cleansing_worker.py",
+        "status": "included"
+      },
+      {
+        "path": "scripts/core/enrichment_worker.py",
+        "status": "included"
+      },
+      {
+        "path": "scripts/core/fg2_bounded_run.py",
+        "status": "included"
+      },
+      {
+        "path": "scripts/core/master_orchestrator.py",
+        "status": "included"
+      },
+      {
+        "path": "scripts/core/sync_vector_worker.py",
+        "status": "included"
+      },
+      {
+        "path": "scripts/core/universal_harvester.py",
+        "status": "included"
+      },
+      {
+        "path": "scripts/security/protected_path_scope_guard.sh",
+        "status": "included"
+      },
+      {
+        "path": "scripts/shared/site_diagnostics.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_fase09_10_pre_main_controls.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_fase10_main_boundary.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_fase10_production_canary.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_fg2_bounded_orchestration.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_fg2_bounded_run.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_fg2_bounded_workers.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_fg2_bounded_workflow.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_h3req1_local_pipeline_walk.py",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_protected_path_scope_guard.sh",
+        "status": "included"
+      },
+      {
+        "path": "tests/test_supabase_credentials_contract.py",
+        "status": "included"
+      }
     ]
   },
-  "package_artifacts": {}
+  "package_artifacts": {},
+  "manifest_id": "h1req1-fg2-bounded-local-scope-2026-11-09"
 }

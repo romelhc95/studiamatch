@@ -16,6 +16,23 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from curl_cffi import CurlOpt
+from curl_cffi.requests import Session as CurlSession
+# StudIAMatch-Docs: .context/componentes/utilidades_compartidas.md#responsabilidades-y-consumidores
+try:
+    from scripts.core.fg2_bounded_run import (
+        UnsafePublicTarget,
+        validate_public_request_url,
+        validate_public_redirect_target,
+    )
+except ModuleNotFoundError as exc:
+    if exc.name != "scripts":
+        raise
+    from core.fg2_bounded_run import (
+        UnsafePublicTarget,
+        validate_public_request_url,
+        validate_public_redirect_target,
+    )
 
 HEADERS = {
     "User-Agent": (
@@ -25,6 +42,85 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
 }
+MAX_RESPONSE_BODY_BYTES = 2 * 1024 * 1024
+RESPONSE_READ_CHUNK_BYTES = 64 * 1024
+REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+
+
+class ResponseBodyLimitExceeded(RuntimeError):
+    """A response exceeded the bounded body used for site diagnostics."""
+
+
+def _read_bounded_response_text(response) -> str:
+    body = bytearray()
+    try:
+        for chunk in response.iter_content(chunk_size=RESPONSE_READ_CHUNK_BYTES):
+            if not chunk:
+                continue
+            if not isinstance(chunk, bytes):
+                raise TypeError("response stream returned a non-byte chunk")
+            if len(body) + len(chunk) > MAX_RESPONSE_BODY_BYTES:
+                raise ResponseBodyLimitExceeded("response body exceeds the 2 MiB limit")
+            body.extend(chunk)
+        response._content = bytes(body)
+        response._content_consumed = True
+        return response.text
+    finally:
+        response.close()
+
+
+def _bounded_get(url: str, timeout: int):
+    """GET a public URL chain, pinning and bounding every HTTP hop."""
+    _, resolve_entry = validate_public_request_url(url)
+    current_url = url
+    redirects_followed = 0
+    max_redirects = 30
+    while True:
+        curl_options = {CurlOpt.RESOLVE: [resolve_entry]} if resolve_entry else {}
+        session = CurlSession(
+            trust_env=False,
+            proxies={},
+            curl_options=curl_options,
+            verify=True,
+            allow_redirects=False,
+            max_redirects=0,
+            retry=0,
+            impersonate="chrome124",
+        )
+        response = None
+        try:
+            response = session.get(
+                current_url,
+                headers=HEADERS,
+                timeout=timeout,
+                allow_redirects=False,
+                stream=True,
+                proxies={},
+                verify=True,
+            )
+            location = response.headers.get("location") or response.headers.get("Location")
+            if response.status_code in REDIRECT_STATUSES and location:
+                if redirects_followed >= max_redirects:
+                    raise requests.TooManyRedirects(
+                        f"exceeded {max_redirects} redirects", response=response
+                    )
+                target_url, target_resolve_entry = validate_public_redirect_target(
+                    current_url,
+                    location,
+                )
+                current_url = target_url
+                resolve_entry = target_resolve_entry
+                redirects_followed += 1
+                continue
+
+            status = response.status_code
+            final_url = response.url or current_url
+            text = _read_bounded_response_text(response)
+            return status, text, final_url
+        finally:
+            if response is not None:
+                response.close()
+            session.close()
 
 NON_HTML_EXTENSIONS = re.compile(
     r"\.(pdf|xlsx?|docx?|pptx?|zip|rar|png|jpe?g|gif|svg|mp4|webm|css|js)$", re.I
@@ -59,8 +155,7 @@ CATALOG_PATH_PATTERNS = [
 
 def _get(url: str, timeout: int = 10):
     try:
-        r = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-        return r.status_code, r.text, r.url
+        return _bounded_get(url, timeout)
     except Exception:
         return None, "", url
 
@@ -232,6 +327,11 @@ def detect_catalog_links(html: str, base_url: str) -> dict:
     }
 
 
+def detect_noise_patterns(html: str, base_url: str) -> list[str]:
+    """Return the noise links recognized while extracting catalog links."""
+    return detect_catalog_links(html, base_url)["noise_urls_detected"]
+
+
 def detect_js_required(html: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
     body_text = soup.body.get_text(strip=True) if soup.body else ""
@@ -369,10 +469,7 @@ def diagnose_site(url: str, logger=None) -> dict:
 
     status, html, final_url = url, "", url
     try:
-        r = requests.get(url, headers=HEADERS, timeout=15, allow_redirects=True)
-        status = r.status_code
-        html = r.text
-        final_url = r.url
+        status, html, final_url = _bounded_get(url, timeout=15)
     except Exception as e:
         return {"error": str(e), "url": url}
 

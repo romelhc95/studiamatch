@@ -23,7 +23,12 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
-from scripts.shared.utils import normalize_url as _normalize_url
+try:
+    from scripts.shared.utils import normalize_url as _normalize_url
+except ModuleNotFoundError as exc:
+    if exc.name != "scripts":
+        raise
+    from shared.utils import normalize_url as _normalize_url
 
 
 FG2_LIMITS = {
@@ -34,6 +39,12 @@ FG2_LIMITS = {
     "max_concurrent_requests_per_origin": 1,
     "max_attempts_per_url": 3,
 }
+_CLEANSING_URL_SUFFIXES = (
+    "presentacion", "beneficios", "plana-docente", "malla-curricular",
+    "admision", "objetivos", "certificacion", "requisitos", "requirements",
+    "Paginas/curso-actualizacion.aspx", "sustentacion-tesis",
+    "ranking-eduniversal", "contactenos",
+)
 _UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _SOURCE_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -55,6 +66,10 @@ class SourceBlocked(RuntimeError):
 
 class OriginDeferred(RuntimeError):
     """An origin must be deferred for this run without another request."""
+
+
+class ResponseBodyTooLarge(OriginDeferred):
+    """A controlled response exceeded its byte cap and its origin is deferred."""
 
 
 class RunBudgetExceeded(RuntimeError):
@@ -173,6 +188,42 @@ def public_url_resolve_entry(
         for address in addresses
     )
     return f"{host}:{port}:{pinned_addresses}"
+
+
+# StudIAMatch-Docs: .context/componentes/pipeline.md#primera-corrida-fg2-acotada
+def validate_public_request_url(
+    url: str,
+    *,
+    expected_origin: str | None = None,
+    resolver: Callable[..., list[tuple[Any, ...]]] | None = None,
+) -> tuple[str, str | None]:
+    """Validate a request hop and return its origin plus the DNS pin to use."""
+    origin = _origin(url)
+    if expected_origin is not None and origin != _origin(expected_origin):
+        raise UnsafePublicTarget("request hop changed the approved origin")
+    return origin, public_url_resolve_entry(url, resolver=resolver)
+
+
+def validate_public_redirect_target(
+    current_url: str,
+    location: str,
+    *,
+    expected_origin: str | None = None,
+    resolver: Callable[..., list[tuple[Any, ...]]] | None = None,
+) -> tuple[str, str | None]:
+    """Validate and pin a redirect hop before the caller starts its next request."""
+    if not isinstance(location, str) or not location.strip():
+        raise UnsafePublicTarget("redirect target is empty")
+    try:
+        target = _canonical_request_url(urljoin(current_url, location.strip()))
+    except (TypeError, ValueError) as exc:
+        raise UnsafePublicTarget("redirect target is malformed") from exc
+    origin, resolve_entry = validate_public_request_url(
+        target,
+        expected_origin=expected_origin,
+        resolver=resolver,
+    )
+    return target, resolve_entry
 
 
 def _origin_digest(origin: str) -> str:
@@ -407,6 +458,14 @@ class FG2RequestBudget:
             except UnsafePublicTarget as exc:
                 await self._defer(origin)
                 raise OriginDeferred("controlled target could not be pinned") from exc
+            except SourceBlocked:
+                async with self._state_lock:
+                    self._blocked_origins.add(digest)
+                    self._publish_origin_state(digest)
+                raise
+            except OriginDeferred:
+                await self._defer(origin)
+                raise
             except Exception as exc:
                 return None, exc
 
@@ -487,6 +546,7 @@ class FG2RequestBudget:
             if self.allowed_urls is not None and _approved_scope_url(target) not in self.allowed_urls:
                 await self._defer(permitted_origin)
                 raise OriginDeferred("redirect target is outside the reviewed FG2 lot")
+            await self._reserve_unique_url(target, permitted_origin)
             current = target
             redirects += 1
 
@@ -603,7 +663,7 @@ class FG2CohortManifest:
                 raise InvalidControlledRun("institution HTTP count is outside its budget")
             if not isinstance(item.get("unique_urls"), int) or not 0 <= item["unique_urls"] <= FG2_LIMITS["max_urls_per_institution"]:
                 raise InvalidControlledRun("institution URL count is outside its budget")
-            if item.get("result") not in {"preflight_passed", "complete", "no_op", "blocked", "deferred", "failed"}:
+            if item.get("result") not in {"preflight_passed", "complete", "partial", "no_op", "blocked", "deferred", "failed"}:
                 raise InvalidControlledRun("invalid institution result")
 
         origin_state = payload.get("origin_state", {})
@@ -620,8 +680,8 @@ class FG2CohortManifest:
                     raise InvalidControlledRun("invalid shared source-origin start time")
             if state.get("stop_reason") not in {None, "blocked", "deferred"}:
                 raise InvalidControlledRun("invalid shared source-origin stop reason")
-            if state.get("stop_reason") is not None and last_started is None:
-                raise InvalidControlledRun("source origin cannot stop before an HTTP request")
+            if state.get("stop_reason") == "blocked" and last_started is None:
+                raise InvalidControlledRun("source origin cannot be blocked before an HTTP request")
 
         entries = payload.get("entries")
         if not isinstance(entries, list) or (not entries and not allow_empty):
@@ -666,6 +726,8 @@ class FG2CohortManifest:
                 raise InvalidControlledRun("invalid or duplicate staging id")
             if not _valid_sha256(entry.get("url_sha256")) or not _valid_sha256(entry.get("content_sha256")):
                 raise InvalidControlledRun("invalid URL or content digest")
+            if "cleansed_url_sha256" in entry and not _valid_sha256(entry.get("cleansed_url_sha256")):
+                raise InvalidControlledRun("invalid cleansed URL digest")
             if entry.get("kind") not in {"new_discovery", "refresh_existing"}:
                 raise InvalidControlledRun("invalid URL classification")
             course_id = entry.get("course_id")
@@ -675,7 +737,7 @@ class FG2CohortManifest:
                 raise InvalidControlledRun("cohort classification does not match its course reference")
             entry_ids.add(staging_id.lower())
             key = institution_id.lower()
-            if not allow_empty and institution_results.get(key) not in {"complete", "blocked", "deferred"}:
+            if not allow_empty and institution_results.get(key) not in {"complete", "partial", "blocked", "deferred"}:
                 raise InvalidControlledRun("institution result is not eligible for downstream work")
             urls_by_institution.setdefault(key, set()).add(entry["url_sha256"])
             counts_by_institution[key] = counts_by_institution.get(key, 0) + 1
@@ -841,6 +903,69 @@ def url_sha256(url: str) -> str:
     return hashlib.sha256(_canonical_request_url(url).encode("utf-8")).hexdigest()
 
 
+def cleanse_course_url(url: str) -> str:
+    """Mirror the URL grouping performed by cleansing_worker for manifest checks."""
+    clean_url = str(url or "").rstrip("/") + "/"
+    for suffix in _CLEANSING_URL_SUFFIXES:
+        pattern = re.escape(suffix) + r"/?$"
+        if re.search(pattern, clean_url, re.IGNORECASE):
+            return re.sub(pattern, "", clean_url, flags=re.IGNORECASE).rstrip("/") + "/"
+    return clean_url
+
+
+def cleansed_url_sha256(url: str) -> str:
+    return url_sha256(cleanse_course_url(url))
+
+
+def cleansed_url_sha256_for_record(
+    requested_url: str,
+    *,
+    effective_url: str | None = None,
+    canonical_url: str | None = None,
+) -> str:
+    """Hash the same canonical/effective/requested URL identity cleansing selects."""
+    identity_url = _normalize_url(canonical_url or effective_url or requested_url)
+    return cleansed_url_sha256(identity_url)
+
+
+def validate_harvester_run_mode(
+    *,
+    controlled: bool,
+    scheduled: bool,
+    cohort_manifest: str | None,
+    approved_lot_manifest: str | None,
+    approved_lot_reference: str | None,
+    approved_lot_sha256: str | None,
+    max_urls: int | None,
+    event_name: str,
+    git_ref: str,
+) -> str:
+    """Keep ordinary schedule cohorts distinct from the manually reviewed lot."""
+    if controlled and scheduled:
+        raise InvalidControlledRun("harvester cannot be both controlled-first-run and scheduled")
+    if controlled:
+        if event_name != "workflow_dispatch" or git_ref != "refs/heads/main":
+            raise InvalidControlledRun("controlled first run requires manual workflow_dispatch on main")
+        if max_urls != FG2_LIMITS["max_urls_per_institution"] or not cohort_manifest:
+            raise InvalidControlledRun("controlled first run requires the exact URL bound and cohort manifest")
+        if not all((approved_lot_manifest, approved_lot_reference, approved_lot_sha256)):
+            raise InvalidControlledRun("controlled first run requires the reviewed FG2 lot binding")
+        return "controlled_first_run"
+    if scheduled:
+        if (
+            max_urls != FG2_LIMITS["max_urls_per_institution"]
+            or not cohort_manifest
+            or any((approved_lot_manifest, approved_lot_reference, approved_lot_sha256))
+        ):
+            raise InvalidControlledRun("scheduled cohort requires only the exact URL bound and cohort manifest")
+        if event_name != "schedule" or git_ref != "refs/heads/main":
+            raise InvalidControlledRun("scheduled cohort is limited to the main-branch schedule")
+        return "scheduled_cohort"
+    if any((cohort_manifest, approved_lot_manifest, approved_lot_reference, approved_lot_sha256)):
+        raise InvalidControlledRun("ordinary harvester cannot receive cohort or approved-lot bindings")
+    return "ordinary"
+
+
 APPROVED_LOT_MAX_BYTES = 40 * 1024
 _APPROVED_REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$")
 _APPROVED_SNAPSHOT_KEYS = (
@@ -1002,6 +1127,7 @@ class FG2ApprovedLotManifest:
         if not isinstance(scope, list) or not scope:
             raise InvalidControlledRun("approved FG2 lot URL scope is empty")
         seen_urls: set[str] = set()
+        seen_course_identities: set[str] = set()
         url_counts: dict[str, int] = {}
         for item in scope:
             if not isinstance(item, dict):
@@ -1020,6 +1146,10 @@ class FG2ApprovedLotManifest:
             if normalized_url in seen_urls:
                 raise InvalidControlledRun("approved FG2 lot repeats a URL")
             seen_urls.add(normalized_url)
+            course_identity = course_identity_url(normalized_url)
+            if course_identity in seen_course_identities:
+                raise InvalidControlledRun("approved FG2 lot repeats a canonical course identity")
+            seen_course_identities.add(course_identity)
             item["url"] = normalized_url
             if not _valid_sha256(item.get("url_sha256")) or item["url_sha256"] != url_sha256(normalized_url):
                 raise InvalidControlledRun("approved FG2 lot URL digest mismatch")
@@ -1056,7 +1186,17 @@ class FG2ApprovedLotManifest:
                         raise InvalidControlledRun("approved FG2 lot snapshot URL is malformed")
                     validate_public_url_shape(row_url)
                     row_url_parts = urlsplit(row_url)
-                    if row_url_parts.query or row_url_parts.fragment or _approved_scope_url(row_url) != normalized_url:
+                    row_identity = (
+                        course_identity_url(row_url)
+                        if table_key in {"course_rows", "cleansed_rows", "enriched_rows"}
+                        else _approved_scope_url(row_url)
+                    )
+                    scope_identity = (
+                        course_identity_url(normalized_url)
+                        if table_key in {"course_rows", "cleansed_rows", "enriched_rows"}
+                        else normalized_url
+                    )
+                    if row_url_parts.query or row_url_parts.fragment or row_identity != scope_identity:
                         raise InvalidControlledRun("approved FG2 lot snapshot URL does not match its scope")
                     for foreign_key in ("staging_id", "cleansed_id"):
                         if foreign_key in row and row[foreign_key] is not None and not _valid_uuid(row[foreign_key]):
@@ -1141,6 +1281,75 @@ def _postgrest_url_in_filter(urls: list[str]) -> str:
     return f"url=in.({','.join(quoted)})"
 
 
+def _ascii_case_insensitive_regex_literal(value: str) -> str:
+    """Match URL scheme/host case-insensitively without folding path case."""
+    pieces = []
+    for character in value:
+        if character.isascii() and character.isalpha():
+            pieces.append(f"[{character.lower()}{character.upper()}]")
+        else:
+            pieces.append(re.escape(character))
+    return "".join(pieces)
+
+
+def _approved_url_alias_pattern(url: str) -> str:
+    """Return an anchored regex for stored URLs with this normalized identity."""
+    normalized = _approved_scope_url(url)
+    parsed = urlsplit(normalized)
+    if not parsed.scheme or not parsed.netloc:
+        raise InvalidControlledRun("approved URL alias lookup requires an absolute URL")
+
+    path = parsed.path
+    if path == "/":
+        # normalize_url preserves one root slash and collapses exactly one
+        # trailing slash from a double-root path.
+        path_pattern = r"//?"
+    elif not path:
+        path_pattern = ""
+    else:
+        segments = path[1:].split("/") if path.startswith("/") else path.split("/")
+        path_pattern = "/" + "/".join(
+            f"(en/)?{re.escape(segment)}" for segment in segments
+        ) + "/?"
+
+    return (
+        _ascii_case_insensitive_regex_literal(parsed.scheme)
+        + r"://"
+        + _ascii_case_insensitive_regex_literal(parsed.netloc)
+        + path_pattern
+        + r"([?][^#]*)?(#.*)?"
+    )
+
+
+def approved_url_alias_filter(urls: list[str]) -> str:
+    """Select only candidate URL aliases, in one bounded query per institution."""
+    if not urls:
+        raise InvalidControlledRun("approved URL alias lookup requires at least one URL")
+    pattern = "^(" + "|".join(_approved_url_alias_pattern(url) for url in urls) + ")$"
+    return f"url=match.{quote(pattern, safe='')}"
+
+
+def course_identity_url(url: str) -> str:
+    """Resolve detail-page and language aliases to the URL identity used by sync."""
+    return _approved_scope_url(cleanse_course_url(_approved_scope_url(url)))
+
+
+def course_url_alias_filter(urls: list[str]) -> str:
+    """Select canonical and known detail-page spellings for course identities."""
+    if not urls:
+        raise InvalidControlledRun("course URL alias lookup requires at least one URL")
+    candidates: set[str] = set()
+    for url in urls:
+        requested = _approved_scope_url(url)
+        identity = course_identity_url(requested)
+        candidates.update((requested, identity))
+        for suffix in _CLEANSING_URL_SUFFIXES:
+            detail_alias = _approved_scope_url(f"{identity.rstrip('/')}/{suffix}")
+            if course_identity_url(detail_alias) == identity:
+                candidates.add(detail_alias)
+    return approved_url_alias_filter(sorted(candidates))
+
+
 def verify_approved_lot_scope(
     client: Any,
     approved_lot: FG2ApprovedLotManifest,
@@ -1163,37 +1372,47 @@ def verify_approved_lot_scope(
         item["url"]: {key: [] for key in _APPROVED_SNAPSHOT_KEYS}
         for item in scope_rows
     }
-    urls_by_institution: dict[str, list[str]] = {}
     staging_scope_by_id: dict[str, str] = {}
     cleansed_scope_by_id: dict[str, str] = {}
     for item in scope_rows:
-        urls_by_institution.setdefault(item["institution_id"].lower(), []).append(item["url"])
         for row in item["snapshot"]["staging_rows"]:
             staging_scope_by_id[row["id"].lower()] = item["url"]
         for row in item["snapshot"]["cleansed_rows"]:
             cleansed_scope_by_id[row["id"].lower()] = item["url"]
 
-    for urls in urls_by_institution.values():
-        url_filter = _postgrest_url_in_filter(urls)
+    urls_by_institution: dict[str, list[str]] = {}
+    for item in scope_rows:
+        urls_by_institution.setdefault(item["institution_id"].lower(), []).append(item["url"])
+    course_scope_by_identity: dict[str, str] = {}
+    for item in scope_rows:
+        identity = course_identity_url(item["url"])
+        if identity in course_scope_by_identity:
+            raise InvalidControlledRun("approved FG2 lot repeats a canonical course identity")
+        course_scope_by_identity[identity] = item["url"]
+
+    records_by_table: dict[str, dict[str, dict[str, Any]]] = {}
+    for institution_id, urls in urls_by_institution.items():
+        institution_scope_rows = [
+            item for item in scope_rows if item["institution_id"].lower() == institution_id
+        ]
+        url_filter = approved_url_alias_filter(urls)
+        course_url_filter = course_url_alias_filter(urls)
         staging_ids = [
             row["id"]
-            for item in scope_rows
-            if item["url"] in urls
+            for item in institution_scope_rows
             for row in item["snapshot"]["staging_rows"]
         ]
         cleansed_ids = [
             row["id"]
-            for item in scope_rows
-            if item["url"] in urls
+            for item in institution_scope_rows
             for row in item["snapshot"]["cleansed_rows"]
         ]
+        max_rows_per_url_query = len(institution_scope_rows)
         queries = [
-            # Read the URL identities from the complete relation so slash and
-            # /en/ aliases cannot disappear behind an exact PostgREST filter.
-            ("staging_raw", "staging_rows", "id,institution_id,url,status,content_hash", True, None),
-            ("courses", "course_rows", "id,institution_id,url,is_active,is_verified,last_404_at", False, None),
-            ("cleansed_programs", "cleansed_rows", "id,staging_id,institution_id,url,status", True, url_filter),
-            ("enriched_programs", "enriched_rows", "id,cleansed_id,institution_id,url,status", True, url_filter),
+            ("staging_raw", "staging_rows", "id,institution_id,url,status,content_hash", True, url_filter, max_rows_per_url_query),
+            ("courses", "course_rows", "id,institution_id,url,is_active,is_verified,last_404_at", False, course_url_filter, max_rows_per_url_query),
+            ("cleansed_programs", "cleansed_rows", "id,staging_id,institution_id,url,status", True, url_filter, max_rows_per_url_query),
+            ("enriched_programs", "enriched_rows", "id,cleansed_id,institution_id,url,status", True, url_filter, max_rows_per_url_query),
         ]
         if staging_ids:
             queries.append((
@@ -1202,6 +1421,7 @@ def verify_approved_lot_scope(
                 "id,staging_id,institution_id,url,status",
                 True,
                 uuid_in_filter("staging_id", staging_ids),
+                len(staging_ids),
             ))
         if cleansed_ids:
             queries.append((
@@ -1210,16 +1430,34 @@ def verify_approved_lot_scope(
                 "id,cleansed_id,institution_id,url,status",
                 True,
                 uuid_in_filter("cleansed_id", cleansed_ids),
+                len(cleansed_ids),
             ))
 
-        records_by_table: dict[str, dict[str, dict[str, Any]]] = {}
-        for table, key, columns, pipeline, filters in queries:
+        for table, key, columns, pipeline, filters, max_expected_rows in queries:
             if pipeline:
-                records = client.select_all_pipeline(table, filters=filters, columns=columns, order="id.asc")
+                records = client.select_pipeline_raise(
+                    table,
+                    filters=filters,
+                    columns=columns,
+                    limit=max_expected_rows + 1,
+                    order="id.asc",
+                )
             else:
-                records = client.select_all_service(table, filters=filters, columns=columns, order="id.asc")
+                records = client.select_service_raise(
+                    table,
+                    filters=filters,
+                    columns=columns,
+                    limit=max_expected_rows + 1,
+                    order="id.asc",
+                )
             if not isinstance(records, list):
                 raise InvalidControlledRun("approved FG2 lot database snapshot is malformed")
+            if len(records) > max_expected_rows:
+                if key == "course_rows":
+                    raise InvalidControlledRun("canonical course URL is ambiguous")
+                if key == "staging_rows":
+                    raise InvalidControlledRun("canonical staging URL is ambiguous")
+                raise InvalidControlledRun("approved FG2 lot downstream URL is ambiguous")
             target = records_by_table.setdefault(key, {})
             for record in records:
                 if not isinstance(record, dict) or not _valid_uuid(record.get("id")):
@@ -1229,38 +1467,45 @@ def verify_approved_lot_scope(
                     raise InvalidControlledRun("approved FG2 lot downstream reference is inconsistent")
                 target[row_id] = record
 
-        for key, records in records_by_table.items():
-            for record in records.values():
-                url_value = record.get("url")
-                normalized_url = _approved_scope_url(url_value) if isinstance(url_value, str) else None
-                foreign_key = {
-                    "cleansed_rows": "staging_id",
-                    "enriched_rows": "cleansed_id",
-                }.get(key)
-                related_url = None
-                if foreign_key:
-                    related_id = record.get(foreign_key)
-                    if isinstance(related_id, str):
-                        related_map = staging_scope_by_id if key == "cleansed_rows" else cleansed_scope_by_id
-                        related_url = related_map.get(related_id.lower())
-                if related_url and normalized_url and related_url != normalized_url:
-                    raise InvalidControlledRun("approved FG2 lot downstream URL reference changed")
-                scope_url = related_url or normalized_url
-                if scope_url not in actual_by_url:
-                    continue
-                fields = {
-                    "staging_rows": ("id", "institution_id", "url", "status", "content_hash"),
-                    "course_rows": ("id", "institution_id", "url", "is_active", "is_verified", "last_404_at"),
-                    "cleansed_rows": ("id", "staging_id", "institution_id", "url", "status"),
-                    "enriched_rows": ("id", "cleansed_id", "institution_id", "url", "status"),
-                }[key]
-                projected = {field: record.get(field) for field in fields}
-                for field in ("id", "institution_id", "staging_id", "cleansed_id"):
-                    if field in projected and isinstance(projected[field], str):
-                        projected[field] = projected[field].lower()
-                if key == "staging_rows" and isinstance(projected["content_hash"], str):
-                    projected["content_hash"] = projected["content_hash"].lower()
-                actual_by_url[scope_url][key].append(projected)
+    for key, records in records_by_table.items():
+        for record in records.values():
+            url_value = record.get("url")
+            identity_uses_course_url = key in {"course_rows", "cleansed_rows", "enriched_rows"}
+            normalized_url = (
+                course_identity_url(url_value)
+                if isinstance(url_value, str) and identity_uses_course_url
+                else _approved_scope_url(url_value) if isinstance(url_value, str) else None
+            )
+            foreign_key = {
+                "cleansed_rows": "staging_id",
+                "enriched_rows": "cleansed_id",
+            }.get(key)
+            related_url = None
+            if foreign_key:
+                related_id = record.get(foreign_key)
+                if isinstance(related_id, str):
+                    related_map = staging_scope_by_id if key == "cleansed_rows" else cleansed_scope_by_id
+                    related_url = related_map.get(related_id.lower())
+            if related_url and normalized_url and course_identity_url(related_url) != course_identity_url(url_value):
+                raise InvalidControlledRun("approved FG2 lot downstream URL reference changed")
+            scope_url = related_url or normalized_url
+            if key == "course_rows" and normalized_url is not None:
+                scope_url = course_scope_by_identity.get(normalized_url)
+            if scope_url not in actual_by_url:
+                continue
+            fields = {
+                "staging_rows": ("id", "institution_id", "url", "status", "content_hash"),
+                "course_rows": ("id", "institution_id", "url", "is_active", "is_verified", "last_404_at"),
+                "cleansed_rows": ("id", "staging_id", "institution_id", "url", "status"),
+                "enriched_rows": ("id", "cleansed_id", "institution_id", "url", "status"),
+            }[key]
+            projected = {field: record.get(field) for field in fields}
+            for field in ("id", "institution_id", "staging_id", "cleansed_id"):
+                if field in projected and isinstance(projected[field], str):
+                    projected[field] = projected[field].lower()
+            if key == "staging_rows" and isinstance(projected["content_hash"], str):
+                projected["content_hash"] = projected["content_hash"].lower()
+            actual_by_url[scope_url][key].append(projected)
 
     for item in scope_rows:
         actual = actual_by_url[item["url"]]
@@ -1296,8 +1541,15 @@ def validate_controlled_profile(
     profile: Mapping[str, Any],
     *,
     now: datetime | None = None,
+    selected_seed_urls: list[str] | tuple[str, ...] | None = None,
+    scheduled_cohort: bool = False,
 ) -> dict[str, Any]:
-    """Validate gates and configured seeds without making a network request."""
+    """Validate gates and configured seeds without making a network request.
+
+    A reviewed lot may choose an ordered subset of the configured seeds. The
+    normal controlled path keeps the configured prefix when no selection is
+    supplied.
+    """
     if not isinstance(institution, Mapping) or not isinstance(profile, Mapping):
         raise InvalidControlledRun("institution/profile preflight payload is malformed")
     if not _valid_uuid(institution.get("id")):
@@ -1346,7 +1598,12 @@ def validate_controlled_profile(
         seeds = _json_list(profile.get("seed_urls", []), "seed_urls")
     elif mode == "sitemap_bfs":
         configured = _json_list(profile.get("seed_urls", []), "seed_urls")
-        seeds = configured or [urljoin(str(website_url), "/sitemap.xml")]
+        if scheduled_cohort:
+            # Ordinary sitemap_bfs has always started from the origin sitemap;
+            # profile seed_urls may describe catalog/course pages, not XML maps.
+            seeds = [urljoin(str(website_url), "/sitemap.xml")]
+        else:
+            seeds = configured or [urljoin(str(website_url), "/sitemap.xml")]
     elif mode == "paginated_catalog":
         patterns = _json_list(profile.get("catalog_url_patterns", []), "catalog_url_patterns")
         seeds = [str(item).replace("{page}", "1") for item in patterns]
@@ -1367,9 +1624,39 @@ def validate_controlled_profile(
         if normalized not in seen:
             seen.add(normalized)
             normalized_seeds.append(normalized)
-    selected_seeds = normalized_seeds[: FG2_LIMITS["max_urls_per_institution"]]
+    if selected_seed_urls is None:
+        selected_seeds = normalized_seeds[: FG2_LIMITS["max_urls_per_institution"]]
+    else:
+        if not isinstance(selected_seed_urls, (list, tuple)) or not selected_seed_urls:
+            raise InvalidControlledRun("approved seed selection is empty or malformed")
+        if len(selected_seed_urls) > FG2_LIMITS["max_urls_per_institution"]:
+            raise InvalidControlledRun("approved seed selection exceeds the institution URL limit")
+        requested_seeds: list[str] = []
+        requested_seen: set[str] = set()
+        for seed in selected_seed_urls:
+            if not isinstance(seed, str) or not seed.strip():
+                raise InvalidControlledRun("approved seed selection is malformed")
+            validate_public_url_shape(seed.strip())
+            normalized = _canonical_request_url(seed.strip())
+            if _origin(normalized) != website_origin:
+                raise InvalidControlledRun("approved seed selection is outside the institution origin")
+            if normalized in requested_seen:
+                raise InvalidControlledRun("approved seed selection contains duplicates")
+            requested_seen.add(normalized)
+            requested_seeds.append(normalized)
+        configured_seeds = set(normalized_seeds)
+        if not requested_seen.issubset(configured_seeds):
+            raise InvalidControlledRun("approved seed selection is outside the configured profile")
+        selected_seeds = [seed for seed in normalized_seeds if seed in requested_seen]
+        if selected_seeds != requested_seeds:
+            raise InvalidControlledRun("approved seed selection order differs from the configured profile")
     if not selected_seeds:
         raise InvalidControlledRun("source seed set is empty after validation")
+
+    if mode == "sitemap_bfs" and any(
+        urlsplit(seed).path.lower().endswith(".xml.gz") for seed in selected_seeds
+    ):
+        raise InvalidControlledRun("compressed sitemap seeds are unsupported in controlled runs")
 
     return {
         "effective_profile": effective_profile,

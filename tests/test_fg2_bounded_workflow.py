@@ -60,6 +60,26 @@ def test_ordinary_harvest_and_downstream_paths_remain_available() -> None:
     assert "production_control_preflight.sh FG2-SYNC --enforce" in workflow
 
 
+def test_main_schedule_propagates_a_run_scoped_manifest_to_all_workers() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "FG2_SCHEDULED_COHORT: ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/main' }}" in workflow
+    assert "--scheduled-cohort --cohort-manifest \"$RUNNER_TEMP/fg2-cohort-manifest.json\"" in workflow
+    assert "FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main')" in workflow
+    assert "if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run))" in workflow
+    assert workflow.count("if: env.FG2_COHORT_SCOPED == 'true'") == 3
+
+    for job, script in (
+        ("phase_1_5_cleansing", "cleansing_worker.py"),
+        ("phase_2_enrichment", "enrichment_worker.py"),
+        ("phase_3_sync", "sync_vector_worker.py"),
+    ):
+        section = workflow.split(f"  {job}:", 1)[1].split("\n  phase_", 1)[0]
+        assert "FG2_COHORT_SCOPED" in section
+        assert f"python scripts/core/{script} --cohort-manifest" in section
+        assert f"python scripts/core/{script}\n" in section
+        assert "Restore exact controlled cohort manifest" in section
+
+
 def test_every_downstream_cli_rejects_an_unhashed_manifest_before_startup() -> None:
     for script in (
         "cleansing_worker.py",

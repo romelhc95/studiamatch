@@ -32,7 +32,7 @@ case "$raw_writers_paused" in
   *) writers_paused="invalid" ;;
 esac
 allow_writer="false"
-reason="unsupported_ref"
+reason="non_main_production_ref_blocked"
 
 if [ "$writer" = "DB-SYNC" ]; then
   if [ "$event_name" != "workflow_dispatch" ]; then
@@ -43,50 +43,28 @@ if [ "$writer" = "DB-SYNC" ]; then
     allow_writer="true"
     reason="production_db_sync_allowed"
   fi
+elif [ "${GITHUB_REF:-}" != "refs/heads/main" ]; then
+  reason="non_main_production_ref_blocked"
 else
-case "$ref_name" in
-  main)
-    if [ "$writer" = "PRODUCTION-CANARY" ]; then
-      if [ "$event_name" != "workflow_dispatch" ]; then
-        reason="production_canary_requires_manual_dispatch"
-      elif [ "$automation_enabled" != "false" ]; then
-        reason="production_canary_automation_not_disabled"
-      elif [ "$writers_paused" != "true" ]; then
-        reason="production_canary_writers_not_paused"
-      else
-        allow_writer="true"
-        reason="production_canary_allowed"
-      fi
-    elif [ "$event_name" = "schedule" ] && [ "$automation_enabled" != "true" ]; then
-      reason="automation_disabled"
-    elif [ "$writers_paused" != "false" ]; then
-      reason="production_writers_paused_or_unset"
+  if [ "$writer" = "PRODUCTION-CANARY" ]; then
+    if [ "$event_name" != "workflow_dispatch" ]; then
+      reason="production_canary_requires_manual_dispatch"
+    elif [ "$automation_enabled" != "false" ]; then
+      reason="production_canary_automation_not_disabled"
+    elif [ "$writers_paused" != "true" ]; then
+      reason="production_canary_writers_not_paused"
     else
       allow_writer="true"
-      reason="production_writer_allowed"
+      reason="production_canary_allowed"
     fi
-    ;;
-  certificacion)
-    if [ "$event_name" = "schedule" ]; then
-      reason="non_main_schedule_blocked"
-    else
-      allow_writer="true"
-      reason="non_production_manual_allowed"
-    fi
-    ;;
-  desarrollo)
-    if [ "$event_name" = "schedule" ]; then
-      reason="non_main_schedule_blocked"
-    elif [ "$event_name" != "workflow_dispatch" ]; then
-      reason="development_requires_manual_dispatch"
-    elif [ "$writers_paused" != "false" ]; then
-      reason="development_writers_paused_or_unset"
-    else
-      allow_writer="true"
-      reason="development_manual_allowed"
-    fi
-    ;;
-esac
+  elif [ "$event_name" = "schedule" ] && [ "$automation_enabled" != "true" ]; then
+    reason="automation_disabled"
+  elif [ "$writers_paused" != "false" ]; then
+    reason="production_writers_paused_or_unset"
+  else
+    allow_writer="true"
+    reason="production_writer_allowed"
+  fi
 fi
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
@@ -120,7 +98,7 @@ if [ "$mode" = "--enforce" ] && [ "$allow_writer" != "true" ]; then
   exit 1
 fi
 
-if [ "$allow_writer" != "true" ] && [ "$reason" != "automation_disabled" ] && [ "$reason" != "non_main_schedule_blocked" ]; then
+if [ "$allow_writer" != "true" ] && [ "$reason" != "automation_disabled" ]; then
   echo "::error::production control preflight blocked writer=$writer reason=$reason"
   exit 1
 fi

@@ -24,16 +24,21 @@ from scripts.core.fg2_bounded_run import (
     UnsafePublicTarget,
     append_manifest_entry,
     append_manifest_blocker,
+    cleansed_url_sha256,
+    cleansed_url_sha256_for_record,
     initialize_manifest,
     load_manifest_b64,
     require_manifest_sha256,
+    stable_json_sha256,
     uuid_in_filter,
     update_manifest_institution,
     update_manifest_origin_state,
     url_sha256,
     public_url_resolve_entry,
     parse_retry_after,
+    validate_public_redirect_target,
     validate_controlled_profile,
+    validate_harvester_run_mode,
 )
 
 
@@ -183,7 +188,24 @@ def test_redirect_and_retry_requests_are_counted_and_retry_after_is_respected() 
     asyncio.run(scenario())
 
 
-def test_redirects_count_as_http_requests_without_spending_another_unique_course_url() -> None:
+def test_redirect_targets_count_against_the_unique_url_limit() -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        session = FakeSession(
+            clock,
+            [FakeResponse(302, {"location": "/canonical"}), FakeResponse(200)],
+        )
+        budget = make_budget(clock, max_unique_urls=2)
+        response = await budget.get(session, "https://synthetic.example/course")
+        assert response.status_code == 200
+        assert budget.http_requests == 2
+        assert len(budget.unique_urls) == 2
+        assert budget.snapshot() == {"http_requests": 2, "unique_urls": 2}
+
+    asyncio.run(scenario())
+
+
+def test_redirect_is_not_followed_when_its_target_exceeds_unique_url_limit() -> None:
     async def scenario() -> None:
         clock = FakeClock()
         session = FakeSession(
@@ -191,10 +213,10 @@ def test_redirects_count_as_http_requests_without_spending_another_unique_course
             [FakeResponse(302, {"location": "/canonical"}), FakeResponse(200)],
         )
         budget = make_budget(clock, max_unique_urls=1)
-        response = await budget.get(session, "https://synthetic.example/course")
-        assert response.status_code == 200
-        assert budget.http_requests == 2
-        assert len(budget.unique_urls) == 1
+        with pytest.raises(RunBudgetExceeded, match="unique URL budget exhausted"):
+            await budget.get(session, "https://synthetic.example/course")
+        assert len(session.calls) == 1
+        assert budget.snapshot() == {"http_requests": 1, "unique_urls": 1}
 
     asyncio.run(scenario())
 
@@ -311,10 +333,29 @@ def test_public_target_resolution_pins_every_public_dns_answer() -> None:
     ) == "synthetic.example:443:93.184.216.34,1.1.1.1"
 
 
-def test_ssrf_guard_defers_before_starting_http_request() -> None:
+def test_public_redirect_to_another_public_origin_is_validated_and_pinned() -> None:
+    def answers(host: str, port: int, *, type: int):
+        assert host == "catalog.example"
+        assert port == 443
+        assert type == 1
+        return [(2, 1, 6, "", ("93.184.216.34", 443))]
+
+    target, pin = validate_public_redirect_target(
+        "https://www.institution.example/programs/",
+        "https://catalog.example/catalog/",
+        resolver=answers,
+    )
+
+    assert target == "https://catalog.example/catalog/"
+    assert pin == "catalog.example:443:93.184.216.34"
+
+
+def test_ssrf_guard_deferral_persists_before_starting_http_request(tmp_path: Path) -> None:
     async def scenario() -> None:
         clock = FakeClock()
         session = FakeSession(clock)
+        manifest_path = tmp_path / "fg2_cohort.json"
+        _two_institution_manifest(manifest_path)
 
         def reject(_url: str):
             raise UnsafePublicTarget("synthetic private address")
@@ -326,12 +367,16 @@ def test_ssrf_guard_defers_before_starting_http_request() -> None:
             clock,
             request_preparer=reject,
             requester=must_not_send,
+            on_origin_state_change=_persist_origin_state(manifest_path),
         )
         with pytest.raises(OriginDeferred):
             await budget.get(session, "https://synthetic.example/course")
 
         assert budget.http_requests == 0
         assert session.calls == []
+        manifest = FG2CohortManifest.load(manifest_path, allow_empty=True)
+        state = next(iter(manifest.payload["origin_state"].values()))
+        assert state == {"last_started_monotonic": None, "stop_reason": "deferred"}
 
     asyncio.run(scenario())
 
@@ -731,6 +776,91 @@ def test_profile_preflight_checks_all_gates_and_normalizes_seeds_without_network
     assert json_result["profile_sha256"] == result["profile_sha256"]
 
 
+def test_scheduled_sitemap_uses_the_mode_default_instead_of_course_page_seeds() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["discovery_mode"] = "sitemap_bfs"
+    profile["seed_urls"] = ["https://institution.example/catalog/program-one"]
+
+    scheduled = validate_controlled_profile(
+        institution,
+        profile,
+        scheduled_cohort=True,
+    )
+    controlled_manual = validate_controlled_profile(institution, profile)
+
+    assert scheduled["seed_urls"] == ["https://institution.example/sitemap.xml"]
+    assert controlled_manual["seed_urls"] == profile["seed_urls"]
+
+
+def test_controlled_profile_rejects_compressed_sitemap_seed_before_source_access() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["discovery_mode"] = "sitemap_bfs"
+    profile["seed_urls"] = ["https://institution.example/sitemap.xml.gz"]
+
+    with pytest.raises(InvalidControlledRun, match="compressed sitemap"):
+        validate_controlled_profile(institution, profile)
+
+
+def test_profile_preflight_accepts_an_ordered_reviewed_subset_of_configured_seeds() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = [
+        f"https://institution.example/program-{index:02d}/" for index in range(1, 13)
+    ]
+    default = validate_controlled_profile(institution, profile)
+    selected = [profile["seed_urls"][10], profile["seed_urls"][11]]
+
+    result = validate_controlled_profile(
+        institution,
+        profile,
+        selected_seed_urls=selected,
+    )
+
+    assert result["seed_urls"] == selected
+    assert result["profile_sha256"] == default["profile_sha256"]
+    assert result["seed_sha256"] == stable_json_sha256(selected)
+    assert result["seed_sha256"] != default["seed_sha256"]
+
+
+@pytest.mark.parametrize(
+    ("selected", "message"),
+    [
+        (["https://institution.example/not-configured/"], "outside the configured profile"),
+        (["https://institution.example/program-02/", "https://institution.example/program-01/"], "order differs"),
+        (["https://institution.example/program-01/", "https://institution.example/program-01/"], "contains duplicates"),
+        (["https://elsewhere.example/program-01/"], "outside the institution origin"),
+    ],
+)
+def test_profile_preflight_rejects_invalid_reviewed_seed_subsets(
+    selected: list[str], message: str
+) -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = [
+        "https://institution.example/program-01/",
+        "https://institution.example/program-02/",
+    ]
+
+    with pytest.raises(InvalidControlledRun, match=message):
+        validate_controlled_profile(
+            institution,
+            profile,
+            selected_seed_urls=selected,
+        )
+
+
+def test_profile_preflight_rejects_reviewed_seed_subset_over_limit() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = [
+        f"https://institution.example/program-{index:02d}/" for index in range(1, 13)
+    ]
+
+    with pytest.raises(InvalidControlledRun, match="exceeds the institution URL limit"):
+        validate_controlled_profile(
+            institution,
+            profile,
+            selected_seed_urls=profile["seed_urls"][:11],
+        )
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -872,3 +1002,78 @@ def test_manifest_records_protected_historical_rows_without_reopening_them(tmp_p
     blocker["institution_id"] = "00000000-0000-0000-0000-000000000099"
     with pytest.raises(InvalidControlledRun):
         append_manifest_blocker(path, blocker)
+
+
+@pytest.mark.parametrize(
+    ("effective_url", "canonical_url", "selected_url"),
+    [
+        (
+            "https://source.example/program/redirected",
+            "https://catalog.example/program/presentacion/",
+            "https://catalog.example/program/",
+        ),
+        (
+            "https://source.example/program/redirected/presentacion/",
+            None,
+            "https://source.example/program/redirected/",
+        ),
+    ],
+)
+def test_manifest_cleanse_hash_uses_cleansing_identity_precedence(
+    effective_url: str,
+    canonical_url: str | None,
+    selected_url: str,
+) -> None:
+    requested_url = "https://source.example/program/requested"
+    actual = cleansed_url_sha256_for_record(
+        requested_url,
+        effective_url=effective_url,
+        canonical_url=canonical_url,
+    )
+
+    assert actual == cleansed_url_sha256(selected_url)
+    assert actual != cleansed_url_sha256(requested_url)
+
+
+def test_schedule_child_mode_requires_main_schedule_and_no_manual_lot() -> None:
+    args = {
+        "controlled": False,
+        "scheduled": True,
+        "cohort_manifest": "/tmp/cohort.json",
+        "approved_lot_manifest": None,
+        "approved_lot_reference": None,
+        "approved_lot_sha256": None,
+        "max_urls": 10,
+        "event_name": "schedule",
+        "git_ref": "refs/heads/main",
+    }
+
+    assert validate_harvester_run_mode(**args) == "scheduled_cohort"
+
+    with pytest.raises(InvalidControlledRun, match="main-branch schedule"):
+        validate_harvester_run_mode(**{**args, "git_ref": "refs/heads/desarrollo"})
+    with pytest.raises(InvalidControlledRun, match="only the exact URL bound"):
+        validate_harvester_run_mode(
+            **{**args, "approved_lot_reference": "manual-reviewed-lot"}
+        )
+
+
+def test_controlled_first_run_requires_manual_dispatch_on_main() -> None:
+    args = {
+        "controlled": True,
+        "scheduled": False,
+        "cohort_manifest": "/tmp/cohort.json",
+        "approved_lot_manifest": "/tmp/approved-lot.json",
+        "approved_lot_reference": "human-reviewed-lot",
+        "approved_lot_sha256": "a" * 64,
+        "max_urls": 10,
+        "event_name": "workflow_dispatch",
+        "git_ref": "refs/heads/main",
+    }
+
+    assert validate_harvester_run_mode(**args) == "controlled_first_run"
+
+    with pytest.raises(InvalidControlledRun, match="manual workflow_dispatch on main"):
+        validate_harvester_run_mode(**{**args, "event_name": "schedule"})
+    with pytest.raises(InvalidControlledRun, match="manual workflow_dispatch on main"):
+        validate_harvester_run_mode(**{**args, "git_ref": "refs/heads/desarrollo"})

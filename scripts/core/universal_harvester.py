@@ -7,7 +7,7 @@ import sys
 import hashlib
 import random
 from datetime import datetime, timezone
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse, urlsplit
 import xml.etree.ElementTree as ET
 
 import requests
@@ -41,22 +41,35 @@ from shared.utils import (
     normalize_url
 )
 from shared.db_client import DatabaseAPIError, get_db_client
+from shared.site_diagnostics import MAX_RESPONSE_BODY_BYTES
 from scripts.core.fg2_bounded_run import (
     FG2ApprovedLotManifest,
     FG2CohortManifest,
+    FG2_LIMITS,
     FG2RequestBudget,
     InvalidControlledRun,
     OriginDeferred,
     public_url_resolve_entry,
+    ResponseBodyTooLarge,
     RunBudgetExceeded,
     SourceBlocked,
+    UnsafePublicTarget,
     append_manifest_entry,
     append_manifest_blocker,
     append_manifest_discovery_row,
+    approved_url_alias_filter,
+    cleanse_course_url,
+    course_identity_url,
+    course_url_alias_filter,
+    cleansed_url_sha256_for_record,
     stable_json_sha256,
     update_manifest_institution,
     update_manifest_origin_state,
+    validate_public_request_url,
+    validate_public_url_shape,
+    validate_public_redirect_target,
     validate_controlled_profile,
+    validate_harvester_run_mode,
     verify_approved_lot_scope,
     url_sha256,
 )
@@ -78,6 +91,7 @@ PROTECTED_STAGING_STATUSES = frozenset({
     "error",
 })
 KNOWN_STAGING_STATUSES = PROTECTED_STAGING_STATUSES | {DISCOVERED_STATUS}
+CONTROLLED_RESPONSE_BODY_LIMIT_BYTES = MAX_RESPONSE_BODY_BYTES
 
 CANARY_RUN_METADATA_KEYS = (
     ("F10_PRODUCTION_CANARY_RUN_ID", "f10_production_canary_run_id"),
@@ -184,7 +198,11 @@ def _is_f10_production_canary():
 
 
 def _is_sensitive_log_context():
-    return _is_f10_production_canary() or os.getenv("FG2_CONTROLLED_FIRST_RUN", "").strip().lower() == "true"
+    return (
+        _is_f10_production_canary()
+        or os.getenv("FG2_CONTROLLED_FIRST_RUN", "").strip().lower() == "true"
+        or os.getenv("FG2_COHORT_SCOPED", "").strip().lower() == "true"
+    )
 
 
 def _safe_url_label(url=None):
@@ -205,11 +223,67 @@ def _safe_pattern_label(pattern=None):
 
 def _prepare_controlled_request(url):
     resolve_entry = public_url_resolve_entry(url)
-    return {CurlOpt.RESOLVE: resolve_entry} if resolve_entry else {}
+    return {CurlOpt.RESOLVE: [resolve_entry]} if resolve_entry else {}
+
+
+async def _close_controlled_response(response):
+    """Stop a controlled stream without blocking its event loop during teardown."""
+    quit_now = getattr(response, "quit_now", None)
+    if quit_now is not None:
+        quit_now.set()
+    aclose = getattr(response, "aclose", None)
+    if callable(aclose):
+        await aclose()
+        return
+    close = getattr(response, "close", None)
+    if callable(close):
+        close()
+
+
+async def _request_with_body_limit(session, url, impersonate, timeout, **request_options):
+    """Read response headers first, then retain only a bounded streaming body."""
+    body = bytearray()
+    response = await session.get(
+        url,
+        impersonate=impersonate,
+        timeout=timeout,
+        stream=True,
+        **request_options,
+    )
+    status_code = getattr(response, "status_code", None)
+    if status_code in {403, 429}:
+        response.content = b""
+        await _close_controlled_response(response)
+        raise SourceBlocked(f"origin stopped after HTTP {status_code}")
+
+    try:
+        async for chunk in response.aiter_content():
+            if not isinstance(chunk, bytes):
+                await _close_controlled_response(response)
+                raise OriginDeferred("response stream returned a non-byte chunk")
+            if len(body) + len(chunk) > CONTROLLED_RESPONSE_BODY_LIMIT_BYTES:
+                await _close_controlled_response(response)
+                if status_code != 200:
+                    # Preserve headers for redirect/Retry-After handling without
+                    # buffering an oversized non-success body.
+                    response.content = bytes(body)
+                    return response
+                raise ResponseBodyTooLarge(
+                    "controlled response body exceeds the approved byte limit"
+                )
+            body.extend(chunk)
+    except (OriginDeferred, ResponseBodyTooLarge):
+        raise
+    except Exception:
+        await _close_controlled_response(response)
+        raise
+
+    response.content = bytes(body)
+    return response
 
 
 async def _send_controlled_request(_session, url, curl_options, impersonate, timeout):
-    """Use a fresh direct connection pinned to the validated public DNS result."""
+    """Send one pinned GET and retain only a fully received, bounded response."""
     async with AsyncSession(
         trust_env=False,
         proxies={},
@@ -219,10 +293,11 @@ async def _send_controlled_request(_session, url, curl_options, impersonate, tim
         max_redirects=0,
         retry=0,
     ) as pinned_session:
-        return await pinned_session.get(
+        return await _request_with_body_limit(
+            pinned_session,
             url,
-            impersonate=impersonate,
-            timeout=timeout,
+            impersonate,
+            timeout,
             allow_redirects=False,
             proxies={},
             verify=True,
@@ -268,6 +343,7 @@ class UniversalHarvester:
         approved_lot_reference=None,
         approved_lot_sha256=None,
         require_approved_lot=False,
+        scheduled_cohort=False,
         _controlled_transport=None,
     ):
         import time
@@ -275,12 +351,14 @@ class UniversalHarvester:
         self.db = get_db_client()
         self.visited_urls = set()
         self.course_urls = set()
+        self._controlled_examined_urls = set()
         self._resumable_urls = []
         self._discovered_rows_by_url = {}
         self._discovery_fetch_attempts = 0
         self._discovery_fetch_successes = 0
         self.max_discovered_urls = max_discovered_urls
         self.controlled = bool(controlled)
+        self.scheduled_cohort = bool(scheduled_cohort)
         self.cohort_manifest_path = cohort_manifest
         self.request_budget = None
         self.controlled_stop_reason = None
@@ -301,8 +379,16 @@ class UniversalHarvester:
         if self.controlled:
             if not self.cohort_manifest_path or not self.profile:
                 raise HarvesterRunError("controlled run requires a configured profile and cohort manifest")
+            approved_seed_urls = self.institution.get("_controlled_seed_urls")
+            if approved_lot_manifest and not isinstance(approved_seed_urls, list):
+                raise HarvesterRunError("controlled run requires the approved seed selection")
             try:
-                preflight = validate_controlled_profile(self.institution, self.profile)
+                preflight = validate_controlled_profile(
+                    self.institution,
+                    self.profile,
+                    selected_seed_urls=approved_seed_urls if approved_lot_manifest else None,
+                    scheduled_cohort=scheduled_cohort,
+                )
             except InvalidControlledRun as exc:
                 raise HarvesterRunError("controlled profile preflight rejected this institution") from exc
             if preflight["profile_sha256"] != institution.get("_controlled_profile_sha256"):
@@ -448,8 +534,25 @@ class UniversalHarvester:
         self.global_start = global_start or time.time()
         self.MAX_RUN_TIME = 20400
 
+    # StudIAMatch-Docs: .context/componentes/pipeline.md#primera-corrida-fg2-acotada
     def _can_discover_more(self):
-        return self.max_discovered_urls is None or len(self.course_urls) < self.max_discovered_urls
+        if self.max_discovered_urls is None:
+            return True
+        counted_urls = self.course_urls
+        if self.controlled:
+            counted_urls = counted_urls | self._controlled_examined_urls
+        return len(counted_urls) < self.max_discovered_urls
+
+    def _mark_controlled_url_examined(self, url):
+        if not self.controlled:
+            return True
+        normalized = normalize_url(url)
+        if normalized in self.course_urls or normalized in self._controlled_examined_urls:
+            return True
+        if not self._can_discover_more():
+            return False
+        self._controlled_examined_urls.add(normalized)
+        return True
 
     def _limit_urls(self, urls):
         urls = list(urls)
@@ -668,6 +771,7 @@ class UniversalHarvester:
         lowered = text[:1000].lower()
         return "<html" in lowered or "<!doctype html" in lowered
 
+    # StudIAMatch-Docs: .context/componentes/pipeline.md#primera-corrida-fg2-acotada
     async def _safe_request(self, session, url):
         if self.controlled:
             try:
@@ -700,8 +804,46 @@ class UniversalHarvester:
                 )
                 raise
         try:
-            await asyncio.sleep(random.uniform(2, 5))
-            resp = await session.get(url, impersonate=self.impersonate, timeout=25)
+            _, resolve_entry = validate_public_request_url(url)
+            current_url = url
+            max_redirects = getattr(session, "max_redirects", 30)
+            redirects_followed = 0
+            while True:
+                await asyncio.sleep(random.uniform(2, 5))
+                curl_options = {CurlOpt.RESOLVE: [resolve_entry]} if resolve_entry else {}
+                async with AsyncSession(
+                    trust_env=False,
+                    proxies={},
+                    curl_options=curl_options,
+                    verify=True,
+                    allow_redirects=False,
+                    max_redirects=0,
+                    retry=0,
+                ) as pinned_session:
+                    resp = await pinned_session.get(
+                        current_url,
+                        impersonate=self.impersonate,
+                        timeout=25,
+                        allow_redirects=False,
+                        proxies={},
+                        verify=True,
+                    )
+                status = getattr(resp, "status_code", None)
+                location = (getattr(resp, "headers", {}) or {}).get("location")
+                if status not in {301, 302, 303, 307, 308} or not location:
+                    break
+                if redirects_followed >= max_redirects:
+                    resp.close()
+                    raise UnsafePublicTarget("redirect limit exceeded")
+                try:
+                    target_url, resolve_entry = validate_public_redirect_target(
+                        current_url,
+                        location,
+                    )
+                finally:
+                    resp.close()
+                current_url = target_url
+                redirects_followed += 1
             # Fase 79B: Circuit Breaker — detectar 403/429
             if resp and resp.status_code in (403, 429):
                 self.error_count += 1
@@ -723,10 +865,17 @@ class UniversalHarvester:
 
     async def _fetch_sitemap(self, session, sitemap_url):
         if self.check_time_guard(): return []
+        if self.controlled and self._is_compressed_sitemap_url(sitemap_url):
+            self.controlled_stop_reason = "UnsupportedCompressedSitemap"
+            logger.warning("Controlled run deferred an unsupported compressed sitemap.")
+            return []
         logger.info(f"Checking Sitemap: {_safe_url_label(sitemap_url)}")
         links = []
         self._discovery_fetch_attempts += 1
-        resp = await self._safe_request(session, sitemap_url)
+        try:
+            resp = await self._safe_request(session, sitemap_url)
+        except (SourceBlocked, OriginDeferred, RunBudgetExceeded):
+            return links
         if not resp or resp.status_code != 200: return links
         self._discovery_fetch_successes += 1
         try:
@@ -738,7 +887,10 @@ class UniversalHarvester:
                 return value.strip() if isinstance(value, str) and value.strip() else None
 
             for sitemap in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}sitemap'):
-                if self.check_time_guard(): break
+                if self.check_time_guard() or (
+                    self.controlled and self.controlled_stop_reason
+                ):
+                    break
                 loc = sitemap_location(sitemap)
                 if loc:
                     links.extend(await self._fetch_sitemap(session, loc))
@@ -771,7 +923,7 @@ class UniversalHarvester:
                         if self._is_valid_crawl_url(link):
                             normalized = normalize_url(link)
                             if normalized not in self.course_urls and normalized not in existing_urls:
-                                row = self._save_discovered_url(normalized)
+                                row = self._queue_discovered_candidate(normalized)
                                 if row["status"] == DISCOVERED_STATUS:
                                     self.course_urls.add(normalized)
                             if self._is_valid_crawl_url(link) and link not in self.visited_urls:
@@ -900,10 +1052,19 @@ class UniversalHarvester:
                         rows.append(actual)
                     return rows
 
-                current_rows = self.db.select_all_pipeline(
+                institution_id = str(self.institution.get("id") or "")
+                if institution_id.lower() != str(approved_scope.get("institution_id") or "").lower():
+                    raise HarvesterRunError("approved FG2 lot institution identity drifted")
+                filters = (
+                    f"institution_id=eq.{quote(institution_id, safe='')}&"
+                    f"{approved_url_alias_filter([normalized_url])}"
+                )
+                current_rows = self.db.select_pipeline_raise(
                     "staging_raw",
+                    filters=filters,
                     columns="id,url,status,institution_id,content_hash",
                     order="id.asc",
+                    limit=2,
                 )
             except HarvesterRunError:
                 raise
@@ -955,6 +1116,7 @@ class UniversalHarvester:
 
     def _course_for_refresh(self, normalized_url):
         normalized_url = normalize_url(normalized_url)
+        expected_course_identity = course_identity_url(normalized_url)
         if self.approved_lot is not None:
             approved_scope = self.approved_lot_scope.get(normalized_url)
             if not approved_scope:
@@ -962,19 +1124,17 @@ class UniversalHarvester:
             expected_rows = approved_scope["snapshot"]["course_rows"]
             if not expected_rows:
                 try:
-                    rows = self.db.select_all_service(
+                    rows = self.db.select_service_raise(
                         "courses",
+                        filters=course_url_alias_filter([normalized_url]),
                         columns="id,institution_id,url,is_active,is_verified,last_404_at",
-                        order="id.asc",
+                        limit=2,
                     )
                 except Exception as exc:
                     raise HarvesterRunError("failed to verify approved FG2 course identity") from exc
                 if not isinstance(rows, list):
                     raise HarvesterRunError("malformed approved FG2 course inventory")
-                if any(
-                    isinstance(row, dict) and normalize_url(row.get("url") or "") == normalized_url
-                    for row in rows
-                ):
+                if rows:
                     raise HarvesterRunError("approved FG2 new-course identity appeared after preflight")
                 return {"kind": "new_discovery", "course_id": None}
 
@@ -992,7 +1152,7 @@ class UniversalHarvester:
                 "id", "institution_id", "url", "is_active", "is_verified", "last_404_at"
             )):
                 raise HarvesterRunError("approved FG2 course row drifted")
-            if normalize_url(actual.get("url") or "") != normalized_url:
+            if course_identity_url(actual.get("url") or "") != expected_course_identity:
                 raise HarvesterRunError("approved FG2 course URL identity drifted")
             return {
                 "kind": "refresh_existing",
@@ -1003,9 +1163,11 @@ class UniversalHarvester:
                 "course_last_404_at": actual.get("last_404_at"),
             }
 
+        # Cleansing groups detail-page aliases (for example /presentacion)
+        # back to the same course URL that sync resolves in courses.
         rows = self.db.select_service_raise(
             "courses",
-            filters=f"url=eq.{quote(normalized_url, safe='')}",
+            filters=course_url_alias_filter([normalized_url]),
             columns="id,institution_id,url,is_active,is_verified",
             limit=2,
         )
@@ -1028,7 +1190,11 @@ class UniversalHarvester:
         expected = self.approved_lot.institution(institution_id)
         try:
             profile = self._load_site_profile(allow_auto_detect=False)
-            preflight = validate_controlled_profile(self.institution, profile)
+            preflight = validate_controlled_profile(
+                self.institution,
+                profile,
+                selected_seed_urls=expected["seed_urls"],
+            )
         except InvalidControlledRun as exc:
             raise HarvesterRunError(
                 "approved FG2 lot institution, profile, or seeds drifted"
@@ -1108,6 +1274,8 @@ class UniversalHarvester:
             return
         staging_id = row.get("id")
         if not staging_id or staging_id in self._recorded_blocker_ids:
+            return
+        if len(self._recorded_blocker_ids) >= FG2_LIMITS["max_urls_per_institution"]:
             return
         blocker = {
             "institution_id": self.institution["id"],
@@ -1279,8 +1447,10 @@ class UniversalHarvester:
             if not self._can_discover_more():
                 break
             normalized = normalize_url(url)
+            if not self._mark_controlled_url_examined(normalized):
+                break
             if normalized not in existing_urls and self._is_valid_crawl_url(normalized):
-                row = self._save_discovered_url(normalized)
+                row = self._queue_discovered_candidate(normalized)
                 if row["status"] == DISCOVERED_STATUS:
                     new_urls.append(normalized)
                     self.course_urls.add(normalized)
@@ -1351,6 +1521,10 @@ class UniversalHarvester:
                             break
                         full_url = normalize_url(link)
                         if self._is_valid_crawl_url(full_url):
+                            if not self._mark_controlled_url_examined(full_url):
+                                break
+                            if full_url in self.course_urls:
+                                continue
                             if full_url in existing_urls:
                                 if self.controlled:
                                     existing = self._staging_rows_by_url.get(full_url, {})
@@ -1361,7 +1535,7 @@ class UniversalHarvester:
                                     else:
                                         self._record_existing_staging_blocker(full_url)
                             else:
-                                row = self._save_discovered_url(full_url)
+                                row = self._queue_discovered_candidate(full_url)
                                 if row["status"] == DISCOVERED_STATUS:
                                     new_urls.append(full_url)
                                     self.course_urls.add(full_url)
@@ -1418,7 +1592,7 @@ class UniversalHarvester:
                             if href:
                                 full_url = normalize_url(urljoin(catalog_url, href))
                                 if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
-                                    row = self._save_discovered_url(full_url)
+                                    row = self._queue_discovered_candidate(full_url)
                                     if row["status"] == DISCOVERED_STATUS:
                                         new_urls.append(full_url)
                                         self.course_urls.add(full_url)
@@ -1439,6 +1613,15 @@ class UniversalHarvester:
     # Fase 62A: Discovery routing
     # ─────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _is_sitemap_seed_url(url):
+        filename = urlsplit(str(url or "")).path.rsplit("/", 1)[-1].lower()
+        return filename.endswith((".xml", ".xml.gz")) or filename.startswith("sitemap")
+
+    @staticmethod
+    def _is_compressed_sitemap_url(url):
+        return urlsplit(str(url or "")).path.lower().endswith(".xml.gz")
+
     async def discover_courses(self, browser=None):
         start_url = self.institution.get('website_url')
         if not start_url: return []
@@ -1446,12 +1629,37 @@ class UniversalHarvester:
         discovery_mode = self.profile.get('discovery_mode', '')
 
         if self.controlled and discovery_mode == "sitemap_bfs":
-            sitemap_links = []
-            async with AsyncSession() as session:
-                for sitemap_seed in self.controlled_seed_urls:
-                    if self.check_time_guard() or not self._can_discover_more():
-                        break
-                    sitemap_links.extend(await self._fetch_sitemap(session, sitemap_seed))
+            if self.approved_lot is not None and not getattr(self, "scheduled_cohort", False):
+                # Manual lot seeds may be course pages or actual sitemap files.
+                # Never send an HTML page to the XML parser; keep both paths
+                # inside the exact reviewed seed set.
+                sitemap_links = []
+                if any(self._is_sitemap_seed_url(seed) for seed in self.controlled_seed_urls):
+                    async with AsyncSession() as session:
+                        for seed in self.controlled_seed_urls:
+                            if self.check_time_guard() or not self._can_discover_more():
+                                break
+                            if self._is_sitemap_seed_url(seed):
+                                sitemap_links.extend(await self._fetch_sitemap(session, seed))
+                            else:
+                                sitemap_links.append(seed)
+                else:
+                    sitemap_links = list(self.controlled_seed_urls)
+            else:
+                sitemap_links = []
+                async with AsyncSession() as session:
+                    for sitemap_seed in self.controlled_seed_urls:
+                        if self.check_time_guard() or not self._can_discover_more():
+                            break
+                        sitemap_links.extend(await self._fetch_sitemap(session, sitemap_seed))
+            if (
+                getattr(self, "controlled_stop_reason", None)
+                and not getattr(self, "scheduled_cohort", False)
+            ):
+                # The partial sitemap links cannot be fetched within this run's
+                # remaining budget. A reviewed manual lot must not persist
+                # candidates outside its exact runnable manifest.
+                return []
             for link in sitemap_links:
                 if self.check_time_guard() or not self._can_discover_more():
                     break
@@ -1461,13 +1669,17 @@ class UniversalHarvester:
                 if normalized in existing_urls:
                     existing = self._staging_rows_by_url.get(normalized, {})
                     if existing.get("status") == DISCOVERED_STATUS:
+                        if not self._mark_controlled_url_examined(normalized):
+                            break
                         row = self._save_discovered_url(normalized)
                         if row["status"] == DISCOVERED_STATUS:
                             self.course_urls.add(normalized)
                     else:
                         self._record_existing_staging_blocker(normalized)
                     continue
-                row = self._save_discovered_url(normalized)
+                if not self._mark_controlled_url_examined(normalized):
+                    break
+                row = self._queue_discovered_candidate(normalized)
                 if row["status"] == DISCOVERED_STATUS:
                     self.course_urls.add(normalized)
             return self._limit_urls(self._merge_resumable_urls(self.course_urls))
@@ -1503,7 +1715,7 @@ class UniversalHarvester:
                     else:
                         self._record_existing_staging_blocker(normalized)
                 elif normalized not in self.course_urls:
-                    row = self._save_discovered_url(normalized)
+                    row = self._queue_discovered_candidate(normalized)
                     if row["status"] == DISCOVERED_STATUS:
                         self.course_urls.add(normalized)
         if self.controlled:
@@ -1659,13 +1871,20 @@ class UniversalHarvester:
             raw_html = response.text[:50000]
             if not raw_html.strip():
                 raise HarvesterPartialError(f"empty HTML payload for {_safe_url_label(url)}")
-            discovered_row = self._discovered_row_for_url(url)
+            discovered_row = self._discovered_rows_by_url.get(normalize_url(url))
             has_changed, _ = await self._check_if_changed(
                 url,
                 raw_html,
                 eff_url,
                 can_url,
-                force_changed=discovered_row["status"] == DISCOVERED_STATUS,
+                force_changed=(
+                    self.controlled
+                    and self.approved_lot is not None
+                    and discovered_row is None
+                ) or bool(
+                    discovered_row
+                    and discovered_row.get("status") == DISCOVERED_STATUS
+                ),
             )
             if not has_changed:
                 logger.info(f"Skipping {_safe_url_label(url)} - No changes.")
@@ -1777,11 +1996,12 @@ class UniversalHarvester:
     # ─────────────────────────────────────────────────────────
 
     async def _navigate_browser_page(self, page, url, **kwargs):
-        """Keep controlled FG2 on its budgeted HTTP transport, including future call paths."""
+        """Keep bounded FG2 off Playwright and preserve ordinary browser navigation."""
         if self.controlled:
             raise HarvesterRunError(
                 "controlled FG2 forbids Playwright navigation outside the request budget"
             )
+        validate_public_url_shape(url)
         return await page.goto(url, **kwargs)
 
     async def _warmup_browser(self, browser):
@@ -1879,6 +2099,23 @@ class UniversalHarvester:
             desc = await page.evaluate('() => document.querySelector("meta[name=\'description\']")?.content || ""')
         return desc
 
+    def _queue_discovered_candidate(self, url):
+        normalized = normalize_url(url)
+        if self.controlled and self.approved_lot is not None:
+            if normalized not in (self.approved_lot_scope or {}):
+                raise HarvesterRunError("discovered URL is outside the reviewed FG2 lot")
+            if normalized not in self._staging_rows_by_url:
+                # Do not persist a new candidate until its bounded detail body
+                # has completed and passed HTML parsing.
+                return {
+                    "id": None,
+                    "url": normalized,
+                    "status": DISCOVERED_STATUS,
+                    "kind": "new_discovery",
+                    "course_id": None,
+                }
+        return self._save_discovered_url(normalized)
+
     def _save_discovered_url(self, url):
         normalized = normalize_url(url)
         if self.controlled and self.approved_lot is not None:
@@ -1940,17 +2177,37 @@ class UniversalHarvester:
         return stored
 
     def _save_to_staging(self, item):
-        row = self._discovered_row_for_url(item.get("url"))
+        normalized_url = normalize_url(item.get("url") or "")
+        row = self._discovered_rows_by_url.get(normalized_url)
+        if row is None and self.controlled and self.approved_lot is not None:
+            row = self._save_discovered_url(normalized_url)
+        elif row is None:
+            row = self._discovered_row_for_url(normalized_url)
         if self.controlled and not row.get("kind"):
-            row.update(self._course_for_refresh(normalize_url(item.get("url") or "")))
+            row.update(self._course_for_refresh(normalized_url))
         if self.controlled:
+            manifest_url = item.get("url")
+            if self.approved_lot is not None:
+                approved_scope = self.approved_lot_scope.get(normalized_url)
+                if approved_scope is None:
+                    raise HarvesterRunError("URL is outside the reviewed FG2 lot")
+                expected_staging = approved_scope["snapshot"]["staging_rows"]
+                if expected_staging:
+                    manifest_url = expected_staging[0].get("url")
+            if not isinstance(manifest_url, str) or normalize_url(manifest_url) != normalized_url:
+                raise HarvesterRunError("approved FG2 staging URL identity is missing or drifted")
             append_manifest_entry(
                 self.cohort_manifest_path,
                 {
                     "institution_id": self.institution["id"],
                     "staging_id": row["id"],
                     "course_id": row.get("course_id"),
-                    "url_sha256": url_sha256(item["url"]),
+                    "url_sha256": url_sha256(manifest_url),
+                    "cleansed_url_sha256": cleansed_url_sha256_for_record(
+                        item["url"],
+                        effective_url=item.get("effective_url"),
+                        canonical_url=item.get("canonical_url"),
+                    ),
                     "content_sha256": item["content_hash"],
                     "kind": row.get("kind") or "new_discovery",
                 },
@@ -1960,7 +2217,22 @@ class UniversalHarvester:
         return promoted
 
 
-async def main():
+def _record_scheduled_attempt(db, institution, *, started_at, completed_at=None):
+    completed_at = completed_at or datetime.now()
+    institution_id = institution["id"]
+    duration = max(0, int(completed_at.timestamp() - started_at))
+    db.patch_exact_one_raise(
+        "institutions",
+        filters=f"id=eq.{quote(str(institution_id), safe='')}",
+        data={
+            "last_harvest_at": completed_at.isoformat(),
+            "last_harvest_duration_sec": duration,
+        },
+        expected_id=institution_id,
+    )
+
+
+async def main(argv=None):
     import argparse
     import time
 
@@ -1969,25 +2241,38 @@ async def main():
     parser.add_argument("--global-start", type=float, help="Timestamp when the master orchestrator started")
     parser.add_argument("--max-urls", type=int, default=None, help="Maximum discovered URLs to harvest in this run")
     parser.add_argument("--controlled", action="store_true", help="Enable the approved first-run request/cohort limits")
+    parser.add_argument("--scheduled-cohort", action="store_true", help="Enable the bounded main-schedule cohort")
     parser.add_argument("--cohort-manifest", help="Exact manifest path shared by the controlled run")
     parser.add_argument("--approved-lot-manifest", help="Private reviewed FG2 lot payload path")
     parser.add_argument("--approved-lot-reference", help="Human review reference bound to the FG2 lot")
     parser.add_argument("--approved-lot-sha256", help="SHA-256 of the reviewed FG2 lot bytes")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.controlled:
         os.environ["FG2_CONTROLLED_FIRST_RUN"] = "true"
+    if args.scheduled_cohort:
+        os.environ["FG2_COHORT_SCOPED"] = "true"
+    try:
+        cohort_mode = validate_harvester_run_mode(
+            controlled=args.controlled,
+            scheduled=args.scheduled_cohort,
+            cohort_manifest=args.cohort_manifest,
+            approved_lot_manifest=args.approved_lot_manifest,
+            approved_lot_reference=args.approved_lot_reference,
+            approved_lot_sha256=args.approved_lot_sha256,
+            max_urls=args.max_urls,
+            event_name=os.getenv("GITHUB_EVENT_NAME", ""),
+            git_ref=os.getenv("GITHUB_REF", ""),
+        )
+    except InvalidControlledRun as exc:
+        logger.error("FG2 run mode rejected before database or source access: %s", _safe_error_label(exc))
+        return 1
+    cohort_scoped = cohort_mode != "ordinary"
 
     start_time = time.time()
     global_start = args.global_start or start_time
     MAX_RUN_TIME = 20400
 
     inst = json.loads(args.institution)
-    if args.controlled and args.max_urls != 10:
-        logger.error("Controlled run requires the approved 10 URL limit.")
-        return 1
-    if args.controlled and not all((args.cohort_manifest, args.approved_lot_manifest, args.approved_lot_reference, args.approved_lot_sha256)):
-        logger.error("Controlled run requires the reviewed FG2 lot and cohort manifest bindings.")
-        return 1
     harvester = None
     browser = None
     pw = None
@@ -1997,12 +2282,13 @@ async def main():
             inst,
             global_start=global_start,
             max_discovered_urls=args.max_urls,
-            controlled=args.controlled,
+            controlled=cohort_scoped,
             cohort_manifest=args.cohort_manifest,
             approved_lot_manifest=args.approved_lot_manifest,
             approved_lot_reference=args.approved_lot_reference,
             approved_lot_sha256=args.approved_lot_sha256,
             require_approved_lot=args.controlled,
+            scheduled_cohort=args.scheduled_cohort,
         )
         # Fase 75: Require profile
         if not harvester.profile:
@@ -2028,7 +2314,7 @@ async def main():
         )
         extraction_needs_browser = harvester.site_type in ('spa_js_heavy', 'ecommerce')
 
-        if args.controlled and (need_browser or extraction_needs_browser):
+        if cohort_scoped and (need_browser or extraction_needs_browser):
             raise HarvesterRunError(
                 "controlled FG2 cannot start Playwright; use the bounded HTTP transport"
             )
@@ -2045,7 +2331,7 @@ async def main():
         else:
             urls = await harvester.discover_courses()
 
-        if args.controlled and harvester.controlled_stop_reason:
+        if cohort_scoped and harvester.controlled_stop_reason:
             result = "blocked" if harvester.controlled_stop_reason == "SourceBlocked" else "deferred"
             snapshot = harvester.request_budget.snapshot()
             update_manifest_institution(
@@ -2055,6 +2341,12 @@ async def main():
                 unique_urls=snapshot["unique_urls"],
                 result=result,
             )
+            if args.scheduled_cohort:
+                _record_scheduled_attempt(
+                    harvester.db,
+                    inst,
+                    started_at=start_time,
+                )
             return 0
 
         if (
@@ -2098,14 +2390,14 @@ async def main():
                 except Exception as exc:
                     failures.append((url, str(exc)))
                     logger.error(f"Partial harvesting failure for {_safe_url_label(url)}: {type(exc).__name__}")
-                    if args.controlled and harvester.controlled_stop_reason:
+                    if cohort_scoped and harvester.controlled_stop_reason:
                         break
                 finally:
                     if page:
                         await page.close()
 
         if failures:
-            if args.controlled and harvester.controlled_stop_reason:
+            if cohort_scoped and harvester.controlled_stop_reason:
                 result = "blocked" if harvester.controlled_stop_reason == "SourceBlocked" else "deferred"
                 snapshot = harvester.request_budget.snapshot()
                 update_manifest_institution(
@@ -2115,11 +2407,38 @@ async def main():
                     unique_urls=snapshot["unique_urls"],
                     result=result,
                 )
+                if args.scheduled_cohort:
+                    _record_scheduled_attempt(
+                        harvester.db,
+                        inst,
+                        started_at=start_time,
+                    )
+                return 0
+            if cohort_scoped and promoted_count:
+                snapshot = harvester.request_budget.snapshot()
+                update_manifest_institution(
+                    args.cohort_manifest,
+                    institution_id=inst["id"],
+                    http_requests=snapshot["http_requests"],
+                    unique_urls=snapshot["unique_urls"],
+                    result="partial",
+                )
+                if args.scheduled_cohort:
+                    _record_scheduled_attempt(
+                        harvester.db,
+                        inst,
+                        started_at=start_time,
+                    )
+                logger.warning(
+                    "FG2 harvest partial for %s: successful manifest rows will continue downstream; failures=%s",
+                    _safe_institution_label(inst["name"]),
+                    len(failures),
+                )
                 return 0
             logger.error(f"FG2 finished PARTIAL/FAIL for {_safe_institution_label(inst['name'])}: {len(failures)} failures, {promoted_count} promoted.")
             return 1
 
-        if args.controlled:
+        if cohort_scoped:
             snapshot = harvester.request_budget.snapshot()
             outcome = "complete" if promoted_count else "no_op"
             update_manifest_institution(
@@ -2130,6 +2449,12 @@ async def main():
                 result=outcome,
             )
             if not promoted_count:
+                if args.scheduled_cohort:
+                    _record_scheduled_attempt(
+                        harvester.db,
+                        inst,
+                        started_at=start_time,
+                    )
                 return 0
 
         duration = int(time.time() - start_time)
@@ -2141,7 +2466,7 @@ async def main():
         return 0
     except Exception as exc:
         logger.error(f"FG2 failed closed for {_safe_institution_label(inst.get('name'))}: {type(exc).__name__}")
-        if args.controlled and harvester and harvester.controlled_stop_reason:
+        if cohort_scoped and harvester and harvester.controlled_stop_reason:
             result = "blocked" if harvester.controlled_stop_reason == "SourceBlocked" else "deferred"
             snapshot = harvester.request_budget.snapshot()
             update_manifest_institution(
@@ -2151,6 +2476,12 @@ async def main():
                 unique_urls=snapshot["unique_urls"],
                 result=result,
             )
+            if args.scheduled_cohort:
+                _record_scheduled_attempt(
+                    harvester.db,
+                    inst,
+                    started_at=start_time,
+                )
             return 0
         return 1
     finally:
