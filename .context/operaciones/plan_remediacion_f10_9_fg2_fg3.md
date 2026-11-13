@@ -1408,3 +1408,54 @@ Este resultado es local y no autoriza publicar, abrir PR, merge, Pro, dispatch,
 writers ni schedules. Se requiere dictamen del Code Reviewer sobre el diff
 corregido antes de preparar el PR protegido a Desarrollo. E9 sigue precediendo
 a E10 y el gate FG3 conserva su decisión owner independiente.
+
+#### Corrección local del gate H2 y de la cuota de sitemaps FG2 — 2026-11-13
+
+El gate `H2 Main Production Expand` fallaba en la promoción de H1 porque
+comparaba el candidate H2 con el head completo del PR y clasificaba las rutas
+funcionales de H1 como cambios H2. La corrección mantiene la ascendencia del
+candidate respecto al PR. Si el candidate ya está integrado en `main`, el
+allowlist histórico se aplica al tramo posterior de la historia de `main`; si
+aún no está en `main`, se conserva la comparación estricta candidate→PR head.
+Schema/run/advisors, jobs DB Sync, artefactos requeridos y comparación íntegra
+del JSON committed contra el artefacto del run no se relajan.
+
+El presupuesto bounded sigue siendo 10 URLs únicas y 20 solicitudes HTTP
+totales por institución. La fase sitemap cede capacidad para que una página de
+detalle sea consultable: los valores default reservan 2 URLs únicas y 6 inicios
+HTTP para un detalle y hasta un redirect, con los 3 intentos permitidos por
+salto. Toda redirección y reintento continúa consumiendo el total. Al alcanzar
+la cuota de sitemap, la recursión devuelve los enlaces leídos y el harvester
+marca `partial` sin abrir el circuit breaker; se permite procesar esas URLs
+dentro de la cohorte. Bloqueos 403/429, transitorios agotados, Retry-After
+excesivo y los máximos globales conservan sus paradas. No se amplía el lote ni
+se accede a otra institución.
+
+La regresión offline alcanzó deliberadamente la cuota HTTP con enlaces hijos
+repetidos y luego leyó un detalle sintético: 14 requests de sitemap + 1 GET de
+detalle, 3 URLs únicas, dentro de 20/10; la página produjo su `raw_name`, sin
+circuit breaker ni `controlled_stop_reason`. Una unidad separada prueba el
+presupuesto de URLs únicas y el uso de la reserva por una página y su redirect.
+Otra prueba manual usa seeds `[sitemap, detalle]`: tras agotar la cuota omite
+solo sitemaps y mantiene el detalle aprobado; antes de la corrección fallaba
+por perder ese detalle, después pasa con la solicitud restringida a la cohorte.
+La validación H2 usa repositorios Git sintéticos: H1 válido pasa; candidate no
+ancestro, drift H2 no permitido, evidencia alterada y artefacto distinto fallan.
+
+Docker `--network none` sobre el candidato read-only: `test_security_flow.py`,
+`test_h2_pro_migration_controls.py`, `test_fg2_bounded_run.py` y
+`test_h3req1_local_pipeline_walk.py`: **166 passed**, un warning PyPDF2. La
+primera revisión de Code Reviewer encontró un P2 de orden de seeds manuales;
+la nueva regresión reprodujo RED antes del cambio y PASS después. Code Reviewer
+dio GO a la huella de implementación
+`1424378677448f5f1b74c0b860f684c8f18a7f6bf3eb2cdfc0c9b2f70d25dbdc`; la huella
+de este checkpoint añade la actualización documental y se vuelve a fijar para
+la solicitud exacta de publicación. No hubo contacto institucional, Supabase, DML ni
+operación remota. E9 sigue pendiente de recuperación OAuth y lote actual; E10
+permanece cerrado; #555 no se duplicó ni actualizó; H4 conserva su gate.
+
+La recuperación del cambio local es descartar el checkout aislado. Tras una
+eventual integración, revertir ambos fixes mediante el flujo protegido; el
+scope guard, el candidato H2, sus evidencias y los límites globales permanecen
+fail-closed. La publicación y apertura del PR correctivo requieren decisiones
+separadas.

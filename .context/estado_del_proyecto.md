@@ -6,6 +6,50 @@
 
 ## Corte vigente
 
+### H1REQ1 — corrección local del gate H2 y de la cuota de sitemaps FG2, 2026-11-13 12:17 America/Lima
+
+En el checkout aislado `/tmp/h1req1-h2-gate-sitemap-budget-20261113`, el árbol
+base `5a9747ea7d9b23ce0960fb12e39f0d278d4c9aed` coincide con
+`desarrollo@08054bff358f376b40a8545a61a28c636c1e3f3b`. El gate H2 conserva la
+validación de ascendencia candidate→head, run/branch/SHA/conclusión/evento,
+jobs y comparación exacta de evidencia/artefacto. Cuando el candidate ya es
+ancestro de `origin/main`, la allowlist post-candidate se aplica al tramo
+candidate→main; si todavía no lo es, se conserva candidate→PR head. Las
+regresiones sintéticas cubren H1 válido, candidate ajeno a la ascendencia,
+drift H2 no permitido en main, evidencia de advisor alterada y JSON de
+artefacto distinto.
+
+FG2 bounded conserva 10 URLs únicas y 20 solicitudes HTTP por institución.
+La fase sitemap reserva, con los defaults, 2 URLs y hasta 6 inicios HTTP para
+un detalle y un redirect, incluidos sus reintentos dentro del máximo. Al llegar
+a su asignación, el rastreo devuelve enlaces ya leídos y registra resultado
+`partial`; los detalles permitidos pueden continuar dentro de la cohorte sin
+abrir el circuit breaker ni aumentar el total. El fixture de sitemaps hijos
+repetidos lee un detalle sintético con 14 solicitudes sitemap + 1 detalle y 3
+URLs únicas; la prueba de unidad verifica además que un detalle y su redirect
+usan la reserva sin exceder los límites.
+
+En Docker con `--network none`, las cuatro suites focales pasan **166 pruebas**
+con una advertencia deprecada de PyPDF2. También pasan actionlint, ShellCheck,
+credential scan, `protected_path_scope_guard.sh --compare-candidate` y el gate
+documental `--self-test` con el manifiesto H1 seleccionado. El checker
+documental integral continúa FAIL por fuentes históricas fuera de ese alcance;
+ese resultado no se mezcla con el PASS acotado ni sustituye el FAIL integral
+histórico `348→348`. Code Reviewer dio GO al diff de implementación
+`1424378677448f5f1b74c0b860f684c8f18a7f6bf3eb2cdfc0c9b2f70d25dbdc`, de 14
+rutas. La primera revisión detectó que el agotamiento de sitemap podía
+interrumpir el recorrido de seeds manuales antes de una URL de detalle aprobada.
+La prueba sintética `[sitemap, detalle]` reprodujo el fallo antes del cambio;
+ahora se omiten únicamente seeds sitemap restantes y se intenta solo el detalle
+aprobado. No hubo requests institucionales, lecturas/escrituras Pro, cambios
+remotos ni ejecución de workflows.
+
+El paquete queda validado localmente. La publicación necesita una decisión
+separada para el diff final; abrir PR, merge/promover hacia Certificación o
+main, actualizar #555 y ejecutar H1 conservan sus gates propios. E9 sigue
+pendiente de OAuth Pro y lote actual; E10 permanece cerrado; H4 mantiene su
+gate.
+
 ### H1REQ1 — checkpoint local FG2/FG3, 2026-11-09 12:03 America/Lima
 
 La decisión de Romel permite una primera FG2 controlada antes de llegar a cero

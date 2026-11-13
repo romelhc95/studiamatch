@@ -78,6 +78,18 @@ reintentar la respuesta de bloqueo. Cada salto valida DNS público y fija la IP
 validada en una sesión HTTPS directa, sin proxy de entorno, redirects ni retries
 automáticos.
 
+La búsqueda de sitemaps no puede consumir la reserva de detalle: con los
+límites vigentes usa como máximo 8 URLs únicas y 14 inicios HTTP para la fase
+sitemap, dejando hasta 2 URLs únicas y 6 inicios HTTP para consultar un detalle
+y seguir un redirect del mismo origen con hasta 3 intentos por salto. Los
+redirects y retries siguen contando en los totales globales 10/20. Si la cuota
+de sitemap se agota antes, se detiene esa recursión sin abrir el circuit
+breaker; se conservan los enlaces ya leídos, se procesa el detalle permitido y
+el manifest registra `partial`, nunca `complete`. La cuota y el detalle siguen
+dentro de la institución ya elegible y de la misma cohorte; 403/429,
+transitorios agotados, `Retry-After` fuera del máximo y los límites globales
+mantienen sus paradas existentes.
+
 El GET de `UniversalHarvester` en la cohorte controlada usa streaming y acumula
 los bytes en la aplicación, sin confiar en `Content-Length`. Para HTTP 403/429
 consulta el estado y cierra la respuesta antes de iterar o materializar el
@@ -233,17 +245,24 @@ identidad y escribe sobre su URL exacta. Para `new_discovery`, un curso que
 aparezca con cualquier alias después del preflight detiene el writer. Estas
 lecturas son de metadatos y no reinician ni consumen las colas.
 
-Si el presupuesto se agota durante un sitemap controlado, `_fetch_sitemap`
-devuelve los enlaces de los documentos que ya leyó y no inicia otra solicitud.
-El schedule puede guardar esos enlaces permitidos como `staging_raw.discovered`
-y `manifest.discovery_rows`; marca la institución `deferred` y no añade esos
-IDs a `manifest.entries`, por lo que cleansing/enrichment/sync no los consumen
-en ese run. Un schedule posterior los retoma si aún aparecen en el sitemap.
-El lote manual conserva su manifest exacto y no persiste candidatos parciales
-fuera de las entradas que puede procesar. Seeds `.xml.gz` se rechazan en el
-preflight controlado; si un sitemap ya leído anuncia uno, se difiere el origen
-antes de solicitar el cuerpo comprimido. No se descomprime contenido sin un
-límite de salida probado.
+Si la cuota suave de sitemaps se agota durante la extracción controlada,
+`_fetch_sitemap` devuelve los enlaces ya leídos y no inicia otra solicitud
+sitemap. Con los límites por defecto, sitemap consume como máximo 8 URLs únicas
+y 14 inicios HTTP; reserva las otras 2 URLs y hasta 6 inicios HTTP para una
+página de detalle y un redirect, con sus reintentos incluidos en los totales
+10/20. La institución queda `partial`, no se abre el circuit breaker ni se
+declara agotado el presupuesto global. Los detalles completados continúan por
+el flujo normal y solo sus IDs aprobados entran en el manifest de la corrida;
+cleansing/enrichment/sync siguen restringidos a ese manifest.
+
+En un lote manual con seeds mezcladas, cuando esa cuota se alcanza se omiten
+las seeds sitemap que resten pero se siguen examinando las seeds de página ya
+aprobadas que vengan después. No se agregan enlaces ni URLs fuera del scope del
+lote. Los topes globales, 403/429, transitorios agotados y Retry-After excesivo
+conservan sus paradas existentes. Seeds `.xml.gz` se rechazan en el preflight
+controlado; si un sitemap ya leído anuncia uno, se difiere el origen antes de
+solicitar el cuerpo comprimido. No se descomprime contenido sin un límite de
+salida probado.
 La identidad usada para resolver `course_id` es `normalize_url` aplicada a la
 URL de cleansing (`cleanse_course_url`); se usa tanto en schedule como en el
 lote revisado, incluidos detalles `/presentacion` y variantes `/en/`. El
