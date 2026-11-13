@@ -1356,11 +1356,54 @@ class UniversalHarvester:
             f"&institution_id=eq.{quote(str(self.institution['id']), safe='')}"
             "&status=eq.discovered"
         )
-        promoted = self.db.patch_exact_one_raise("staging_raw", filters, patch_payload, expected_id)
-        if promoted.get("status") != "pending":
-            raise HarvesterRunError("pending promotion did not persist pending status")
-        if promoted.get("institution_id") != self.institution.get("id"):
-            raise HarvesterRunError("pending promotion changed institution")
+
+        def matches_pending_row(candidate):
+            return (
+                isinstance(candidate, dict)
+                and candidate.get("id") == expected_id
+                and candidate.get("status") == "pending"
+                and candidate.get("institution_id") == self.institution.get("id")
+                and candidate.get("url") == patch_payload.get("url")
+                and normalize_url(candidate.get("url") or "") == normalize_url(item["url"])
+                and candidate.get("content_hash") == item.get("content_hash")
+            )
+
+        try:
+            promoted = self.db.patch_exact_one_raise(
+                "staging_raw", filters, patch_payload, expected_id
+            )
+        except Exception as patch_error:
+            # The server may commit a PATCH before its response is lost. Prove
+            # the exact persisted row before allowing it into the run manifest.
+            try:
+                rows = self.db.select_pipeline_raise(
+                    "staging_raw",
+                    filters=f"id=eq.{quote(str(expected_id), safe='')}",
+                    columns="id,url,status,institution_id,content_hash",
+                    limit=2,
+                )
+            except Exception as read_error:
+                raise HarvesterRunError(
+                    "pending promotion result is ambiguous; exact staging row could not be read"
+                ) from read_error
+            if (
+                not isinstance(rows, list)
+                or len(rows) != 1
+                or not isinstance(rows[0], dict)
+            ):
+                raise HarvesterRunError(
+                    "pending promotion result is ambiguous; exact staging row is missing or duplicated"
+                ) from patch_error
+            promoted = rows[0]
+            if not matches_pending_row(promoted):
+                raise HarvesterRunError(
+                    "pending promotion result is ambiguous; persisted row does not match the approved payload"
+                ) from patch_error
+
+        if not matches_pending_row(promoted):
+            raise HarvesterRunError(
+                "pending promotion result does not match the exact pending row and payload"
+            )
         if self.controlled and self.approved_lot is not None:
             self.approved_lot_scope_verified_for_write = True
         self._discovered_rows_by_url.pop(normalize_url(item["url"]), None)
@@ -2185,6 +2228,7 @@ class UniversalHarvester:
             row = self._discovered_row_for_url(normalized_url)
         if self.controlled and not row.get("kind"):
             row.update(self._course_for_refresh(normalized_url))
+        manifest_entry = None
         if self.controlled:
             manifest_url = item.get("url")
             if self.approved_lot is not None:
@@ -2196,23 +2240,22 @@ class UniversalHarvester:
                     manifest_url = expected_staging[0].get("url")
             if not isinstance(manifest_url, str) or normalize_url(manifest_url) != normalized_url:
                 raise HarvesterRunError("approved FG2 staging URL identity is missing or drifted")
-            append_manifest_entry(
-                self.cohort_manifest_path,
-                {
-                    "institution_id": self.institution["id"],
-                    "staging_id": row["id"],
-                    "course_id": row.get("course_id"),
-                    "url_sha256": url_sha256(manifest_url),
-                    "cleansed_url_sha256": cleansed_url_sha256_for_record(
-                        item["url"],
-                        effective_url=item.get("effective_url"),
-                        canonical_url=item.get("canonical_url"),
-                    ),
-                    "content_sha256": item["content_hash"],
-                    "kind": row.get("kind") or "new_discovery",
-                },
-            )
+            manifest_entry = {
+                "institution_id": self.institution["id"],
+                "staging_id": row["id"],
+                "course_id": row.get("course_id"),
+                "url_sha256": url_sha256(manifest_url),
+                "cleansed_url_sha256": cleansed_url_sha256_for_record(
+                    item["url"],
+                    effective_url=item.get("effective_url"),
+                    canonical_url=item.get("canonical_url"),
+                ),
+                "content_sha256": item["content_hash"],
+                "kind": row.get("kind") or "new_discovery",
+            }
         promoted = self._promote_discovered_to_pending(row, item)
+        if manifest_entry is not None:
+            append_manifest_entry(self.cohort_manifest_path, manifest_entry)
         logger.info(f"Harvested to Staging: {_safe_url_label(item['url'])}")
         return promoted
 

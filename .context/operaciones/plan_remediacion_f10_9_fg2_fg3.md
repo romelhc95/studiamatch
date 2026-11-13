@@ -1348,3 +1348,63 @@ primera sigue sujeta al cierre funcional E9, controles de cola y lectura de
 Environment antes de activarse. Los once perfiles Playwright sin transporte
 bounded conservan su pendiente explícita. Sin tráfico institucional ni writes
 Pro.
+
+#### Hallazgos de revisión post-merge de #552 — 2026-11-12
+
+La revisión automatizada de `certificacion@d36fd103…` dejó abiertos un P1 y un
+P2, aunque #552 recibió review humana y se integró. El P1 señaló que la
+respuesta de `curl_cffi` decodifica `Response.content`; escribir únicamente en
+`_content` de estilo requests devolvía diagnóstico HTML vacío. La corrección
+asigna los bytes acotados a `Response.content` antes de leer `.text`. La prueba
+nueva usa `curl_cffi.requests.Response` real con un iterador de chunks sintético;
+los fixtures anteriores también modelan `content`, no `_content`.
+
+El P2 señaló que `manifest.entries` podía incluir una fila `discovered` antes
+de confirmar su PATCH a `pending`. El harvester ahora prepara el objeto de
+entrada y lo publica en el manifiesto solo después de que
+`_promote_discovered_to_pending()` confirma identidad y estado. Si el PATCH
+devuelve error, el harvester hace una lectura limitada por el ID exacto y
+comprueba ID, `pending`, institución, URL y hash. Solo si los cinco valores
+coinciden con el payload aprobado acepta la promoción y agrega la entrada al
+manifiesto. Esto cubre la respuesta perdida después de que el servidor aplicó
+el PATCH. Si la lectura falla o el registro no coincide, se detiene sin agregar
+la entrada y exige reconciliación; no se asume que la fila siga `discovered`.
+Los workers no consumen esa URL sin una entrada válida en el manifiesto. No se
+reabren filas `processed`, ni se cambia el contrato de hashes, IDs o ediciones
+editoriales.
+
+**Fallo posterior al PATCH confirmado:** si falla el append atómico del
+manifiesto después de verificar que la fila ya está `pending`, esa URL queda
+fuera de las entradas válidas del manifiesto. El harvester puede terminar con
+resultado `partial`: si ya confirmó otras entradas, downstream puede procesar
+esas entradas válidas; la fila sin entrada queda excluida. Si no confirmó
+ninguna, el harvester falla y downstream no continúa. En ambos casos se
+conservan run ID/attempt, SHA de origen, manifiesto de lote aprobado, error y
+staging ID; E10 permanece cerrado y no hay reintento automático. Antes de otro
+dispatch, una persona revisa en solo lectura ese ID exacto y compara
+institución, URL, `content_hash`, estado y artefactos del run contra el lote
+aprobado. No se consume una cola global `pending`, no se reconstruye una cohorte
+desde conteos y no se reabre ni resetea el estado automáticamente. Si la
+evidencia completa permite preparar un manifiesto de recuperación del mismo
+lote, ese artefacto debe pasar las validaciones locales y recibir
+revisión/autoridad específica antes de que cleansing, enrichment o sync lo
+consuman. Si no puede reconstruirse cada campo del manifiesto o la fila no
+coincide, se detiene el ciclo y se solicita una decisión JIT exacta para
+reconciliar el estado; ninguna DML queda autorizada por este procedimiento.
+
+La primera corrida Docker mostró ambos tests de regresión fallando con el
+código anterior. La suite completa detectó además dos fixtures sintéticos
+antiguos incompatibles con el contrato real de `curl_cffi`; se ajustaron para
+modelar `content` y se repitieron las suites. Validación final, Docker
+`--network none`, fixtures sintéticos y checkout montado read-only:
+`test_h3req1_local_pipeline_walk.py` + `test_fg2_bounded_orchestration.py`,
+118 tests PASS; `test_site_diagnostics_security.py` + las suites bounded run,
+workers y workflow, 73 tests y 10 subtests PASS. `py_compile` de ambos módulos
+PASS. Cada grupo conserva un warning de deprecación PyPDF2. El Code Reviewer
+identificó la respuesta perdida como caso adicional; una regresión sintética
+que aplica el PATCH y luego lanza error valida ahora la reconciliación exacta.
+
+Este resultado es local y no autoriza publicar, abrir PR, merge, Pro, dispatch,
+writers ni schedules. Se requiere dictamen del Code Reviewer sobre el diff
+corregido antes de preparar el PR protegido a Desarrollo. E9 sigue precediendo
+a E10 y el gate FG3 conserva su decisión owner independiente.
