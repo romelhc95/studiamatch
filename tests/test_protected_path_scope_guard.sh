@@ -96,6 +96,34 @@ patterns = [
     workflow_regex("allowed_h3_migration_manifest"),
 ]
 local_paths = {line.strip() for line in local_match.group("body").splitlines() if line.strip()}
+h1_match = re.search(
+    r"<<'H1_LOCAL_PATHS'\s*\n(?P<body>.*?)\n\s*H1_LOCAL_PATHS",
+    guard,
+    re.DOTALL,
+)
+if not h1_match:
+    raise SystemExit("protected path integration test: missing exact H1 allowlist")
+expected_h1_paths = {
+    ".context/componentes/utilidades_compartidas.md",
+    ".context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
+    "scripts/core/cleansing_worker.py",
+    "scripts/core/enrichment_worker.py",
+    "scripts/core/fg2_bounded_run.py",
+    "scripts/core/master_orchestrator.py",
+    "scripts/core/sync_vector_worker.py",
+    "tests/test_fg2_bounded_orchestration.py",
+    "tests/test_fg2_bounded_run.py",
+    "tests/test_fg2_bounded_workers.py",
+    "tests/test_fg2_bounded_workflow.py",
+}
+h1_path_records = [line.strip() for line in h1_match.group("body").splitlines() if line.strip()]
+h1_paths = set(h1_path_records)
+if len(h1_path_records) != len(expected_h1_paths) or h1_paths != expected_h1_paths:
+    raise SystemExit("protected path integration test: H1 allowlist differs from the exact rejected-path set")
+if any(any(char in path for char in "*?[]") or path.startswith("/") or ".." in path.split("/") for path in h1_paths):
+    raise SystemExit("protected path integration test: H1 allowlist contains a wildcard or unsafe path")
 writer_paths = {
     ".github/scripts/production_control_preflight.sh",
     "tests/test_fase09_10_pre_main_controls.py",
@@ -107,10 +135,18 @@ writer_neighbors = {
     "tests/test_fase09_10_pre_main_controls_extra.py",
 }
 for neighbor in writer_neighbors:
-    if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+    if neighbor in local_paths or neighbor in h1_paths or any(re.search(pattern, neighbor) for pattern in patterns):
         raise SystemExit(
             f"protected path integration test: neighboring writer path is admitted: {neighbor}"
         )
+if ".context/operaciones/plan_cierre_hito1_ca1_only_extra.md" in h1_paths or any(
+    re.search(pattern, ".context/operaciones/plan_cierre_hito1_ca1_only_extra.md") for pattern in patterns
+):
+    raise SystemExit("protected path integration test: neighboring CA1 plan is admitted")
+if "scripts/core/fg2_bounded_run_extra.py" in h1_paths or any(
+    re.search(pattern, "scripts/core/fg2_bounded_run_extra.py") for pattern in patterns
+):
+    raise SystemExit("protected path integration test: neighboring FG2 module is admitted")
 
 h3_manifest_paths = {
     ".context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
@@ -614,6 +650,21 @@ paths = (
     "tests/test_fase09_10_pre_main_controls.py",
     ".context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json",
 )
+h1_paths = (
+    ".context/componentes/utilidades_compartidas.md",
+    ".context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
+    "scripts/core/cleansing_worker.py",
+    "scripts/core/enrichment_worker.py",
+    "scripts/core/fg2_bounded_run.py",
+    "scripts/core/master_orchestrator.py",
+    "scripts/core/sync_vector_worker.py",
+    "tests/test_fg2_bounded_orchestration.py",
+    "tests/test_fg2_bounded_run.py",
+    "tests/test_fg2_bounded_workers.py",
+    "tests/test_fg2_bounded_workflow.py",
+)
 
 def git(repo, *args):
     return subprocess.run(
@@ -621,7 +672,7 @@ def git(repo, *args):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     ).stdout.strip()
 
-def create_candidate(root, label, target):
+def create_candidate(root, label, target, baseline_override=None):
     repo = root / label
     repo.mkdir()
     git(repo, "init", "-q")
@@ -643,7 +694,7 @@ def create_candidate(root, label, target):
     runner_temp = repo / "runner-temp"
     runner_temp.mkdir()
     env = os.environ.copy()
-    env.update({"PROTECTED_BASELINE_SHA": baseline, "RUNNER_TEMP": str(runner_temp)})
+    env.update({"PROTECTED_BASELINE_SHA": baseline_override or baseline, "RUNNER_TEMP": str(runner_temp)})
     result = subprocess.run(
         ["bash", str(guard), "--compare-candidate"], cwd=repo, env=env,
         text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
@@ -700,6 +751,11 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
         if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
             raise SystemExit(f"protected path candidate regression: exact path was not detected and admitted: {path}")
 
+    for index, path in enumerate(h1_paths):
+        result = create_candidate(root, f"allowed-h1-{index}", path)
+        if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
+            raise SystemExit(f"protected path candidate regression: exact H1 path was not admitted: {path}")
+
     result = create_combined_candidate(root)
     if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
         raise SystemExit("protected path candidate regression: exact five-path candidate was not admitted")
@@ -712,15 +768,27 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     result = create_candidate(root, "ledger-neighbor", ledger_neighbor)
     if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
         raise SystemExit("protected path candidate regression: neighboring ledger snapshot path was not rejected")
+    ca1_plan_neighbor = ".context/operaciones/plan_cierre_hito1_ca1_only_extra.md"
+    result = create_candidate(root, "ca1-plan-neighbor", ca1_plan_neighbor)
+    if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+        raise SystemExit("protected path candidate regression: neighboring CA1 plan was not rejected")
+    fg2_neighbor = "scripts/core/fg2_bounded_run_extra.py"
+    result = create_candidate(root, "fg2-neighbor", fg2_neighbor)
+    if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+        raise SystemExit("protected path candidate regression: neighboring FG2 path was not rejected")
+    result = create_candidate(root, "invalid-scope", h1_paths[0], baseline_override="not-a-git-sha")
+    if result.returncode == 0:
+        raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=12|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'
 
 python3 - "$ROOT/.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-pr-scope-2026-10-26.json" \
   "$ROOT/.context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json" \
-  "$ROOT/scripts/security/protected_path_scope_guard.sh" "$ROOT/.github/workflows/security-audit.yml" "$ROOT" <<'PY'
+  "$ROOT/scripts/security/protected_path_scope_guard.sh" "$ROOT/.github/workflows/security-audit.yml" \
+  "$ROOT/.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json" "$ROOT" <<'PY'
 import json
 import os
 import hashlib
@@ -730,11 +798,40 @@ import sys
 import tempfile
 from pathlib import Path
 
-scope_path, manifest_path, guard_path, workflow_path, root = map(Path, sys.argv[1:])
+scope_path, manifest_path, guard_path, workflow_path, h1_manifest_path, root = map(Path, sys.argv[1:])
 scope = json.loads(scope_path.read_text(encoding="utf-8"))
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 guard = guard_path.read_text(encoding="utf-8")
 workflow = workflow_path.read_text(encoding="utf-8")
+h1_manifest = json.loads(h1_manifest_path.read_text(encoding="utf-8"))
+
+h1_required_scope = {
+    ".github/workflows/security-audit.yml",
+    "scripts/core/fg2_bounded_run.py",
+    "scripts/security/protected_path_scope_guard.sh",
+    "tests/test_fg2_bounded_orchestration.py",
+    "tests/test_fg2_bounded_run.py",
+    "tests/test_fg2_bounded_workers.py",
+    "tests/test_fg2_bounded_workflow.py",
+    "tests/test_protected_path_scope_guard.sh",
+}
+h1_scope_paths = {
+    entry["path"] for entry in h1_manifest.get("scope", {}).get("entries", [])
+    if isinstance(entry, dict) and entry.get("status") != "deleted" and isinstance(entry.get("path"), str)
+}
+if (
+    h1_manifest.get("manifest_id") != "h1req1-fg2-bounded-local-scope-2026-11-09"
+    or h1_manifest.get("schema_version") != 1
+    or h1_manifest.get("manifest_role") != "local candidate-aware documentation integrity scope; not a PR exact-path manifest and not execution authority"
+    or not h1_required_scope.issubset(h1_scope_paths)
+):
+    raise SystemExit("H1 selector regression: versioned H1 manifest contract or adjustment scope changed")
+if (
+    "H1_MANIFEST: .context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json" not in workflow
+    or '"h1req1-fg2-bounded-local-scope-2026-11-09"' not in workflow
+    or "const isH1Manifest = (value, path)" not in workflow
+):
+    raise SystemExit("H1 selector regression: workflow does not consume the exact versioned H1 manifest")
 
 expected_paths = {
     ".github/workflows/security-audit.yml",
@@ -873,15 +970,25 @@ def git(repo, *args):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     ).stdout.strip()
 
-def write_manifest(repo, relative, manifest_id):
+def write_manifest(repo, relative, manifest_id, manifest_role="candidate-aware documentation integrity selection",
+                   schema_version=None, entries=None):
     path = repo / relative
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({
+    value = {
         "manifest_id": manifest_id,
-        "manifest_role": "candidate-aware documentation integrity selection",
-        "scope": {"entries": []},
+        "manifest_role": manifest_role,
+        "scope": {"entries": entries or []},
         "package_artifacts": {},
-    }), encoding="utf-8")
+    }
+    if schema_version is not None:
+        value["schema_version"] = schema_version
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+def write_h1_required_files(repo):
+    for relative in h1_required_scope:
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"fixture for {relative}\n", encoding="utf-8")
 
 def create_repo(root, name, include_r21=True):
     repo = root / name
@@ -903,8 +1010,8 @@ def commit(repo, message):
     git(repo, "add", ".")
     git(repo, "commit", "-qm", message)
 
-def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=False,
-                 production=False, production_push=False):
+def run_selector(repo, base_sha, r21_path, d04_path, h1_manifest=".context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json",
+                 promotion=False, postmerge=False, production=False, production_push=False):
     output = repo / "github-output.txt"
     output.unlink(missing_ok=True)
     env = os.environ.copy()
@@ -912,6 +1019,7 @@ def run_selector(repo, base_sha, r21_path, d04_path, promotion=False, postmerge=
         "PROTECTED_BASELINE_SHA": base_sha,
         "R21_MANIFEST": r21_path,
         "D04_MANIFEST": d04_path,
+        "H1_MANIFEST": h1_manifest,
         "GITHUB_OUTPUT": str(output),
         "GITHUB_BASE_REF": "main" if production else ("certificacion" if promotion else "desarrollo"),
         "GITHUB_HEAD_REF": "certificacion" if production else ("desarrollo" if promotion else "feature/test"),
@@ -933,12 +1041,15 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     temp_root = Path(temp_dir)
     r21_path = ".context/evidencia/r21.json"
     d04_path = ".context/evidencia/d04.json"
+    h1_path = ".context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json"
+    h1_id = "h1req1-fg2-bounded-local-scope-2026-11-09"
+    h1_role = "local candidate-aware documentation integrity scope; not a PR exact-path manifest and not execution authority"
 
     repo, base = create_repo(temp_root, "successor")
-    write_manifest(repo, ".context/evidencia/r22.json", "R22")
+    write_manifest(repo, ".context/evidencia/candidate-scope-manifest-r22.json", "R22")
     commit(repo, "add successor manifest")
     result, selected = run_selector(repo, base, r21_path, d04_path)
-    if result.returncode != 0 or selected != ".context/evidencia/r22.json":
+    if result.returncode != 0 or selected != ".context/evidencia/candidate-scope-manifest-r22.json":
         raise SystemExit("R21 selector regression: successor manifest was not preferred over persistent R21")
 
     repo, base = create_repo(temp_root, "d04")
@@ -947,6 +1058,94 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
     result, selected = run_selector(repo, base, r21_path, d04_path)
     if result.returncode != 0 or selected != d04_path:
         raise SystemExit("R21 selector regression: changed D04 candidate manifest was not selected")
+
+    repo, base = create_repo(temp_root, "h1-pull-request")
+    write_h1_required_files(repo)
+    write_manifest(repo, h1_path, h1_id, h1_role, schema_version=1,
+                   entries=[{"path": path, "status": "included"} for path in sorted(h1_required_scope)])
+    commit(repo, "add versioned H1 documentation scope")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path)
+    if result.returncode != 0 or selected != h1_path:
+        raise SystemExit(f"H1 selector regression: pull_request to desarrollo did not select H1 automatically: {result.stderr}")
+
+    repo, base = create_repo(temp_root, "h1-invalid-contract")
+    write_manifest(repo, h1_path, h1_id, h1_role, schema_version=2,
+                   entries=[{"path": path, "status": "included"} for path in sorted(h1_required_scope)])
+    commit(repo, "invalid H1 schema must fail closed")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("H1 selector regression: invalid schema did not fail closed")
+
+    repo, base = create_repo(temp_root, "h1-empty-scope")
+    write_manifest(repo, h1_path, h1_id, h1_role, schema_version=1, entries=[])
+    commit(repo, "empty H1 scope must fail closed")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("H1 selector regression: empty scope fell back to a historical manifest")
+
+    repo, base = create_repo(temp_root, "h1-incomplete-scope")
+    write_manifest(repo, h1_path, h1_id, h1_role, schema_version=1,
+                   entries=[{"path": "README.md", "status": "included"}])
+    commit(repo, "incomplete H1 scope must fail closed")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("H1 selector regression: incomplete scope fell back to a historical manifest")
+
+    repo, base = create_repo(temp_root, "h1-omitted-candidate-source")
+    omitted_source = "scripts/core/fg2_bounded_run.py"
+    write_manifest(repo, h1_path, h1_id, h1_role, schema_version=1,
+                   entries=[
+                       {"path": path, "status": "included"}
+                       for path in sorted(h1_required_scope - {omitted_source})
+                   ])
+    commit(repo, "candidate-only FG2 source omission must fail closed")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("H1 selector regression: omitted candidate-only FG2 source was accepted")
+
+    repo, base = create_repo(temp_root, "h1-invalid-json")
+    (repo / h1_path).write_text("{invalid H1 JSON", encoding="utf-8")
+    commit(repo, "invalid H1 JSON must fail closed")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("H1 selector regression: invalid H1 JSON fell back to a historical manifest")
+
+    repo, base = create_repo(temp_root, "h1-promotion")
+    write_h1_required_files(repo)
+    write_manifest(repo, h1_path, h1_id, h1_role, schema_version=1,
+                   entries=[{"path": path, "status": "included"} for path in sorted(h1_required_scope)])
+    (repo / "README.md").write_text("H1 package promotion input\n", encoding="utf-8")
+    commit(repo, "add H1 scope and promotion input")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path, promotion=True)
+    if result.returncode != 0 or selected != ".git/h3req1-promotion-documentation.json":
+        raise SystemExit(f"H1 selector regression: promotion route did not generate full union: {result.stderr}")
+    h1_promotion = json.loads((repo / selected).read_text(encoding="utf-8"))
+    h1_promotion_paths = {entry["path"] for entry in h1_promotion["scope"]["entries"]}
+    if (
+        h1_promotion["packages"] != [{"path": h1_path, "sha256": hashlib.sha256((repo / h1_path).read_bytes()).hexdigest()}]
+        or not {h1_path, "README.md"}.issubset(h1_promotion_paths)
+    ):
+        raise SystemExit("H1 selector regression: promotion union omitted package or changed-diff input")
+
+    repo, base = create_repo(temp_root, "h1-invalid-prscope-promotion")
+    invalid_h1 = {
+        "schema_version": 1,
+        "manifest_id": h1_id,
+        "manifest_role": h1_role,
+        "scope": {"entries": []},
+        "package_artifacts": {},
+        "schemaVersion": 1,
+        "baseSha": "a" * 40,
+        "includedPaths": ["README.md"],
+        "purpose": "must not bypass the H1 promotion contract",
+    }
+    invalid_h1_path = repo / h1_path
+    invalid_h1_path.parent.mkdir(parents=True, exist_ok=True)
+    invalid_h1_path.write_text(json.dumps(invalid_h1), encoding="utf-8")
+    commit(repo, "invalid H1 must not be skipped as a PR-scope manifest during promotion")
+    result, selected = run_selector(repo, base, r21_path, d04_path, h1_manifest=h1_path, promotion=True)
+    if result.returncode == 0 or selected is not None:
+        raise SystemExit("H1 selector regression: invalid H1 PR-scope-shaped manifest was skipped during promotion")
 
     repo, base = create_repo(temp_root, "fallback")
     (repo / "README.md").write_text("ordinary code change\n", encoding="utf-8")
@@ -1209,7 +1408,7 @@ with tempfile.TemporaryDirectory(prefix="h3req1-manifest-selector-") as temp_dir
                             "70d0f4fee885be0f6780e5d14f466b2a6c897961", "6d73b51bc687d9156f65f5c437bedb0f4f2c617c")
 
 print("promotion-callers=PASS|certification_PR_push=1|main_PR_push=1|later_baseline_skips_pins=2|source_drift=fail_closed|content_drift=fail_closed")
-print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
+print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|H1_pull_request_development=selected|H1_empty_scope=fail_closed|H1_incomplete_scope=fail_closed|H1_omitted_candidate_source=fail_closed|H1_invalid_prshape_promotion=fail_closed|H1_invalid_schema=fail_closed|H1_invalid_json=fail_closed|H1_promotion_union=complete|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
 print("promotion-manifest-selector=PASS|development_to_certification=1|certification_to_main=1|postmerge_certification=1|postmerge_main=1|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
 print("promotion-path-pins=PASS|exact_tree=1|neighbor_not_selected=1|wrong_baseline=fail_closed|forged_blob=fail_closed|duplicate=fail_closed|content_drift=fail_closed")
 PY

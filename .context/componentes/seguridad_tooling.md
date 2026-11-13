@@ -1,5 +1,41 @@
 # Controles de seguridad y tooling
 
+## Límite local de writers productivos — 2026-11-09
+
+El candidato FG2 fija `GITHUB_REF=refs/heads/main` para FG1, cada estación
+FG2, FG3 y Production Canary. Los workflows FG1/FG2/FG3 usan un job de entrada
+sin credenciales/Environment, checkout deshabilitado (`contents: none`) y
+dependencias explícitas antes de entrar a preflight o estaciones; el canary
+comprueba la misma ref en su condición de job antes de `Production`. El
+preflight compartido vuelve a rechazar cualquier ref no-main, aunque los flags
+sean permisivos. `DB-SYNC` queda fuera de este cambio y mantiene su control
+separado de Certification/Production.
+
+La validación local cubre rechazo de `desarrollo`, `certificacion`, tags y otras
+refs; simulación de `main` con flags de writer permitido y bloqueado; orden
+guard → Environment → etapa funcional; y política preservada de DB Sync/canary.
+Sin red institucional ni Pro. No equivale a un check de Actions, ni cambia
+Environments, secrets, flags, schedules o branch protection. Rollback requiere
+parar dispatches, verificar que no haya ejecución activa y revertir por el
+flujo protegido.
+
+## Pin DNS de los transportes HTTP FG2 — 2026-11-11
+
+`public_url_resolve_entry()` devuelve un único elemento `host:puerto:IPs`
+después de validar todas las direcciones públicas del salto. Los transportes
+`curl_cffi` deben entregarlo como lista de entradas a `CurlOpt.RESOLVE`; el
+valor escalar no instala de forma fiable el pin de libcurl. `UniversalHarvester`
+y `site_diagnostics.py` ahora lo hacen así en cada request, y un redirect vuelve
+a validarse antes de crear la sesión del siguiente salto. La regresión fija la
+lista usada por ambas rutas y comprueba con el binding `Curl.setopt()` del
+contenedor que acepta el valor sin enviar una solicitud. Esto no prueba una
+conexión productiva ni cubre la navegación de Playwright. Las corridas acotadas
+rechazan Playwright antes de iniciar el browser o llamar `page.goto`; así los
+once perfiles quedan fuera de E9/E10 hasta contar con un transporte browser que
+comparta el pin y los presupuestos. La ruta Playwright ordinaria anterior se
+conserva para corridas no acotadas detrás de aprobación Production, pero no
+comparte esos controles y no es evidencia de cobertura segura del schedule.
+
 ## Historial del candidato verificado para el gate main — 01-nov-2026
 
 El checkout del job `h2-main-production-expand-gate` usa `fetch-depth: 0`.
@@ -72,6 +108,39 @@ fijar el nuevo payload, el candidato añade solo esa ruta literal a
 `_extra.json`. No admite la carpeta de evidencia ni altera el gate de contenido
 H2/H3. El archivo registra presencia de nombres en el ledger (22/32), no
 instalación/paridad de schema ni autorización para reintentar Apply.
+
+
+## Admisión H1 de rutas exactas — 10-nov-2026
+
+Antes del ajuste local de guard y selector, el TL midió 28 rutas en el
+acumulado H1 desde `desarrollo@c736336819bc0a927cc7224a053429e27433a748` y
+21 rutas en el delta local sobre `d18dac6`; esas 21 se solapan con el
+acumulado. En el árbol final, con `HEAD=d18dac6`, la lectura local confirma
+31 rutas contra `desarrollo` y 24 rutas sobre `d18dac6`. El guard ya admitía
+17 por contratos H2/H3 vigentes. La admisión H1
+agrega solo las 11 rutas exactas que el guard rechazaba: el
+manifiesto local H1, el plan F10.9, los cinco módulos `cleansing`,
+`enrichment`, `fg2_bounded_run`, `master_orchestrator`, `sync_vector`, y las
+cuatro pruebas FG2. No agrega carpetas ni patrones y mantiene aparte el
+allowlist H2/H3. El ajuste agrega tres rutas al diff acumulado (guard,
+regresión y `security-audit.yml`); las tres ya tienen admisión vigente. La prueba verifica
+las 11 rutas, un módulo vecino y un baseline inválido.
+
+El selector de `security-audit.yml` reconoce el manifiesto H1 por su ruta,
+`manifest_id`, `schema_version` y `manifest_role`. Su scope debe incluir con
+estado `included` las ocho rutas que sostienen esta admisión: el workflow de
+seguridad, el guard y su prueba; además de `scripts/core/fg2_bounded_run.py` y
+sus cuatro pruebas candidatas (`test_fg2_bounded_orchestration.py`,
+`test_fg2_bounded_run.py`, `test_fg2_bounded_workers.py` y
+`test_fg2_bounded_workflow.py`). El manifiesto versionado conserva las demás
+rutas del paquete. Un PR que modifica un H1 válido a `desarrollo` selecciona
+ese manifiesto automáticamente; un H1 vacío, incompleto o con schema/JSON
+inválido falla cerrado y no cae a R21/D04. La promoción tampoco omite un H1
+inválido con forma de manifiesto PR y conserva la unión del paquete con el diff
+completo. La regresión ejecuta el selector extraído del YAML real y prueba la
+omisión de una fuente candidata. El resultado integral del checker permanece
+separado del resultado limitado al manifiesto H1. Estos controles locales no
+equivalen a una ejecución de GitHub Actions ni autorizan publicar el candidato.
 
 ## Límites del control local
 
