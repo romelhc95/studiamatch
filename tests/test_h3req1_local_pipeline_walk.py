@@ -1533,13 +1533,13 @@ def test_site_diagnostics_streams_and_rejects_oversized_html_before_parsing(
             self.closed = False
             self.status_code = status_code
             self.headers = {"location": location} if location else {}
-            self._content: bytes | None = None
+            self.content: bytes | None = None
 
         @property
         def text(self) -> str:
-            if self._content is None:
+            if self.content is None:
                 raise AssertionError("response.text must wait for bounded body materialization")
-            return self._content.decode(self.encoding)
+            return self.content.decode(self.encoding)
 
         def iter_content(self, chunk_size: int):
             assert chunk_size > 0
@@ -1614,6 +1614,25 @@ def test_site_diagnostics_streams_and_rejects_oversized_html_before_parsing(
     parse_html.assert_not_called()
 
 
+def test_site_diagnostics_decodes_real_curl_cffi_response_content() -> None:
+    from curl_cffi.requests import Response
+
+    body = b"<html><title>Synthetic Academy</title></html>"
+    response = Response()
+    response.status_code = 200
+    response.url = f"{BASE_URL}/"
+    response.content = b""
+    response.encoding = "utf-8"
+    response.iter_content = lambda chunk_size: iter([body])
+    response.close = Mock()
+
+    text = site_diagnostics_module._read_bounded_response_text(response)
+
+    assert response.content == body
+    assert text == body.decode("utf-8")
+    response.close.assert_called_once_with()
+
+
 def test_detect_noise_patterns_uses_the_shared_catalog_filter() -> None:
     html = (
         '<a href="/blog/actualidad">Noticia</a>'
@@ -1638,13 +1657,13 @@ def test_site_diagnostics_preserves_redirect_following_without_reading_redirect_
             self.yielded_bytes = 0
             self.closed = False
             self.headers = {"location": location} if location else {}
-            self._content: bytes | None = None
+            self.content: bytes | None = None
 
         @property
         def text(self) -> str:
-            if self._content is None:
+            if self.content is None:
                 raise AssertionError("response.text must wait for bounded body materialization")
-            return self._content.decode(self.encoding)
+            return self.content.decode(self.encoding)
 
         def iter_content(self, chunk_size: int):
             assert chunk_size > 0
