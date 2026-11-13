@@ -1,9 +1,13 @@
 from pathlib import Path
 import os
+import json
 import re
 import subprocess
 import shlex
 import shutil
+import sys
+import textwrap
+import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,6 +91,171 @@ def test_h2_main_gate_checkout_resolves_verified_ancestor(tmp_path):
     subprocess.run(["bash", "-eu", "-c", fetch], cwd=clone, env=env, check=True, capture_output=True, text=True)
     git("cat-file", "-e", f"{revisions[1]}^{{commit}}", cwd=clone)
     git("merge-base", "--is-ancestor", revisions[1], "HEAD", cwd=clone)
+
+
+def _h2_gate_source() -> str:
+    workflow = read(".github/workflows/security-audit.yml")
+    return workflow.split("  h2-main-production-expand-gate:", 1)[1].split(
+        "  security-audit:", 1
+    )[0]
+
+
+def _run_gate_shell_scope(repo: Path, pr_head_sha: str) -> subprocess.CompletedProcess[str]:
+    gate = _h2_gate_source()
+    lines = gate.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip().startswith("evidence_candidate="))
+    end = next(i for i, line in enumerate(lines[start:], start) if line.strip().startswith("run_id="))
+    script = (
+        "set -euo pipefail\n"
+        "evidence=.context/operaciones/h2_main_production_expand_evidence.json\n"
+        + textwrap.dedent("\n".join(lines[start:end]))
+    )
+    return subprocess.run(
+        ["bash", "-c", script],
+        cwd=repo,
+        env={**os.environ, "PR_NUMBER": "1", "PR_HEAD_SHA": pr_head_sha},
+        capture_output=True,
+        text=True,
+    )
+
+
+def _make_h2_gate_repo(root: Path, *, h2_drift: bool = False) -> tuple[Path, str, str, str]:
+    root.mkdir(parents=True)
+
+    def git(*args: str, cwd: Path) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    source = root / "source"
+    source.mkdir()
+    git("init", "-q", "--initial-branch=main", cwd=source)
+    git("config", "user.name", "Fixture", cwd=source)
+    git("config", "user.email", "fixture@example.invalid", cwd=source)
+
+    (source / "base.txt").write_text("base\n", encoding="utf-8")
+    git("add", "base.txt", cwd=source)
+    git("commit", "-qm", "base", cwd=source)
+    base_sha = git("rev-parse", "HEAD", cwd=source)
+
+    (source / "h2-schema.txt").write_text("verified H2 candidate\n", encoding="utf-8")
+    git("add", "h2-schema.txt", cwd=source)
+    git("commit", "-qm", "H2 verified candidate", cwd=source)
+    candidate_sha = git("rev-parse", "HEAD", cwd=source)
+
+    (source / ".context").mkdir()
+    (source / ".context" / "h2-post-candidate.md").write_text("governance only\n", encoding="utf-8")
+    if h2_drift:
+        (source / "scripts" / "core").mkdir(parents=True)
+        (source / "scripts" / "core" / "h2_runtime.py").write_text("H2 behavior drift\n", encoding="utf-8")
+    git("add", "-A", cwd=source)
+    git("commit", "-qm", "post-candidate main change", cwd=source)
+    main_sha = git("rev-parse", "HEAD", cwd=source)
+
+    (source / "scripts" / "core").mkdir(parents=True, exist_ok=True)
+    (source / "scripts" / "core" / "universal_harvester.py").write_text("H1 delta\n", encoding="utf-8")
+    git("add", "scripts/core/universal_harvester.py", cwd=source)
+    git("commit", "-qm", "H1 promotion code", cwd=source)
+    pr_head_sha = git("rev-parse", "HEAD", cwd=source)
+    git("update-ref", "refs/heads/main", main_sha, cwd=source)
+
+    remote = root / "remote.git"
+    git("init", "-q", "--bare", str(remote), cwd=root)
+    git("remote", "add", "origin", str(remote), cwd=source)
+    git("push", "-q", "origin", "main", cwd=source)
+    git("push", "-q", "origin", f"{pr_head_sha}:refs/pull/1/head", cwd=source)
+    checkout = root / "checkout"
+    git("clone", "-q", str(remote), str(checkout), cwd=root)
+    git("config", "user.name", "Fixture", cwd=checkout)
+    git("config", "user.email", "fixture@example.invalid", cwd=checkout)
+    evidence_path = checkout / ".context/operaciones/h2_main_production_expand_evidence.json"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence_path.write_text(json.dumps({"candidate_sha": candidate_sha}), encoding="utf-8")
+    return checkout, candidate_sha, pr_head_sha, base_sha
+
+
+def test_h2_main_gate_compares_only_post_candidate_main_history_for_h1_delta(tmp_path: Path) -> None:
+    repo, _candidate, head, _base = _make_h2_gate_repo(tmp_path / "valid")
+    result = _run_gate_shell_scope(repo, head)
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_h2_main_gate_rejects_candidate_outside_pr_ancestry_and_h2_code_drift(tmp_path: Path) -> None:
+    repo, _candidate, head, base = _make_h2_gate_repo(tmp_path / "unrelated")
+    tree = subprocess.run(
+        ["git", "rev-parse", f"{base}^{{tree}}"], cwd=repo, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    unrelated = subprocess.run(
+        ["git", "commit-tree", tree, "-p", base], cwd=repo, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    evidence_path = repo / ".context/operaciones/h2_main_production_expand_evidence.json"
+    evidence_path.write_text(json.dumps({"candidate_sha": unrelated}), encoding="utf-8")
+    result = _run_gate_shell_scope(repo, head)
+    assert result.returncode != 0
+
+    drift_repo, _drift_candidate, drift_head, _ = _make_h2_gate_repo(
+        tmp_path / "h2-drift", h2_drift=True
+    )
+    drift = _run_gate_shell_scope(drift_repo, drift_head)
+    assert drift.returncode != 0
+    assert "change after verified H2 candidate is not allowed" in drift.stderr + drift.stdout
+
+
+def test_h2_main_gate_rejects_altered_committed_evidence_and_artifact(tmp_path: Path) -> None:
+    gate = _h2_gate_source()
+    schema_script = textwrap.dedent(
+        gate.split("          python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
+    )
+    repo = tmp_path / "evidence"
+    repo.mkdir()
+    evidence_dir = repo / ".context/operaciones"
+    evidence_dir.mkdir(parents=True)
+    evidence_path = evidence_dir / "h2_main_production_expand_evidence.json"
+    good = {
+        "schema": "h2-main-production-expand-evidence-v1",
+        "workflow_name": "DB Sync to Production",
+        "branch": "certificacion",
+        "manifest": "h2-expand-compat",
+        "operation": "apply",
+        "verify_result": "success",
+        "run_id": 93,
+        "payload_sha": "a" * 40,
+        "candidate_sha": "b" * 40,
+        "h2_expected_cohort_digest": "sha256:" + "c" * 64,
+        "h2_expected_eligible_count": 1,
+        "h2_advisors_reviewed": True,
+        "h2_advisors_result": "no_new_high_or_critical_h2_findings",
+        "h2_advisors_artifact": True,
+    }
+    evidence_path.write_text(json.dumps(good), encoding="utf-8")
+    valid = subprocess.run([sys.executable, "-"], cwd=repo, input=schema_script, capture_output=True, text=True)
+    assert valid.returncode == 0, valid.stderr
+    evidence_path.write_text(json.dumps({**good, "h2_advisors_reviewed": False}), encoding="utf-8")
+    rejected = subprocess.run([sys.executable, "-"], cwd=repo, input=schema_script, capture_output=True, text=True)
+    assert rejected.returncode != 0
+    assert "h2 advisors must be reviewed" in rejected.stderr
+
+    artifact_script = textwrap.dedent(
+        gate.rsplit("          python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
+    )
+    evidence_path.write_text(json.dumps(good), encoding="utf-8")
+    archive_path = repo / "artifact.zip"
+
+    def write_archive(value: dict) -> None:
+        with zipfile.ZipFile(archive_path, "w") as archive:
+            archive.writestr("h2-production-expand-verify-evidence.json", json.dumps(value))
+            archive.writestr("supabase-security-advisors.json", "{}")
+            archive.writestr("supabase-performance-advisors.json", "{}")
+
+    write_archive(good)
+    matched = subprocess.run([sys.executable, "-"], cwd=repo, input=artifact_script, capture_output=True, text=True)
+    assert matched.returncode == 0, matched.stderr
+    write_archive({**good, "run_id": 94})
+    mismatch = subprocess.run([sys.executable, "-"], cwd=repo, input=artifact_script, capture_output=True, text=True)
+    assert mismatch.returncode != 0
+    assert "committed H2 expand evidence differs from DB Sync artifact" in mismatch.stderr
 
 
 def test_security_audit_allowlists_scanner_worktree_helper_and_pre_push():

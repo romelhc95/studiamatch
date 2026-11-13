@@ -144,6 +144,10 @@
         "status": "included"
       },
       {
+        "path": "tests/test_security_flow.py",
+        "status": "included"
+      },
+      {
         "path": "tests/test_supabase_credentials_contract.py",
         "status": "included"
       }

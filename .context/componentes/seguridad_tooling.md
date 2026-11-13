@@ -142,6 +142,26 @@ omisión de una fuente candidata. El resultado integral del checker permanece
 separado del resultado limitado al manifiesto H1. Estos controles locales no
 equivalen a una ejecución de GitHub Actions ni autorizan publicar el candidato.
 
+## Alcance del gate H2 en una promoción H1 — 2026-11-13
+
+`h2-main-production-expand-gate` conserva las comprobaciones del schema de
+evidencia, SHA/candidate, ascendencia del candidato respecto al head del PR,
+run `DB Sync to Production`, jobs requeridos, nombres y contenido exacto del
+artefacto de verificación. La comparación de paths elige el extremo del diff
+según la historia: si el candidate H2 ya es ancestro de `origin/main`, aplica
+el allowlist histórico solo a `candidate → origin/main`; si todavía no está en
+`main`, conserva la comparación `candidate → PR head`. Así el delta funcional
+H1 que el PR agrega sobre `main` no se interpreta como drift posterior a H2,
+pero el allowlist sigue rechazando cambios H2 no permitidos en la historia de
+`main` y un candidate que no sea ancestro del PR sigue fallando.
+
+La regresión ejecuta el bloque de comparación extraído del YAML real con
+repositorios Git sintéticos: admite el delta H1 con H2 ya integrado, rechaza
+candidate ajeno a la ascendencia y drift de código H2 posterior al candidate.
+Otra prueba ejecuta los validadores de evidencia del workflow y rechaza datos
+de advisor alterados y un artefacto distinto del JSON comprometido. La prueba
+local no afirma un check de GitHub ni cambia el run H2 remoto o sus permisos.
+
 ## Límites del control local
 
 Remediación CI PR #512: el inventario de consumidores registra también los tests

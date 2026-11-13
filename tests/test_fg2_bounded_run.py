@@ -20,6 +20,7 @@ from scripts.core.fg2_bounded_run import (
     InvalidControlledRun,
     OriginDeferred,
     RunBudgetExceeded,
+    SitemapBudgetYield,
     SourceBlocked,
     UnsafePublicTarget,
     append_manifest_entry,
@@ -217,6 +218,43 @@ def test_redirect_is_not_followed_when_its_target_exceeds_unique_url_limit() -> 
             await budget.get(session, "https://synthetic.example/course")
         assert len(session.calls) == 1
         assert budget.snapshot() == {"http_requests": 1, "unique_urls": 1}
+
+    asyncio.run(scenario())
+
+
+def test_sitemap_unique_url_allocation_reserves_one_detail_and_one_redirect() -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        session = FakeSession(
+            clock,
+            [
+                FakeResponse(200),
+                FakeResponse(200),
+                FakeResponse(302, {"location": "/canonical"}),
+                FakeResponse(200),
+            ],
+        )
+
+        async def requester(current_session, url, _prepared, impersonate, timeout):
+            return await current_session.get(url, impersonate=impersonate, timeout=timeout)
+
+        budget = make_budget(
+            clock,
+            max_unique_urls=4,
+            max_http_requests=8,
+            request_preparer=lambda url: url,
+            requester=requester,
+        )
+        await budget.get(session, "https://synthetic.example/sitemap-root", request_kind="sitemap")
+        await budget.get(session, "https://synthetic.example/sitemap-child", request_kind="sitemap")
+        with pytest.raises(SitemapBudgetYield, match="detail URL capacity remains reserved"):
+            await budget.get(session, "https://synthetic.example/sitemap-extra", request_kind="sitemap")
+
+        detail = await budget.get(session, "https://synthetic.example/course")
+        assert detail.status_code == 200
+        assert session.calls[-2][0] == "https://synthetic.example/course"
+        assert session.calls[-1][0] == "https://synthetic.example/canonical"
+        assert budget.snapshot() == {"http_requests": 4, "unique_urls": 4}
 
     asyncio.run(scenario())
 

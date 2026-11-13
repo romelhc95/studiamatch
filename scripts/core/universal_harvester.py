@@ -52,6 +52,7 @@ from scripts.core.fg2_bounded_run import (
     public_url_resolve_entry,
     ResponseBodyTooLarge,
     RunBudgetExceeded,
+    SitemapBudgetYield,
     SourceBlocked,
     UnsafePublicTarget,
     append_manifest_entry,
@@ -362,6 +363,7 @@ class UniversalHarvester:
         self.cohort_manifest_path = cohort_manifest
         self.request_budget = None
         self.controlled_stop_reason = None
+        self.sitemap_budget_reached = False
         self.controlled_seed_urls = []
         self.approved_lot = None
         self.approved_lot_scope = None
@@ -772,7 +774,7 @@ class UniversalHarvester:
         return "<html" in lowered or "<!doctype html" in lowered
 
     # StudIAMatch-Docs: .context/componentes/pipeline.md#primera-corrida-fg2-acotada
-    async def _safe_request(self, session, url):
+    async def _safe_request(self, session, url, *, request_kind="detail"):
         if self.controlled:
             try:
                 if self.approved_lot is not None and self.request_budget.http_requests == 0:
@@ -793,7 +795,17 @@ class UniversalHarvester:
                     allowed_origin=self.institution.get("website_url"),
                     impersonate=self.impersonate,
                     timeout=25,
+                    request_kind=request_kind,
                 )
+            except SitemapBudgetYield:
+                if request_kind != "sitemap":
+                    raise
+                self.sitemap_budget_reached = True
+                logger.info(
+                    "Controlled sitemap traversal yielded its allocation for %s; reserved detail capacity remains available.",
+                    _safe_institution_label(self.institution.get("name")),
+                )
+                raise
             except (SourceBlocked, OriginDeferred, RunBudgetExceeded) as exc:
                 self.controlled_stop_reason = type(exc).__name__
                 self.circuit_open = True
@@ -865,6 +877,7 @@ class UniversalHarvester:
 
     async def _fetch_sitemap(self, session, sitemap_url):
         if self.check_time_guard(): return []
+        if self.controlled and getattr(self, "sitemap_budget_reached", False): return []
         if self.controlled and self._is_compressed_sitemap_url(sitemap_url):
             self.controlled_stop_reason = "UnsupportedCompressedSitemap"
             logger.warning("Controlled run deferred an unsupported compressed sitemap.")
@@ -873,7 +886,13 @@ class UniversalHarvester:
         links = []
         self._discovery_fetch_attempts += 1
         try:
-            resp = await self._safe_request(session, sitemap_url)
+            if self.controlled:
+                resp = await self._safe_request(session, sitemap_url, request_kind="sitemap")
+            else:
+                resp = await self._safe_request(session, sitemap_url)
+        except SitemapBudgetYield:
+            self.sitemap_budget_reached = True
+            return links
         except (SourceBlocked, OriginDeferred, RunBudgetExceeded):
             return links
         if not resp or resp.status_code != 200: return links
@@ -888,7 +907,11 @@ class UniversalHarvester:
 
             for sitemap in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}sitemap'):
                 if self.check_time_guard() or (
-                    self.controlled and self.controlled_stop_reason
+                    self.controlled
+                    and (
+                        self.controlled_stop_reason
+                        or getattr(self, "sitemap_budget_reached", False)
+                    )
                 ):
                     break
                 loc = sitemap_location(sitemap)
@@ -1680,9 +1703,14 @@ class UniversalHarvester:
                 if any(self._is_sitemap_seed_url(seed) for seed in self.controlled_seed_urls):
                     async with AsyncSession() as session:
                         for seed in self.controlled_seed_urls:
-                            if self.check_time_guard() or not self._can_discover_more():
+                            if (
+                                self.check_time_guard()
+                                or not self._can_discover_more()
+                            ):
                                 break
                             if self._is_sitemap_seed_url(seed):
+                                if getattr(self, "sitemap_budget_reached", False):
+                                    continue
                                 sitemap_links.extend(await self._fetch_sitemap(session, seed))
                             else:
                                 sitemap_links.append(seed)
@@ -1692,7 +1720,11 @@ class UniversalHarvester:
                 sitemap_links = []
                 async with AsyncSession() as session:
                     for sitemap_seed in self.controlled_seed_urls:
-                        if self.check_time_guard() or not self._can_discover_more():
+                        if (
+                            self.check_time_guard()
+                            or not self._can_discover_more()
+                            or getattr(self, "sitemap_budget_reached", False)
+                        ):
                             break
                         sitemap_links.extend(await self._fetch_sitemap(session, sitemap_seed))
             if (
@@ -2483,7 +2515,11 @@ async def main(argv=None):
 
         if cohort_scoped:
             snapshot = harvester.request_budget.snapshot()
-            outcome = "complete" if promoted_count else "no_op"
+            outcome = (
+                "partial"
+                if harvester.sitemap_budget_reached
+                else "complete" if promoted_count else "no_op"
+            )
             update_manifest_institution(
                 args.cohort_manifest,
                 institution_id=inst["id"],
