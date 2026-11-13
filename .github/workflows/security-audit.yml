@@ -80,15 +80,16 @@ jobs:
         env:
           R21_MANIFEST: .context/evidencia/h3req1_public_admin_corrections_2026-10-26/candidate-scope-manifest-2026-10-26.json
           D04_MANIFEST: .context/evidencia/h3req1_d04_candidate_docs_scope_2026-10-25.json
+          H1_MANIFEST: .context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json
         run: |
           # h3req1-manifest-selector:start
           set -euo pipefail
-          node --input-type=module - "$PROTECTED_BASELINE_SHA" "$R21_MANIFEST" "$D04_MANIFEST" <<'NODE'
+          node --input-type=module - "$PROTECTED_BASELINE_SHA" "$R21_MANIFEST" "$D04_MANIFEST" "$H1_MANIFEST" <<'NODE'
           import { execFileSync } from "node:child_process";
           import fs from "node:fs";
           import { createHash } from "node:crypto";
 
-          const [baseSha, r21Manifest, d04Manifest] = process.argv.slice(2);
+          const [baseSha, r21Manifest, d04Manifest, h1Manifest] = process.argv.slice(2);
           const fail = (message) => { console.error(`::error::${message}`); process.exit(1); };
           const isCandidateManifestPath = (path) => {
             const name = path.split("/").pop().toLowerCase();
@@ -96,7 +97,26 @@ jobs:
           };
           const isCandidateRole = (value) => typeof value?.manifest_role === "string"
             && value.manifest_role.includes("candidate-aware documentation integrity selection");
-          const isCandidate = (value) => isCandidateRole(value)
+          const h1RequiredScopePaths = [
+            ".github/workflows/security-audit.yml",
+            "scripts/core/fg2_bounded_run.py",
+            "scripts/security/protected_path_scope_guard.sh",
+            "tests/test_fg2_bounded_orchestration.py",
+            "tests/test_fg2_bounded_run.py",
+            "tests/test_fg2_bounded_workers.py",
+            "tests/test_fg2_bounded_workflow.py",
+            "tests/test_protected_path_scope_guard.sh",
+          ];
+          const hasH1ScopeContract = (value) => Array.isArray(value?.scope?.entries)
+            && h1RequiredScopePaths.every((requiredPath) => value.scope.entries.some((entry) =>
+              entry?.path === requiredPath && entry.status === "included"));
+          const isH1Manifest = (value, path) => path === h1Manifest
+            && value?.schema_version === 1
+            && value?.manifest_id === "h1req1-fg2-bounded-local-scope-2026-11-09"
+            && value?.manifest_role === "local candidate-aware documentation integrity scope; not a PR exact-path manifest and not execution authority"
+            && hasH1ScopeContract(value);
+          const isCandidateManifest = (value, path) => isCandidateRole(value) || isH1Manifest(value, path);
+          const isCandidate = (value, path) => isCandidateManifest(value, path)
             && Array.isArray(value.scope?.entries)
             && value.package_artifacts && typeof value.package_artifacts === "object"
             && !Array.isArray(value.package_artifacts);
@@ -125,7 +145,7 @@ jobs:
           for (const path of names("--diff-filter=D")) {
             if (!path.endsWith(".json")) continue;
             const previous = parse(execFileSync("git", ["show", `${baseSha}:${path}`], { encoding: "utf8" }));
-            if (isCandidateRole(previous)) fail("candidate-aware documentation manifest deletion is not allowed");
+            if (isCandidateManifest(previous, path)) fail("candidate-aware documentation manifest deletion is not allowed");
           }
 
           const changedCandidates = [];
@@ -135,16 +155,16 @@ jobs:
             let value;
             try { value = JSON.parse(fs.readFileSync(path, "utf8")); }
             catch {
-              if (isCandidateManifestPath(path)) fail("candidate manifest JSON is invalid");
+              if (isCandidateManifestPath(path) || path === h1Manifest) fail("candidate manifest JSON is invalid");
               let previous;
               try { previous = JSON.parse(execFileSync("git", ["show", `${baseSha}:${path}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); }
               catch { /* Newly added unrelated artifacts may have no baseline JSON. */ }
-              if (isCandidateRole(previous)) fail("existing candidate manifest JSON is invalid");
+              if (isCandidateManifest(previous, path)) fail("existing candidate manifest JSON is invalid");
               continue; // Unrelated historical JSON is not a documentation selection.
             }
-            if (isCandidateManifestPath(path) || isCandidateRole(value)) {
-              if (promotion && !isCandidateRole(value) && isPrScope(value)) continue;
-              if (!isCandidate(value)) fail("changed candidate-aware documentation manifest has an invalid structure");
+            if (isCandidateManifestPath(path) || path === h1Manifest || isCandidateManifest(value, path)) {
+              if (promotion && path !== h1Manifest && !isCandidateManifest(value, path) && isPrScope(value)) continue;
+              if (!isCandidate(value, path)) fail("changed candidate-aware documentation manifest has an invalid structure");
               changedCandidates.push(path);
             }
           }
@@ -184,7 +204,7 @@ jobs:
             fs.writeFileSync(selected, JSON.stringify(aggregate, null, 2) + "\n");
             console.log(`promotion-documentation-scope packages=${packages.length} paths=${entries.size} base=${baseSha} head=${headSha} sha256=${createHash("sha256").update(fs.readFileSync(selected)).digest("hex")}`);
           }
-          if (!selected || !isCandidate(parse(fs.readFileSync(selected, "utf8")))) {
+          if (!selected || !isCandidate(parse(fs.readFileSync(selected, "utf8")), selected)) {
             fail("candidate-aware documentation manifest is missing or invalid");
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `path=${selected}\n`);
@@ -241,6 +261,10 @@ jobs:
               tests/test_site_diagnostics_security.py \
               tests/test_taxonomy_roi_audit_privacy.py \
               tests/test_h3req1_local_pipeline_walk.py \
+              tests/test_fg2_bounded_run.py \
+              tests/test_fg2_bounded_orchestration.py \
+              tests/test_fg2_bounded_workers.py \
+              tests/test_fg2_bounded_workflow.py \
              -q
            python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
 
