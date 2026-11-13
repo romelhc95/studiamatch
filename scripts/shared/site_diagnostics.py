@@ -62,8 +62,7 @@ def _read_bounded_response_text(response) -> str:
             if len(body) + len(chunk) > MAX_RESPONSE_BODY_BYTES:
                 raise ResponseBodyLimitExceeded("response body exceeds the 2 MiB limit")
             body.extend(chunk)
-        response._content = bytes(body)
-        response._content_consumed = True
+        response.content = bytes(body)
         return response.text
     finally:
         response.close()

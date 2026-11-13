@@ -27,6 +27,7 @@ from scripts.core.fg2_bounded_run import (
     FG2_LIMITS,
     append_manifest_discovery_row,
     append_manifest_entry,
+    cleansed_url_sha256_for_record,
     initialize_manifest,
     stable_json_sha256,
     update_manifest_institution,
@@ -1360,6 +1361,169 @@ def test_approved_lot_manifest_hash_matches_exact_alias_url_persisted_to_staging
     assert database.staging_rows[0]["status"] == "pending"
     assert database.staging_rows[0]["url"] == alias_url
     assert manifest.payload["entries"][0]["url_sha256"] == url_sha256(alias_url)
+
+
+def test_failed_discovered_promotion_does_not_enter_controlled_manifest(tmp_path: Path) -> None:
+    database = FakeDB()
+    payload, raw, digest = approved_lot(database)
+    approved = FG2ApprovedLotManifest.from_bytes(
+        raw,
+        payload,
+        expected_sha256=digest,
+        expected_reference=payload["reference"],
+        expected_source_sha=SOURCE_SHA,
+    )
+    scope = approved.scope_for_institution(INSTITUTION_B)[0]
+    cohort_path = tmp_path / "result-cohort.json"
+    initialize_manifest(
+        cohort_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha=SOURCE_SHA,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_B,
+                "profile_sha256": payload["institutions"][0]["profile_sha256"],
+                "seed_sha256": payload["institutions"][0]["seed_sha256"],
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "complete",
+            }
+        ],
+        approved_lot_reference=payload["reference"],
+        approved_lot_sha256=digest,
+    )
+    harvester = object.__new__(UniversalHarvester)
+    harvester.db = database
+    harvester.institution = {"id": INSTITUTION_B}
+    harvester.controlled = True
+    harvester.approved_lot = approved
+    harvester.approved_lot_scope = {URL_B: scope}
+    harvester.approved_lot_scope_verified_for_write = True
+    harvester._discovered_rows_by_url = {
+        URL_B: {
+            "id": STAGING_B,
+            "url": URL_B,
+            "status": "discovered",
+            "kind": "refresh_existing",
+            "course_id": COURSE_B,
+        }
+    }
+    harvester.cohort_manifest_path = cohort_path
+    database.patch_exact_one_raise = Mock(
+        side_effect=HarvesterRunError("synthetic pending PATCH failure")
+    )
+    raw_html = "<html><body>synthetic refreshed program</body></html>"
+    item = {
+        "url": URL_B,
+        "institution_id": INSTITUTION_B,
+        "status": "pending",
+        "raw_html": raw_html,
+        "raw_name": "Synthetic program",
+        "content_hash": hashlib.sha256(raw_html.encode()).hexdigest(),
+    }
+
+    with pytest.raises(HarvesterRunError, match="pending promotion result is ambiguous"):
+        harvester._save_to_staging(item)
+
+    database.patch_exact_one_raise.assert_called_once()
+    manifest = FG2CohortManifest.load(cohort_path, allow_empty=True)
+    assert manifest.payload["entries"] == []
+    assert database.staging_rows[0]["status"] == "discovered"
+
+
+def test_lost_promotion_response_reconciles_exact_pending_row_into_manifest(tmp_path: Path) -> None:
+    database = FakeDB()
+    payload, raw, digest = approved_lot(database)
+    approved = FG2ApprovedLotManifest.from_bytes(
+        raw,
+        payload,
+        expected_sha256=digest,
+        expected_reference=payload["reference"],
+        expected_source_sha=SOURCE_SHA,
+    )
+    scope = approved.scope_for_institution(INSTITUTION_B)[0]
+    cohort_path = tmp_path / "result-cohort.json"
+    initialize_manifest(
+        cohort_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha=SOURCE_SHA,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_B,
+                "profile_sha256": payload["institutions"][0]["profile_sha256"],
+                "seed_sha256": payload["institutions"][0]["seed_sha256"],
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "complete",
+            }
+        ],
+        approved_lot_reference=payload["reference"],
+        approved_lot_sha256=digest,
+    )
+    harvester = object.__new__(UniversalHarvester)
+    harvester.db = database
+    harvester.institution = {"id": INSTITUTION_B}
+    harvester.controlled = True
+    harvester.approved_lot = approved
+    harvester.approved_lot_scope = {URL_B: scope}
+    harvester.approved_lot_scope_verified_for_write = True
+    harvester._discovered_rows_by_url = {
+        URL_B: {
+            "id": STAGING_B,
+            "url": URL_B,
+            "status": "discovered",
+            "kind": "refresh_existing",
+            "course_id": COURSE_B,
+        }
+    }
+    harvester.cohort_manifest_path = cohort_path
+    raw_html = "<html><body>synthetic refreshed program</body></html>"
+    item = {
+        "url": URL_B,
+        "institution_id": INSTITUTION_B,
+        "status": "pending",
+        "raw_html": raw_html,
+        "raw_name": "Synthetic program",
+        "content_hash": hashlib.sha256(raw_html.encode()).hexdigest(),
+    }
+
+    def apply_patch_then_lose_response(table, _filters, data, expected_id):
+        row = next(row for row in database.staging_rows if row["id"] == expected_id)
+        row.update(data)
+        database.writes.append((table, _filters, dict(data)))
+        raise HarvesterRunError("synthetic response lost after PATCH applied")
+
+    database.patch_exact_one_raise = Mock(side_effect=apply_patch_then_lose_response)
+    original_select = database.select_pipeline_raise
+    database.select_pipeline_raise = Mock(wraps=original_select)
+
+    promoted = harvester._save_to_staging(item)
+    manifest = FG2CohortManifest.load(cohort_path, allow_empty=True)
+
+    assert promoted["id"] == STAGING_B
+    assert promoted["url"] == URL_B
+    assert promoted["status"] == "pending"
+    assert promoted["institution_id"] == INSTITUTION_B
+    assert promoted["content_hash"] == item["content_hash"]
+    assert manifest.payload["entries"] == [
+        {
+            "institution_id": INSTITUTION_B,
+            "staging_id": STAGING_B,
+            "course_id": COURSE_B,
+            "url_sha256": url_sha256(URL_B),
+            "cleansed_url_sha256": cleansed_url_sha256_for_record(URL_B),
+            "content_sha256": item["content_hash"],
+            "kind": "refresh_existing",
+        }
+    ]
+    database.select_pipeline_raise.assert_called_once_with(
+        "staging_raw",
+        filters=f"id=eq.{STAGING_B}",
+        columns="id,url,status,institution_id,content_hash",
+        limit=2,
+    )
 
 
 def test_schedule_refresh_resolves_cleansing_suffix_to_existing_course_id() -> None:
