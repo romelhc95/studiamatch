@@ -2517,7 +2517,7 @@ async def main(argv=None):
             snapshot = harvester.request_budget.snapshot()
             outcome = (
                 "partial"
-                if harvester.sitemap_budget_reached
+                if getattr(harvester, "sitemap_budget_reached", False)
                 else "complete" if promoted_count else "no_op"
             )
             update_manifest_institution(

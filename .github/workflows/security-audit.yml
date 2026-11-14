@@ -501,7 +501,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          # Immutable historical boundary: main immediately before the first H1 promotion.
+          H2_VERIFIED_MAIN_BOUNDARY_SHA: "646f14afa845ea3200f40ce919e273f090059c63"
         run: |
           set -euo pipefail
           evidence=".context/operaciones/h2_main_production_expand_evidence.json"
@@ -544,19 +547,14 @@ jobs:
           test "$(git rev-parse "refs/remotes/origin/pr-${PR_NUMBER}-head")" = "$PR_HEAD_SHA"
           git cat-file -e "${evidence_candidate}^{commit}"
           git merge-base --is-ancestor "$evidence_candidate" "$PR_HEAD_SHA"
-          # Once the verified H2 candidate is already in main, apply the H2
-          # post-candidate allowlist to main's own history. The H1 promotion
-          # head remains independently ancestry-checked above but its functional
-          # delta is not mistaken for unreviewed H2 drift.
-          if git merge-base --is-ancestor "$evidence_candidate" refs/remotes/origin/main; then
-            comparison_ref="refs/remotes/origin/main"
-          else
-            comparison_ref="$PR_HEAD_SHA"
-          fi
-          changed_after_candidate="$(git diff --name-only "$evidence_candidate" "$comparison_ref")"
-          # H2 evidence remains immutable in content. governance documentation
-          # may follow the verified H2 candidate, while the PR head is checked
-          # for ancestry and its H1 functional delta is governed independently.
+          git cat-file -e "${H2_VERIFIED_MAIN_BOUNDARY_SHA}^{commit}"
+          git cat-file -e "${PR_BASE_SHA}^{commit}"
+          git merge-base --is-ancestor "$evidence_candidate" "$H2_VERIFIED_MAIN_BOUNDARY_SHA"
+          git merge-base --is-ancestor "$H2_VERIFIED_MAIN_BOUNDARY_SHA" "$PR_BASE_SHA"
+          git merge-base --is-ancestor "$PR_BASE_SHA" refs/remotes/origin/main
+          changed_after_candidate="$(git diff --name-only "$evidence_candidate" "$H2_VERIFIED_MAIN_BOUNDARY_SHA")"
+          # H2 governance documentation and verification paths stop here;
+          # later H1 commits use their current PR-base guards.
           disallowed_after_candidate="$(printf '%s\n' "$changed_after_candidate" | grep -Ev '^(\.context/.*|AGENTS\.md|\.github/workflows/security-audit\.yml|tests/test_(obsidian_context_state|requirement_client_source_validation|security_flow|h2_pro_migration_controls)\.py)$' || true)"
           if [ -n "$disallowed_after_candidate" ]; then
             printf '%s\n' "$disallowed_after_candidate" | sed 's/^/::error::change after verified H2 candidate is not allowed for main gate: /'

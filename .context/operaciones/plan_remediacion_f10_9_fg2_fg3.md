@@ -1414,11 +1414,16 @@ a E10 y el gate FG3 conserva su decisión owner independiente.
 El gate `H2 Main Production Expand` fallaba en la promoción de H1 porque
 comparaba el candidate H2 con el head completo del PR y clasificaba las rutas
 funcionales de H1 como cambios H2. La corrección mantiene la ascendencia del
-candidate respecto al PR. Si el candidate ya está integrado en `main`, el
-allowlist histórico se aplica al tramo posterior de la historia de `main`; si
-aún no está en `main`, se conserva la comparación estricta candidate→PR head.
-Schema/run/advisors, jobs DB Sync, artefactos requeridos y comparación íntegra
-del JSON committed contra el artefacto del run no se relajan.
+candidate respecto al PR y separa la comparación histórica del delta entrante.
+La allowlist H2 se aplica únicamente desde el candidate verificado hasta la
+frontera histórica fija `main@646f14afa845ea3200f40ce919e273f090059c63`, justo
+antes de la primera promoción H1. Cada promoción exige que esa frontera sea
+ancestro de su `PR_BASE_SHA` y del `main` vigente; sus cambios entrantes siguen
+pasando por el guard de rutas contra el baseline actual del PR. Así, el código
+H1 integrado en una promoción anterior no se reevalúa como deriva H2. Schema,
+ancestry del candidate→head, run/advisors, jobs DB Sync, artefactos requeridos y
+comparación íntegra del JSON committed contra el artefacto del run no se
+relajan.
 
 El presupuesto bounded sigue siendo 10 URLs únicas y 20 solicitudes HTTP
 totales por institución. La fase sitemap cede capacidad para que una página de
@@ -1439,8 +1444,9 @@ presupuesto de URLs únicas y el uso de la reserva por una página y su redirect
 Otra prueba manual usa seeds `[sitemap, detalle]`: tras agotar la cuota omite
 solo sitemaps y mantiene el detalle aprobado; antes de la corrección fallaba
 por perder ese detalle, después pasa con la solicitud restringida a la cohorte.
-La validación H2 usa repositorios Git sintéticos: H1 válido pasa; candidate no
-ancestro, drift H2 no permitido, evidencia alterada y artefacto distinto fallan.
+La validación H2 usa repositorios Git sintéticos: la primera promoción H1 y una
+segunda con H1 ya en `main` pasan; candidate no ancestro, drift H2 no permitido
+dentro de la frontera histórica, evidencia alterada y artefacto distinto fallan.
 
 Docker `--network none` sobre el candidato read-only: `test_security_flow.py`,
 `test_h2_pro_migration_controls.py`, `test_fg2_bounded_run.py` y
@@ -1459,3 +1465,24 @@ eventual integración, revertir ambos fixes mediante el flujo protegido; el
 scope guard, el candidato H2, sus evidencias y los límites globales permanecen
 fail-closed. La publicación y apertura del PR correctivo requieren decisiones
 separadas.
+
+#### Límite histórico fijo para promociones H1 sucesivas — 2026-11-13
+
+La validación histórica H2 termina en `main@646f14afa845ea3200f40ce919e273f090059c63`,
+la base vigente de la primera promoción H1. El gate exige candidate H2 ancestral
+a esa frontera y al head del PR, frontera ancestral a la base actual del PR y
+base actual dentro de la historia de `main`. Cada promoción posterior valida
+su propio delta contra el baseline actual mediante los guards ordinarios. La
+regresión comprobó primera promoción y segunda promoción con código H1 ya en
+`main`; candidate sin ascendencia, drift H2 no permitido dentro del límite,
+evidencia alterada y artefacto distinto siguen fallando. Los checks de schema,
+run, jobs y coincidencia exacta del artefacto permanecen intactos.
+
+El candidato mantiene juntos el fallback del resultado programado sin trabajo,
+la reserva de presupuesto FG2 para detalles y la separación del límite
+histórico H2. En Docker `--network none`: suites focales **167 passed**; suite
+Python de CI **460 passed, 10 subtests**; comprobación adicional de Python
+**40 passed**; `py_compile`, h2 writer scan, credential scan, protected-path
+regressions, actionlint 1.7.7 y ShellCheck 0.11.0 PASS. La publicación y
+actualización del PR #556 requieren autorización para la huella final; no hubo
+push, merge, promoción, E9, tráfico institucional ni operación Pro.

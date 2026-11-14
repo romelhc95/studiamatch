@@ -147,20 +147,24 @@ equivalen a una ejecución de GitHub Actions ni autorizan publicar el candidato.
 `h2-main-production-expand-gate` conserva las comprobaciones del schema de
 evidencia, SHA/candidate, ascendencia del candidato respecto al head del PR,
 run `DB Sync to Production`, jobs requeridos, nombres y contenido exacto del
-artefacto de verificación. La comparación de paths elige el extremo del diff
-según la historia: si el candidate H2 ya es ancestro de `origin/main`, aplica
-el allowlist histórico solo a `candidate → origin/main`; si todavía no está en
-`main`, conserva la comparación `candidate → PR head`. Así el delta funcional
-H1 que el PR agrega sobre `main` no se interpreta como drift posterior a H2,
-pero el allowlist sigue rechazando cambios H2 no permitidos en la historia de
-`main` y un candidate que no sea ancestro del PR sigue fallando.
+artefacto de verificación. La allowlist histórica se fija entre el candidate H2
+y `main@646f14afa845ea3200f40ce919e273f090059c63`, la frontera verificada
+inmediatamente anterior a la primera promoción H1. No se extiende a commits H1
+que se integren después. Para cada promoción, el workflow comprueba que esa
+frontera pertenezca a la historia del `main` actual y que el `PR_BASE_SHA`
+corresponda a un ancestro de ese `main`; el guard normal de rutas conserva el
+delta entrante de cada PR contra su base actual. Por ello, una segunda
+promoción no vuelve a clasificar el código H1 ya aceptado como deriva H2,
+mientras que un cambio H2 no permitido dentro del tramo candidate→frontera y
+un candidate sin ascendencia siguen fallando.
 
 La regresión ejecuta el bloque de comparación extraído del YAML real con
-repositorios Git sintéticos: admite el delta H1 con H2 ya integrado, rechaza
-candidate ajeno a la ascendencia y drift de código H2 posterior al candidate.
-Otra prueba ejecuta los validadores de evidencia del workflow y rechaza datos
-de advisor alterados y un artefacto distinto del JSON comprometido. La prueba
-local no afirma un check de GitHub ni cambia el run H2 remoto o sus permisos.
+repositorios Git sintéticos: admite la primera promoción y una segunda cuando
+`main` ya contiene H1; rechaza candidate ajeno a la ascendencia y drift de
+código H2 posterior al candidate dentro del tramo histórico fijado. Otra prueba
+ejecuta los validadores de evidencia del workflow y rechaza datos de advisor
+alterados y un artefacto distinto del JSON comprometido. La prueba local no
+afirma un check de GitHub ni cambia el run H2 remoto o sus permisos.
 
 ## Límites del control local
 

@@ -100,7 +100,12 @@ def _h2_gate_source() -> str:
     )[0]
 
 
-def _run_gate_shell_scope(repo: Path, pr_head_sha: str) -> subprocess.CompletedProcess[str]:
+def _run_gate_shell_scope(
+    repo: Path,
+    pr_head_sha: str,
+    pr_base_sha: str,
+    h2_boundary_sha: str,
+) -> subprocess.CompletedProcess[str]:
     gate = _h2_gate_source()
     lines = gate.splitlines()
     start = next(i for i, line in enumerate(lines) if line.strip().startswith("evidence_candidate="))
@@ -113,13 +118,24 @@ def _run_gate_shell_scope(repo: Path, pr_head_sha: str) -> subprocess.CompletedP
     return subprocess.run(
         ["bash", "-c", script],
         cwd=repo,
-        env={**os.environ, "PR_NUMBER": "1", "PR_HEAD_SHA": pr_head_sha},
+        env={
+            **os.environ,
+            "PR_NUMBER": "1",
+            "PR_HEAD_SHA": pr_head_sha,
+            "PR_BASE_SHA": pr_base_sha,
+            "H2_VERIFIED_MAIN_BOUNDARY_SHA": h2_boundary_sha,
+        },
         capture_output=True,
         text=True,
     )
 
 
-def _make_h2_gate_repo(root: Path, *, h2_drift: bool = False) -> tuple[Path, str, str, str]:
+def _make_h2_gate_repo(
+    root: Path,
+    *,
+    h2_drift: bool = False,
+    second_promotion: bool = False,
+) -> tuple[Path, str, str, str, str]:
     root.mkdir(parents=True)
 
     def git(*args: str, cwd: Path) -> str:
@@ -149,14 +165,25 @@ def _make_h2_gate_repo(root: Path, *, h2_drift: bool = False) -> tuple[Path, str
         (source / "scripts" / "core").mkdir(parents=True)
         (source / "scripts" / "core" / "h2_runtime.py").write_text("H2 behavior drift\n", encoding="utf-8")
     git("add", "-A", cwd=source)
-    git("commit", "-qm", "post-candidate main change", cwd=source)
-    main_sha = git("rev-parse", "HEAD", cwd=source)
+    git("commit", "-qm", "historical H2 boundary", cwd=source)
+    h2_boundary_sha = git("rev-parse", "HEAD", cwd=source)
 
     (source / "scripts" / "core").mkdir(parents=True, exist_ok=True)
     (source / "scripts" / "core" / "universal_harvester.py").write_text("H1 delta\n", encoding="utf-8")
     git("add", "scripts/core/universal_harvester.py", cwd=source)
-    git("commit", "-qm", "H1 promotion code", cwd=source)
-    pr_head_sha = git("rev-parse", "HEAD", cwd=source)
+    git("commit", "-qm", "first H1 promotion", cwd=source)
+    first_h1_sha = git("rev-parse", "HEAD", cwd=source)
+    if second_promotion:
+        (source / "scripts" / "core" / "fg2_bounded_run.py").write_text("second H1 delta\n", encoding="utf-8")
+        git("add", "scripts/core/fg2_bounded_run.py", cwd=source)
+        git("commit", "-qm", "second H1 promotion", cwd=source)
+        pr_head_sha = git("rev-parse", "HEAD", cwd=source)
+        pr_base_sha = first_h1_sha
+        main_sha = first_h1_sha
+    else:
+        pr_head_sha = first_h1_sha
+        pr_base_sha = h2_boundary_sha
+        main_sha = h2_boundary_sha
     git("update-ref", "refs/heads/main", main_sha, cwd=source)
 
     remote = root / "remote.git"
@@ -171,17 +198,34 @@ def _make_h2_gate_repo(root: Path, *, h2_drift: bool = False) -> tuple[Path, str
     evidence_path = checkout / ".context/operaciones/h2_main_production_expand_evidence.json"
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     evidence_path.write_text(json.dumps({"candidate_sha": candidate_sha}), encoding="utf-8")
-    return checkout, candidate_sha, pr_head_sha, base_sha
+    return checkout, candidate_sha, pr_head_sha, pr_base_sha, h2_boundary_sha
 
 
 def test_h2_main_gate_compares_only_post_candidate_main_history_for_h1_delta(tmp_path: Path) -> None:
-    repo, _candidate, head, _base = _make_h2_gate_repo(tmp_path / "valid")
-    result = _run_gate_shell_scope(repo, head)
-    assert result.returncode == 0, result.stderr + result.stdout
+    first_repo, _candidate, first_head, first_base, boundary = _make_h2_gate_repo(tmp_path / "first")
+    first = _run_gate_shell_scope(first_repo, first_head, first_base, boundary)
+    assert first.returncode == 0, first.stderr + first.stdout
+
+    second_repo, _candidate, second_head, second_base, boundary = _make_h2_gate_repo(
+        tmp_path / "second", second_promotion=True
+    )
+    second = _run_gate_shell_scope(second_repo, second_head, second_base, boundary)
+    assert second.returncode == 0, second.stderr + second.stdout
+
+
+def test_h2_history_is_pinned_while_each_promotion_uses_its_current_pr_base() -> None:
+    gate = _h2_gate_source()
+    workflow = read(".github/workflows/security-audit.yml")
+
+    assert 'PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}' in gate
+    assert 'H2_VERIFIED_MAIN_BOUNDARY_SHA: "646f14afa845ea3200f40ce919e273f090059c63"' in gate
+    assert 'git diff --name-only "$evidence_candidate" "$H2_VERIFIED_MAIN_BOUNDARY_SHA"' in gate
+    assert 'git merge-base --is-ancestor "$PR_BASE_SHA" refs/remotes/origin/main' in gate
+    assert 'PROTECTED_BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}' in workflow
 
 
 def test_h2_main_gate_rejects_candidate_outside_pr_ancestry_and_h2_code_drift(tmp_path: Path) -> None:
-    repo, _candidate, head, base = _make_h2_gate_repo(tmp_path / "unrelated")
+    repo, _candidate, head, base, boundary = _make_h2_gate_repo(tmp_path / "unrelated")
     tree = subprocess.run(
         ["git", "rev-parse", f"{base}^{{tree}}"], cwd=repo, check=True,
         capture_output=True, text=True,
@@ -192,13 +236,13 @@ def test_h2_main_gate_rejects_candidate_outside_pr_ancestry_and_h2_code_drift(tm
     ).stdout.strip()
     evidence_path = repo / ".context/operaciones/h2_main_production_expand_evidence.json"
     evidence_path.write_text(json.dumps({"candidate_sha": unrelated}), encoding="utf-8")
-    result = _run_gate_shell_scope(repo, head)
+    result = _run_gate_shell_scope(repo, head, base, boundary)
     assert result.returncode != 0
 
-    drift_repo, _drift_candidate, drift_head, _ = _make_h2_gate_repo(
+    drift_repo, _drift_candidate, drift_head, drift_base, drift_boundary = _make_h2_gate_repo(
         tmp_path / "h2-drift", h2_drift=True
     )
-    drift = _run_gate_shell_scope(drift_repo, drift_head)
+    drift = _run_gate_shell_scope(drift_repo, drift_head, drift_base, drift_boundary)
     assert drift.returncode != 0
     assert "change after verified H2 candidate is not allowed" in drift.stderr + drift.stdout
 
