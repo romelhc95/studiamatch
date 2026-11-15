@@ -814,6 +814,7 @@ h1_required_scope = {
     "tests/test_fg2_bounded_workers.py",
     "tests/test_fg2_bounded_workflow.py",
     "tests/test_protected_path_scope_guard.sh",
+    "tests/test_security_flow.py",
 }
 h1_scope_paths = {
     entry["path"] for entry in h1_manifest.get("scope", {}).get("entries", [])

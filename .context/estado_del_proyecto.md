@@ -6,6 +6,61 @@
 
 ## Corte vigente
 
+### H1REQ1 — candidato local H2/FG2 con límite histórico fijo, 2026-11-13 22:34 America/Lima
+
+En el checkout aislado `/tmp/h1req1-h2-gate-sitemap-budget-20261113`, el árbol
+base `5a9747ea7d9b23ce0960fb12e39f0d278d4c9aed` coincide con
+`desarrollo@08054bff358f376b40a8545a61a28c636c1e3f3b`. El gate H2 conserva la
+validación de ascendencia candidate→head, run/branch/SHA/conclusión/evento,
+jobs y comparación exacta de evidencia/artefacto. Cuando el candidate ya es
+ancestro de `origin/main`, la allowlist H2 se aplica solo desde el candidate
+verificado hasta `main@646f14afa845ea3200f40ce919e273f090059c63`, límite
+histórico inmediatamente anterior a la primera promoción H1. Cada promoción
+verifica que ese límite sea ancestro de su base PR y del `main` vigente; el
+guard normal de rutas sigue validando el delta entrante contra la base actual.
+Esto permite una segunda promoción cuando `main` ya contiene H1. Las pruebas
+sintéticas admiten primera y segunda promoción y rechazan candidate sin
+ascendencia, drift H2 dentro del tramo histórico, evidencia alterada y
+artefacto distinto. Se conservan las verificaciones de run, jobs y JSON exacto.
+
+FG2 bounded conserva 10 URLs únicas y 20 solicitudes HTTP por institución.
+La fase sitemap reserva, con los defaults, 2 URLs y hasta 6 inicios HTTP para
+un detalle y un redirect, incluidos sus reintentos dentro del máximo. Al llegar
+a su asignación, el rastreo devuelve enlaces ya leídos y registra resultado
+`partial`; los detalles permitidos pueden continuar dentro de la cohorte sin
+abrir el circuit breaker ni aumentar el total. El fixture de sitemaps hijos
+repetidos lee un detalle sintético con 14 solicitudes sitemap + 1 detalle y 3
+URLs únicas; la prueba de unidad verifica además que un detalle y su redirect
+usan la reserva sin exceder los límites.
+
+En Docker con `--network none`, las cuatro suites focales pasan **167 pruebas**
+con una advertencia deprecada de PyPDF2. El conjunto exacto Python de CI pasa
+**460 pruebas y 10 subtests**; la ejecución de apoyo reporta 40 pruebas PASS.
+`py_compile`, los scripts de escaneo/alcance, actionlint 1.7.7 y ShellCheck
+0.11.0 pasan. La validación documental candidate-aware termina
+`DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`, 769/769 fuentes asignadas, 122/122
+documentos activos y 433/433 históricos enlazados. El checker integral
+documental conserva su FAIL histórico `348→348`, listas idénticas, separado
+del PASS acotado. El
+Code Reviewer ya había dado GO al diff previo; la nueva huella requiere un
+dictamen actualizado. La primera revisión de FG2 detectó que el agotamiento de sitemap podía
+interrumpir el recorrido de seeds manuales antes de una URL de detalle aprobada.
+La prueba sintética `[sitemap, detalle]` reprodujo el fallo antes del cambio;
+ahora se omiten únicamente seeds sitemap restantes y se intenta solo el detalle
+aprobado. No hubo requests institucionales, lecturas/escrituras Pro, cambios
+remotos ni ejecución de workflows.
+
+El candidato de tres correcciones conserva el fix del NO-OP programado y la
+reserva FG2 de presupuesto de detalle. PR #556 sigue en el SHA publicado
+`e8c916b774ee50ebb3bb8ac636f6034a49b0623b`; la sincronización local con
+`desarrollo@08054bff358f376b40a8545a61a28c636c1e3f3b` se preparó con el merge
+`5bb9e241540d5935926052887e7dd1c20e0a57ef`, cuyo árbol coincide con el head
+publicado. La rama remota y el PR siguen sin actualizarse. Se requiere el Code
+Reviewer sobre la huella corregida y luego autorización exacta de actualización
+no forzada del mismo PR. La apertura de promoción, merge a Certificación/main,
+actualización de #555 y ejecución H1 conservan sus gates. E9 continúa sin
+lectura Pro/lote actual; E10 sigue cerrado; H4 mantiene su gate.
+
 ### H1REQ1 — checkpoint local FG2/FG3, 2026-11-09 12:03 America/Lima
 
 La decisión de Romel permite una primera FG2 controlada antes de llegar a cero
