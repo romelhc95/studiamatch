@@ -76,6 +76,10 @@ class RunBudgetExceeded(RuntimeError):
     """The institution's approved URL or HTTP request budget was exhausted."""
 
 
+class SitemapBudgetYield(RuntimeError):
+    """Sitemap traversal reached its allocation while detail capacity remains reserved."""
+
+
 def _origin(url: str) -> str:
     parsed = urlsplit(url)
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
@@ -291,6 +295,7 @@ class FG2RequestBudget:
         max_retry_after_seconds: float = FG2_LIMITS["max_retry_after_seconds"],
         max_attempts_per_url: int = FG2_LIMITS["max_attempts_per_url"],
         max_redirects: int = 5,
+        detail_redirect_reserve: int = 1,
         allowed_urls: tuple[str, ...] | list[str] | None = None,
         origin_state: Mapping[str, Mapping[str, Any]] | None = None,
         on_origin_state_change: Callable[[str, float | None, str | None], Any] | None = None,
@@ -302,7 +307,12 @@ class FG2RequestBudget:
     ) -> None:
         if max_unique_urls < 1 or max_http_requests < 1 or max_attempts_per_url < 1:
             raise ValueError("request limits must be positive")
-        if min_interval_seconds < 0 or max_retry_after_seconds < 0 or max_redirects < 0:
+        if (
+            min_interval_seconds < 0
+            or max_retry_after_seconds < 0
+            or max_redirects < 0
+            or detail_redirect_reserve < 0
+        ):
             raise ValueError("request delays and redirects cannot be negative")
         if (request_preparer is None) != (requester is None):
             raise ValueError("controlled request preparation and sender must be configured together")
@@ -312,6 +322,12 @@ class FG2RequestBudget:
         self.max_retry_after_seconds = float(max_retry_after_seconds)
         self.max_attempts_per_url = max_attempts_per_url
         self.max_redirects = max_redirects
+        self.detail_redirect_reserve = min(detail_redirect_reserve, max_redirects)
+        self._detail_reserved_unique_urls = min(1 + self.detail_redirect_reserve, max_unique_urls)
+        self._detail_reserved_http_requests = min(
+            max_http_requests,
+            max_attempts_per_url * (1 + self.detail_redirect_reserve),
+        )
         self.allowed_urls = (
             {_approved_scope_url(value) for value in allowed_urls}
             if allowed_urls is not None
@@ -378,7 +394,7 @@ class FG2RequestBudget:
                 self._deferred_origins.add(digest)
             self._publish_origin_state(digest)
 
-    async def _reserve_unique_url(self, canonical: str, origin: str) -> None:
+    async def _reserve_unique_url(self, canonical: str, origin: str, *, request_kind: str) -> None:
         digest = _origin_digest(origin)
         async with self._state_lock:
             if digest in self._blocked_origins:
@@ -388,12 +404,23 @@ class FG2RequestBudget:
             if self._run_exhausted:
                 raise RunBudgetExceeded("institution HTTP budget exhausted")
             if canonical not in self._unique_urls:
+                sitemap_limit = self.max_unique_urls - self._detail_reserved_unique_urls
+                if request_kind == "sitemap" and len(self._unique_urls) >= sitemap_limit:
+                    raise SitemapBudgetYield("sitemap URL allocation reached; detail URL capacity remains reserved")
                 if len(self._unique_urls) >= self.max_unique_urls:
                     self._run_exhausted = True
                     raise RunBudgetExceeded("institution unique URL budget exhausted")
                 self._unique_urls.add(canonical)
 
-    async def _one_request(self, session: Any, url: str, *, impersonate: str, timeout: int):
+    async def _one_request(
+        self,
+        session: Any,
+        url: str,
+        *,
+        impersonate: str,
+        timeout: int,
+        request_kind: str,
+    ):
         origin = _origin(url)
         digest = _origin_digest(origin)
         async with self._semaphore(origin):
@@ -431,6 +458,9 @@ class FG2RequestBudget:
                 if self._run_exhausted or self.http_requests >= self.max_http_requests:
                     self._run_exhausted = True
                     raise RunBudgetExceeded("institution HTTP budget exhausted")
+                sitemap_http_limit = self.max_http_requests - self._detail_reserved_http_requests
+                if request_kind == "sitemap" and self.http_requests >= sitemap_http_limit:
+                    raise SitemapBudgetYield("sitemap HTTP allocation reached; detail request capacity remains reserved")
                 self.http_requests += 1
                 self._last_started[digest] = self._monotonic()
                 # Persist before the outbound call so the next institution process
@@ -483,8 +513,11 @@ class FG2RequestBudget:
         allowed_origin: str | None = None,
         impersonate: str = "chrome110",
         timeout: int = 25,
+        request_kind: str = "detail",
     ) -> Any:
         """GET with explicit redirect accounting, pacing, retry and stop rules."""
+        if request_kind not in {"detail", "sitemap"}:
+            raise InvalidControlledRun("controlled request kind must be detail or sitemap")
         current = _canonical_request_url(url)
         origin = _origin(current)
         permitted_origin = _origin(allowed_origin) if allowed_origin else origin
@@ -495,14 +528,18 @@ class FG2RequestBudget:
                 raise InvalidControlledRun("reviewed FG2 requests cannot contain query data")
             if _approved_scope_url(current) not in self.allowed_urls:
                 raise InvalidControlledRun("request URL is outside the reviewed FG2 lot")
-        await self._reserve_unique_url(current, permitted_origin)
+        await self._reserve_unique_url(current, permitted_origin, request_kind=request_kind)
         redirects = 0
 
         while True:
             response = None
             for attempt in range(1, self.max_attempts_per_url + 1):
                 response, error = await self._one_request(
-                    session, current, impersonate=impersonate, timeout=timeout
+                    session,
+                    current,
+                    impersonate=impersonate,
+                    timeout=timeout,
+                    request_kind=request_kind,
                 )
                 if error is not None:
                     if attempt == self.max_attempts_per_url:
@@ -546,7 +583,7 @@ class FG2RequestBudget:
             if self.allowed_urls is not None and _approved_scope_url(target) not in self.allowed_urls:
                 await self._defer(permitted_origin)
                 raise OriginDeferred("redirect target is outside the reviewed FG2 lot")
-            await self._reserve_unique_url(target, permitted_origin)
+            await self._reserve_unique_url(target, permitted_origin, request_kind=request_kind)
             current = target
             redirects += 1
 

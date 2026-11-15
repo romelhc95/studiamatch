@@ -1408,3 +1408,81 @@ Este resultado es local y no autoriza publicar, abrir PR, merge, Pro, dispatch,
 writers ni schedules. Se requiere dictamen del Code Reviewer sobre el diff
 corregido antes de preparar el PR protegido a Desarrollo. E9 sigue precediendo
 a E10 y el gate FG3 conserva su decisión owner independiente.
+
+#### Corrección local del gate H2 y de la cuota de sitemaps FG2 — 2026-11-13
+
+El gate `H2 Main Production Expand` fallaba en la promoción de H1 porque
+comparaba el candidate H2 con el head completo del PR y clasificaba las rutas
+funcionales de H1 como cambios H2. La corrección mantiene la ascendencia del
+candidate respecto al PR y separa la comparación histórica del delta entrante.
+La allowlist H2 se aplica únicamente desde el candidate verificado hasta la
+frontera histórica fija `main@646f14afa845ea3200f40ce919e273f090059c63`, justo
+antes de la primera promoción H1. Cada promoción exige que esa frontera sea
+ancestro de su `PR_BASE_SHA` y del `main` vigente; sus cambios entrantes siguen
+pasando por el guard de rutas contra el baseline actual del PR. Así, el código
+H1 integrado en una promoción anterior no se reevalúa como deriva H2. Schema,
+ancestry del candidate→head, run/advisors, jobs DB Sync, artefactos requeridos y
+comparación íntegra del JSON committed contra el artefacto del run no se
+relajan.
+
+El presupuesto bounded sigue siendo 10 URLs únicas y 20 solicitudes HTTP
+totales por institución. La fase sitemap cede capacidad para que una página de
+detalle sea consultable: los valores default reservan 2 URLs únicas y 6 inicios
+HTTP para un detalle y hasta un redirect, con los 3 intentos permitidos por
+salto. Toda redirección y reintento continúa consumiendo el total. Al alcanzar
+la cuota de sitemap, la recursión devuelve los enlaces leídos y el harvester
+marca `partial` sin abrir el circuit breaker; se permite procesar esas URLs
+dentro de la cohorte. Bloqueos 403/429, transitorios agotados, Retry-After
+excesivo y los máximos globales conservan sus paradas. No se amplía el lote ni
+se accede a otra institución.
+
+La regresión offline alcanzó deliberadamente la cuota HTTP con enlaces hijos
+repetidos y luego leyó un detalle sintético: 14 requests de sitemap + 1 GET de
+detalle, 3 URLs únicas, dentro de 20/10; la página produjo su `raw_name`, sin
+circuit breaker ni `controlled_stop_reason`. Una unidad separada prueba el
+presupuesto de URLs únicas y el uso de la reserva por una página y su redirect.
+Otra prueba manual usa seeds `[sitemap, detalle]`: tras agotar la cuota omite
+solo sitemaps y mantiene el detalle aprobado; antes de la corrección fallaba
+por perder ese detalle, después pasa con la solicitud restringida a la cohorte.
+La validación H2 usa repositorios Git sintéticos: la primera promoción H1 y una
+segunda con H1 ya en `main` pasan; candidate no ancestro, drift H2 no permitido
+dentro de la frontera histórica, evidencia alterada y artefacto distinto fallan.
+
+Docker `--network none` sobre el candidato read-only: `test_security_flow.py`,
+`test_h2_pro_migration_controls.py`, `test_fg2_bounded_run.py` y
+`test_h3req1_local_pipeline_walk.py`: **166 passed**, un warning PyPDF2. La
+primera revisión de Code Reviewer encontró un P2 de orden de seeds manuales;
+la nueva regresión reprodujo RED antes del cambio y PASS después. Code Reviewer
+dio GO a la huella de implementación
+`1424378677448f5f1b74c0b860f684c8f18a7f6bf3eb2cdfc0c9b2f70d25dbdc`; la huella
+de este checkpoint añade la actualización documental y se vuelve a fijar para
+la solicitud exacta de publicación. No hubo contacto institucional, Supabase, DML ni
+operación remota. E9 sigue pendiente de recuperación OAuth y lote actual; E10
+permanece cerrado; #555 no se duplicó ni actualizó; H4 conserva su gate.
+
+La recuperación del cambio local es descartar el checkout aislado. Tras una
+eventual integración, revertir ambos fixes mediante el flujo protegido; el
+scope guard, el candidato H2, sus evidencias y los límites globales permanecen
+fail-closed. La publicación y apertura del PR correctivo requieren decisiones
+separadas.
+
+#### Límite histórico fijo para promociones H1 sucesivas — 2026-11-13
+
+La validación histórica H2 termina en `main@646f14afa845ea3200f40ce919e273f090059c63`,
+la base vigente de la primera promoción H1. El gate exige candidate H2 ancestral
+a esa frontera y al head del PR, frontera ancestral a la base actual del PR y
+base actual dentro de la historia de `main`. Cada promoción posterior valida
+su propio delta contra el baseline actual mediante los guards ordinarios. La
+regresión comprobó primera promoción y segunda promoción con código H1 ya en
+`main`; candidate sin ascendencia, drift H2 no permitido dentro del límite,
+evidencia alterada y artefacto distinto siguen fallando. Los checks de schema,
+run, jobs y coincidencia exacta del artefacto permanecen intactos.
+
+El candidato mantiene juntos el fallback del resultado programado sin trabajo,
+la reserva de presupuesto FG2 para detalles y la separación del límite
+histórico H2. En Docker `--network none`: suites focales **167 passed**; suite
+Python de CI **460 passed, 10 subtests**; comprobación adicional de Python
+**40 passed**; `py_compile`, h2 writer scan, credential scan, protected-path
+regressions, actionlint 1.7.7 y ShellCheck 0.11.0 PASS. La publicación y
+actualización del PR #556 requieren autorización para la huella final; no hubo
+push, merge, promoción, E9, tráfico institucional ni operación Pro.

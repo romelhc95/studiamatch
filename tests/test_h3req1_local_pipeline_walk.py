@@ -1342,6 +1342,178 @@ def test_controlled_scheduled_sitemap_keeps_partial_candidates_for_next_run(
     assert len(second_manifest["discovery_rows"]) == 1
 
 
+def test_scheduled_sitemap_children_reserve_transport_budget_for_course_detail(tmp_path: Path) -> None:
+    root_url = f"{BASE_URL}/sitemap.xml"
+    child_url = f"{BASE_URL}/sitemap-child.xml"
+    sitemap_namespace = "http://www.sitemaps.org/schemas/sitemap/0.9"
+    repeated_children = "".join(
+        f"<sitemap><loc>{child_url}</loc></sitemap>" for _ in range(24)
+    )
+    root_xml = f'<sitemapindex xmlns="{sitemap_namespace}">{repeated_children}</sitemapindex>'
+    child_xml = (
+        f'<urlset xmlns="{sitemap_namespace}"><url><loc>{COURSE_URL}</loc></url></urlset>'
+    )
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "site_type": "traditional_ssr",
+        "discovery_mode": "sitemap_bfs",
+        "discovery_enabled": True,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "website_url": BASE_URL,
+        "seed_urls": [root_url],
+        "exclusion_patterns": [],
+        "allowed_url_patterns": [],
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    with patch.object(harvester_module, "get_db_client", return_value=adapter):
+        harvester = UniversalHarvester(
+            {"id": INSTITUTION_ID, "name": "Synthetic Academy", "website_url": BASE_URL},
+            max_discovered_urls=10,
+        )
+
+    calls: list[str] = []
+
+    async def synthetic_request(_session: Any, url: str, _prepared: Any, _impersonate: str, _timeout: int):
+        calls.append(url)
+        if url == root_url:
+            return SyntheticResponse(url, root_xml, "application/xml")
+        if url == child_url:
+            return SyntheticResponse(url, child_xml, "application/xml")
+        if url == COURSE_URL:
+            return SyntheticResponse(url, COURSE_HTML, "text/html; charset=utf-8")
+        raise AssertionError(f"unexpected off-cohort request: {url}")
+
+    harvester.controlled = True
+    harvester.scheduled_cohort = True
+    harvester.approved_lot = None
+    harvester.controlled_seed_urls = [root_url]
+    harvester.check_time_guard = lambda: False
+    manifest_path = tmp_path / "scheduled-sitemap-budget-manifest.json"
+    initialize_manifest(
+        manifest_path,
+        run_id="123456791",
+        run_attempt=1,
+        source_sha="a" * 40,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_ID,
+                "profile_sha256": "b" * 64,
+                "seed_sha256": "c" * 64,
+                "http_requests": 20,
+                "unique_urls": 10,
+                "result": "deferred",
+            }
+        ],
+    )
+    harvester.cohort_manifest_path = str(manifest_path)
+    harvester.request_budget = FG2RequestBudget(
+        max_unique_urls=10,
+        max_http_requests=20,
+        min_interval_seconds=0,
+        max_retry_after_seconds=0,
+        request_preparer=lambda url: url,
+        requester=synthetic_request,
+    )
+
+    discovered = asyncio.run(harvester.discover_courses())
+    detail = asyncio.run(harvester._scrape_http(object(), COURSE_URL))
+
+    assert discovered == [COURSE_URL]
+    assert detail is not None
+    assert detail["raw_name"] == "Programa de Analítica Aplicada"
+    assert getattr(harvester, "sitemap_budget_reached", False) is True
+    assert harvester.controlled_stop_reason is None
+    assert harvester.circuit_open is False
+    snapshot = harvester.request_budget.snapshot()
+    assert snapshot["unique_urls"] <= 10
+    assert snapshot["http_requests"] <= 20
+    assert snapshot == {"http_requests": 15, "unique_urls": 3}
+    assert calls.count(root_url) == 1
+    assert calls.count(child_url) == 13
+    assert calls[-1] == COURSE_URL
+    assert calls.count(COURSE_URL) == 1
+
+
+def test_manual_approved_detail_seed_after_sitemap_yield_stays_in_the_lot() -> None:
+    root_url = f"{BASE_URL}/sitemap.xml"
+    child_url = f"{BASE_URL}/sitemap-child.xml"
+    sitemap_namespace = "http://www.sitemaps.org/schemas/sitemap/0.9"
+    repeated_children = "".join(
+        f"<sitemap><loc>{child_url}</loc></sitemap>" for _ in range(24)
+    )
+    root_xml = f'<sitemapindex xmlns="{sitemap_namespace}">{repeated_children}</sitemapindex>'
+    empty_child_xml = f'<urlset xmlns="{sitemap_namespace}"></urlset>'
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "site_type": "traditional_ssr",
+        "discovery_mode": "sitemap_bfs",
+        "discovery_enabled": True,
+        "pipeline_enabled": True,
+        "production_enabled": True,
+        "website_url": BASE_URL,
+        "seed_urls": [root_url, COURSE_URL],
+        "exclusion_patterns": [],
+        "allowed_url_patterns": [],
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    with patch.object(harvester_module, "get_db_client", return_value=adapter):
+        harvester = UniversalHarvester(
+            {"id": INSTITUTION_ID, "name": "Synthetic Academy", "website_url": BASE_URL},
+            max_discovered_urls=10,
+        )
+
+    calls: list[str] = []
+
+    async def synthetic_request(_session: Any, url: str, _prepared: Any, _impersonate: str, _timeout: int):
+        calls.append(url)
+        if url == root_url:
+            return SyntheticResponse(url, root_xml, "application/xml")
+        if url == child_url:
+            return SyntheticResponse(url, empty_child_xml, "application/xml")
+        if url == COURSE_URL:
+            return SyntheticResponse(url, COURSE_HTML, "text/html; charset=utf-8")
+        raise AssertionError(f"unexpected off-cohort request: {url}")
+
+    harvester.controlled = True
+    harvester.scheduled_cohort = False
+    harvester.approved_lot = object()
+    harvester.approved_lot_scope = {
+        normalize_url(url): {
+            "institution_id": INSTITUTION_ID,
+            "snapshot": {"staging_rows": [], "course_rows": []},
+        }
+        for url in (root_url, child_url, COURSE_URL)
+    }
+    harvester.controlled_seed_urls = [root_url, COURSE_URL]
+    harvester._verify_approved_institution_binding = Mock()
+    harvester.check_time_guard = lambda: False
+    harvester.request_budget = FG2RequestBudget(
+        max_unique_urls=10,
+        max_http_requests=20,
+        min_interval_seconds=0,
+        max_retry_after_seconds=0,
+        allowed_urls=[root_url, child_url, COURSE_URL],
+        request_preparer=lambda url: url,
+        requester=synthetic_request,
+    )
+
+    with patch.object(harvester_module, "verify_approved_lot_scope", return_value=None):
+        discovered = asyncio.run(harvester.discover_courses())
+        detail = asyncio.run(harvester._safe_request(object(), COURSE_URL))
+
+    assert discovered == [COURSE_URL]
+    assert detail is not None and detail.status_code == 200
+    assert harvester.sitemap_budget_reached is True
+    assert harvester.controlled_stop_reason is None
+    assert harvester.circuit_open is False
+    assert calls.count(root_url) == 1
+    assert calls.count(child_url) == 13
+    assert calls.count(COURSE_URL) == 1
+    assert set(calls) == {root_url, child_url, COURSE_URL}
+    assert harvester.request_budget.snapshot() == {"http_requests": 15, "unique_urls": 3}
+
+
 def test_controlled_sitemap_index_returns_links_read_before_request_budget_stops(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1369,7 +1541,8 @@ def test_controlled_sitemap_index_returns_links_read_before_request_budget_stops
     harvester.check_time_guard = lambda: False
     calls: list[str] = []
 
-    async def fake_safe_request(_session: Any, url: str) -> SyntheticResponse:
+    async def fake_safe_request(_session: Any, url: str, *, request_kind: str) -> SyntheticResponse:
+        assert request_kind == "sitemap"
         calls.append(url)
         if url == child_two:
             harvester.controlled_stop_reason = "RunBudgetExceeded"

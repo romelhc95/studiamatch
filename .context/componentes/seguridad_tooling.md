@@ -142,6 +142,30 @@ omisión de una fuente candidata. El resultado integral del checker permanece
 separado del resultado limitado al manifiesto H1. Estos controles locales no
 equivalen a una ejecución de GitHub Actions ni autorizan publicar el candidato.
 
+## Alcance del gate H2 en una promoción H1 — 2026-11-13
+
+`h2-main-production-expand-gate` conserva las comprobaciones del schema de
+evidencia, SHA/candidate, ascendencia del candidato respecto al head del PR,
+run `DB Sync to Production`, jobs requeridos, nombres y contenido exacto del
+artefacto de verificación. La allowlist histórica se fija entre el candidate H2
+y `main@646f14afa845ea3200f40ce919e273f090059c63`, la frontera verificada
+inmediatamente anterior a la primera promoción H1. No se extiende a commits H1
+que se integren después. Para cada promoción, el workflow comprueba que esa
+frontera pertenezca a la historia del `main` actual y que el `PR_BASE_SHA`
+corresponda a un ancestro de ese `main`; el guard normal de rutas conserva el
+delta entrante de cada PR contra su base actual. Por ello, una segunda
+promoción no vuelve a clasificar el código H1 ya aceptado como deriva H2,
+mientras que un cambio H2 no permitido dentro del tramo candidate→frontera y
+un candidate sin ascendencia siguen fallando.
+
+La regresión ejecuta el bloque de comparación extraído del YAML real con
+repositorios Git sintéticos: admite la primera promoción y una segunda cuando
+`main` ya contiene H1; rechaza candidate ajeno a la ascendencia y drift de
+código H2 posterior al candidate dentro del tramo histórico fijado. Otra prueba
+ejecuta los validadores de evidencia del workflow y rechaza datos de advisor
+alterados y un artefacto distinto del JSON comprometido. La prueba local no
+afirma un check de GitHub ni cambia el run H2 remoto o sus permisos.
+
 ## Límites del control local
 
 Remediación CI PR #512: el inventario de consumidores registra también los tests
