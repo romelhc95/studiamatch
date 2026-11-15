@@ -213,8 +213,10 @@ APPROVED_SESSION_BEARER_INVENTORY = {
     },
 }
 
+# This inventory includes test-only clients that replace get_db_client with a local fake.
 DIRECT_SUPABASE_CONSUMERS = {
     "tests/test_admin_invite_edge_contract.py": "supabase-pattern-test-only",
+    "tests/test_fg2_bounded_orchestration.py": "supabase-data-api-test",
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "tests/test_integrity_ping_retirement_contract.py": "supabase-data-api-test",

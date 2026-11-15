@@ -16,8 +16,17 @@ except ImportError:
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date, normalize_url
 from shared.db_client import get_db_client
+from scripts.core.fg2_bounded_run import (
+    FG2CohortManifest,
+    InvalidControlledRun,
+    course_identity_url,
+    require_manifest_sha256,
+    url_sha256,
+    uuid_in_filter,
+)
 from shared.editorial_contract import CONTRACT_VERSION, canonical_quality_hash, compute_editorial_state
 from integrity_ping import is_safe_public_url
 from shared.roi_engine import (
@@ -58,6 +67,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 class SyncVectorWorker:
     def __init__(self):
         self.db = get_db_client()
+        self._fg2_course_inventory = None
         self.profiles = self._load_profiles()
         # Fase 100: pipeline_enabled supersedes pipeline_ready, with temporary fallback.
         self.ready_inst_ids = {
@@ -97,6 +107,33 @@ class SyncVectorWorker:
         except Exception as e:
             logger.error(f"Error loading site profiles: {e}")
             raise
+
+    def _load_fg2_course_inventory(self):
+        """Read the alias-check inventory once for this run-scoped worker."""
+        if self._fg2_course_inventory is None:
+            rows = self.db.select_all_service(
+                'courses',
+                columns='id,institution_id,url,is_active,last_404_at',
+                order='id.asc',
+            )
+            if not isinstance(rows, list):
+                raise InvalidControlledRun("approved FG2 course inventory is malformed at sync")
+            self._fg2_course_inventory = rows
+        return self._fg2_course_inventory
+
+    def _remember_fg2_course(self, row):
+        """Keep same-run alias checks aware of courses written by this worker."""
+        if self._fg2_course_inventory is None or not isinstance(row, dict):
+            return
+        course_id = row.get('id')
+        course_url = row.get('url')
+        if not course_id or not course_url:
+            return
+        for index, existing in enumerate(self._fg2_course_inventory):
+            if isinstance(existing, dict) and str(existing.get('id')) == str(course_id):
+                self._fg2_course_inventory[index] = row
+                return
+        self._fg2_course_inventory.append(row)
 
     def _get_profile(self, institution_id):
         for p in self.profiles:
@@ -183,7 +220,119 @@ class SyncVectorWorker:
             return "\n".join(lines) if lines else None
         return str(curriculum_summary).strip() or None
 
-    def get_pending_enriched(self, limit=500, institution_id=None):
+    def get_pending_enriched(self, limit=500, institution_id=None, cohort_manifest=None):
+        if cohort_manifest is not None:
+            raw_ids = cohort_manifest.staging_ids
+            if not raw_ids:
+                return []
+            cleansed_rows = self.db.select_all_pipeline(
+                "cleansed_programs",
+                filters=uuid_in_filter("staging_id", raw_ids),
+                order="id.asc",
+            )
+            cohort_manifest.assert_related_stage_records(
+                cleansed_rows,
+                foreign_key="staging_id",
+                allowed_ids=raw_ids,
+                stage="sync cleansed lookup",
+            )
+            raw_institution = {
+                entry["staging_id"].lower(): entry["institution_id"].lower()
+                for entry in cohort_manifest.payload["entries"]
+            }
+            entry_by_staging = {
+                entry["staging_id"].lower(): entry
+                for entry in cohort_manifest.payload["entries"]
+            }
+            approved_course_by_staging = {}
+            for entry in cohort_manifest.payload["entries"]:
+                if "course_id" not in entry:
+                    raise InvalidControlledRun("sync cohort entry has no approved course identity")
+                approved_course_by_staging[entry["staging_id"].lower()] = entry["course_id"]
+            eligible_cleansed = []
+            for row in cleansed_rows:
+                raw_id = row["staging_id"].lower()
+                entry = entry_by_staging[raw_id]
+                if str(row.get("institution_id", "")).lower() != raw_institution[raw_id]:
+                    raise InvalidControlledRun("sync cleansed cohort institution changed")
+                expected_cleaned_url_sha = entry.get(
+                    "cleansed_url_sha256", entry["url_sha256"]
+                )
+                if url_sha256(row.get("url", "")) != expected_cleaned_url_sha:
+                    raise InvalidControlledRun("sync cleansed cohort URL identity changed")
+                if row.get("status") == "enriched":
+                    eligible_cleansed.append(row)
+            cleansed_ids = [row["id"] for row in eligible_cleansed]
+            if not cleansed_ids:
+                return []
+            filters = f"status=eq.pending&{uuid_in_filter('cleansed_id', cleansed_ids)}"
+            records = self.db.select_all_pipeline("enriched_programs", filters=filters, order="id.asc")
+            cohort_manifest.assert_related_stage_records(
+                records,
+                foreign_key="cleansed_id",
+                allowed_ids=cleansed_ids,
+                stage="sync",
+            )
+            institution_by_cleansed_id = {
+                row["id"].lower(): str(row["institution_id"]).lower()
+                for row in eligible_cleansed
+            }
+            approved_course_by_cleansed = {
+                row["id"].lower(): approved_course_by_staging[row["staging_id"].lower()]
+                for row in eligible_cleansed
+            }
+            expected_url_by_cleansed = {
+                row["id"].lower(): entry_by_staging[row["staging_id"].lower()].get(
+                    "cleansed_url_sha256",
+                    entry_by_staging[row["staging_id"].lower()]["url_sha256"],
+                )
+                for row in eligible_cleansed
+            }
+            expected_raw_url_by_cleansed = {
+                row["id"].lower(): entry_by_staging[row["staging_id"].lower()]["url_sha256"]
+                for row in eligible_cleansed
+            }
+            staging_by_cleansed = {
+                row["id"].lower(): row["staging_id"]
+                for row in eligible_cleansed
+            }
+            content_by_cleansed = {
+                row["id"].lower(): entry_by_staging[row["staging_id"].lower()]["content_sha256"]
+                for row in eligible_cleansed
+            }
+            for row in records:
+                cleansed_id = row["cleansed_id"].lower()
+                if str(row.get("institution_id", "")).lower() != institution_by_cleansed_id[cleansed_id]:
+                    raise InvalidControlledRun("sync enriched cohort institution changed")
+                if row.get("status") != "pending":
+                    raise InvalidControlledRun("sync cohort row is not pending")
+                if str(row.get("institution_id")) not in self.ready_inst_ids:
+                    raise InvalidControlledRun("sync cohort institution is no longer enabled")
+                expected_url_sha = expected_url_by_cleansed[cleansed_id]
+                if url_sha256(row.get("url", "")) != expected_url_sha:
+                    raise InvalidControlledRun("sync enriched cohort URL identity changed")
+                row["_fg2_approved_course_id"] = approved_course_by_cleansed[cleansed_id]
+                row["_fg2_expected_url_sha256"] = expected_url_sha
+                row["_fg2_expected_raw_url_sha256"] = expected_raw_url_by_cleansed[cleansed_id]
+                row["_fg2_manifest_staging_id"] = staging_by_cleansed[cleansed_id]
+                row["_fg2_manifest_cleansed_id"] = row["cleansed_id"]
+                row["_fg2_manifest_content_sha256"] = content_by_cleansed[cleansed_id]
+                identity_by_id = getattr(self, "_fg2_manifest_identity_by_enriched_id", None)
+                if identity_by_id is None:
+                    identity_by_id = self._fg2_manifest_identity_by_enriched_id = {}
+                identity_by_id[str(row["id"])] = {
+                    key: row[key]
+                    for key in (
+                        "id",
+                        "institution_id",
+                        "_fg2_expected_url_sha256",
+                        "_fg2_expected_raw_url_sha256",
+                        "_fg2_manifest_staging_id",
+                        "_fg2_manifest_cleansed_id",
+                        "_fg2_manifest_content_sha256",
+                    )
+                }
+            return records[:limit] if limit is not None else records
         if not self.ready_inst_ids:
             logger.info("No pipeline-enabled institutions available for sync.")
             return []
@@ -199,7 +348,66 @@ class SyncVectorWorker:
             return self.db.select_all_pipeline('enriched_programs', filters=filters, order="id.asc")
         return self.db.select_pipeline_raise('enriched_programs', filters=filters, limit=limit, order="id.asc")
 
+    def _verify_fg2_manifest_url_identity(self, enriched):
+        """Recheck raw→cleansed→enriched URL identity before any FG2 writer."""
+        expected_url_sha = enriched.get("_fg2_expected_url_sha256")
+        if expected_url_sha is None:
+            return
+        enriched_id = str(enriched.get("id") or "")
+        cleansed_id = str(enriched.get("_fg2_manifest_cleansed_id") or enriched.get("cleansed_id") or "")
+        staging_id = str(enriched.get("_fg2_manifest_staging_id") or "")
+        institution_id = str(enriched.get("institution_id") or "").lower()
+        try:
+            current_enriched = self.db.select_pipeline_raise(
+                "enriched_programs",
+                filters=f"id=eq.{quote(enriched_id, safe='')}",
+                columns="id,cleansed_id,institution_id,url,status",
+                limit=2,
+            )
+            current_cleansed = self.db.select_pipeline_raise(
+                "cleansed_programs",
+                filters=f"id=eq.{quote(cleansed_id, safe='')}",
+                columns="id,staging_id,institution_id,url,status",
+                limit=2,
+            )
+            current_raw = self.db.select_pipeline_raise(
+                "staging_raw",
+                filters=f"id=eq.{quote(staging_id, safe='')}",
+                columns="id,institution_id,url,status,content_hash",
+                limit=2,
+            )
+        except Exception as exc:
+            raise InvalidControlledRun("failed to revalidate sync URL identity") from exc
+        if any(not isinstance(rows, list) or len(rows) != 1 for rows in (
+            current_enriched, current_cleansed, current_raw
+        )):
+            raise InvalidControlledRun("sync URL identity is missing or duplicated")
+        enriched_row = current_enriched[0]
+        cleansed_row = current_cleansed[0]
+        raw_row = current_raw[0]
+        if (
+            str(enriched_row.get("id")) != enriched_id
+            or str(enriched_row.get("cleansed_id")) != cleansed_id
+            or str(enriched_row.get("institution_id", "")).lower() != institution_id
+            or enriched_row.get("status") != "pending"
+            or url_sha256(enriched_row.get("url", "")) != expected_url_sha
+            or str(cleansed_row.get("id")) != cleansed_id
+            or str(cleansed_row.get("staging_id")) != staging_id
+            or str(cleansed_row.get("institution_id", "")).lower() != institution_id
+            or cleansed_row.get("status") != "enriched"
+            or url_sha256(cleansed_row.get("url", "")) != expected_url_sha
+            or str(raw_row.get("id")) != staging_id
+            or str(raw_row.get("institution_id", "")).lower() != institution_id
+            or raw_row.get("status") != "processed"
+            or url_sha256(raw_row.get("url", "")) != enriched.get(
+                "_fg2_expected_raw_url_sha256", expected_url_sha
+            )
+            or raw_row.get("content_hash") != enriched.get("_fg2_manifest_content_sha256")
+        ):
+            raise InvalidControlledRun("sync cohort URL identity changed before write")
+
     def sync_to_production(self, enriched):
+        self._verify_fg2_manifest_url_identity(enriched)
         e_id = enriched['id']
         raw_name = enriched.get('official_name')
         url = enriched['url']
@@ -388,12 +596,58 @@ class SyncVectorWorker:
         # course_data["embedding"] = self._generate_embedding(course_data["description_long"])
 
         # Check if course was manually deactivated (don't reactivate)
-        url_encoded = quote(str(url), safe='')
-        existing = self.db.select_service_raise(
-            'courses',
-            filters=f"url=eq.{url_encoded}",
-            columns='id,institution_id,is_active,last_404_at',
-        )
+        approved_course_bound = "_fg2_approved_course_id" in enriched
+        approved_course_id = enriched.get("_fg2_approved_course_id")
+        if approved_course_bound and approved_course_id is not None:
+            if not isinstance(approved_course_id, str) or not re.fullmatch(
+                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                approved_course_id,
+            ):
+                raise InvalidControlledRun("approved FG2 course ID is malformed")
+            course_inventory = self._load_fg2_course_inventory()
+            aliases = [
+                row for row in course_inventory
+                if isinstance(row, dict)
+                and course_identity_url(row.get('url') or '') == course_identity_url(validated_url)
+            ]
+            if (
+                len(aliases) != 1
+                or str(aliases[0].get('id', '')).lower() != approved_course_id.lower()
+            ):
+                raise InvalidControlledRun("canonical course URL is ambiguous at sync")
+            existing = self.db.select_service_raise(
+                'courses',
+                filters=f"id=eq.{quote(approved_course_id, safe='')}",
+                columns='id,institution_id,url,is_active,last_404_at',
+                limit=2,
+            )
+            if len(existing) != 1:
+                raise InvalidControlledRun("approved FG2 course ID is missing or ambiguous at sync")
+            if (
+                str(existing[0].get('institution_id')) != str(inst_id)
+                or course_identity_url(existing[0].get('url') or '') != course_identity_url(validated_url)
+            ):
+                raise InvalidControlledRun("approved FG2 course ID no longer matches its institution and URL")
+        elif approved_course_bound:
+            course_inventory = self._load_fg2_course_inventory()
+            aliases = [
+                row for row in course_inventory
+                if isinstance(row, dict)
+                and course_identity_url(row.get('url') or '') == course_identity_url(validated_url)
+            ]
+            if aliases:
+                raise InvalidControlledRun("approved FG2 new-discovery URL now resolves to a course")
+            # An empty approved course ID means this cohort item is a genuine
+            # discovery. The inventory is only a collision check; never use its
+            # first unrelated row as the upsert target.
+            existing = []
+        else:
+            url_encoded = quote(str(url), safe='')
+            existing = self.db.select_service_raise(
+                'courses',
+                filters=f"url=eq.{url_encoded}",
+                columns='id,institution_id,is_active,last_404_at',
+            )
         existing_course = existing[0] if existing else {}
         existing_inst_id = existing_course.get('institution_id')
         if (
@@ -408,6 +662,10 @@ class SyncVectorWorker:
                 existing_metadata=enriched.get('metadata'),
             )
             return False
+        if approved_course_bound and existing_course:
+            # Keep the database's exact URL spelling so the upsert targets the
+            # approved row even when the incoming URL is a canonical alias.
+            course_data['url'] = existing_course['url']
         manually_disabled = existing_course.get('last_404_at') is not None
         if manually_disabled:
             logger.info(f"⏭️ [SKIP] {name} — manually deactivated, skipping sync")
@@ -445,11 +703,14 @@ class SyncVectorWorker:
             return True
 
         # Upsert to production courses
+        self._verify_fg2_manifest_url_identity(enriched)
         res = self.db.upsert('courses', course_data, on_conflict="url")
 
         if res:
             synced_course = res[0] if isinstance(res, list) and res else res
             if isinstance(synced_course, dict):
+                if approved_course_bound:
+                    self._remember_fg2_course(synced_course)
                 salary_base = lookup_market_salary(self.db, synced_course.get('category_id'), seniority_level)
                 expected_salary, roi_months = compute_roi(
                     enriched.get('total_cost_est'),
@@ -517,7 +778,7 @@ class SyncVectorWorker:
                         )
                         return False
             try:
-                self._verify_canary_course_marker(validated_url)
+                self._verify_canary_course_marker(course_data['url'])
             except Exception:
                 logger.error(f"Canary provenance marker missing for course URL: {validated_url}")
                 self.update_enriched_status(
@@ -543,6 +804,9 @@ class SyncVectorWorker:
     def update_enriched_status(
         self, e_id, status, error_msg=None, existing_metadata=None
     ):
+        identity = getattr(self, "_fg2_manifest_identity_by_enriched_id", {}).get(str(e_id))
+        if identity is not None:
+            self._verify_fg2_manifest_url_identity(identity)
         payload = {"status": status}
         if error_msg:
             metadata = dict(existing_metadata or {})
@@ -560,11 +824,35 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run sync vector worker")
     parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
     parser.add_argument("--limit", type=int, default=None, help="Maximum enriched records to sync")
+    parser.add_argument("--cohort-manifest", help="Exact controlled-run manifest; disables global queue selection")
+    parser.add_argument("--cohort-manifest-sha256", help="Expected manifest digest from the harvesting job")
     args = parser.parse_args()
+
+    try:
+        args.cohort_manifest_sha256 = require_manifest_sha256(
+            args.cohort_manifest, args.cohort_manifest_sha256
+        )
+    except InvalidControlledRun as exc:
+        parser.error(str(exc))
+
+    cohort_manifest = None
+    if args.cohort_manifest:
+        cohort_manifest = FG2CohortManifest.load(
+            args.cohort_manifest,
+            expected_sha256=args.cohort_manifest_sha256,
+            expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
+            expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
+            expected_source_sha=os.getenv("GITHUB_SHA", ""),
+            allow_empty=True,
+        )
 
     worker = SyncVectorWorker()
     guard = TimeGuard(max_seconds=1800, logger=logger)
-    pending = worker.get_pending_enriched(limit=args.limit, institution_id=args.institution_id)
+    pending = worker.get_pending_enriched(
+        limit=args.limit,
+        institution_id=args.institution_id,
+        cohort_manifest=cohort_manifest,
+    )
     logger.info(f"Found {len(pending)} pending enriched records.")
     synced = 0
     failed = 0

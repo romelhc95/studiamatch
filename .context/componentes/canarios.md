@@ -21,7 +21,25 @@
 
 ### Workflow manual de producción F10
 
-`.github/workflows/production_canary.yml` declara `workflow_dispatch` para `main`, fija el SHA/ambiente `Production` y ordena preflight → manifest → snapshot → writers autorizados → restore aun ante fallo → manifest/attest posterior. El YAML contiene el contrato de job/orden; `tests/test_fase10_production_canary.py` y `tests/test_fase10_main_boundary.py` inspeccionan sus límites. Es una definición local, no prueba que exista el workflow remoto ni que se haya despachado. Revisar el test de main boundary y el workflow cuando se cambie trigger, permiso, input, orden o condición de restore; una dispatch real requiere instrucción separada.
+`.github/workflows/production_canary.yml` declara `workflow_dispatch` únicamente
+para `refs/heads/main`. La condición exacta del job se evalúa antes de asignar
+el Environment `Production`; el preflight compartido vuelve a comprobar la ref
+antes de cada etapa. El job fija el SHA y ordena preflight → manifest → snapshot
+→ writers autorizados → restore aun ante fallo → manifest/attest posterior.
+`tests/test_fase09_10_pre_main_controls.py`,
+`tests/test_fase10_production_canary.py` y
+`tests/test_fase10_main_boundary.py` verifican este límite local. Esto no prueba
+que GitHub haya adoptado el candidato ni que se haya despachado. Cambios en
+trigger, permiso, input, orden o condición de restore requieren las suites
+correspondientes; una dispatch real requiere instrucción separada.
+El grupo root `studiamatch-fg2-${{ github.ref }}` coincide con el workflow FG2
+programado/manual y mantiene `cancel-in-progress: false`; GitHub serializa los
+workflows del mismo repositorio/ref que comparten el grupo ([semántica oficial
+de concurrency](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#concurrency)).
+Al no usar `queue: max`, queda como máximo un workflow pending y uno nuevo puede
+reemplazar al pending anterior; el run activo no se cancela. Protege la carrera
+con cleansing bounded dentro de Actions, pero no crea un lock de fila de base
+de datos ni acredita configuración remota hasta que el YAML llegue a `main`.
 
 ### Preflight de origen F10
 

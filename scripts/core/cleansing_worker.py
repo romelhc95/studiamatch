@@ -18,6 +18,7 @@ except ImportError:
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from shared.utils import (
     clean_course_name,
     slugify,
@@ -28,6 +29,14 @@ from shared.utils import (
     parse_start_date,
 )
 from shared.db_client import get_db_client, DatabaseClient
+from scripts.core.fg2_bounded_run import (
+    FG2CohortManifest,
+    InvalidControlledRun,
+    cleanse_course_url,
+    require_manifest_sha256,
+    url_sha256,
+    uuid_in_filter,
+)
 
 # Setup logging
 load_dotenv()
@@ -380,12 +389,7 @@ class CleansingWorker:
         return extract_price(text)
 
     def _get_base_url(self, url: str) -> str:
-        suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal', 'contactenos/', 'contactenos']
-        clean_url = url.rstrip('/') + '/'
-        for s in suffixes:
-            pattern = re.escape(s.rstrip('/')) + r'/?$'
-            if re.search(pattern, clean_url, re.IGNORECASE): return re.sub(pattern, '', clean_url, flags=re.IGNORECASE).rstrip('/') + '/'
-        return clean_url
+        return cleanse_course_url(url)
 
     def stream_pending_staging(
         self,
@@ -393,8 +397,48 @@ class CleansingWorker:
         max_iterations: int = 10000,
         institution_id: Optional[str] = None,
         max_records: Optional[int] = None,
+        cohort_manifest: Optional[FG2CohortManifest] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """Streams pending staging records using lock RPC if available, falls back to simple select."""
+        if cohort_manifest is not None:
+            entries = cohort_manifest.payload["entries"]
+            if not entries:
+                return
+            staging_ids = cohort_manifest.staging_ids
+            filters = uuid_in_filter("id", staging_ids)
+            records = self.db.select_all_pipeline(
+                "staging_raw",
+                filters=filters,
+                order="id.asc",
+            )
+            cohort_manifest.assert_stage_records(
+                records,
+                allowed_ids=staging_ids,
+                stage="cleansing",
+                require_exact=True,
+            )
+            entry_by_id = {entry["staging_id"].lower(): entry for entry in entries}
+            institution_by_id = {
+                entry["staging_id"].lower(): entry["institution_id"].lower()
+                for entry in entries
+            }
+            for row in records:
+                row_id = row["id"].lower()
+                entry = entry_by_id[row_id]
+                if row.get("status") != "pending":
+                    raise InvalidControlledRun("cleansing cohort row is not pending")
+                if str(row.get("institution_id", "")).lower() != institution_by_id[row_id]:
+                    raise InvalidControlledRun("cleansing cohort institution changed")
+                if str(row.get("institution_id")) not in self.ready_inst_ids:
+                    raise InvalidControlledRun("cleansing cohort institution is no longer enabled")
+                if url_sha256(row.get("url", "")) != entry["url_sha256"]:
+                    raise InvalidControlledRun("cleansing cohort URL hash changed")
+                if row.get("content_hash") != entry["content_sha256"]:
+                    raise InvalidControlledRun("cleansing cohort content hash changed")
+                if institution_id and str(row.get("institution_id")) != str(institution_id):
+                    raise InvalidControlledRun("cleansing cohort conflicts with institution filter")
+                yield row
+            return
         seen_ids: set = set()
         iterations = 0
         rpc_failures = 0
@@ -648,7 +692,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run cleansing worker")
     parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
     parser.add_argument("--limit", type=int, default=None, help="Maximum staging records to consume")
+    parser.add_argument("--cohort-manifest", help="Exact controlled-run manifest; disables global queue selection")
+    parser.add_argument("--cohort-manifest-sha256", help="Expected manifest digest from the harvesting job")
     args = parser.parse_args()
+
+    try:
+        args.cohort_manifest_sha256 = require_manifest_sha256(
+            args.cohort_manifest, args.cohort_manifest_sha256
+        )
+    except InvalidControlledRun as exc:
+        parser.error(str(exc))
 
     worker = CleansingWorker()
     guard = TimeGuard(max_seconds=3500, logger=logger)
@@ -656,7 +709,22 @@ if __name__ == "__main__":
     total_processed, batch_accumulator = 0, []
     total_seen = 0
     batch_size = min(200, args.limit) if args.limit is not None else 200
-    for record in worker.stream_pending_staging(batch_size=batch_size, institution_id=args.institution_id, max_records=args.limit):
+    cohort_manifest = None
+    if args.cohort_manifest:
+        cohort_manifest = FG2CohortManifest.load(
+            args.cohort_manifest,
+            expected_sha256=args.cohort_manifest_sha256,
+            expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
+            expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
+            expected_source_sha=os.getenv("GITHUB_SHA", ""),
+            allow_empty=True,
+        )
+    for record in worker.stream_pending_staging(
+        batch_size=batch_size,
+        institution_id=args.institution_id,
+        max_records=args.limit,
+        cohort_manifest=cohort_manifest,
+    ):
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
             break
