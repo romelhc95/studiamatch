@@ -1230,6 +1230,7 @@
         "state": "verified",
         "note": "Cada path tiene referencias de suite o ausencia de referencia literal dentro del scope `tests/` y extensiones descrito en .context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md. Una arista de test prueba que el test lee/asserta fuente, no que el test haya pasado ni que cubra todo el contrato. El test candidate-only tests/admin_header_responsive.test.mjs verifica las clases flex responsivas de web/src/app/admin/page.tsx; es una assertion source-level y no sustituye la medición real en viewport móvil. The 2026-11-02 candidate-only test transpiles and executes the actual AdminSessionGuard and AdminCourseQueue TSX with mocks for relogin/expiry/cross-tab logout, invalid sessions, assurance retry, AAL1 and AAL2; it is component-level evidence, not browser UAT or remote runtime proof.",
         "evidence": [
+          "path:.context/estado_del_proyecto.md",
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_relaciones_semanticas_locales_2026-10-12.md",
           "path:tests/admin_audit_changes.test.mjs",
@@ -10412,7 +10413,7 @@
       ],
       "contracts": {
         "state": "verified",
-        "note": "master_orchestrator decide gates/rotación y subprocesos; para el modo acotado exige que las instituciones aprobadas sigan siendo el prefijo elegible actual. Dentro de cada perfil aprobado, el lote puede seleccionar un subconjunto ordenado, único, de mismo origen y dentro del máximo de URLs de los seeds configurados; el preflight vuelve a compararlo con el perfil antes del contacto. Valida snapshot/huellas antes de lanzar y rechaza Playwright antes del runner si la ruta lo necesita. fg2_bounded_run liga referencia/SHA, URLs/IDs/estados/downstream, presupuesto HTTP y manifest al run/attempt/SHA/IDs/hashes. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1.",
+        "note": "master_orchestrator decide gates/rotación y subprocesos; para el modo acotado exige que las instituciones aprobadas sigan siendo el prefijo elegible actual. Dentro de cada perfil aprobado, el lote puede seleccionar un subconjunto ordenado, único, de mismo origen y dentro del máximo de URLs de los seeds configurados; el preflight vuelve a compararlo con el perfil antes del contacto. Valida snapshot/huellas antes de lanzar y rechaza Playwright antes del runner si la ruta lo necesita. fg2_bounded_run liga referencia/SHA, URLs/IDs/estados/downstream, presupuesto HTTP y manifest al run/attempt/SHA/IDs/hashes. Las lecturas URL-alias de staging_raw, courses, cleansed_programs y enriched_programs se particionan por longitud del URL completo con cota local conservadora de 8.000 caracteres, agregan IDs entre fragmentos y fallan cerrado ante alias sobredimensionado, conflicto o ambigüedad. El orquestador diferencia errores HTTP de lectura y drift de snapshot con etiquetas sanitizadas; un cuerpo HTTP no capturado no se atribuye a una causa. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
           "path:scripts/core/fg2_bounded_run.py",
@@ -10441,7 +10442,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight, selección de seeds, drift, revalidación antes del primer PATCH y barrera Playwright; test_fg2_bounded_run.py cubre presupuesto/manifest; el recorrido sintético H1 verificó refresh. La regresión del paquete actual se registra en el checkpoint del ciclo. No es una corrida de instituciones ni ejecución remota de master_orchestrator; R161 sigue limitado a estaciones sintéticas.",
+        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight, selección de seeds, drift, revalidación antes del primer PATCH, barrera Playwright, partición por URL completo de aliases en staging_raw, courses, cleansed_programs y enriched_programs, agregación/detección de ambigüedad entre fragmentos, clasificación de error HTTP y rechazo cerrado de alias individual sobredimensionado; test_fg2_bounded_run.py cubre presupuesto/manifest; test_supabase_credentials_contract.py comprueba error SELECT sanitizado y que el retry de transporte no imprime URL/query ni mensaje de excepción. En Docker las dos suites focales pasaron 117 pruebas; la compilación sintáctica en memoria de tres módulos y credential scan pasaron. El detalle está en el checkpoint vigente del estado del proyecto. No es una corrida de instituciones ni ejecución remota; el error HTTP de run #258 no tiene body capturado y su causa queda sin demostrar.",
         "evidence": [
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
@@ -14021,7 +14022,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "DatabaseClient selecciona identidad por flags/config, construye query y serializa RPC con json=. _request_with_retry limita retry a conexión/timeout; select_all pagina; get_db_client crea una instancia por llamada.",
+        "note": "DatabaseClient selecciona identidad por flags/config, construye query y serializa RPC con json=. _request_with_retry limita retry a conexión/timeout y los logs exponen solo el tipo de excepción, sin URL/query ni texto de error; select_all pagina; get_db_client crea una instancia por llamada. Los SELECT con raise_on_error entregan DatabaseAPIError con table/status_code para una respuesta HTTP inesperada; el mensaje no expone body ni query y los SELECT que no lanzan mantienen su contrato.",
         "evidence": [
           "path:scripts/shared/db_client.py",
           "path:.context/componentes/utilidades_compartidas.md"
@@ -14029,10 +14030,12 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "Los imports directos por AST en ambos checkouts son enumerados path/símbolo en la nota R11: workers/canarios, herramientas y tests. El original tiene 43; el candidato suma el harness h3req1_pipeline_postgrest_pg17_integration.py. La relación es import/callsite, no ejecución de cada consumer.",
+        "note": "Los imports directos por AST en ambos checkouts son enumerados path/símbolo en la nota R11: workers/canarios, herramientas y tests. El original tiene 43; el candidato suma el harness h3req1_pipeline_postgrest_pg17_integration.py. fg2_bounded_run.py consume el cliente inyectado en las lecturas acotadas de aliases/IDs, y master_orchestrator importa el cliente para crear la instancia. La relación es import/callsite, no ejecución de cada consumer.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
           "path:scripts/core/cleansing_worker.py",
+          "path:scripts/core/fg2_bounded_run.py",
+          "path:scripts/core/master_orchestrator.py",
           "path:scripts/core/sync_vector_worker.py",
           "path:scripts/maintenance/db_migrate.py"
         ]
@@ -14048,8 +14051,9 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Credential contract cubre headers, identidad, paginación, errores y usos de migración; R159/R174 son resultados históricos sin SHA de input en sus logs. El R161 runner PG17 llama DatabaseClient pero su log no contiene SHA del runner; no se afirma adopción Cloud.",
+        "note": "Credential contract cubre headers, identidad, paginación, errores y usos de migración; R159/R174 son resultados históricos sin SHA de input en sus logs. El delta local comprueba error SELECT HTTP 400 sanitizado y logging terminal de retry sin URL/query/texto; en Docker la suite focal del contrato pasó junto con la regresión FG2 (117 pruebas combinadas), como registra el checkpoint vigente. El R161 runner PG17 llama DatabaseClient pero su log no contiene SHA del runner; no se afirma adopción Cloud.",
         "evidence": [
+          "path:.context/estado_del_proyecto.md",
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_supabase_credentials_contract.py",
           "path:tests/h3req1_pipeline_postgrest_pg17_integration.py",

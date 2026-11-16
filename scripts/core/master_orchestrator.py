@@ -12,7 +12,7 @@ from urllib.parse import quote
 # Add root directory to sys.path for shared imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from shared.db_client import get_db_client
+from shared.db_client import DatabaseAPIError, get_db_client
 from shared.utils import setup_lima_logging
 from scripts.core.fg2_bounded_run import (
     FG2ApprovedLotManifest,
@@ -51,6 +51,28 @@ def _cohort_label(value=None):
 
 def _safe_error_label(error):
     return type(error).__name__ if _is_sensitive_log_context() else str(error)
+
+
+def _approved_lot_preflight_error_label(error):
+    if isinstance(error, DatabaseAPIError):
+        allowed_tables = {
+            "staging_raw",
+            "courses",
+            "cleansed_programs",
+            "enriched_programs",
+        }
+        table = error.table if error.table in allowed_tables else "unknown"
+        status_code = error.status_code
+        status = (
+            str(status_code)
+            if isinstance(status_code, int) and not isinstance(status_code, bool)
+            and 100 <= status_code <= 599
+            else "unknown"
+        )
+        return f"database_read_failed table={table} http_status={status}"
+    if isinstance(error, InvalidControlledRun):
+        return "snapshot_mismatch: InvalidControlledRun"
+    return f"verification_failed: {type(error).__name__}"
 
 
 def _get_db():
@@ -465,7 +487,10 @@ def main(argv=None):
         try:
             verify_approved_lot_scope(_get_db(), approved_lot)
         except Exception as exc:
-            logger.error("Approved FG2 lot scope drifted before harvester launch: %s", _safe_error_label(exc))
+            logger.error(
+                "Approved FG2 lot verification failed before harvester launch: %s",
+                _approved_lot_preflight_error_label(exc),
+            )
             return 1
 
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
