@@ -104,6 +104,10 @@
         "status": "included"
       },
       {
+        "path": "scripts/shared/db_client.py",
+        "status": "included"
+      },
+      {
         "path": "scripts/shared/site_diagnostics.py",
         "status": "included"
       },
