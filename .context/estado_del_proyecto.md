@@ -6,6 +6,181 @@
 
 ## Corte vigente
 
+### H1REQ1 — promoción PR #555, relectura 2026-11-16
+
+La relectura read-only de GitHub confirma que el PR #555 se cerró como merged
+el 2026-11-15 15:00:30Z, con head `certificacion@02cb56e196e5ca67a6cdd9f32fdd717718f8d55e`.
+GitHub registra aprobación de `romelhc95-approver` en ese head y los checks del
+run PR `43682645048` completados sin fallos (28 success y 2 skipped); el gate
+`H2 Main Production Expand Gate` pasó. El hilo P2
+`discussion_r4565608394` sigue `is_resolved=false` y `is_outdated=false`, aunque
+la corrección y la respuesta están en el head mergeado. No se modificó el PR
+cerrado ni se resolvió el hilo abierto. El merge no acredita E9 funcional, CA1, tres pares FG2→FG3 ni
+72 horas de observación; E10 permanece cerrado y H4 sigue gated. La descripción
+del PR todavía conserva texto/checklist previo al merge, por lo que no se toma
+como estado operativo vigente.
+
+### H1REQ1 — FG2 #258: diagnóstico y corrección local, 2026-11-16
+
+La lectura de metadatos/logs de Actions fue read-only. El run `43796843606`,
+intento 1, terminó con `Require main ref` y `FG2 Production Control Preflight`
+exitosos; `1. Massive Harvesting` falló en `Run Master Orchestrator (Harvesting
+Only)` y las etapas 1.5, 2, CA1 y 3 quedaron omitidas. El job hizo checkout de
+`main@796f9b81532bc1cadd3a502fe32a0c931712e03b`. El prefijo `15dbd9…` que
+aparece en la línea de `Commit` del runner identifica el provisionador de la
+imagen, no el SHA del código del repositorio. El log disponible conserva el
+error sanitizado `Approved FG2 lot scope drifted before harvester launch:
+RuntimeError`, pero no el status/body HTTP ni las longitudes de las URLs.
+
+Un checkpoint local anterior consignó GET de `staging_raw` de ~2.977
+caracteres/HTTP 200 y GET de `courses` de ~44.105 caracteres/HTTP 400. Esos
+detalles no aparecen en el log de Actions recuperado durante esta revisión; se
+conservan como observación previa no corroborada por el artefacto actual. El
+body no está disponible y la causa exacta del fallo sigue sin demostrarse. La
+lectura Pro posterior fue read-only y no encontró filas del lote en
+`staging_raw`, `cleansed_programs`, `enriched_programs` ni `courses`; no se
+atribuyeron efectos de writer a #258.
+
+La ruta de código del preflight en `main` es: `.github/workflows/production_pipeline.yml`
+transmite el manifest, referencia y SHA del lote aprobado y, para
+`workflow_dispatch` acotado, invoca `scripts/core/master_orchestrator.py
+--controlled-first-run`; este carga y valida los bindings del lote, selecciona
+instituciones y llama `verify_approved_lot_scope()` en
+`scripts/core/fg2_bounded_run.py` antes de lanzar el harvester. La verificación
+lee aliases en `staging_raw`, `courses`, `cleansed_programs` y
+`enriched_programs`, y comprueba luego las relaciones por ID. En #258 Actions
+prueba el checkout `main@796f9b81532bc1cadd3a502fe32a0c931712e03b`, el main
+guard y el control de Production; no prueba cuál URI causó el HTTP 400. El URI
+de `courses` de ~44.105 caracteres/400 solo consta en la anotación histórica de
+logs Pro, sin body disponible. Su motivo permanece indeterminado; no se
+atribuye a timeout ni a un límite concreto del servidor.
+
+En el clon candidato aislado, rama local
+`feat/h1req1-fg2-course-filter-batching-20261116`, basado en
+`desarrollo@04edcce48fdf8f213324a7ae6a75dfe59719c76b`,
+el preflight divide los aliases de `staging_raw`, `courses`,
+`cleansed_programs` y `enriched_programs` según la longitud del URL completo
+que construye `DatabaseClient`, agrega resultados por ID y detecta conflictos o
+ambigüedad entre lotes. La cota local es 8.000 caracteres e incluye endpoint,
+tabla, columnas, filtro, orden y límite; no es un límite publicado o garantizado
+por el servidor. Un alias individual que no quepa falla cerrado. Las lecturas
+por IDs siguen siendo consultas únicas. Los SELECT que lanzan errores HTTP
+conservan tabla/código de estado en un `DatabaseAPIError` sanitizado, y el
+orquestador separa fallo de lectura, desajuste de snapshot y otro fallo de
+verificación sin imprimir body/query. Los reintentos de conexión/timeout
+registran solo el tipo de excepción: no imprimen URL, filtros ni mensaje de
+transporte. No cambió el esquema DB, la cohorte, los flags ni los writers.
+
+Docker pasó las suites sintéticas `test_fg2_bounded_orchestration.py` y
+`test_supabase_credentials_contract.py`: **117 passed**, una advertencia de
+deprecación PyPDF2, en Docker con red deshabilitada y checkout read-only. La
+regresión compara el filtro compacto con el patrón de referencia, cubre lotes
+válidos de URLs largas, el rechazo del manifiesto 10×2.048 por tamaño y un path
+de 1.010 segmentos. No hubo consultas Supabase ni tráfico institucional.
+`git diff --check` pasó. `bash scripts/security/scan_credentials.sh
+--tree` pasó con los objetos alternos montados en solo lectura. El gate
+documental candidate-aware pasó con
+`.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json`: 769/769
+fuentes asignadas, 122/122 documentos activos y 433/433 históricos catalogados.
+La comparación documental comparable se ejecutó en Docker sin red contra el
+commit base exacto `04edcce48fdf8f213324a7ae6a75dfe59719c76b`, con el mismo
+checker e inventario;
+gate integral/estándar falló en ambos con las mismas 201 filas `DOC_GATE_FAIL`,
+0 exclusivas del candidato y 0 resueltas. El gate acotado con el manifiesto
+local pasó con 769/769 fuentes asignadas y 7 fuentes WIP candidate-only dentro
+del scope; su `--self-test` reportó `DOC_SELF_TEST_PASS`. Una corrida anterior
+con inventario no comparable contó 323 fuentes
+WIP candidate-only; no se usa para evaluar este delta. Se conserva el FAIL
+integral/estándar como heredado del baseline comparable; el PASS acotado no lo
+sustituye y el gate integral no se declara PASS.
+
+El diff scan Codex Security anterior `80e2acf9-ce8e-410c-ba6e-7eac9f3bce34`
+queda como evidencia histórica del snapshot
+`codex-security-snapshot/v1:sha256:e403a36512d46336537dad843fd743c8cb98b08169a851f0a9a3ac96c9ebec9e`:
+0 hallazgos reportables en las superficies revisadas y cobertura parcial, con
+los diferidos `run-258-cause` y `preflight-read-volume`. No cubre el compactador
+de paths, el trie iterativo ni sus regresiones.
+
+El diff scan Codex Security `d564cb0f-45be-43b3-abf5-14f36377f9d7` se selló el
+2026-11-16 para el snapshot exacto
+`codex-security-snapshot/v1:sha256:c1026e728fe2a74594af83ac56707fed166e5e8650bcb182779e06037dce5c6a`,
+con 0 hallazgos y cobertura completa del diff local revisado: cinco entradas de
+inventario, más ambas suites modificadas y los documentos/evidencias cambiados.
+No quedaron candidatos que requirieran validación o análisis de attack path.
+La revisión fue estática, no consultó servicios remotos y no acredita aceptación
+PostgREST ni ejecución funcional en Pro. La excepción de conexión sigue
+propagándose sin transformar; el retry y el caller de preflight acotado no
+imprimen su mensaje, pero no se afirma sanitización global para todos los
+consumidores de `DatabaseClient`. Después de sellar este snapshot se corrigió en
+el JSON canónico y en su Markdown generado la cifra de 114 a 117 pruebas. La
+corrección y la comparación de gates son cambios documentales; no alteran el
+código revisado ni amplían la cobertura de este scan.
+
+Estas validaciones no acreditan una corrida FG2, tráfico institucional ni
+aceptación Pro. El candidato sigue sin publicar ni integrar. La pausa
+`PRODUCTION_WRITERS_PAUSED=true` y `AUTOMATION_ENABLED=false` se dejó intacta;
+no hubo rerun, dispatch, Pro write, push, PR, merge o deploy.
+
+La observación anterior de «10 URLs de 2.048 caracteres, lote válido, 59 GET»
+era incorrecta: el manifiesto excede `APPROVED_LOT_MAX_BYTES` (40 KiB) y el
+validador lo rechaza. Con seis URLs válidas de 2.048 caracteres y paths
+alfanuméricos de alta entropía, la verificación sintética hace 8 GET por alias
+(2 por tabla); el URL completo más largo mide 6.754 caracteres. En un barrido
+determinista de 1–10 URLs, usando para cada cantidad la longitud máxima que
+aceptó el constructor del manifiesto hasta 2.048 caracteres, el mayor conteo
+observado fue 9 GET por alias: 7 URLs de 1.776 caracteres, 2 para
+`staging_raw`, 3 para `courses`, 2 para `cleansed_programs` y 2 para
+`enriched_programs`. Ese fixture no tenía IDs staging/cleansed aprobados y
+generó 0 lecturas adicionales por ID. El URL más largo de ese barrido midió
+7.993 caracteres.
+
+Una segunda medición usó un manifiesto válido de 40.550 bytes (máximo 40 KiB),
+con 3 URLs de 2.048 caracteres y una fila previa por URL en cada una de las
+cuatro tablas. La fixture hizo 4 GET por alias (1 por tabla), 2 GET por ID
+(`cleansed_programs` por `staging_id`, `enriched_programs` por `cleansed_id`) y
+6 GET de snapshots en total; no hizo escrituras. El URL más largo por alias
+midió 2.720 caracteres. Es un resultado de fixture sintético, no un máximo de
+forma, volumen o latencia para todos los lotes válidos ni una observación de
+Pro. La regresión también cubre el rechazo del manifiesto inválido de diez
+URLs de 2.048 caracteres y un path de 1.010 segmentos que antes desbordaba la
+recursión de Python.
+
+El alcance del cambio queda limitado al preflight de lotes aprobados, la
+clasificación sanitizada de sus fallos de lectura y sus contratos sintéticos;
+no cambia la selección de cohorte, writers, schema, flags ni workflows. La
+compatibilidad conserva los snapshots actuales y `DatabaseAPIError` hereda de
+`RuntimeError`; la contracción/deploy no se declara hasta aceptación del runtime
+protegido. La reversión es retirar el delta local del branch por Git si falla
+revisión/validación; no requiere ni ejecuta rollback SQL.
+
+La agrupación reduce la fragmentación para esos casos, pero aún no existe un
+presupuesto aceptado de GET/latencia por corrida. Antes de cualquier rerun
+remoto se debe acordar ese presupuesto y comprobar el comportamiento con
+PostgREST de destino; el techo local de 8.000 caracteres incluye el URL completo
+con endpoint, columnas, filtro, orden y límite, pero no es una garantía del
+servidor ni limita el número total de GET. No se fijará un umbral operativo por
+inferencia.
+
+La transición documentada es `expand -> compatibilidad -> deploy -> contract`:
+expand incorpora los SELECT por aliases acotados, el filtro regex compacto y
+iterativo y el error tipado; compatibilidad conserva las filas encontradas y la
+herencia `RuntimeError`; deploy requiere la ruta protegida vigente; contract se
+declara solo tras evidencia funcional de la nueva lectura estable. La revisión
+final de seguridad se fijará sobre el diff de este cierre y se registrará en el
+changelog H1REQ1 existente, fuera del candidato; no se editará este árbol tras
+sellar esa huella. Ningún scan acredita una corrida remota ni requiere DDL.
+Deploy/contract no ocurrieron. Rollback local:
+revertir este delta de código si revisión o validación posterior falla; no hay
+rollback SQL. Antes de E9 se requiere completar
+la ruta protegida hasta un SHA integrado en `main`, revisar el diff final y
+elaborar un manifiesto nuevo ligado a ese SHA; no se reutiliza el manifiesto de
+#258. También se necesita una lectura Pro fresca de solo lectura que confirme
+rotación, cohorte, IDs, estados y hashes. Un fallo HTTP posterior debe conservar
+una clasificación segura suficiente para diagnosticarlo. El guard de Producción
+sigue exigiendo `refs/heads/main`. E9 sigue **NO-GO** hasta cerrar esas
+comprobaciones y obtener JIT humano exacto para el dispatch y cualquier efecto
+de writer/Production que aplique.
+
 ### H1REQ1 — candidato local H2/FG2 con límite histórico fijo, 2026-11-13 22:34 America/Lima
 
 En el checkout aislado `/tmp/h1req1-h2-gate-sitemap-budget-20261113`, el árbol

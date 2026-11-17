@@ -113,6 +113,7 @@ expected_h1_paths = {
     "scripts/core/fg2_bounded_run.py",
     "scripts/core/master_orchestrator.py",
     "scripts/core/sync_vector_worker.py",
+    "scripts/shared/db_client.py",
     "tests/test_fg2_bounded_orchestration.py",
     "tests/test_fg2_bounded_run.py",
     "tests/test_fg2_bounded_workers.py",
@@ -660,6 +661,7 @@ h1_paths = (
     "scripts/core/fg2_bounded_run.py",
     "scripts/core/master_orchestrator.py",
     "scripts/core/sync_vector_worker.py",
+    "scripts/shared/db_client.py",
     "tests/test_fg2_bounded_orchestration.py",
     "tests/test_fg2_bounded_run.py",
     "tests/test_fg2_bounded_workers.py",
@@ -780,7 +782,7 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     if result.returncode == 0:
         raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=12|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=13|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'
