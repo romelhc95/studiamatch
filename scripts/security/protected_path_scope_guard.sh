@@ -125,6 +125,7 @@ scripts/core/enrichment_worker.py
 scripts/core/fg2_bounded_run.py
 scripts/core/master_orchestrator.py
 scripts/core/sync_vector_worker.py
+scripts/shared/db_client.py
 tests/test_fg2_bounded_orchestration.py
 tests/test_fg2_bounded_run.py
 tests/test_fg2_bounded_workers.py
