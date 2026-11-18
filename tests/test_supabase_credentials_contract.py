@@ -10,7 +10,11 @@ import pytest
 
 from scripts.shared import db_client as db_client_module
 from scripts.maintenance import migrate_data_to_pro as migration_module
-from scripts.shared.db_client import DatabaseAPIError, DatabaseClient
+from scripts.shared.db_client import (
+    DatabaseAPIError,
+    DatabaseClient,
+    DatabaseWriteOutcomeUnknown,
+)
 from scripts.shared.supabase_credentials import (
     SupabaseCredentialError,
     build_supabase_headers,
@@ -1283,3 +1287,60 @@ def test_credential_scanners_block_real_supabase_publishable_keys():
     assert "OPENCODE_API_KEY" in scanner
     assert "scripts/security/scan_credentials.sh --tree" in workflow
     assert "scripts/security/scan_credentials.sh --diff" in workflow
+
+
+def test_atomic_fg3_rpc_uses_service_identity_and_one_http_attempt(monkeypatch):
+    client = DatabaseClient("https://explicit.supabase.co", "sb_secret_explicit")
+    response = Mock(status_code=200)
+    response.json.return_value = [{"outcome": "stale"}]
+    post = Mock(return_value=response)
+    monkeypatch.setattr(db_client_module.requests, "post", post)
+
+    result = client.rpc_once_raise(
+        "fg3_apply_public_course_transition",
+        {"p_course_id": "course-1", "p_action": "start_404_grace"},
+    )
+
+    assert result == [{"outcome": "stale"}]
+    post.assert_called_once_with(
+        "https://explicit.supabase.co/rest/v1/rpc/fg3_apply_public_course_transition",
+        headers={
+            "apikey": "sb_secret_explicit",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        },
+        json={"p_course_id": "course-1", "p_action": "start_404_grace"},
+        timeout=30,
+        allow_redirects=False,
+    )
+
+
+def test_atomic_fg3_rpc_does_not_retry_unknown_or_ambiguous_writes(monkeypatch):
+    client = DatabaseClient("https://explicit.supabase.co", "sb_secret_explicit")
+    post = Mock(side_effect=db_client_module.requests.Timeout("local synthetic timeout"))
+    monkeypatch.setattr(db_client_module.requests, "post", post)
+
+    with pytest.raises(DatabaseWriteOutcomeUnknown, match="no retry was made"):
+        client.rpc_once_raise("fg3_apply_public_course_transition", {"p_course_id": "course-1"})
+    post.assert_called_once()
+
+    response = Mock(status_code=503)
+    post = Mock(return_value=response)
+    monkeypatch.setattr(db_client_module.requests, "post", post)
+    with pytest.raises(DatabaseWriteOutcomeUnknown, match="HTTP 503; no retry was made"):
+        client.rpc_once_raise("fg3_apply_public_course_transition", {"p_course_id": "course-1"})
+    post.assert_called_once()
+
+    response = Mock(status_code=302)
+    post = Mock(return_value=response)
+    monkeypatch.setattr(db_client_module.requests, "post", post)
+    with pytest.raises(DatabaseWriteOutcomeUnknown, match="HTTP 302; no retry was made"):
+        client.rpc_once_raise("fg3_apply_public_course_transition", {"p_course_id": "course-1"})
+    post.assert_called_once()
+
+    response = Mock(status_code=202)
+    post = Mock(return_value=response)
+    monkeypatch.setattr(db_client_module.requests, "post", post)
+    with pytest.raises(DatabaseWriteOutcomeUnknown, match="HTTP 202; no retry was made"):
+        client.rpc_once_raise("fg3_apply_public_course_transition", {"p_course_id": "course-1"})
+    post.assert_called_once()

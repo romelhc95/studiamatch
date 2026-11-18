@@ -343,6 +343,143 @@ El registro previo de comparación integral FG3 se corrige como
 resultado pertenece a la comparación documental registrada en el changelog;
 no es PASS integral ni resultado del checkout FG2 actual.
 
+#### Delta FG3 desde main — candidato local 2026-11-15
+
+El checkout aislado `/tmp/h1req1-fg3-development-04edcce` parte de
+`desarrollo@04edcce48fdf8f213324a7ae6a75dfe59719c76b`; la referencia de
+main `/tmp/h1req1-fg3-main-796f9b8.tjnPrR` conserva
+`796f9b81532bc1cadd3a502fe32a0c931712e03b`. El blob de partida de
+`integrity_ping.py` coincide entre ambas refs. El cambio local selecciona y
+mide calidad con `courses_public_effective`, limita la lectura de
+`last_404_at` a los IDs seleccionados, omite antes del request una fila base
+que ya difiera y reconsulta la vista antes de cada PATCH. El PATCH condicional
+compara ID, `institution_id`, URL, activo, verificado y el `last_404_at`
+observado; permite mutar solo `last_404_at` o `is_active`.
+
+Docker Desktop, imagen
+`studiamatch-h3req1:sync-a57bc415-rebuilt-20261018`
+(`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`),
+`--network none`, candidato montado read-only: las cinco suites focales dieron
+**163 passed, 1 warning de deprecación PyPDF2**. Incluyen selección pública,
+lectura base limitada a IDs, retiro visible antes de PATCH con cero writes,
+deriva concurrente de `last_404_at` con CAS NO-OP, preservación de nombre,
+syllabus, objectives y fecha, gracia 404/410, transitorios y no expiración por
+fecha; además cubren DB client, recorrido local, Canary y límites main. No se
+contactaron fuentes ni Supabase.
+
+El credential scan del árbol y `git diff --check` pasan. El checker documental
+reporta `DOC_SELF_TEST_PASS`, 769/769 fuentes asignadas, 122/122 documentos
+activos y 433/433 históricos enlazados. El gate integral sigue **FAIL con 348
+diagnósticos** (los primeros 200 y “148 more”; exit 1); este ciclo no volvió a
+comparar las listas completas. El registro anterior conserva FAIL 348→348 y su
+lista idéntica para aquella huella; no se declara PASS integral para este delta.
+
+En ese candidato quedaba abierto para cualquier corrida el riesgo de que la
+vista dependiera de `institution_site_profiles.production_enabled` y exclusión canary,
+`course_editorial_state.editorial_status` y la cohorte/availability legacy.
+La relectura reduce la ventana pero el PATCH directo a `courses` no puede
+volver a comprobar atómicamente esas relaciones. Si cambian entre la última
+lectura de la vista y el PATCH, aún puede escribirse sobre una fila que dejó de
+ser elegible pública. Para cerrar esa carrera se necesita una operación DB
+atómica/RPC. El siguiente delta local aborda ese riesgo; el caller no se publicó,
+la migration no está instalada en Pro y no hay autorización de corrida FG3.
+
+#### FG3 atómico — delta local desde Desarrollo, 2026-11-15
+
+Este bloque conserva la evidencia del candidato previo; el árbol reconciliado
+del 18/11 se documenta en la sección siguiente.
+
+El checkout aislado `/tmp/h1req1-fg3-atomic-20261115` parte de
+`desarrollo@04edcce48fdf8f213324a7ae6a75dfe59719c76b` y conserva como referencia
+intacta la huella `a3eff4daf22c792d74e39a1d78ea793c34769b734659457ad80cdcd7709aa089`.
+Añade una migration forward-only `fg3_apply_public_course_transition`: vuelve
+a comprobar `courses_public_effective` y el snapshot base en la misma
+transacción que escribe. Mantiene la selección pública, lectura de
+`last_404_at` solo por IDs seleccionados, SSRF/HTTPS/DNS fijado, gracia 404/410,
+errores transitorios sin desactivación y preservación editorial.
+
+Antes del ajuste de esquema se habían ejecutado cuatro suites focales Docker,
+`--network none`, imagen fijada
+`sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`:
+**119 passed, 1 warning** PyPDF2. Esa evidencia cubre exclusión de cursos no
+públicos, lectura base por IDs, NO-OP ante drift concurrente, detención del
+lote ante rechazo de escritura, una sola llamada ante timeout/HTTP 503,
+redirects deshabilitados, preservación editorial, gracia 404/410, transitorios
+y ausencia de caducidad por fecha; aplica al código Python sin cambios.
+
+El harness `tests/h1_fg3_atomic_public_transition_pg17.sh` pasó en PostgreSQL 17
+desechable, fijado por digest, sin red y con almacenamiento temporal. Confirmó
+replay idempotente de migration, ejecución por `service_role` y denegación a
+`anon`/`authenticated`; 404/410 y tres días de gracia; preservación del snapshot
+publicado; y retirada editorial concurrente. El RPC esperó el lock, devolvió
+`stale` tras el commit de `unpublish` y dejó cero cambios en `courses`.
+La revisión del fixture encontró que el esquema H2 contratado puede no tener la
+tabla base de cohorte. El harness reprodujo primero el error de relación ausente;
+la corrección dinámica/condicional pasó luego en ambos esquemas: pérdida
+concurrente devuelve `stale` sin escritura, y una fila estrictamente publicada
+inicia la gracia cuando H2 ya retiró la tabla. Después de la corrección se
+ejecutaron en Docker sin red las tres suites afectadas: **61 passed, 1 warning**
+PyPDF2. No hubo llamadas institucionales ni query/DDL/write de Supabase.
+
+Para la huella final, el checker acotado con el manifiesto local exacto terminó
+`DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`: 774/774 fuentes asignadas, 122/122
+documentos activos alcanzables y 433/433 históricos enlazados. El modo integral
+sin scope terminó **FAIL con 343 hallazgos** (200 impresos y 143 resumidos) en
+rutas candidate-only fuera de esta selección. El FAIL histórico `348→348` y sus
+listas idénticas pertenecen a la huella anterior y se conservan por separado;
+no se declara PASS integral para este candidato.
+
+La revisión de código de este ciclo fue local/estática; no se solicitó un Code
+Reviewer ni un scan gestionado y no se declara `scanId` o PASS remoto. La
+migration no se aplicó a Pro. Antes de FG3 funcional se requiere revisar el
+paquete exacto, publicación/promoción protegida autorizada y JIT DDL de Pro antes
+de promover el caller a `main`; luego hacen falta preflight y corrida funcional
+autorizados. E10 continúa cerrado.
+
+#### FG3 reconciliado sobre Desarrollo vigente — 2026-11-18
+
+Los resultados 119/61 y los gates 774 fuentes, 343 hallazgos integrales y
+`348→348` inmediatamente anteriores describen el árbol del candidato previo,
+no esta reconciliación. El checkout aislado
+`/tmp/h1req1-fg3-reconciled-20261118` parte de
+`desarrollo@9435bdfd5121e804ef5bfe361cc94db6f5481c6b`, cuyo árbol es
+`12087f431ccdc6c3c89d20e784c0170cd1b81067`, igual a
+`main@0037f11d0b058158b244d1bb2e1d8a487e2f62c5`. El candidato previo
+`/tmp/h1req1-fg3-atomic-20261115` y su rama se preservan.
+
+La reconciliación resolvió cuatro conflictos documentales. `integrity_ping.py`
+y la migration conservan sus hashes del paquete previo. `db_client.py` y su
+contrato de credenciales incorporan la RPC de una sola llamada sobre la base
+vigente, preservando el cambio FG2 de lecturas alias por lotes y validación de
+snapshots.
+
+Antes del ajuste 3xx de abajo, cuatro suites focales de este árbol reconciliado
+terminaron en Docker `--network none` con **122 passed, 1 warning** PyPDF2:
+retirada FG3, credenciales, contrato de transición atómica y recorrido local
+del pipeline. La revisión encontró que un HTTP 3xx al RPC ya paraba el lote y
+no se reintentaba, pero se clasificaba como rechazo. Se añadió una regresión y
+se ajustó a `DatabaseWriteOutcomeUnknown`; después, las tres suites afectadas
+de credenciales, transición atómica y retiro FG3 dieron **63 passed, 1 warning**
+PyPDF2. El harness PG17 desechable también pasó: replay de migration, ACL,
+gracia 404/410, compatibilidad con H2 contraído y pérdida concurrente de
+elegibilidad con resultado `stale` y cero escritura en `courses`. Son fixtures
+locales; no hubo contacto con instituciones, DDL ni escrituras en Pro.
+
+La lectura Pro de solo lectura del 18/11 encontró las columnas y vistas
+requeridas, los roles `anon`, `authenticated` y `service_role`, y ausencia de
+`public.fg3_apply_public_course_transition(uuid,uuid,text,timestamptz,integer,text)`.
+La migration sigue siendo una propuesta aditiva local; no acredita instalación
+ni autoriza FG3.
+
+Tras actualizar y regenerar el registro, el gate documental acotado vuelve a
+terminar `DOC_SELF_TEST_PASS` y `DOC_GATE_PASS`: 774/774 fuentes asignadas,
+122/122 documentos activos alcanzables y 433/433 históricos enlazados. El gate
+estándar permanece **FAIL con 348 diagnósticos** contra la base de Desarrollo
+(árbol `12087f431ccdc6c3c89d20e784c0170cd1b81067`): comparación completa del
+mismo checker en copias Docker desechables, sin y con el candidato, encontró
+348/348, cero nuevos y cero resueltos. El comprobador normal imprime 200 y
+resume los 148 restantes. No se declara PASS integral.
+
 ## Canary contract suites
 
 | Suite | Contrato/código inspeccionado | Datos/consumidor | Evidencia y límite |

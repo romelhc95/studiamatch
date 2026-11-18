@@ -29,6 +29,10 @@ class DatabaseAPIError(RuntimeError):
         self.status_code = status_code
 
 
+class DatabaseWriteOutcomeUnknown(DatabaseAPIError):
+    """A single-attempt write may have committed but its result was lost."""
+
+
 def _request_with_retry(method, url, **kwargs):
     """
     Executes an HTTP request with exponential backoff retry for DNS/connection errors.
@@ -597,6 +601,43 @@ class DatabaseClient:
         err_msg = f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {(res.text or '')[:200]}"
         print(err_msg)
         raise RuntimeError(err_msg)
+
+    def rpc_once_raise(self, function_name, params=None):
+        """Call one write RPC exactly once; never retry an ambiguous transaction."""
+        url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "return=representation"
+        try:
+            res = requests.post(
+                url,
+                headers=headers,
+                json=params or {},
+                timeout=30,
+                allow_redirects=False,
+            )
+        except requests.RequestException as exc:
+            raise DatabaseWriteOutcomeUnknown(
+                f"DB write RPC {function_name} transport outcome is unknown; no retry was made"
+            ) from exc
+
+        if res.status_code in (200, 201):
+            try:
+                return res.json()
+            except ValueError as exc:
+                raise DatabaseWriteOutcomeUnknown(
+                    f"DB write RPC {function_name} returned an unreadable result; no retry was made"
+                ) from exc
+        if 300 <= res.status_code < 400:
+            raise DatabaseWriteOutcomeUnknown(
+                f"DB write RPC {function_name} HTTP {res.status_code}; no retry was made"
+            )
+        if res.status_code == 204 or res.status_code >= 500 or 200 <= res.status_code < 300:
+            raise DatabaseWriteOutcomeUnknown(
+                f"DB write RPC {function_name} HTTP {res.status_code}; no retry was made"
+            )
+        raise DatabaseAPIError(
+            f"DB write RPC {function_name} rejected with HTTP {res.status_code}"
+        )
 
 def get_db_client():
     return DatabaseClient()

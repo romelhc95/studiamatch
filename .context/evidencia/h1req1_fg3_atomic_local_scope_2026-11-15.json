@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "manifest_role": "FG3 atomic-transition local candidate documentation scope; not a PR allowlist, production evidence, or execution authority",
+  "scope": {
+    "entries": [
+      { "path": ".context/componentes/database_migrations.md", "status": "included" },
+      { "path": ".context/componentes/datos_pipeline.md", "status": "included" },
+      { "path": ".context/componentes/pipeline.md", "status": "included" },
+      { "path": ".context/componentes/pruebas_evidencia.md", "status": "included" },
+      { "path": ".context/componentes/utilidades_compartidas.md", "status": "included" },
+      { "path": ".context/database.md", "status": "included" },
+      { "path": ".context/estado_del_proyecto.md", "status": "included" },
+      { "path": ".context/trazabilidad/registro_fuentes_componentes.json", "status": "included" },
+      { "path": ".context/trazabilidad/registro_fuentes_componentes.md", "status": "included" },
+      { "path": "db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql", "status": "included" },
+      { "path": "scripts/core/integrity_ping.py", "status": "included" },
+      { "path": "scripts/shared/db_client.py", "status": "included" },
+      { "path": "tests/h1_fg3_atomic_public_transition_pg17.sh", "status": "included" },
+      { "path": "tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql", "status": "included" },
+      { "path": "tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql", "status": "included" },
+      { "path": "tests/test_fg3_atomic_transition_contract.py", "status": "included" },
+      { "path": "tests/test_integrity_ping_retirement_contract.py", "status": "included" },
+      { "path": "tests/test_supabase_credentials_contract.py", "status": "included" },
+      { "path": ".context/evidencia/h1req1_fg3_atomic_local_scope_2026-11-15.json", "status": "included" }
+    ]
+  },
+  "package_artifacts": {},
+  "manifest_id": "h1req1-fg3-atomic-local-scope-2026-11-15"
+}

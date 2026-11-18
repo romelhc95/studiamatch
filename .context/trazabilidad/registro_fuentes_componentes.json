@@ -127,10 +127,10 @@
     },
     "integration_projection": {
       "name": "bootstrap inicial del primer Admin — candidato local 2026-11-05",
-      "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap, el path existente del scope guard reclasificado como candidate-only por su cambio y cinco fuentes nuevas exactas del candidato local FG2 H1: scripts/core/fg2_bounded_run.py y sus cuatro pruebas. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.",
-      "candidate_only_path_count_at_cut": 323,
-      "note": "Recuento recalculado en el candidato local H1: 769 fuentes, 323 candidate-only (318 del corte previo más cinco fuentes FG2 nuevas exactas), dejando 446 fuentes en la proyección. El resultado integral permanece separado del resultado acotado y se compara contra la lista completa del baseline limpio.",
-      "refresh": "Este corte local suma únicamente las cinco fuentes FG2 nuevas declaradas; si cambia el scope, recalcular listas y revisar asignaciones antes de congelar el candidato.",
+      "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap, el path existente del scope guard reclasificado como candidate-only por su cambio y cinco fuentes nuevas exactas del candidato local FG2 H1: scripts/core/fg2_bounded_run.py y sus cuatro pruebas. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.; isolated FG3 atomic follow-up adds exactly five new paths: one migration and four PG17/static test paths. Reconciliación 2026-11-18: base desarrollo 9435bdfd5121e804ef5bfe361cc94db6f5481c6b (tree 12087f431ccdc6c3c89d20e784c0170cd1b81067), igual a main 0037f11d0b058158b244d1bb2e1d8a487e2f62c5; cinco paths FG3 nuevos sobre esa base. Los conteos anteriores 328/774/446 siguen siendo el corte histórico 2026-11-15.",
+      "candidate_only_path_count_at_cut": 328,
+      "note": "Recount for this local candidate: 774 source paths, 328 candidate-only (323 from prior cut plus five exact FG3 atomic paths), leaving 446 paths in the relevant-source projection. Integral result remains separate. Los conteos 328/774/446 son históricos del corte 2026-11-15 y no se presentan como un gate integral recalculado para la base actual; para la reconciliación 2026-11-18 el delta de fuentes nuevo es de cinco paths FG3.",
+      "refresh": "This local cut adds only the five listed FG3 atomic paths; if scope changes, recalculate the source list and assignments before freezing. El candidato reconciliado 2026-11-18 agrega cinco paths FG3 sobre desarrollo@9435bdf; conservar por separado la comparación integral vigente.",
       "projected_relevant_source_paths_at_cut": 446
     }
   },
@@ -10413,7 +10413,7 @@
       ],
       "contracts": {
         "state": "verified",
-        "note": "master_orchestrator decide gates/rotación y subprocesos; para el modo acotado exige que las instituciones aprobadas sigan siendo el prefijo elegible actual. Dentro de cada perfil aprobado, el lote puede seleccionar un subconjunto ordenado, único, de mismo origen y dentro del máximo de URLs de los seeds configurados; el preflight vuelve a compararlo con el perfil antes del contacto. Valida snapshot/huellas antes de lanzar y rechaza Playwright antes del runner si la ruta lo necesita. fg2_bounded_run liga referencia/SHA, URLs/IDs/estados/downstream, presupuesto HTTP y manifest al run/attempt/SHA/IDs/hashes. Las lecturas URL-alias de staging_raw, courses, cleansed_programs y enriched_programs se particionan por longitud del URL completo con cota local conservadora de 8.000 caracteres, agregan IDs entre fragmentos y fallan cerrado ante alias sobredimensionado, conflicto o ambigüedad. El orquestador diferencia errores HTTP de lectura y drift de snapshot con etiquetas sanitizadas; un cuerpo HTTP no capturado no se atribuye a una causa. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1.",
+        "note": "master_orchestrator decide gates/rotación y subprocesos; para el modo acotado exige que las instituciones aprobadas sigan siendo el prefijo elegible actual. Dentro de cada perfil aprobado, el lote puede seleccionar un subconjunto ordenado, único, de mismo origen y dentro del máximo de URLs de los seeds configurados; el preflight vuelve a compararlo con el perfil antes del contacto. Valida snapshot/huellas antes de lanzar y rechaza Playwright antes del runner si la ruta lo necesita. fg2_bounded_run liga referencia/SHA, URLs/IDs/estados/downstream, presupuesto HTTP y manifest al run/attempt/SHA/IDs/hashes. Las lecturas URL-alias de staging_raw, courses, cleansed_programs y enriched_programs se particionan por longitud del URL completo con cota local conservadora de 8.000 caracteres, agregan IDs entre fragmentos y fallan cerrado ante alias sobredimensionado, conflicto o ambigüedad. El orquestador diferencia errores HTTP de lectura y drift de snapshot con etiquetas sanitizadas; un cuerpo HTTP no capturado no se atribuye a una causa. integrity_ping fija DNS/IP pública y limita PATCH por estado exacto con gracia 404/410. CA4 candidate conserva el límite semántico documentado en H1. En la reconciliación FG3 local, integrity_ping selecciona desde courses_public_effective, carga last_404_at solo para IDs ya seleccionados y usa fg3_apply_public_course_transition para revalidar elegibilidad y cambiar únicamente last_404_at o is_active en una transacción; stale no escribe.",
         "evidence": [
           "path:scripts/core/master_orchestrator.py",
           "path:scripts/core/fg2_bounded_run.py",
@@ -10442,7 +10442,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight, selección de seeds, drift, revalidación antes del primer PATCH, barrera Playwright, partición por URL completo de aliases en staging_raw, courses, cleansed_programs y enriched_programs, agregación/detección de ambigüedad entre fragmentos, clasificación de error HTTP y rechazo cerrado de alias individual sobredimensionado; test_fg2_bounded_run.py cubre presupuesto/manifest; test_supabase_credentials_contract.py comprueba error SELECT sanitizado y que el retry de transporte no imprime URL/query ni mensaje de excepción. En Docker las dos suites focales pasaron 117 pruebas; la compilación sintáctica en memoria de tres módulos y credential scan pasaron. El detalle está en el checkpoint vigente del estado del proyecto. No es una corrida de instituciones ni ejecución remota; el error HTTP de run #258 no tiene body capturado y su causa queda sin demostrar.",
+        "note": "test_fg2_bounded_orchestration.py cubre rotación/preflight, selección de seeds, drift, revalidación antes del primer PATCH, barrera Playwright, partición por URL completo de aliases en staging_raw, courses, cleansed_programs y enriched_programs, agregación/detección de ambigüedad entre fragmentos, clasificación de error HTTP y rechazo cerrado de alias individual sobredimensionado; test_fg2_bounded_run.py cubre presupuesto/manifest; test_supabase_credentials_contract.py comprueba error SELECT sanitizado y que el retry de transporte no imprime URL/query ni mensaje de excepción. En Docker las dos suites focales pasaron 117 pruebas; la compilación sintáctica en memoria de tres módulos y credential scan pasaron. El detalle está en el checkpoint vigente del estado del proyecto. No es una corrida de instituciones ni ejecución remota; el error HTTP de run #258 no tiene body capturado y su causa queda sin demostrar. El contrato FG3 afectado se vuelve a validar en Docker sobre Development@9435bdf; el resultado reconciliado se registra en CHANGELOG-H1REQ1, sin atribuir esta evidencia a Pro.",
         "evidence": [
           "path:.context/evidencia/h3req1_editorial_contract_2026-10-28.md",
           "path:.context/evidencia/h3req1_g08_current_pytest_r160.log",
@@ -10454,7 +10454,9 @@
           "path:tests/test_fg2_bounded_run.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
           "path:tests/test_integrity_ping_retirement_contract.py",
-          "path:tests/test_supabase_credentials_contract.py"
+          "path:tests/test_supabase_credentials_contract.py",
+          "path:tests/test_fg3_atomic_transition_contract.py",
+          "path:tests/h1_fg3_atomic_public_transition_pg17.sh"
         ]
       },
       "operations": {
@@ -14022,7 +14024,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "DatabaseClient selecciona identidad por flags/config, construye query y serializa RPC con json=. _request_with_retry limita retry a conexión/timeout y los logs exponen solo el tipo de excepción, sin URL/query ni texto de error; select_all pagina; get_db_client crea una instancia por llamada. Los SELECT con raise_on_error entregan DatabaseAPIError con table/status_code para una respuesta HTTP inesperada; el mensaje no expone body ni query y los SELECT que no lanzan mantienen su contrato.",
+        "note": "DatabaseClient selecciona identidad por flags/config, construye query y serializa RPC con json=. _request_with_retry limita retry a conexión/timeout y los logs exponen solo el tipo de excepción, sin URL/query ni texto de error; select_all pagina; get_db_client crea una instancia por llamada. Los SELECT con raise_on_error entregan DatabaseAPIError con table/status_code para una respuesta HTTP inesperada; el mensaje no expone body ni query y los SELECT que no lanzan mantienen su contrato. El candidato FG3 añade rpc_once_raise: POST único, sin redirects ni retry; un resultado ambiguo se representa como DatabaseWriteOutcomeUnknown y detiene el lote.",
         "evidence": [
           "path:scripts/shared/db_client.py",
           "path:.context/componentes/utilidades_compartidas.md"
@@ -14051,7 +14053,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Credential contract cubre headers, identidad, paginación, errores y usos de migración; R159/R174 son resultados históricos sin SHA de input en sus logs. El delta local comprueba error SELECT HTTP 400 sanitizado y logging terminal de retry sin URL/query/texto; en Docker la suite focal del contrato pasó junto con la regresión FG2 (117 pruebas combinadas), como registra el checkpoint vigente. El R161 runner PG17 llama DatabaseClient pero su log no contiene SHA del runner; no se afirma adopción Cloud.",
+        "note": "Credential contract cubre headers, identidad, paginación, errores y usos de migración; R159/R174 son resultados históricos sin SHA de input en sus logs. El delta local comprueba error SELECT HTTP 400 sanitizado y logging terminal de retry sin URL/query/texto; en Docker la suite focal del contrato pasó junto con la regresión FG2 (117 pruebas combinadas), como registra el checkpoint vigente. El R161 runner PG17 llama DatabaseClient pero su log no contiene SHA del runner; no se afirma adopción Cloud. La suite focal reconciliada comprueba la RPC de un intento, apikey, manejo ambiguo y detención; resultado local final en CHANGELOG-H1REQ1.",
         "evidence": [
           "path:.context/estado_del_proyecto.md",
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
@@ -14059,7 +14061,10 @@
           "path:tests/h3req1_pipeline_postgrest_pg17_integration.py",
           "path:.context/evidencia/h3req1_g09_pipeline_postgrest_r161/run-r10.log",
           "path:.context/evidencia/h3req1_g08_credentials_contract_r159_focused.log",
-          "path:.context/evidencia/h3req1_g08_credential_history_scan_r174_2026-10-11.md"
+          "path:.context/evidencia/h3req1_g08_credential_history_scan_r174_2026-10-11.md",
+          "path:tests/test_integrity_ping_retirement_contract.py",
+          "path:tests/test_fg3_atomic_transition_contract.py",
+          "path:tests/h1_fg3_atomic_public_transition_pg17.sh"
         ]
       },
       "operations": {
@@ -21014,6 +21019,150 @@
         "evidence": [
           "path:db/migrations/20261105_h3_first_admin_auth_bootstrap.sql",
           "path:.context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md"
+        ]
+      }
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261115234509-h1-fg3-atomic-public-transition",
+      "purpose": "H1 FG3 forward-only RPC that rechecks public eligibility and changes one allowed course field atomically.",
+      "paths": [
+        "db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "migration-20261115234509-h1-fg3-atomic-public-transition"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "SECURITY DEFINER function with empty search_path and fully qualified objects; EXECUTE is revoked from PUBLIC/anon/authenticated/service_role then granted only to service_role. It locks eligibility rows, rechecks courses_public_effective and the observed course snapshot, and changes only last_404_at or is_active.",
+        "evidence": [
+          "path:db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql",
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql",
+          "path:db/migrations/20261102_h3_legacy_public_withdrawal_guard.sql"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "scripts/core/integrity_ping.py calls the RPC once after a public URL observation; the direct database client does not follow redirects or retry an ambiguous write.",
+        "evidence": [
+          "path:scripts/core/integrity_ping.py",
+          "path:scripts/shared/db_client.py"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Creating the function changes schema only. Invocation may update only the selected courses.last_404_at or courses.is_active field; it preserves editorial state, snapshots, profile values and pipeline history.",
+        "evidence": [
+          "path:db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql",
+          "path:db/migrations/20261028_h3_editorial_publication_snapshot.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Reconciled on Development@9435bdf; four offline Docker suites passed 122 tests with one PyPDF2 warning, and the PG17 atomic-transition harness passed. The historical 61-test result belongs to the prior tree. No Pro DDL or FG3 run.",
+        "evidence": [
+          "path:tests/h1_fg3_atomic_public_transition_pg17.sh",
+          "path:tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql",
+          "path:tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql",
+          "path:tests/test_fg3_atomic_transition_contract.py"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Local candidate only. A read-only Pro schema check confirmed required relations/columns/roles and that the function is absent; no DDL, advisor or writer was used. Pro application needs exact DDL JIT before caller promotion to main; E10 remains closed.",
+        "evidence": [
+          "path:db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Local H1 FG3 candidate derived from the preserved a3eff4da selection/CAS candidate and the owner-approved atomic-transition proposal; no remote schema adoption is claimed.",
+        "evidence": [
+          "path:db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql",
+          "path:.context/componentes/pipeline.md"
+        ]
+      }
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261115234509-h1-fg3-atomic-public-transition-tests",
+      "purpose": "H1 FG3 atomic transition static contracts and isolated PostgreSQL 17 concurrency harness.",
+      "paths": [
+        "tests/h1_fg3_atomic_public_transition_pg17.sh",
+        "tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql",
+        "tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql",
+        "tests/test_fg3_atomic_transition_contract.py"
+      ],
+      "source_document": {
+        "path": ".context/componentes/pruebas_evidencia.md",
+        "anchor": "fg3-atomico-delta-local-desde-desarrollo-2026-11-15"
+      },
+      "candidate_only_paths": [
+        "tests/h1_fg3_atomic_public_transition_pg17.sh",
+        "tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql",
+        "tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql",
+        "tests/test_fg3_atomic_transition_contract.py"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Static and database fixtures prove the exact fields, ACL, grace and no-write stale behavior of the FG3 RPC; all course IDs and responses are synthetic.",
+        "evidence": [
+          "path:tests/test_fg3_atomic_transition_contract.py",
+          "path:db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "The shell runner applies the synthetic schema, prior effective view and candidate migration, then executes the SQL assertions and the concurrent eligibility-loss scenario.",
+        "evidence": [
+          "path:tests/h1_fg3_atomic_public_transition_pg17.sh",
+          "path:tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql",
+          "path:tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Fixtures are synthetic and disposable; the concurrent unpublish commits before the blocked RPC rechecks the effective view. The assertion verifies stale and unchanged courses row.",
+        "evidence": [
+          "path:tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql",
+          "path:tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "Reconciled on Development@9435bdf; four offline Docker suites passed 122 tests with one PyPDF2 warning, and the PG17 atomic-transition harness passed. The historical 61-test result belongs to the prior tree. No Pro DDL or FG3 run.",
+        "evidence": [
+          "path:tests/test_integrity_ping_retirement_contract.py",
+          "path:tests/test_supabase_credentials_contract.py",
+          "path:tests/test_fg3_atomic_transition_contract.py",
+          "path:tests/h1_fg3_atomic_public_transition_pg17.sh"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "Executed in disposable, digest-pinned PostgreSQL 17 and an offline Docker container; cleanup removes the container and temporary data. This does not authorize production run or DDL.",
+        "evidence": [
+          "path:tests/h1_fg3_atomic_public_transition_pg17.sh",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Tests and runner were added to the isolated H1 FG3 candidate; this is local derivation, not proof of CI or deployment.",
+        "evidence": [
+          "path:tests/test_fg3_atomic_transition_contract.py",
+          "path:db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql"
         ]
       }
     }
