@@ -126,6 +126,12 @@ scripts/core/fg2_bounded_run.py
 scripts/core/master_orchestrator.py
 scripts/core/sync_vector_worker.py
 scripts/shared/db_client.py
+.context/evidencia/h1req1_fg3_atomic_local_scope_2026-11-15.json
+db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql
+tests/h1_fg3_atomic_public_transition_pg17.sh
+tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql
+tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql
+tests/test_fg3_atomic_transition_contract.py
 tests/test_fg2_bounded_orchestration.py
 tests/test_fg2_bounded_run.py
 tests/test_fg2_bounded_workers.py

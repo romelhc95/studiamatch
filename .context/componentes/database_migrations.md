@@ -390,6 +390,44 @@ regresión del filtrado se requiere una corrección forward-only revisada que
 restablezca la vista compatible, seguida de lectura pública controlada. No se
 reescribe la migration ya aplicada en Free.
 
+<a id="migration-20261115234509-h1-fg3-atomic-public-transition"></a>
+### Migration 20261115234509 — H1 FG3 atomic public transition
+
+`20261115234509_h1_fg3_atomic_public_transition.sql` añade la RPC
+`public.fg3_apply_public_course_transition` sin cambiar tablas, columnas,
+estados editoriales, membresías ni datos de cursos. Recibe la identidad y el
+snapshot base observados por FG3; bloquea perfil, fila editorial, membresía
+legacy y curso; vuelve a evaluar `courses_public_effective`; y devuelve `stale`
+sin escribir si cambió elegibilidad o snapshot. El lock de membresía resuelve
+dinámicamente la tabla H2 solo cuando existe: el contrato H2 puede retirarla y
+dejar la vista H3 vacía, mientras que en el esquema compatible esa vista usa la
+tabla H2 como base y filtra retiros por auditoría. El lock de `courses` también
+serializa inserts de esa auditoría mediante su FK. Solo actualiza
+`courses.last_404_at` o `courses.is_active`. La gracia 404/410 es de tres días
+completos comprobados por el reloj de la base; transitorios no son acciones
+válidas. Tiene `SECURITY DEFINER`, `search_path` vacío, relaciones calificadas,
+`EXECUTE` revocado a `PUBLIC`, `anon`, `authenticated` y `service_role`, y luego
+concedido solo a `service_role`.
+
+El runner `tests/h1_fg3_atomic_public_transition_pg17.sh` ejecuta la migration
+dos veces en PostgreSQL 17 efímero con `--network none`, junto con las
+definiciones H3 necesarias. El caso concurrente deja que `unpublish` gane la
+elegibilidad antes de que el RPC obtenga los locks: el RPC relee la vista,
+devuelve `stale` y no modifica el curso. Un segundo caso elimina la tabla base
+H2 como hace el contrato y verifica que una fila publicada estricta sigue
+procesándose con la vista H3 vacía. Esto acredita solo el fixture; no hubo
+query, DDL o advisor de Pro y la función no está instalada remotamente.
+
+Transición `expand → compatibilidad → deploy → contract`: el `expand` es
+aditivo; el caller anterior sigue compatible mientras el RPC no esté instalado,
+y writers/schedules permanecen cerrados durante el cambio. La promoción
+protegida integra la migration antes del caller en `main`; DDL por ambiente,
+especialmente Pro, requiere JIT separado. El `contract` se acredita tras una
+corrida FG3 autorizada y no elimina la función ni datos. Rollback: mantener FG3
+pausado/E10 cerrado y, si el caller ya se promovió, revertirlo por PR protegido
+antes de habilitar runs. Dejar la función aditiva sin uso; no modificar cursos,
+editoriales o estados operativos como rollback.
+
 ### first-admin-auth-bootstrap
 
 **Candidata local, migration 20261105:**
