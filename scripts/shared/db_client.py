@@ -23,6 +23,11 @@ DNS_RETRY_MAX = 3
 class DatabaseAPIError(RuntimeError):
     """Raised when the Data API returns an unexpected response."""
 
+    def __init__(self, message, *, table=None, status_code=None):
+        super().__init__(message)
+        self.table = table
+        self.status_code = status_code
+
 
 def _request_with_retry(method, url, **kwargs):
     """
@@ -42,7 +47,10 @@ def _request_with_retry(method, url, **kwargs):
                 print(f"DB_CLIENT_RETRY: Attempt {attempt}/{DNS_RETRY_MAX} failed ({type(e).__name__}). Retrying in {delay}s...")
                 time.sleep(delay)
             else:
-                print(f"DB_CLIENT_RETRY: All {DNS_RETRY_MAX} attempts failed for {url}. Last error: {e}")
+                print(
+                    f"DB_CLIENT_RETRY: All {DNS_RETRY_MAX} attempts failed "
+                    f"({type(e).__name__})."
+                )
     raise last_err
 
 # Try to load env files from the root of the project (3 levels up from this script: scripts/shared/db_client.py)
@@ -160,8 +168,10 @@ class DatabaseClient:
                 return data
             return data
         if raise_on_error:
-            raise RuntimeError(
-                f"DB select failed for {table}: HTTP {res.status_code}"
+            raise DatabaseAPIError(
+                f"DB select failed for {table}: HTTP {res.status_code}",
+                table=table,
+                status_code=res.status_code,
             )
         return []
 

@@ -223,17 +223,29 @@ deja en `staging_raw`, pues cleansing valida la fila almacenada. El digest del
 lote también vincula las URLs exactas de los snapshots de `staging_raw`,
 `courses` y filas downstream. Para no leer/paginar tablas completas, la
 revalidación agrupa
-por institución únicamente las URLs aprobadas y construye un filtro regex
-PostgREST anclado a su identidad normalizada. El patrón contempla scheme/host
+por institución únicamente las URLs aprobadas y construye filtros regex
+PostgREST anclados a su identidad normalizada. El patrón contempla scheme/host
 con mayúsculas, `/en/` antes de segmentos, el slash final y query/fragment que
-`normalize_url` elimina, manteniendo sensible a mayúsculas el path. Cada lectura
-usa `limit=URLs_del_grupo+1` (o `IDs_de_referencia+1`); más filas que URLs
-aprobadas detienen el lote y las duplicidades dentro del límite se detectan al
-comparar por identidad. Por institución se hacen como máximo seis lecturas
-metadata acotadas: cuatro relaciones por alias y hasta dos por `staging_id` /
-`cleansed_id`; con diez instituciones son hasta sesenta requests de base de
-datos y cada respuesta se limita a once filas. Un owner o estado/hash distinto
-detiene el lote antes del harvester. El harvester vuelve a leer las filas
+`normalize_url` elimina, manteniendo sensible a mayúsculas el path. Las lecturas
+por aliases de `staging_raw`, `courses`, `cleansed_programs` y
+`enriched_programs` se particionan cuando el URL completo que `DatabaseClient`
+enviaría supera el presupuesto local de 8.000 caracteres. La medición incluye
+endpoint/base URL, tabla, columnas, filtro, orden y límite. Este valor es una
+cota conservadora del candidato, no un límite garantizado por PostgREST. Si un
+alias individual excede la cota, el preflight falla cerrado. Para bajar el
+tamaño del filtro, los aliases se agrupan por origen y un trie factoriza
+prefijos/sufijos de path y comparte ramas solo cuando sus subárboles tienen la
+misma forma; la expresión permanece anclada y conserva la semántica de la
+referencia por alias. La construcción del trie es iterativa para tolerar URLs
+válidas cercanas al máximo de 2.048 caracteres y paths con muchos segmentos.
+Cada fragmento usa
+`limit=URLs_del_grupo+1`; sus filas se agregan por ID normalizado y cualquier
+ambigüedad o conflicto se detecta sobre el conjunto completo, incluso si las
+filas aparecen en fragmentos distintos. Las lecturas por
+`staging_id`/`cleansed_id` permanecen como consultas por IDs con
+`limit=IDs_de_referencia+1`. No se leen ni paginan tablas completas. Un owner o
+estado/hash distinto detiene el lote antes del harvester. El harvester vuelve a
+leer las filas
 aprobadas por ID, y la primera promoción conserva el URL exacto existente de
 staging; el hash de la entrada se calcula sobre ese mismo URL. Cuando un nuevo
 scope no tenía fila `staging_raw` al preflight, la comprobación después del
@@ -244,6 +256,17 @@ staging→cleansed→enriched, confirma que solo una fila de courses conserva es
 identidad y escribe sobre su URL exacta. Para `new_discovery`, un curso que
 aparezca con cualquier alias después del preflight detiene el writer. Estas
 lecturas son de metadatos y no reinician ni consumen las colas.
+
+En fixtures sintéticos válidos, un barrido de 1–10 URLs sin filas downstream
+observó como máximo 9 GET por alias en un lote de 7 URLs de 1.776 caracteres
+(2 `staging_raw`, 3 `courses`, 2 `cleansed_programs`, 2 `enriched_programs`);
+no tenía IDs aprobados y añadió 0 GET por ID. Otra fixture válida de 40.550
+bytes, con 3 URLs de 2.048 caracteres y una fila por URL en cada tabla, midió
+4 GET por alias más 2 GET por ID (`staging_id` y `cleansed_id`): 6 GET de
+snapshot, 0 escrituras. Son resultados medidos localmente, no máximos de todos
+los lotes ni observaciones de Pro. La cota local de 8.000 caracteres cubre el
+URL completo de cada alias GET; no limita el volumen total ni expresa un límite
+del servidor.
 
 Si la cuota suave de sitemaps se agota durante la extracción controlada,
 `_fetch_sitemap` devuelve los enlaces ya leídos y no inicia otra solicitud

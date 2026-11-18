@@ -225,6 +225,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/core/certification_canary_state.py": "supabase-data-api",
     "scripts/core/discovery_institutions.py": "supabase-data-api",
     "scripts/core/enrichment_worker.py": "supabase-data-api",
+    "scripts/core/fg2_bounded_run.py": "supabase-data-api",
     "scripts/core/integrity_ping.py": "supabase-data-api",
     "scripts/core/master_orchestrator.py": "supabase-data-api",
     "scripts/core/production_canary_manifest.py": "supabase-data-api",
@@ -602,6 +603,53 @@ def test_select_all_service_raises_safe_error_on_unexpected_status(
     assert len(urls) == 2
     assert "limit=2&offset=0" in urls[0]
     assert "limit=2&offset=2" in urls[1]
+
+
+def test_select_service_raise_preserves_safe_table_and_http_status(monkeypatch):
+    failed_response = Mock(status_code=400, text="sensitive-response-body")
+    failed_response.json.side_effect = AssertionError("unexpected response must not be parsed")
+    request = Mock(return_value=failed_response)
+    monkeypatch.setattr(db_client_module, "_request_with_retry", request)
+    client = DatabaseClient(
+        "https://explicit.supabase.co",
+        "sb_secret_explicit",
+    )
+
+    with pytest.raises(DatabaseAPIError) as exc_info:
+        client.select_service_raise(
+            "courses",
+            filters="url=match.private-course-alias",
+            columns="id,url",
+            limit=2,
+            order="id.asc",
+        )
+
+    assert exc_info.value.table == "courses"
+    assert exc_info.value.status_code == 400
+    assert "courses" in str(exc_info.value)
+    assert "400" in str(exc_info.value)
+    assert "private-course-alias" not in str(exc_info.value)
+    assert "sensitive-response-body" not in str(exc_info.value)
+
+
+def test_request_retry_terminal_log_omits_url_and_exception_message(monkeypatch, capsys):
+    secret_marker = "private-course-alias"
+    request_url = f"https://explicit.supabase.co/rest/v1/courses?url=match.{secret_marker}"
+    monkeypatch.setattr(db_client_module, "DNS_RETRY_MAX", 1)
+
+    def failed_request(_url, **_kwargs):
+        raise db_client_module.requests.exceptions.ConnectionError(
+            f"connection failed for {request_url}"
+        )
+
+    with pytest.raises(db_client_module.requests.exceptions.ConnectionError):
+        db_client_module._request_with_retry(failed_request, request_url)
+
+    output = capsys.readouterr().out
+    assert "DB_CLIENT_RETRY" in output
+    assert "ConnectionError" in output
+    assert request_url not in output
+    assert secret_marker not in output
 
 
 @pytest.mark.parametrize("status_code", [200, 206])

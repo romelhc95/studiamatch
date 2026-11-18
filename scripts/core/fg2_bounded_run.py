@@ -39,6 +39,11 @@ FG2_LIMITS = {
     "max_concurrent_requests_per_origin": 1,
     "max_attempts_per_url": 3,
 }
+# Supabase JS uses 8,000 characters as a client-side URL-length advisory. Keep
+# every approved-lot URL-alias snapshot SELECT under this local ceiling; it is
+# not a server or intermediary request-target guarantee.
+APPROVED_SNAPSHOT_MAX_URL_CHARS = 8000
+_COURSE_LOOKUP_COLUMNS = "id,institution_id,url,is_active,is_verified,last_404_at"
 _CLEANSING_URL_SUFFIXES = (
     "presentacion", "beneficios", "plana-docente", "malla-curricular",
     "admision", "objetivos", "certificacion", "requisitos", "requirements",
@@ -1358,11 +1363,186 @@ def _approved_url_alias_pattern(url: str) -> str:
     )
 
 
+def _literal_choice_pattern(values: list[str]) -> str:
+    """Match exactly these literals, factoring their shared prefix and suffix."""
+    choices = sorted(set(values))
+    if not choices:
+        raise InvalidControlledRun("approved URL alias lookup requires literal choices")
+    if len(choices) == 1:
+        return re.escape(choices[0])
+
+    prefix = choices[0]
+    for value in choices[1:]:
+        common = 0
+        while common < min(len(prefix), len(value)) and prefix[common] == value[common]:
+            common += 1
+        prefix = prefix[:common]
+        if not prefix:
+            break
+
+    residuals = [value[len(prefix):] for value in choices]
+    suffix = residuals[0]
+    for value in residuals[1:]:
+        common = 0
+        while common < min(len(suffix), len(value)) and suffix[-common - 1] == value[-common - 1]:
+            common += 1
+        suffix = suffix[len(suffix) - common:] if common else ""
+        if not suffix:
+            break
+
+    terminal = object()
+    root: dict[Any, Any] = {}
+    for value in residuals:
+        middle = value[:len(value) - len(suffix)] if suffix else value
+        node = root
+        for character in middle:
+            node = node.setdefault(character, {})
+        node[terminal] = True
+
+    rendered: dict[int, str] = {}
+    stack = [(root, False)]
+    while stack:
+        node, ready = stack.pop()
+        children = sorted(
+            ((character, child) for character, child in node.items() if character is not terminal),
+            key=lambda item: item[0],
+        )
+        if not ready:
+            stack.append((node, True))
+            stack.extend((child, False) for _character, child in children)
+            continue
+
+        branches = [re.escape(character) + rendered[id(child)] for character, child in children]
+        if node.get(terminal):
+            rendered[id(node)] = "" if not branches else f"({'|'.join(branches)})?"
+        elif not branches:
+            raise InvalidControlledRun("approved URL alias literal trie is malformed")
+        else:
+            rendered[id(node)] = branches[0] if len(branches) == 1 else f"({'|'.join(branches)})"
+
+    return re.escape(prefix) + rendered[id(root)] + re.escape(suffix)
+
+
+def _url_path_alias_trie_pattern(paths: set[tuple[str, ...]]) -> str:
+    """Factor shared path segments while preserving optional ``en/`` aliases."""
+    if not paths:
+        raise InvalidControlledRun("approved URL alias lookup requires at least one path")
+
+    terminal = object()
+    root: dict[Any, Any] = {}
+    for segments in paths:
+        node = root
+        for segment in segments:
+            node = node.setdefault(segment, {})
+        node[terminal] = True
+
+    signatures: dict[int, int] = {}
+    interned_signatures: dict[tuple[bool, tuple[tuple[str, int], ...]], int] = {}
+    next_signature = 0
+    stack = [(root, False)]
+    while stack:
+        node, ready = stack.pop()
+        children = sorted(
+            ((segment, child) for segment, child in node.items() if segment is not terminal),
+            key=lambda item: item[0],
+        )
+        if not ready:
+            stack.append((node, True))
+            stack.extend((child, False) for _segment, child in children)
+            continue
+
+        signature = (
+            bool(node.get(terminal)),
+            tuple((segment, signatures[id(child)]) for segment, child in children),
+        )
+        signature_id = interned_signatures.get(signature)
+        if signature_id is None:
+            signature_id = next_signature
+            next_signature += 1
+            interned_signatures[signature] = signature_id
+        signatures[id(node)] = signature_id
+
+    rendered: dict[int, str] = {}
+    stack = [(root, False)]
+    while stack:
+        node, ready = stack.pop()
+        children = sorted(
+            ((segment, child) for segment, child in node.items() if segment is not terminal),
+            key=lambda item: item[0],
+        )
+        if not ready:
+            stack.append((node, True))
+            stack.extend((child, False) for _segment, child in children)
+            continue
+
+        grouped_children: dict[int, list[tuple[str, dict[Any, Any]]]] = {}
+        for segment, child in children:
+            grouped_children.setdefault(signatures[id(child)], []).append((segment, child))
+        branches = []
+        for equivalent_children in sorted(grouped_children.values(), key=lambda group: group[0][0]):
+            segment_pattern = _literal_choice_pattern([segment for segment, _child in equivalent_children])
+            child_pattern = rendered[id(equivalent_children[0][1])]
+            branches.append(f"/(en/)?{segment_pattern}{child_pattern}")
+        if node.get(terminal):
+            rendered[id(node)] = "" if not branches else f"({'|'.join(branches)})?"
+        elif not branches:
+            raise InvalidControlledRun("approved URL alias path trie is malformed")
+        else:
+            rendered[id(node)] = branches[0] if len(branches) == 1 else f"({'|'.join(branches)})"
+
+    return rendered[id(root)]
+
+
 def approved_url_alias_filter(urls: list[str]) -> str:
-    """Select only candidate URL aliases, in one bounded query per institution."""
+    """Build a compact anchored regex for the approved URL aliases."""
     if not urls:
         raise InvalidControlledRun("approved URL alias lookup requires at least one URL")
-    pattern = "^(" + "|".join(_approved_url_alias_pattern(url) for url in urls) + ")$"
+
+    groups: dict[str, dict[str, Any]] = {}
+    suffix_pattern = r"([?][^#]*)?(#.*)?"
+    for url in urls:
+        normalized = _approved_scope_url(url)
+        parsed = urlsplit(normalized)
+        if not parsed.scheme or not parsed.netloc:
+            raise InvalidControlledRun("approved URL alias lookup requires an absolute URL")
+        origin_pattern = (
+            _ascii_case_insensitive_regex_literal(parsed.scheme)
+            + r"://"
+            + _ascii_case_insensitive_regex_literal(parsed.netloc)
+        )
+        group = groups.setdefault(
+            origin_pattern,
+            {"empty_path": False, "root_path": False, "paths": set()},
+        )
+        if parsed.path == "/":
+            group["root_path"] = True
+        elif not parsed.path:
+            group["empty_path"] = True
+        else:
+            segments = tuple(
+                parsed.path[1:].split("/") if parsed.path.startswith("/") else parsed.path.split("/")
+            )
+            group["paths"].add(segments)
+
+    origin_patterns = []
+    for origin_pattern, group in sorted(groups.items()):
+        path_patterns = []
+        if group["empty_path"]:
+            path_patterns.append("")
+        if group["root_path"]:
+            path_patterns.append("//?")
+        if group["paths"]:
+            path_patterns.append(_url_path_alias_trie_pattern(group["paths"]) + "/?")
+        if not path_patterns:
+            raise InvalidControlledRun("approved URL alias lookup has no path patterns")
+        path_pattern = (
+            path_patterns[0]
+            if len(path_patterns) == 1
+            else "(" + "|".join(f"({item})" for item in path_patterns) + ")"
+        )
+        origin_patterns.append(origin_pattern + path_pattern + suffix_pattern)
+
+    pattern = "^(" + "|".join(origin_patterns) + ")$"
     return f"url=match.{quote(pattern, safe='')}"
 
 
@@ -1373,6 +1553,11 @@ def course_identity_url(url: str) -> str:
 
 def course_url_alias_filter(urls: list[str]) -> str:
     """Select canonical and known detail-page spellings for course identities."""
+    return approved_url_alias_filter(_course_url_alias_candidates(urls))
+
+
+def _course_url_alias_candidates(urls: list[str]) -> list[str]:
+    """Return every approved spelling checked for a course identity."""
     if not urls:
         raise InvalidControlledRun("course URL alias lookup requires at least one URL")
     candidates: set[str] = set()
@@ -1384,7 +1569,71 @@ def course_url_alias_filter(urls: list[str]) -> str:
             detail_alias = _approved_scope_url(f"{identity.rstrip('/')}/{suffix}")
             if course_identity_url(detail_alias) == identity:
                 candidates.add(detail_alias)
-    return approved_url_alias_filter(sorted(candidates))
+    return sorted(candidates)
+
+
+def _bounded_url_alias_filters(
+    candidates: list[str],
+    *,
+    client: Any,
+    table: str,
+    columns: str,
+    limit: int,
+) -> list[str]:
+    """Partition URL aliases so every complete snapshot request URL stays bounded."""
+    if not candidates:
+        raise InvalidControlledRun("approved URL alias lookup requires at least one URL")
+    base_url = getattr(client, "supabase_url", None)
+    if not isinstance(base_url, str) or not base_url or not base_url.isascii():
+        raise InvalidControlledRun("approved FG2 lot database endpoint is unavailable")
+
+    def request_url(filters: str) -> str:
+        return (
+            f"{base_url}/rest/v1/{table}?select={columns}"
+            f"&{filters}&order=id.asc&limit={limit}"
+        )
+
+    label = "course" if table == "courses" else table
+    filters: list[str] = []
+    current: list[str] = []
+    for candidate in candidates:
+        proposed = [*current, candidate]
+        proposed_filter = approved_url_alias_filter(proposed)
+        if len(request_url(proposed_filter)) <= APPROVED_SNAPSHOT_MAX_URL_CHARS:
+            current = proposed
+            continue
+
+        if not current:
+            raise InvalidControlledRun(
+                f"approved {label} URL alias exceeds the bounded request URL size"
+            )
+        filters.append(approved_url_alias_filter(current))
+        current = [candidate]
+        single_filter = approved_url_alias_filter(current)
+        if len(request_url(single_filter)) > APPROVED_SNAPSHOT_MAX_URL_CHARS:
+            raise InvalidControlledRun(
+                f"approved {label} URL alias exceeds the bounded request URL size"
+            )
+
+    if current:
+        filters.append(approved_url_alias_filter(current))
+    return filters
+
+
+def course_url_alias_filters(
+    urls: list[str],
+    *,
+    client: Any,
+    limit: int,
+) -> list[str]:
+    """Partition course aliases so each complete PostgREST URL stays bounded."""
+    return _bounded_url_alias_filters(
+        _course_url_alias_candidates(urls),
+        client=client,
+        table="courses",
+        columns=_COURSE_LOOKUP_COLUMNS,
+        limit=limit,
+    )
 
 
 def verify_approved_lot_scope(
@@ -1432,8 +1681,6 @@ def verify_approved_lot_scope(
         institution_scope_rows = [
             item for item in scope_rows if item["institution_id"].lower() == institution_id
         ]
-        url_filter = approved_url_alias_filter(urls)
-        course_url_filter = course_url_alias_filter(urls)
         staging_ids = [
             row["id"]
             for item in institution_scope_rows
@@ -1445,11 +1692,40 @@ def verify_approved_lot_scope(
             for row in item["snapshot"]["cleansed_rows"]
         ]
         max_rows_per_url_query = len(institution_scope_rows)
+        staging_columns = "id,institution_id,url,status,content_hash"
+        cleansed_columns = "id,staging_id,institution_id,url,status"
+        enriched_columns = "id,cleansed_id,institution_id,url,status"
+        staging_url_filters = _bounded_url_alias_filters(
+            urls,
+            client=client,
+            table="staging_raw",
+            columns=staging_columns,
+            limit=max_rows_per_url_query + 1,
+        )
+        course_url_filters = course_url_alias_filters(
+            urls,
+            client=client,
+            limit=max_rows_per_url_query + 1,
+        )
+        cleansed_url_filters = _bounded_url_alias_filters(
+            urls,
+            client=client,
+            table="cleansed_programs",
+            columns=cleansed_columns,
+            limit=max_rows_per_url_query + 1,
+        )
+        enriched_url_filters = _bounded_url_alias_filters(
+            urls,
+            client=client,
+            table="enriched_programs",
+            columns=enriched_columns,
+            limit=max_rows_per_url_query + 1,
+        )
         queries = [
-            ("staging_raw", "staging_rows", "id,institution_id,url,status,content_hash", True, url_filter, max_rows_per_url_query),
-            ("courses", "course_rows", "id,institution_id,url,is_active,is_verified,last_404_at", False, course_url_filter, max_rows_per_url_query),
-            ("cleansed_programs", "cleansed_rows", "id,staging_id,institution_id,url,status", True, url_filter, max_rows_per_url_query),
-            ("enriched_programs", "enriched_rows", "id,cleansed_id,institution_id,url,status", True, url_filter, max_rows_per_url_query),
+            ("staging_raw", "staging_rows", staging_columns, True, staging_url_filters, max_rows_per_url_query),
+            ("courses", "course_rows", _COURSE_LOOKUP_COLUMNS, False, course_url_filters, max_rows_per_url_query),
+            ("cleansed_programs", "cleansed_rows", cleansed_columns, True, cleansed_url_filters, max_rows_per_url_query),
+            ("enriched_programs", "enriched_rows", enriched_columns, True, enriched_url_filters, max_rows_per_url_query),
         ]
         if staging_ids:
             queries.append((
@@ -1471,38 +1747,55 @@ def verify_approved_lot_scope(
             ))
 
         for table, key, columns, pipeline, filters, max_expected_rows in queries:
-            if pipeline:
-                records = client.select_pipeline_raise(
-                    table,
-                    filters=filters,
-                    columns=columns,
-                    limit=max_expected_rows + 1,
-                    order="id.asc",
-                )
-            else:
-                records = client.select_service_raise(
-                    table,
-                    filters=filters,
-                    columns=columns,
-                    limit=max_expected_rows + 1,
-                    order="id.asc",
-                )
-            if not isinstance(records, list):
-                raise InvalidControlledRun("approved FG2 lot database snapshot is malformed")
-            if len(records) > max_expected_rows:
-                if key == "course_rows":
-                    raise InvalidControlledRun("canonical course URL is ambiguous")
-                if key == "staging_rows":
-                    raise InvalidControlledRun("canonical staging URL is ambiguous")
-                raise InvalidControlledRun("approved FG2 lot downstream URL is ambiguous")
             target = records_by_table.setdefault(key, {})
-            for record in records:
-                if not isinstance(record, dict) or not _valid_uuid(record.get("id")):
-                    raise InvalidControlledRun("approved FG2 lot database snapshot row is malformed")
-                row_id = record["id"].lower()
-                if row_id in target and target[row_id] != record:
-                    raise InvalidControlledRun("approved FG2 lot downstream reference is inconsistent")
-                target[row_id] = record
+            chunked_url_lookup = isinstance(filters, list)
+            query_filters = filters if chunked_url_lookup else [filters]
+            institution_query_rows: dict[str, dict[str, Any]] = {}
+            for query_filter in query_filters:
+                if pipeline:
+                    records = client.select_pipeline_raise(
+                        table,
+                        filters=query_filter,
+                        columns=columns,
+                        limit=max_expected_rows + 1,
+                        order="id.asc",
+                    )
+                else:
+                    records = client.select_service_raise(
+                        table,
+                        filters=query_filter,
+                        columns=columns,
+                        limit=max_expected_rows + 1,
+                        order="id.asc",
+                    )
+                if not isinstance(records, list):
+                    raise InvalidControlledRun("approved FG2 lot database snapshot is malformed")
+                if len(records) > max_expected_rows:
+                    if key == "course_rows":
+                        raise InvalidControlledRun("canonical course URL is ambiguous")
+                    if key == "staging_rows":
+                        raise InvalidControlledRun("canonical staging URL is ambiguous")
+                    raise InvalidControlledRun("approved FG2 lot downstream URL is ambiguous")
+                for record in records:
+                    if not isinstance(record, dict) or not _valid_uuid(record.get("id")):
+                        raise InvalidControlledRun("approved FG2 lot database snapshot row is malformed")
+                    row_id = record["id"].lower()
+                    destination = institution_query_rows if chunked_url_lookup else target
+                    if row_id in destination and destination[row_id] != record:
+                        raise InvalidControlledRun("approved FG2 lot downstream reference is inconsistent")
+                    destination[row_id] = record
+
+            if chunked_url_lookup:
+                if len(institution_query_rows) > max_expected_rows:
+                    if key == "course_rows":
+                        raise InvalidControlledRun("canonical course URL is ambiguous")
+                    if key == "staging_rows":
+                        raise InvalidControlledRun("canonical staging URL is ambiguous")
+                    raise InvalidControlledRun("approved FG2 lot downstream URL is ambiguous")
+                for row_id, record in institution_query_rows.items():
+                    if row_id in target and target[row_id] != record:
+                        raise InvalidControlledRun("approved FG2 lot downstream reference is inconsistent")
+                    target[row_id] = record
 
     for key, records in records_by_table.items():
         for record in records.values():
