@@ -6,6 +6,81 @@
 
 ## Corte vigente
 
+### H1REQ1 — FG2 #264: corrección local y siguiente gate, 2026-11-19 14:25 America/Lima
+
+El piloto FG2 #264 (`44581032937`) terminó `FAILURE` en `1. Massive
+Harvesting`; las etapas downstream se omitieron. No se reintentará. La revisión
+TL reprodujo el rechazo sin tráfico institucional: seis pares de URLs
+históricas que colisionan al normalizarse, todos ajenos al lote aprobado,
+hacían que `_load_existing_urls` abortara al leer el inventario global. Los
+inventarios privados de Pro no se copiaron ni versionaron.
+
+La corrección sigue **LOCAL** en el checkout aislado
+`/tmp/h1req1-fg2-264-fix-20261119`, basado en
+`desarrollo@e5db1b79e0be1d0bc75bcdaba7678ead82daafd0` (tree
+`51d0ef5993a8997abcc6a80301950a7612c812ae`). `approved_lot` consulta solo las
+identidades del scope validado; `scheduled_cohort` busca la identidad por URL
+seleccionada y falla cerrado ante alias duplicado, fila malformada o dueño
+distinto. Se conserva la validación de identidad, y el camino ordinario no se
+amplía. El apartado
+[Identidad de staging por alcance](componentes/pipeline.md#identidad-de-staging-por-alcance-correccion-local-2026-11-19)
+describe los detalles, la compatibilidad y la reversión.
+
+Para el contenido de código sin cambios, TL reprodujo en Docker sin red las
+cuatro suites FG2: **157 passed**, una advertencia de deprecación de PyPDF2.
+El bloqueo 403/429 sigue sin reintentos y detiene el discovery de la institución;
+el orquestador solo puede continuar con las demás instituciones ya presentes
+en la cohorte congelada. Esto es evidencia sintética local, no aceptación de
+Pro ni ejecución funcional.
+
+En el candidato final de siete rutas, el selector documental de `security-audit`
+cae en el manifiesto R21 (no cambió ningún manifest bajo `.context/evidencia`);
+su self-test pasó en Docker sin red. Cobertura: 774/774 fuentes asignadas,
+9.473 enlaces, 4.778 anchors, 122/122 documentos activos alcanzables y
+433/433 catálogos históricos enlazados. El gate documental estándar conserva
+**FAIL**: comparación completa base/candidato con 348 diagnósticos idénticos,
+cero nuevos y cero resueltos. La lista ordenada con prefijo `DOC_GATE_FAIL` y
+newline final tiene SHA-256 `738e442d6b13b3f604376a3f274747b8208f389fa3c2712e535d5fa015527a92`;
+para exponer las 348 filas, un lector temporal retiró únicamente el tope de
+salida de 200 del checker, que no se modificó. El guard versionado de rutas
+aprobó la simulación del diff de trabajo contra Desarrollo; el escaneo de
+credenciales pasó. La plantilla PR versionada fue revisada, pero no se abrió
+ni rellenó un formulario remoto; CI y Preview siguen sin ejecutar.
+
+La última lectura de metadatos de ambientes reportada por TL el 2026-11-19 fue:
+`Production-Scheduled-FG1` con `AUTOMATION_ENABLED=true` y
+`PRODUCTION_WRITERS_PAUSED=false`; `Production-Scheduled-FG2` y
+`Production-Scheduled-FG3` con `AUTOMATION_ENABLED=false` y
+`PRODUCTION_WRITERS_PAUSED=true`. Este ciclo no cambió configuración. Antes de
+cualquier acción operativa se requiere relectura de los valores efectivos.
+
+**E9/E10/E11:** #264 no acredita E9 y su autorización de corrida quedó
+consumida. E9 sigue bloqueado hasta que la corrección llegue por la ruta
+protegida a un SHA real de `main`, se obtengan lecturas Pro frescas, se genere
+un manifiesto nuevo para ese SHA y Romel autorice un piloto separado. E10 queda
+pendiente de evidencia funcional y de sus aprobaciones/configuración propias;
+E11 queda pendiente de consolidar la evidencia de E9/E10. No se declara
+habilitación de los crons FG2/FG3 ni cierre H1.
+
+La revisión TL no encontró un PR abierto para la corrección. El paquete no se
+ha publicado. Próximo gate: decisión humana sobre commit, push no forzado y un
+único PR a Desarrollo para la huella final; el FAIL documental estándar de 348
+diagnósticos idénticos requiere una disposición separada para ese candidato.
+Las referencias verificadas por GitHub el 2026-11-19 son Desarrollo
+`e5db1b79e0be1d0bc75bcdaba7678ead82daafd0`, Certificación
+`673f4ce5bc1321a7cdce0fb7377e7e27b92c3b8b` y main
+`6f0f7402ab9bfebd4016f134cfb1c60413c1c82c`; comparten tree
+`51d0ef5993a8997abcc6a80301950a7612c812ae`. Desarrollo es ancestro de
+Certificación; Certificación es ancestro de main y queda un commit detrás
+(`PR #570`, mismo tree). Tras la integración a Desarrollo hará falta revalidar
+el PR Desarrollo→Certificación. Luego se anticipa sincronización protegida de
+main hacia Certificación antes del PR final, por la regla estricta de rama
+actualizada; bases y alcance deben recalcularse tras cada merge. No se abrieron
+promociones. Publicación, cada promoción y cualquier nuevo
+dispatch/configuración conservan aprobaciones distintas. No hubo acceso Pro,
+tráfico institucional, writes, commit, push, PR, merge, promoción ni dispatch
+en este ciclo.
+
 ### H1REQ1 — promoción PR #555, relectura 2026-11-16
 
 La relectura read-only de GitHub confirma que el PR #555 se cerró como merged

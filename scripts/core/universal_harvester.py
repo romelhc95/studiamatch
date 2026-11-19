@@ -1042,7 +1042,10 @@ class UniversalHarvester:
                 if loc:
                     links.extend(await self._fetch_sitemap(session, loc))
             for url in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url'):
-                if self.check_time_guard(): break
+                if self.check_time_guard() or (
+                    self.controlled and self.controlled_stop_reason
+                ):
+                    break
                 loc = sitemap_location(url)
                 if loc:
                     links.append(loc)
@@ -1225,6 +1228,44 @@ class UniversalHarvester:
             ):
                 raise HarvesterRunError("approved FG2 lot staging identity appeared after preflight")
             return []
+        if self.controlled and getattr(self, "scheduled_cohort", False):
+            try:
+                rows = self.db.select_pipeline_raise(
+                    "staging_raw",
+                    filters=approved_url_alias_filter([normalized_url]),
+                    columns="id,url,status,institution_id,content_hash",
+                    order="id.asc",
+                    limit=2,
+                )
+            except Exception as exc:
+                raise HarvesterRunError("failed to verify scheduled staging identity") from exc
+            if not isinstance(rows, list):
+                raise HarvesterRunError("malformed scheduled staging inventory")
+            if len(rows) > 1:
+                raise HarvesterRunError("scheduled staging identity is ambiguous")
+            if not rows:
+                return []
+
+            row = rows[0]
+            if not isinstance(row, dict):
+                raise HarvesterRunError("malformed scheduled staging identity")
+            row_id = row.get("id")
+            row_url = row.get("url")
+            status = row.get("status")
+            if not isinstance(row_id, str) or not row_id:
+                raise HarvesterRunError("malformed scheduled staging identity")
+            if not isinstance(row_url, str) or not row_url or normalize_url(row_url) != normalized_url:
+                raise HarvesterRunError("scheduled staging URL identity drifted")
+            if status not in KNOWN_STAGING_STATUSES:
+                raise HarvesterRunError("unknown scheduled staging status")
+            if str(row.get("institution_id") or "").lower() != str(
+                self.institution.get("id") or ""
+            ).lower():
+                raise HarvesterRunError("scheduled staging owner identity drifted")
+
+            cached = dict(row, url=normalized_url)
+            self._staging_rows_by_url[normalized_url] = cached
+            return [cached]
         try:
             rows = self.db.select_pipeline_raise(
                 "staging_raw",
@@ -1563,6 +1604,55 @@ class UniversalHarvester:
         self._resumable_urls = []
         self._discovered_rows_by_url = {}
         self._staging_rows_by_url = {}
+        if self.controlled and self.approved_lot is not None:
+            scope = getattr(self, "approved_lot_scope", None)
+            if not isinstance(scope, dict) or not scope:
+                raise HarvesterRunError("approved FG2 lot scope is empty")
+            scope_urls = [
+                normalize_url(scoped_url)
+                for scoped_url in scope
+                if isinstance(scoped_url, str)
+            ]
+            if (
+                len(scope_urls) != len(scope)
+                or any(not scoped_url for scoped_url in scope_urls)
+                or len(set(scope_urls)) != len(scope_urls)
+            ):
+                raise HarvesterRunError("approved FG2 lot URL identity is ambiguous")
+            existing = set()
+            for normalized in sorted(scope_urls):
+                rows = self._select_staging_rows_by_url(normalized)
+                if len(rows) > 1:
+                    raise HarvesterRunError("approved FG2 lot staging identity is ambiguous")
+                if not rows:
+                    continue
+                row = rows[0]
+                if not isinstance(row, dict):
+                    raise HarvesterRunError("malformed approved FG2 staging identity")
+                row_id = row.get("id")
+                row_url = row.get("url")
+                status = row.get("status")
+                if not isinstance(row_id, str) or not row_id:
+                    raise HarvesterRunError("malformed approved FG2 staging identity")
+                if not isinstance(row_url, str) or normalize_url(row_url) != normalized:
+                    raise HarvesterRunError("approved FG2 lot staging URL identity drifted")
+                if status not in KNOWN_STAGING_STATUSES:
+                    raise HarvesterRunError("unknown approved FG2 staging status")
+                existing.add(normalized)
+                self._staging_rows_by_url[normalized] = dict(row, url=normalized)
+                if status == DISCOVERED_STATUS:
+                    self._remember_discovered_row(row)
+            logger.info(
+                "Loaded %s staging URLs from the reviewed FG2 lot scope.",
+                len(existing),
+            )
+            self.visited_urls.update(existing)
+            return existing
+        if self.controlled and getattr(self, "scheduled_cohort", False):
+            # The schedule resolves staging identity lazily for each discovered
+            # URL. Historical rows outside this selected cohort must not block it.
+            logger.info("Scheduled FG2 will resolve staging identity per selected URL.")
+            return set()
         statuses = "discovered,pending,processing,processed,discarded,skipped,error"
         try:
             data = self.db.select_all_pipeline(
@@ -1846,18 +1936,15 @@ class UniversalHarvester:
                     for sitemap_seed in self.controlled_seed_urls:
                         if (
                             self.check_time_guard()
+                            or self.controlled_stop_reason
                             or not self._can_discover_more()
                             or getattr(self, "sitemap_budget_reached", False)
                         ):
                             break
                         sitemap_links.extend(await self._fetch_sitemap(session, sitemap_seed))
-            if (
-                getattr(self, "controlled_stop_reason", None)
-                and not getattr(self, "scheduled_cohort", False)
-            ):
-                # The partial sitemap links cannot be fetched within this run's
-                # remaining budget. A reviewed manual lot must not persist
-                # candidates outside its exact runnable manifest.
+            if getattr(self, "controlled_stop_reason", None):
+                # A blocked/deferred/budget-exhausted source ends this
+                # institution before any partial sitemap links are queued.
                 return []
             for link in sitemap_links:
                 if self.check_time_guard() or not self._can_discover_more():
