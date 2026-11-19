@@ -10,7 +10,7 @@
 | FG2-1.5 cleansing | staging_raw → cleansed_programs | cleansing_worker.py bloquea batch, limpia texto, consolida páginas y filtra ruido; usa atomic_cleansing_promote y conserva estados/errores de origen. |
 | FG2-2 enrichment | cleansed_programs → enriched_programs | enrichment_worker.py aplica prompt/campos, normaliza respuestas y usa proveedor configurado con fallback/mock; atomic_enrichment_promote guarda la unidad de trabajo. |
 | FG2-3 sync | enriched_programs → courses + editorial quality | sync_vector_worker.py es writer normal de datos finales, conserva overrides y aplica guards de mock/canary/quality. El nombre no acredita embeddings activos. |
-| FG3 integrity | courses → PATCH limitado de courses | integrity_ping.py revisa enlaces; la tolerancia histórica da ventana de 3 días antes de desactivar. |
+| FG3 integrity | courses_public_effective → RPC atómica limitada de courses | integrity_ping.py selecciona la cohorte pública efectiva; el RPC revalida elegibilidad y snapshot en la transacción y solo cambia last_404_at o is_active. |
 
 ## Mapa de módulos mantenidos
 
@@ -23,7 +23,7 @@
 | `scripts/core/cleansing_worker.py` | `CleansingWorker` reclama staging, limpia/consolida páginas, aplica ruido y fechas/precio, registra errores y promueve el batch con RPC atómica. | Job separado de `production_pipeline.yml`; RPC lock/promote en el ledger DB. | `staging_raw → cleansed_programs`, estados y errores; writer de pipeline. |
 | `scripts/core/enrichment_worker.py` | `EnrichmentWorker` prepara prompt/contexto, aplica proveedores, normaliza la respuesta; `process_enrichment_records()` limita/agrupa intentos. | Job separado de `production_pipeline.yml`; proveedores por nombre y fallback local/mock según flag. | `cleansed_programs → enriched_programs`; variables por nombre `OPENCODE_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`. Un proveedor real usa red/costo; ninguno se invocó aquí. |
 | `scripts/core/sync_vector_worker.py` | `SyncVectorWorker` valida datos normalizados/calidad/guards y persiste cursos, respetando ownership editorial. El nombre no prueba que embeddings estén activos. | Job separado de `production_pipeline.yml`; `roi_engine.py` calcula campos ROI. | `enriched_programs → courses`; writer normal final, requiere permisos de pipeline y preflight de modo. |
-| `scripts/core/integrity_ping.py` | `is_safe_public_url()`/`resolve_public_host()` validan IP pública; `request_pinned_public_url()` fija DNS para request HTTPS/HEAD; `patch_course_exact_one()` limita la mutación a una fila; `run_integrity_ping()` aplica ventana de gracia antes de desactivar. | `.github/workflows/fg3_integrity.yml` (comando desde `scripts/core`); `production_canary.yml` lo usa con límites canario. | Lee URLs de `courses`, requests externas y puede PATCH de un curso exacto; exige permiso writer y protección anti-SSRF. |
+| `scripts/core/integrity_ping.py` | `run_integrity_ping()` selecciona desde `courses_public_effective`, lee la base solo para esos IDs y llama `fg3_apply_public_course_transition` para revalidar y escribir en una transacción. DNS/IP pública, HTTPS/HEAD y la gracia 404/410 se mantienen. | `.github/workflows/fg3_integrity.yml` (comando desde `scripts/core`); `production_canary.yml` lo usa con límites canario. | Lee URLs efectivas públicas y snapshots base de IDs seleccionados; el RPC solo cambia `last_404_at` o `is_active`. `stale` es NO-OP. La revisión local no acredita que la migration esté aplicada en Pro. |
 
 ### Contrato de retirada FG3 — candidato local 2026-10-28
 
@@ -35,6 +35,83 @@ del URL: no prueba que el programa siga listado en el catálogo institucional. L
 retirada semántica de páginas 200 queda limitada y trazada a H1; no se incorpora un
 crawler nuevo. Prueba sintética: `tests/test_integrity_ping_retirement_contract.py`;
 resultado por corte en el [checkpoint CA4](../evidencia/h3req1_editorial_contract_2026-10-28.md).
+
+### Selección pública y PATCH condicional FG3 — candidato previo, supersedido
+
+La selección y el contador de calidad leen `courses_public_effective`, que
+proyecta valores editoriales efectivos y limita los cursos a la cohorte pública.
+Después de seleccionar, FG3 consulta `courses` únicamente por bloques de IDs ya
+seleccionados y obtiene `institution_id`, `url`, `is_active`, `is_verified` y
+`last_404_at`. Si la fila ya no existe, cambió institución/URL o no está
+activa/verificada, la omite antes del request. No se consulta `last_404_at` para
+cursos ajenos a la vista.
+
+Antes de escribir vuelve a consultar la vista para ese ID y compara su
+`institution_id` y URL con la selección; si ya no aparece o difiere, omite el
+PATCH. Cada escritura solo modifica `last_404_at` o `is_active` y compara en el
+mismo PATCH el ID, `institution_id`, URL, `is_active=true`, `is_verified=true` y
+el `last_404_at` observados en la fila base. Si el PATCH devuelve cero filas,
+otra operación cambió el snapshot: se registra como stale NO-OP y no se
+sobrescribe ese cambio. Una respuesta con
+más de una fila, ID distinto o error HTTP sigue siendo error. La validación de
+HTTPS/host público, DNS fijado, redirects, gracia 404/410 de tres días, errores
+transitorios sin desactivación y ausencia de caducidad por fecha no cambian.
+
+La vista también depende de estado ajeno a `courses`: `production_enabled` y la
+exclusión canary del perfil institucional, el estado editorial publicado y la
+membresía/availability de la cohorte legacy. La relectura detecta cambios ya
+visibles antes de la segunda consulta; el PATCH sobre `courses` no puede incluir
+esas condiciones en una comparación atómica PostgREST. Si una condición cambia
+después de la relectura de la vista y antes del PATCH, el CAS base todavía podría
+actualizar la fila aunque ya no pertenezca a la vista. Una corrida funcional
+requiere resolver ese riesgo con una decisión explícita o una operación atómica
+DB que vuelva a comprobar la vista y los campos base; esto último requiere
+diseño, gate DB/JIT y validación independiente.
+
+Transición: `expand` mantiene el lector legacy existente; `compatibilidad` limita
+FG3 al conjunto que ya sirve la vista pública y conserva los mismos campos de
+retirada; `deploy` queda pendiente del flujo protegido; `contract` solo se
+considera después de verificar la corrida autorizada. Rollback: revertir por PR
+la selección/CAS de aplicación después de detener el flujo bajo su autorización;
+no restaurar cursos ni editar `courses` manualmente. La prueba Docker sintética
+no demuestra despliegue, elegibilidad remota ni cierre de la carrera sobre las
+tablas relacionadas.
+
+El resultado CAS anterior conserva sus pruebas históricas, pero su ventana
+lectura/PATCH queda supersedida por el candidato atómico siguiente. No es base
+para ejecutar FG3.
+
+### Transición pública atómica FG3 — candidato local 2026-11-15
+
+`fg3_apply_public_course_transition` vuelve a consultar
+`courses_public_effective` dentro de la misma transacción que actualiza una sola
+fila de `courses`. La función valida ID, institución, URL, activo, verificado y
+`last_404_at` observados; bloquea perfil, estado editorial, membresía legacy y
+curso en ese orden; y devuelve `stale` sin escritura si perdió elegibilidad o
+detectó deriva. El lock de la tabla H2 de membresías es dinámico y opcional:
+H2 puede haber retirado esa tabla, en cuyo caso la vista H3 conserva cero
+miembros legacy y las filas publicadas estrictas siguen operando. Para
+`deactivate_after_grace` calcula tres días completos con el reloj de la base,
+no con el reloj del proceso.
+
+El cliente llama una vez a la RPC con `service_role`; no sigue redirects ni
+reintenta writes ambiguos o rechazados y detiene el lote ante esos errores. La
+RPC fija `search_path` vacío y concede `EXECUTE` únicamente a `service_role`.
+El harness PG17 confirma ACL, idempotencia, gracia y una retirada `unpublish`
+concurrente: el RPC espera el lock, reevalúa la vista tras el commit y devuelve
+`stale` con cero cambios a `courses`. Las pruebas locales usan fixtures; no
+acreditan permisos, advisors, schema o ejecución de Pro.
+
+Transición: `expand` añade la función sin modificar el caller desplegado;
+`compatibilidad` conserva el contrato anterior mientras la función no esté
+instalada y mantiene writers/schedules cerrados durante el cambio; `deploy`
+requiere revisión y promoción protegida, además de JIT DDL independiente por DB;
+la función debe instalarse en Pro antes de promover el caller a `main`.
+`contract` se acredita después de una corrida autorizada y lectura de resultado,
+sin borrar la función. Recuperación: detener FG3 y mantener E10 cerrado; si ya
+se promovió el caller, revertirlo mediante PR protegido con el writer pausado.
+Dejar la función aditiva sin uso: no reactivar el PATCH directo por defecto ni
+modificar cursos como rollback.
 
 Los YAML prueban wiring declarado. El workflow FG2 invoca `master_orchestrator.py --skip-cleansing` y mantiene jobs separados de cleansing, enrichment y sync; no asumir que el padre ejecutó todas las etapas. Horarios reales y ejecuciones quedan remotos.
 

@@ -71,6 +71,32 @@ Antes de E10 se requiere un alcance de consumo por IDs y el control programado
 que preserve filas históricas; no se reabre `processed`, no se resetea
 `processing` y no se deduplican filas por conteos.
 
+## FG3: cohorte pública y transición atómica — candidato local 2026-11-15
+
+El candidato selecciona IDs y valores efectivos desde `courses_public_effective`.
+Luego consulta `courses` solo para esos IDs para obtener `institution_id`, URL,
+activo, verificado y `last_404_at`. Una diferencia o una fila que ya no esté
+activa/verificada se omite antes del request. La comprobación y escritura final
+se ejecutan juntas en `fg3_apply_public_course_transition`: la función vuelve a
+validar la vista efectiva y los valores base observados dentro de la misma
+transacción, con locks sobre el perfil, estado editorial, membresía legacy y
+curso. Si la elegibilidad o el snapshot cambió, devuelve `stale` y no escribe.
+
+La función solo puede cambiar `courses.last_404_at` o `courses.is_active`.
+404/410 inicia la gracia y solo desactiva después de tres días completos; 2xx
+puede limpiar el marcador y los errores transitorios no llaman la función. No
+hay caducidad por fecha. La RPC es `SECURITY DEFINER`, fija `search_path` vacío,
+califica las relaciones y retira `EXECUTE` de `PUBLIC`, `anon` y
+`authenticated`; solo `service_role` la puede invocar. El cliente hace un único
+POST, deshabilita redirects y detiene el lote ante un resultado ambiguo o
+rechazado, sin repetir una posible escritura.
+
+La validación local en Docker/PG17 usa filas sintéticas, incluida una retirada
+editorial concurrente que hace esperar al RPC: tras el commit concurrente la
+función devuelve `stale` y conserva la fila sin escritura. Esto no demuestra
+schema ni ejecución remotos. La migración es local, forward-only y no se aplicó
+a Pro; requiere revisión y autorización DDL exacta antes de desplegar el caller.
+
 No se atribuye aquí frescura a los 224 cursos informados por el TL ni stale a
 las 798 filas `processing` por su `created_at`. Antes de una corrida productiva
 se exige lectura fresca y acotada de perfil, seed, URL, hash y estado, además de

@@ -108,6 +108,12 @@ expected_h1_paths = {
     ".context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json",
     ".context/operaciones/plan_cierre_hito1_ca1_only.md",
     ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
+    ".context/evidencia/h1req1_fg3_atomic_local_scope_2026-11-15.json",
+    "db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql",
+    "tests/h1_fg3_atomic_public_transition_pg17.sh",
+    "tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql",
+    "tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql",
+    "tests/test_fg3_atomic_transition_contract.py",
     "scripts/core/cleansing_worker.py",
     "scripts/core/enrichment_worker.py",
     "scripts/core/fg2_bounded_run.py",
@@ -656,6 +662,12 @@ h1_paths = (
     ".context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json",
     ".context/operaciones/plan_cierre_hito1_ca1_only.md",
     ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
+    ".context/evidencia/h1req1_fg3_atomic_local_scope_2026-11-15.json",
+    "db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql",
+    "tests/h1_fg3_atomic_public_transition_pg17.sh",
+    "tests/sql/h1_fg3_atomic_public_transition_pg17_assert.sql",
+    "tests/sql/h1_fg3_atomic_public_transition_pg17_expand.sql",
+    "tests/test_fg3_atomic_transition_contract.py",
     "scripts/core/cleansing_worker.py",
     "scripts/core/enrichment_worker.py",
     "scripts/core/fg2_bounded_run.py",
@@ -782,7 +794,7 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     if result.returncode == 0:
         raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=13|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=20|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'
