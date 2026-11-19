@@ -8,6 +8,7 @@ import base64
 import asyncio
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -895,6 +896,247 @@ def test_controlled_child_arguments_and_output_are_redacted(caplog) -> None:
     assert "STDOUT REDACTED" in caplog.text
     assert private_url not in caplog.text
     assert "fixture-secret" not in caplog.text
+
+
+def test_sensitive_child_exit_is_structured_without_private_output(caplog) -> None:
+    private_argument = "https://private.example/hidden/path?token=ARGUMENT_SENTINEL"
+    private_stdout = "BODY_SENTINEL https://private.example/hidden\nsecond line"
+    private_stderr = "SECRET_SENTINEL request body must stay private"
+    child = subprocess.CompletedProcess(
+        args=["worker"],
+        returncode=1,
+        stdout=private_stdout,
+        stderr=private_stderr,
+    )
+    caplog.set_level(logging.INFO)
+
+    with (
+        patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": "true"}, clear=False),
+        patch.object(orchestrator.subprocess, "run", return_value=child) as run,
+    ):
+        assert orchestrator.run_script(
+            "scripts/core/universal_harvester.py",
+            [private_argument],
+            timeout=30,
+        ) is False
+
+    message = caplog.text
+    assert "[STAGE FAILURE]" in message
+    assert "stage=harvester" in message
+    assert "failure_class=child_process_exit" in message
+    assert "exit_code=1" in message
+    assert "stdout_lines=2" in message
+    assert "stderr_lines=1" in message
+    assert private_argument not in message
+    assert "private.example" not in message
+    assert "ARGUMENT_SENTINEL" not in message
+    assert "BODY_SENTINEL" not in message
+    assert "SECRET_SENTINEL" not in message
+    assert run.call_args.kwargs["capture_output"] is True
+    assert run.call_args.kwargs["text"] is True
+
+
+def test_child_database_failure_emits_safe_phase_category_and_parent_preserves_it(
+    capsys, caplog
+) -> None:
+    private_message = "DATABASE_SENTINEL https://private.example/path?token=SECRET_SENTINEL body=BODY_SENTINEL"
+    failure = harvester_module.DatabaseAPIError(
+        private_message,
+        table="institution_site_profiles",
+        status_code=400,
+    )
+    caplog.set_level(logging.INFO)
+
+    with (
+        patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": "true"}, clear=False),
+        patch.object(harvester_module, "validate_harvester_run_mode", return_value="controlled"),
+        patch.object(harvester_module, "UniversalHarvester", side_effect=failure),
+    ):
+        child_exit = asyncio.run(
+            harvester_module.main(
+                [
+                    json.dumps({"id": INSTITUTION_B, "name": "Synthetic"}),
+                    "--controlled",
+                    "--cohort-manifest",
+                    "/private/cohort.json",
+                ]
+            )
+        )
+
+    child_stderr = capsys.readouterr().err
+    assert child_exit == 1
+    assert "[FG2_DIAGNOSTIC]" in child_stderr
+    diagnostic_line = next(
+        line for line in child_stderr.splitlines() if "[FG2_DIAGNOSTIC] " in line
+    )
+    diagnostic = json.loads(diagnostic_line.split("[FG2_DIAGNOSTIC] ", 1)[1])
+    assert diagnostic["phase"] == "harvester_initialization"
+    assert diagnostic["category"] == "database_api_error"
+    assert diagnostic["table"] == "institution_site_profiles"
+    assert diagnostic["http_status"] == 400
+
+    completed = subprocess.CompletedProcess(
+        args=["worker"],
+        returncode=child_exit,
+        stdout="",
+        stderr=child_stderr,
+    )
+    with (
+        patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": "true"}, clear=False),
+        patch.object(orchestrator.subprocess, "run", return_value=completed),
+    ):
+        assert orchestrator.run_script("scripts/core/universal_harvester.py", ["<redacted>"]) is False
+
+    message = caplog.text
+    assert "phase=harvester_initialization" in message
+    assert "failure_class=database_api_error" in message
+    assert "table=institution_site_profiles" in message
+    assert "http_status=400" in message
+    for sentinel in (
+        "DATABASE_SENTINEL",
+        "private.example",
+        "SECRET_SENTINEL",
+        "BODY_SENTINEL",
+        "/private/cohort.json",
+    ):
+        assert sentinel not in child_stderr
+        assert sentinel not in message
+
+
+def test_browser_start_failure_reports_its_phase_without_exception_details(
+    capsys, caplog
+) -> None:
+    private_message = "BROWSER_START_SENTINEL https://private.example/path?token=SECRET_SENTINEL"
+
+    class BrowserStartHarvester:
+        def __init__(self, *_args, **_kwargs):
+            self.profile = {"enabled": True}
+            self.site_type = "spa_js_heavy"
+            self.discovery_mode = "hardcoded_urls"
+            self.requires_stealth = False
+            self.requires_cf_bypass = False
+            self.warmup_url = None
+            self.circuit_open = False
+
+        @staticmethod
+        def _gate_enabled(_name):
+            return True
+
+    with (
+        patch.dict(os.environ, {"F10_PRODUCTION_CANARY_RUN_ID": "synthetic"}, clear=False),
+        patch.object(harvester_module, "validate_harvester_run_mode", return_value="ordinary"),
+        patch.object(harvester_module, "UniversalHarvester", BrowserStartHarvester),
+        patch.object(harvester_module, "async_playwright", side_effect=RuntimeError(private_message)),
+    ):
+        result = asyncio.run(
+            harvester_module.main(
+                [json.dumps({"id": INSTITUTION_B, "name": "Synthetic"})]
+            )
+        )
+
+    child_stderr = capsys.readouterr().err
+    diagnostic_line = next(
+        line for line in child_stderr.splitlines() if "[FG2_DIAGNOSTIC] " in line
+    )
+    diagnostic = json.loads(diagnostic_line.split("[FG2_DIAGNOSTIC] ", 1)[1])
+    assert result == 1
+    assert diagnostic == {
+        "version": 1,
+        "phase": "browser_initialization",
+        "category": "unexpected_exception",
+    }
+    assert "BROWSER_START_SENTINEL" not in child_stderr
+    assert "private.example" not in child_stderr
+    assert "SECRET_SENTINEL" not in child_stderr
+    assert private_message not in caplog.text
+
+
+def test_module_startup_failure_emits_safe_phase_and_category(capsys) -> None:
+    private_message = "STARTUP_SENTINEL https://private.example/path?token=SECRET_SENTINEL"
+
+    with (
+        patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": "true"}, clear=False),
+        patch.object(
+            harvester_module,
+            "setup_lima_logging",
+            side_effect=RuntimeError(private_message),
+        ),
+    ):
+        with pytest.raises(RuntimeError):
+            harvester_module._initialize_module_runtime()
+
+    child_stderr = capsys.readouterr().err
+    diagnostic_line = next(
+        line for line in child_stderr.splitlines() if "[FG2_DIAGNOSTIC] " in line
+    )
+    diagnostic = json.loads(diagnostic_line.split("[FG2_DIAGNOSTIC] ", 1)[1])
+    assert diagnostic["phase"] == "module_initialization"
+    assert diagnostic["category"] == "module_initialization_failed"
+    assert orchestrator._parse_child_diagnostic("", child_stderr) == {
+        "phase": "module_initialization",
+        "category": "module_initialization_failed",
+    }
+    assert "STARTUP_SENTINEL" not in child_stderr
+    assert "private.example" not in child_stderr
+    assert "SECRET_SENTINEL" not in child_stderr
+
+
+def test_sensitive_subprocess_start_failure_is_classified_without_error_text(caplog) -> None:
+    caplog.set_level(logging.INFO)
+    with (
+        patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": "true"}, clear=False),
+        patch.object(
+            orchestrator.subprocess,
+            "run",
+            side_effect=FileNotFoundError("START_SENTINEL https://private.example/path"),
+        ),
+    ):
+        assert orchestrator.run_script("scripts/core/universal_harvester.py", ["SECRET_SENTINEL"]) is False
+
+    message = caplog.text
+    assert "phase=subprocess_start" in message
+    assert "failure_class=process_start_failed" in message
+    assert "error_class=FileNotFoundError" in message
+    assert "START_SENTINEL" not in message
+    assert "private.example" not in message
+    assert "SECRET_SENTINEL" not in message
+
+
+def test_sensitive_child_diagnostic_rejects_non_integer_version(caplog) -> None:
+    private_output = (
+        '[FG2_DIAGNOSTIC] {"version":true,"phase":"harvester_initialization",'
+        '"category":"database_api_error","table":"courses",'
+        '"http_status":400,"message":"DIAGNOSTIC_SENTINEL"}'
+    )
+    child = subprocess.CompletedProcess(
+        args=["worker"],
+        returncode=1,
+        stdout="",
+        stderr=private_output,
+    )
+    caplog.set_level(logging.INFO)
+
+    with (
+        patch.dict(os.environ, {"FG2_CONTROLLED_FIRST_RUN": "true"}, clear=False),
+        patch.object(orchestrator.subprocess, "run", return_value=child),
+    ):
+        assert orchestrator.run_script("scripts/core/universal_harvester.py", ["<redacted>"]) is False
+
+    message = caplog.text
+    assert "phase=unknown" in message
+    assert "failure_class=child_process_exit" in message
+    assert "table=unknown" in message
+    assert "http_status=unknown" in message
+    assert "DIAGNOSTIC_SENTINEL" not in message
+
+
+def test_parent_rejects_diagnostic_marker_inside_other_output() -> None:
+    embedded_event = (
+        'REMOTE_OUTPUT [FG2_DIAGNOSTIC] {"version":1,"phase":"harvester_initialization",'
+        '"category":"database_api_error"}'
+    )
+
+    assert orchestrator._parse_child_diagnostic("", embedded_event) is None
 
 
 def test_approved_lot_exact_match_starts_only_approved_institution_after_clean_preflight(tmp_path) -> None:

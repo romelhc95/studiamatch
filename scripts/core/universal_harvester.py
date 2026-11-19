@@ -10,12 +10,94 @@ from datetime import datetime, timezone
 from urllib.parse import quote, urljoin, urlparse, urlsplit
 import xml.etree.ElementTree as ET
 
-import requests
-from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
-from curl_cffi import CurlOpt
-from curl_cffi.requests import AsyncSession
-from dotenv import load_dotenv
+_FG2_DIAGNOSTIC_PREFIX = "[FG2_DIAGNOSTIC] "
+_FG2_DIAGNOSTIC_PHASES = frozenset({
+    "dependency_import",
+    "module_initialization",
+    "mode_validation",
+    "input_decode",
+    "harvester_initialization",
+    "profile_gate",
+    "browser_initialization",
+    "source_discovery",
+    "course_detail",
+    "staging_write",
+    "telemetry",
+    "shutdown",
+})
+_FG2_DIAGNOSTIC_CATEGORIES = frozenset({
+    "dependency_import_failed",
+    "module_initialization_failed",
+    "controlled_run_rejected",
+    "invalid_input",
+    "database_api_error",
+    "database_write_outcome_unknown",
+    "harvester_rejected",
+    "source_request_error",
+    "timeout",
+    "os_error",
+    "profile_missing",
+    "circuit_open",
+    "discovery_unavailable",
+    "unexpected_exception",
+})
+_FG2_DIAGNOSTIC_TABLES = frozenset({
+    "institutions",
+    "institution_site_profiles",
+    "staging_raw",
+    "courses",
+    "cleansed_programs",
+    "enriched_programs",
+})
+
+
+def _fg2_diagnostics_enabled():
+    return (
+        bool(os.getenv("F10_PRODUCTION_CANARY_RUN_ID", "").strip())
+        or os.getenv("FG2_CONTROLLED_FIRST_RUN", "").strip().lower() == "true"
+        or os.getenv("FG2_COHORT_SCOPED", "").strip().lower() == "true"
+    )
+
+
+def _emit_fg2_diagnostic(phase, category, *, table=None, http_status=None):
+    """Write a bounded, allowlisted event for the sensitive parent process."""
+    if (
+        not _fg2_diagnostics_enabled()
+        or phase not in _FG2_DIAGNOSTIC_PHASES
+        or category not in _FG2_DIAGNOSTIC_CATEGORIES
+    ):
+        return
+    payload = {"version": 1, "phase": phase, "category": category}
+    if table in _FG2_DIAGNOSTIC_TABLES:
+        payload["table"] = table
+    if (
+        isinstance(http_status, int)
+        and not isinstance(http_status, bool)
+        and 100 <= http_status <= 599
+    ):
+        payload["http_status"] = http_status
+    try:
+        sys.stderr.write(
+            _FG2_DIAGNOSTIC_PREFIX
+            + json.dumps(payload, separators=(",", ":"), sort_keys=True)
+            + "\n"
+        )
+        sys.stderr.flush()
+    except Exception:
+        # The diagnostic must never replace the original worker outcome.
+        return
+
+
+try:
+    import requests
+    from bs4 import BeautifulSoup
+    from playwright.async_api import async_playwright
+    from curl_cffi import CurlOpt
+    from curl_cffi.requests import AsyncSession
+    from dotenv import load_dotenv
+except Exception:
+    _emit_fg2_diagnostic("dependency_import", "dependency_import_failed")
+    raise
 
 try:
     import regex as safe_regex
@@ -28,58 +110,70 @@ try:
 except ImportError:
     STEALTH_AVAILABLE = False
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from shared.utils import (
-    clean_course_name,
-    infer_course_type,
-    standardize_category,
-    slugify,
-    normalize_url,
-    get_random_user_agent,
-    setup_lima_logging,
-    normalize_url
-)
-from shared.db_client import DatabaseAPIError, get_db_client
-from shared.site_diagnostics import MAX_RESPONSE_BODY_BYTES
-from scripts.core.fg2_bounded_run import (
-    FG2ApprovedLotManifest,
-    FG2CohortManifest,
-    FG2_LIMITS,
-    FG2RequestBudget,
-    InvalidControlledRun,
-    OriginDeferred,
-    public_url_resolve_entry,
-    ResponseBodyTooLarge,
-    RunBudgetExceeded,
-    SitemapBudgetYield,
-    SourceBlocked,
-    UnsafePublicTarget,
-    append_manifest_entry,
-    append_manifest_blocker,
-    append_manifest_discovery_row,
-    approved_url_alias_filter,
-    cleanse_course_url,
-    course_identity_url,
-    course_url_alias_filter,
-    cleansed_url_sha256_for_record,
-    stable_json_sha256,
-    update_manifest_institution,
-    update_manifest_origin_state,
-    validate_public_request_url,
-    validate_public_url_shape,
-    validate_public_redirect_target,
-    validate_controlled_profile,
-    validate_harvester_run_mode,
-    verify_approved_lot_scope,
-    url_sha256,
-)
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from shared.utils import (
+        clean_course_name,
+        infer_course_type,
+        standardize_category,
+        slugify,
+        normalize_url,
+        get_random_user_agent,
+        setup_lima_logging,
+        normalize_url
+    )
+    from shared.db_client import DatabaseAPIError, DatabaseWriteOutcomeUnknown, get_db_client
+    from shared.site_diagnostics import MAX_RESPONSE_BODY_BYTES
+    from scripts.core.fg2_bounded_run import (
+        FG2ApprovedLotManifest,
+        FG2CohortManifest,
+        FG2_LIMITS,
+        FG2RequestBudget,
+        InvalidControlledRun,
+        OriginDeferred,
+        public_url_resolve_entry,
+        ResponseBodyTooLarge,
+        RunBudgetExceeded,
+        SitemapBudgetYield,
+        SourceBlocked,
+        UnsafePublicTarget,
+        append_manifest_entry,
+        append_manifest_blocker,
+        append_manifest_discovery_row,
+        approved_url_alias_filter,
+        cleanse_course_url,
+        course_identity_url,
+        course_url_alias_filter,
+        cleansed_url_sha256_for_record,
+        stable_json_sha256,
+        update_manifest_institution,
+        update_manifest_origin_state,
+        validate_public_request_url,
+        validate_public_url_shape,
+        validate_public_redirect_target,
+        validate_controlled_profile,
+        validate_harvester_run_mode,
+        verify_approved_lot_scope,
+        url_sha256,
+    )
+except Exception:
+    _emit_fg2_diagnostic("dependency_import", "dependency_import_failed")
+    raise
 
-logger = setup_lima_logging("UniversalHarvester")
-load_dotenv()
+def _initialize_module_runtime():
+    try:
+        runtime_logger = setup_lima_logging("UniversalHarvester")
+        load_dotenv()
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        return runtime_logger
+    except Exception:
+        _emit_fg2_diagnostic("module_initialization", "module_initialization_failed")
+        raise
 
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
+
+logger = _initialize_module_runtime()
 
 
 DISCOVERED_STATUS = "discovered"
@@ -330,6 +424,36 @@ class HarvesterRunError(RuntimeError):
 
 class HarvesterPartialError(HarvesterRunError):
     """Raised for a per-URL failure that must preserve the source state."""
+
+
+def _emit_failure_for_exception(phase, error):
+    if isinstance(error, DatabaseWriteOutcomeUnknown):
+        category = "database_write_outcome_unknown"
+    elif isinstance(error, DatabaseAPIError):
+        category = "database_api_error"
+    elif isinstance(error, InvalidControlledRun):
+        category = "controlled_run_rejected"
+    elif isinstance(error, HarvesterRunError):
+        category = "harvester_rejected"
+    elif isinstance(error, (asyncio.TimeoutError, TimeoutError)):
+        category = "timeout"
+    elif isinstance(error, requests.RequestException) or type(error).__name__ in {
+        "RequestException",
+        "ConnectionError",
+        "ConnectTimeout",
+        "ReadTimeout",
+    }:
+        category = "source_request_error"
+    elif isinstance(error, OSError):
+        category = "os_error"
+    elif isinstance(error, (json.JSONDecodeError, TypeError, ValueError)):
+        category = "invalid_input"
+    else:
+        category = "unexpected_exception"
+
+    table = getattr(error, "table", None)
+    http_status = getattr(error, "status_code", None)
+    _emit_fg2_diagnostic(phase, category, table=table, http_status=http_status)
 
 
 class UniversalHarvester:
@@ -2339,6 +2463,7 @@ async def main(argv=None):
             git_ref=os.getenv("GITHUB_REF", ""),
         )
     except InvalidControlledRun as exc:
+        _emit_failure_for_exception("mode_validation", exc)
         logger.error("FG2 run mode rejected before database or source access: %s", _safe_error_label(exc))
         return 1
     cohort_scoped = cohort_mode != "ordinary"
@@ -2347,10 +2472,16 @@ async def main(argv=None):
     global_start = args.global_start or start_time
     MAX_RUN_TIME = 20400
 
-    inst = json.loads(args.institution)
+    try:
+        inst = json.loads(args.institution)
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        _emit_failure_for_exception("input_decode", exc)
+        logger.error("FG2 institution input rejected before database or source access: %s", type(exc).__name__)
+        return 1
     harvester = None
     browser = None
     pw = None
+    phase = "harvester_initialization"
 
     try:
         harvester = UniversalHarvester(
@@ -2365,8 +2496,10 @@ async def main(argv=None):
             require_approved_lot=args.controlled,
             scheduled_cohort=args.scheduled_cohort,
         )
+        phase = "profile_gate"
         # Fase 75: Require profile
         if not harvester.profile:
+            _emit_fg2_diagnostic("profile_gate", "profile_missing")
             logger.error(f"SKIP {_safe_institution_label(inst['name'])}: No existe entrada en institution_site_profiles. "
                          f"Crea un perfil antes de ejecutar el pipeline.")
             return 1
@@ -2374,6 +2507,7 @@ async def main(argv=None):
             logger.info(f"SKIP {_safe_institution_label(inst['name'])}: discovery_enabled=false.")
             return 0
         if harvester.circuit_open:
+            _emit_fg2_diagnostic("profile_gate", "circuit_open")
             logger.error(f"Circuit is open for {_safe_institution_label(inst['name'])}; failing closed.")
             return 1
         pipeline_enabled = harvester._gate_enabled('pipeline_enabled')
@@ -2395,6 +2529,7 @@ async def main(argv=None):
             )
 
         if need_browser:
+            phase = "browser_initialization"
             pw = await async_playwright().start()
             launch_kwargs = {"headless": True}
             if harvester.requires_stealth:
@@ -2402,8 +2537,10 @@ async def main(argv=None):
             browser = await pw.chromium.launch(**launch_kwargs)
             if harvester.requires_cf_bypass and harvester.warmup_url:
                 await harvester._warmup_browser(browser)
+            phase = "source_discovery"
             urls = await harvester.discover_courses(browser)
         else:
+            phase = "source_discovery"
             urls = await harvester.discover_courses()
 
         if cohort_scoped and harvester.controlled_stop_reason:
@@ -2430,6 +2567,7 @@ async def main(argv=None):
             and harvester._discovery_fetch_attempts > 0
             and harvester._discovery_fetch_successes == 0
         ):
+            _emit_fg2_diagnostic("source_discovery", "discovery_unavailable")
             logger.error(f"FG2 discovery failed closed for {_safe_institution_label(inst['name'])}: all discovery fetches failed.")
             return 1
 
@@ -2439,8 +2577,10 @@ async def main(argv=None):
 
         failures = []
         promoted_count = 0
+        phase = "course_detail"
         async with AsyncSession() as session:
             for i, url in enumerate(urls):
+                phase = "course_detail"
                 elapsed_total = time.time() - global_start
                 if elapsed_total > MAX_RUN_TIME:
                     failures.append((url, "time guard reached"))
@@ -2460,10 +2600,12 @@ async def main(argv=None):
                         item = await harvester._scrape_http(session, url)
                     if item:
                         item["status"] = "pending"
+                        phase = "staging_write"
                         harvester._save_to_staging(item)
                         promoted_count += 1
                 except Exception as exc:
-                    failures.append((url, str(exc)))
+                    _emit_failure_for_exception(phase, exc)
+                    failures.append((url, type(exc).__name__))
                     logger.error(f"Partial harvesting failure for {_safe_url_label(url)}: {type(exc).__name__}")
                     if cohort_scoped and harvester.controlled_stop_reason:
                         break
@@ -2536,6 +2678,7 @@ async def main(argv=None):
                     )
                 return 0
 
+        phase = "telemetry"
         duration = int(time.time() - start_time)
         harvester.db.patch_exact_one_raise("institutions", filters=f"id=eq.{quote(str(inst['id']), safe='')}", data={
             "last_harvest_at": datetime.now().isoformat(),
@@ -2544,6 +2687,7 @@ async def main(argv=None):
         logger.info(f"Telemetry updated for {_safe_institution_label(inst['name'])}: {duration}s")
         return 0
     except Exception as exc:
+        _emit_failure_for_exception(phase, exc)
         logger.error(f"FG2 failed closed for {_safe_institution_label(inst.get('name'))}: {type(exc).__name__}")
         if cohort_scoped and harvester and harvester.controlled_stop_reason:
             result = "blocked" if harvester.controlled_stop_reason == "SourceBlocked" else "deferred"
@@ -2565,9 +2709,17 @@ async def main(argv=None):
         return 1
     finally:
         if browser:
-            await browser.close()
+            try:
+                await browser.close()
+            except Exception as exc:
+                _emit_failure_for_exception("shutdown", exc)
+                raise
         if pw:
-            await pw.stop()
+            try:
+                await pw.stop()
+            except Exception as exc:
+                _emit_failure_for_exception("shutdown", exc)
+                raise
 
 
 if __name__ == "__main__":

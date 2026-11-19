@@ -5,12 +5,12 @@
 | Estación | Fuente → destino | Trabajo y estado |
 |---|---|---|
 | FG1 discovery | config/institution_sources.json → institutions e institution_site_profiles | discovery_institutions.py comprueba instituciones y puede insertar las faltantes; --no-insert detiene el caso sin catálogo. Escritura de catálogo, autorización operacional separada. |
-| FG2 orchestration | perfiles y flags → tareas por institución | master_orchestrator.py decide elegibilidad/recencia/circuit breaker, ejecuta workers por subproceso y aplica time guard. |
+| FG2 orchestration | perfiles y flags → tareas por institución | master_orchestrator.py decide elegibilidad/recencia/circuit breaker, ejecuta workers por subproceso y aplica time guard. En contextos controlados conserva solo diagnósticos versionados con fase/categoría allowlistadas y metadatos DB sanitizados; nunca publica stdout/stderr ni argumentos. |
 | FG2-1 harvester | web/sitemap/config → staging_raw | universal_harvester.py descubre URLs, filtra/noise/exclusiones, canonicaliza, extrae HTML/metadata, calcula SHA-256 content_hash y omite contenido sin cambio. En el modo controlado, el GET limita el cuerpo antes de parsearlo. |
 | FG2-1.5 cleansing | staging_raw → cleansed_programs | cleansing_worker.py bloquea batch, limpia texto, consolida páginas y filtra ruido; usa atomic_cleansing_promote y conserva estados/errores de origen. |
 | FG2-2 enrichment | cleansed_programs → enriched_programs | enrichment_worker.py aplica prompt/campos, normaliza respuestas y usa proveedor configurado con fallback/mock; atomic_enrichment_promote guarda la unidad de trabajo. |
 | FG2-3 sync | enriched_programs → courses + editorial quality | sync_vector_worker.py es writer normal de datos finales, conserva overrides y aplica guards de mock/canary/quality. El nombre no acredita embeddings activos. |
-| FG3 integrity | courses_public_effective → RPC atómica limitada de courses | integrity_ping.py selecciona la cohorte pública efectiva; el RPC revalida elegibilidad y snapshot en la transacción y solo cambia last_404_at o is_active. |
+| FG3 integrity | courses_public_effective → RPC atómica limitada de courses | integrity_ping.py valida con HEAD/GET y decisión conservadora; el RPC revalida elegibilidad y snapshot en la transacción y solo cambia last_404_at o is_active. |
 
 ## Mapa de módulos mantenidos
 
@@ -23,7 +23,7 @@
 | `scripts/core/cleansing_worker.py` | `CleansingWorker` reclama staging, limpia/consolida páginas, aplica ruido y fechas/precio, registra errores y promueve el batch con RPC atómica. | Job separado de `production_pipeline.yml`; RPC lock/promote en el ledger DB. | `staging_raw → cleansed_programs`, estados y errores; writer de pipeline. |
 | `scripts/core/enrichment_worker.py` | `EnrichmentWorker` prepara prompt/contexto, aplica proveedores, normaliza la respuesta; `process_enrichment_records()` limita/agrupa intentos. | Job separado de `production_pipeline.yml`; proveedores por nombre y fallback local/mock según flag. | `cleansed_programs → enriched_programs`; variables por nombre `OPENCODE_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`. Un proveedor real usa red/costo; ninguno se invocó aquí. |
 | `scripts/core/sync_vector_worker.py` | `SyncVectorWorker` valida datos normalizados/calidad/guards y persiste cursos, respetando ownership editorial. El nombre no prueba que embeddings estén activos. | Job separado de `production_pipeline.yml`; `roi_engine.py` calcula campos ROI. | `enriched_programs → courses`; writer normal final, requiere permisos de pipeline y preflight de modo. |
-| `scripts/core/integrity_ping.py` | `run_integrity_ping()` selecciona desde `courses_public_effective`, lee la base solo para esos IDs y llama `fg3_apply_public_course_transition` para revalidar y escribir en una transacción. DNS/IP pública, HTTPS/HEAD y la gracia 404/410 se mantienen. | `.github/workflows/fg3_integrity.yml` (comando desde `scripts/core`); `production_canary.yml` lo usa con límites canario. | Lee URLs efectivas públicas y snapshots base de IDs seleccionados; el RPC solo cambia `last_404_at` o `is_active`. `stale` es NO-OP. La revisión local no acredita que la migration esté aplicada en Pro. |
+| `scripts/core/integrity_ping.py` | `run_integrity_ping()` selecciona desde `courses_public_effective`, lee la base solo para esos IDs y llama `fg3_apply_public_course_transition` para revalidar y escribir en una transacción. Cada probe valida/pinea DNS público, HTTPS y redirects; aplica HEAD/GET y retry bounded. | `.github/workflows/fg3_integrity.yml` (comando desde `scripts/core`); `production_canary.yml` lo usa con límites canario. | Lee URLs efectivas públicas y snapshots base de IDs seleccionados; el RPC solo cambia `last_404_at` o `is_active`. `stale` es NO-OP. La revisión local no acredita que la migration esté aplicada en Pro. |
 
 ### Contrato de retirada FG3 — candidato local 2026-10-28
 
@@ -115,6 +115,53 @@ modificar cursos como rollback.
 
 Los YAML prueban wiring declarado. El workflow FG2 invoca `master_orchestrator.py --skip-cleansing` y mantiene jobs separados de cleansing, enrichment y sync; no asumir que el padre ejecutó todas las etapas. Horarios reales y ejecuciones quedan remotos.
 
+### Probe y decisión FG3 — candidato local WP-REM-07, 2026-11-19
+
+El candidato mantiene el probe HTTP separado de la clasificación y de la RPC:
+HEAD `2xx` termina saludable sin GET; HEAD `403`, `405` o `501` hace un GET
+acotado; HEAD `404/410` exige GET antes de decidir cualquier transición. Un
+resultado final que no confirma salud ni retiro queda inconcluso y no cambia
+`last_404_at` ni `is_active`. La gracia existente de tres días y la mutación
+atómica `fg3_apply_public_course_transition` permanecen vigentes.
+Los estados `408/425/429` y `5xx` se reintentan acotadamente; `HEAD 501` usa
+primero el GET de fallback y un `GET 501` entra al retry de servidor.
+
+Cada curso comparte una cota total de tres intentos entre HEAD, GET, redirects y
+retries, timeout HTTP de 10 segundos por intento, hasta 30 segundos acumulados
+de espera y guard local de 60 segundos antes de cada request, después de DNS y
+antes de clasificar la respuesta. `socket.getaddrinfo` no ofrece cancelación
+portable al alcanzar ese guard: si tarda más de 60 segundos, el worker aborta al
+recibir el resultado y no inicia conexión HTTP. Los `Retry-After` delta o
+HTTP-date se aceptan solo dentro del presupuesto acumulado. Timeout, DNS, TLS y
+errores de transporte usan reintentos acotados; `RuntimeError` conserva fase y
+categoría sanitizadas (`time_budget` para el reloj, `retry_backoff` para la
+espera). Cada redirect vuelve a validar el destino y resuelve/pinea
+solo IPs públicas antes de abrir HTTPS; no se registran títulos, URLs ni texto
+crudo de excepciones. Resultado incierto de una RPC detiene el lote y no se
+repite.
+
+La confirmación GET comienza en el `response.url` final validado por HEAD, por
+lo que no vuelve a consumir intentos repitiendo redirects ya recorridos. El GET
+vuelve a resolver y fijar por DNS público cada destino bajo el mismo presupuesto
+`ProbeTrace`. El helper público `is_safe_public_url()` conserva resolución DNS
+pública para el consumidor `SyncVectorWorker` antes de persistir un curso; el
+probe usa `_is_syntactically_safe_public_url()` para validar formato y delega la
+resolución acotada y el pinning a cada request HTTPS.
+
+Los logs por ID registran método, estados HTTP, fase/categoría, acción y campos
+FG3 resultantes. Sirven para reconciliar transiciones por ID sin depender del
+título; no contienen cuerpos de respuesta ni errores completos. La suite
+`tests/test_integrity_ping_retirement_contract.py` usa fixtures sintéticos y se
+ejecuta en Docker `--network none`; incluye redirects HEAD→GET al destino final
+y mocks DNS para Sync (rechazo de resolución privada o inexistente y aceptación
+de una dirección pública). No demuestra acceso a las instituciones,
+estado Pro ni aceptación funcional remota. Expansión: agregar el probe y los
+logs conservando la RPC/contrato existente. Compatibilidad: mantener los
+writers pausados mientras se publica y se observa. Deploy: requiere promoción
+protegida y habilitación operativa separada. Contracción: solo tras corrida
+aceptada y postflight autorizado. Rollback: pausar y revertir el caller por PR
+protegido; no restaurar automáticamente los efectos de #129 ni escribir cursos.
+
 ## Gates y perfiles
 
 La implementación actual usa los gates Fase 100 discovery_enabled, pipeline_enabled y production_enabled, configurados por institution_site_profiles. Los workers conservan fallback temporal a pipeline_ready cuando el gate moderno no existe o no se puede leer según su adapter. Fase 75 documenta la historia de pipeline_ready y no debe reactivarse como contrato nuevo. discovery_enabled no es lo mismo que procesar; production_enabled gobierna publicación.
@@ -122,6 +169,20 @@ La implementación actual usa los gates Fase 100 discovery_enabled, pipeline_ena
 ## Concurrencia, idempotencia, requeue y errores
 
 Harvester usa content_hash SHA-256 y estados para no reprocesar contenido idéntico. SQL lock_staging_records/lock_cleansed_records marca trabajo y evita que workers consuman dos veces una misma cohorte; RPC atómicas preservan estados de origen/destino. Orchestrator time guard y circuit breaker limitan un job largo; gate cerrado salta institución. Los workers registran processing_error/reason/error y no consideran output LLM como schema garantizado. La regla de retry/requeue está en RPCs y scripts; no requeue en esta transferencia.
+
+En modo controlado, el harvester emite `[FG2_DIAGNOSTIC]` solo con `version`,
+`phase` y `category` de vocabulario fijo, más tabla/HTTP status cuando provienen
+de un error DB y pasan su allowlist. Las fases incluyen la carga de módulos,
+la inicialización de runtime, la validación de modo,
+decodificación, inicialización, gate de perfil, arranque de Playwright,
+discovery, detalle, escritura,
+telemetría o cierre. `master_orchestrator.py` valida el evento y conserva esos
+campos; si el hijo no lo produjo, registra `phase=unknown` y
+`failure_class=child_process_exit`. El texto de errores, stdout/stderr,
+argumentos, secretos, cuerpos y URLs no se exponen. La categoría identifica
+una clase operativa observable, no demuestra por sí sola la causa histórica de
+un run cuyos logs no conservaron ese evento. Los eventos solo se emiten cuando
+el proceso tiene el marcador de canary o de cohorte/controlado.
 
 ## Primera corrida FG2 acotada — candidato local 2026-11-09
 
