@@ -413,6 +413,297 @@ def test_controlled_orchestrator_requires_manifest_delegation_before_database_or
     assert result == 1
 
 
+def _make_inventory_harvester(database, *, scheduled_cohort=False, approved_lot=None, approved_scope=None):
+    harvester = object.__new__(UniversalHarvester)
+    harvester.institution = {
+        "id": INSTITUTION_B,
+        "name": "B",
+        "slug": "b",
+        "website_url": "https://b.example",
+    }
+    harvester.db = database
+    harvester.controlled = True
+    harvester.scheduled_cohort = scheduled_cohort
+    harvester.approved_lot = approved_lot
+    harvester.approved_lot_scope = approved_scope
+    harvester._resumable_urls = []
+    harvester._discovered_rows_by_url = {}
+    harvester._staging_rows_by_url = {}
+    harvester.visited_urls = set()
+    harvester._recorded_blocker_ids = set()
+    harvester._recorded_discovery_ids = set()
+    return harvester
+
+
+def test_approved_lot_inventory_ignores_unrelated_staging_rows():
+    expected = {
+        "id": STAGING_B,
+        "institution_id": INSTITUTION_B,
+        "url": URL_B,
+        "status": "processing",
+        "content_hash": "d" * 64,
+    }
+    database = Mock()
+    database.select_pipeline_raise.return_value = [expected]
+    database.select_all_pipeline.side_effect = AssertionError("unscoped inventory read")
+
+    harvester = _make_inventory_harvester(
+        database,
+        approved_lot=object(),
+        approved_scope={
+            URL_B: {"snapshot": {"staging_rows": [expected]}},
+        },
+    )
+
+    existing = asyncio.run(harvester._load_existing_urls(pipeline_enabled=True))
+
+    assert existing == {URL_B}
+    database.select_all_pipeline.assert_not_called()
+    database.select_pipeline_raise.assert_called_once_with(
+        "staging_raw",
+        filters=f"id=eq.{STAGING_B}",
+        columns="id,url,status,institution_id,content_hash",
+        limit=2,
+    )
+
+
+def test_approved_lot_rejects_empty_scope_without_reading_inventory():
+    database = Mock()
+    database.select_all_pipeline.side_effect = AssertionError("unscoped inventory read")
+    harvester = _make_inventory_harvester(
+        database,
+        approved_lot=object(),
+        approved_scope={},
+    )
+
+    with pytest.raises(HarvesterRunError, match="approved FG2 lot scope is empty"):
+        asyncio.run(harvester._load_existing_urls(pipeline_enabled=True))
+
+    database.select_all_pipeline.assert_not_called()
+    database.select_pipeline_raise.assert_not_called()
+
+
+def test_approved_lot_rejects_duplicate_normalized_scope_before_inventory_reads():
+    database = Mock()
+    harvester = _make_inventory_harvester(
+        database,
+        approved_lot=object(),
+        approved_scope={
+            URL_B: {"snapshot": {"staging_rows": []}},
+            f"{URL_B}/": {"snapshot": {"staging_rows": []}},
+        },
+    )
+
+    with pytest.raises(HarvesterRunError, match="approved FG2 lot URL identity is ambiguous"):
+        asyncio.run(harvester._load_existing_urls(pipeline_enabled=True))
+
+    database.select_all_pipeline.assert_not_called()
+    database.select_pipeline_raise.assert_not_called()
+
+
+def test_scheduled_cohort_reads_staging_only_for_selected_url_identity():
+    expected = {
+        "id": STAGING_B,
+        "institution_id": INSTITUTION_B,
+        "url": URL_B,
+        "status": "processing",
+        "content_hash": "e" * 64,
+    }
+    database = Mock()
+    database.select_pipeline_raise.return_value = [expected]
+    database.select_all_pipeline.side_effect = AssertionError("unscoped inventory read")
+    harvester = _make_inventory_harvester(database, scheduled_cohort=True)
+
+    existing = asyncio.run(harvester._load_existing_urls(pipeline_enabled=True))
+    rows = harvester._select_staging_rows_by_url(URL_B)
+
+    assert existing == set()
+    assert rows == [expected]
+    database.select_all_pipeline.assert_not_called()
+    database.select_pipeline_raise.assert_called_once_with(
+        "staging_raw",
+        filters=harvester_module.approved_url_alias_filter([URL_B]),
+        columns="id,url,status,institution_id,content_hash",
+        order="id.asc",
+        limit=2,
+    )
+    assert harvester._staging_rows_by_url[URL_B]["id"] == STAGING_B
+
+
+def test_scheduled_cohort_rejects_selected_staging_row_owned_by_another_institution():
+    foreign_row = {
+        "id": STAGING_B,
+        "institution_id": INSTITUTION_A,
+        "url": URL_B,
+        "status": "processing",
+        "content_hash": "b" * 64,
+    }
+    database = Mock()
+    database.select_pipeline_raise.return_value = [foreign_row]
+    harvester = _make_inventory_harvester(database, scheduled_cohort=True)
+
+    with pytest.raises(HarvesterRunError, match="scheduled staging owner identity drifted"):
+        harvester._select_staging_rows_by_url(URL_B)
+
+    database.insert.assert_not_called()
+    database.patch_exact_one_raise.assert_not_called()
+
+
+def test_scheduled_cohort_fails_closed_on_duplicate_selected_staging_identity():
+    first = {
+        "id": STAGING_B,
+        "institution_id": INSTITUTION_B,
+        "url": URL_B,
+        "status": "processing",
+        "content_hash": "a" * 64,
+    }
+    duplicate = {
+        **first,
+        "id": "40000000-0000-0000-0000-000000000003",
+        "url": f"{URL_B}/",
+    }
+    database = Mock()
+    database.select_pipeline_raise.return_value = [first, duplicate]
+    harvester = _make_inventory_harvester(database, scheduled_cohort=True)
+
+    with pytest.raises(HarvesterRunError, match="scheduled staging identity is ambiguous"):
+        harvester._select_staging_rows_by_url(URL_B)
+
+    database.insert.assert_not_called()
+    database.patch_exact_one_raise.assert_not_called()
+
+
+def test_scheduled_cohort_stops_after_blocked_sitemap_without_queueing_partial_links(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    harvester = object.__new__(UniversalHarvester)
+    harvester.institution = {"website_url": "https://b.example"}
+    harvester.profile = {"discovery_mode": "sitemap_bfs"}
+    harvester.controlled = True
+    harvester.scheduled_cohort = True
+    harvester.approved_lot = None
+    harvester.db = Mock()
+    harvester.db.select_all_pipeline.return_value = []
+    harvester.controlled_seed_urls = [
+        "https://b.example/sitemap-one.xml",
+        "https://b.example/sitemap-two.xml",
+    ]
+    harvester.sitemap_budget_reached = False
+    harvester.controlled_stop_reason = None
+    harvester.course_urls = set()
+    harvester.visited_urls = set()
+    harvester._load_existing_urls = AsyncMock(return_value=set())
+    harvester.check_time_guard = Mock(return_value=False)
+    harvester._can_discover_more = Mock(return_value=True)
+    harvester._is_valid_crawl_url = Mock(return_value=True)
+    harvester._mark_controlled_url_examined = Mock(return_value=True)
+    harvester._queue_discovered_candidate = Mock(return_value={"status": "discovered"})
+    harvester._merge_resumable_urls = lambda urls: list(urls)
+    harvester._limit_urls = lambda urls: list(urls)
+    fetches: list[str] = []
+
+    async def blocked_sitemap(_session, url):
+        fetches.append(url)
+        harvester.controlled_stop_reason = "SourceBlocked"
+        return ["https://b.example/partial-course"]
+
+    harvester._fetch_sitemap = AsyncMock(side_effect=blocked_sitemap)
+
+    class OfflineSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(harvester_module, "AsyncSession", OfflineSession)
+
+    result = asyncio.run(harvester.discover_courses())
+
+    assert result == []
+    assert fetches == ["https://b.example/sitemap-one.xml"]
+    harvester._queue_discovered_candidate.assert_not_called()
+    harvester._mark_controlled_url_examined.assert_not_called()
+
+
+def test_scheduled_orchestrator_continues_only_with_frozen_eligible_cohort_after_blocked_child(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database = FakeDB()
+    database.profiles[0]["discovery_mode"] = "sitemap_bfs"
+    database.profiles[0]["seed_urls"] = []
+    institution_c = {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "name": "C",
+        "slug": "c",
+        "website_url": "https://c.example",
+        "last_harvest_at": None,
+    }
+    database.institutions.append(institution_c)
+    database.profiles.append(
+        {
+            "institution_id": institution_c["id"],
+            "discovery_enabled": False,
+            "pipeline_enabled": True,
+            "production_enabled": True,
+            "circuit_open": False,
+            "site_type": "traditional_ssr",
+            "discovery_mode": "hardcoded_urls",
+            "seed_urls": ["https://c.example/course"],
+        }
+    )
+    started: list[str] = []
+    cohort_path = tmp_path / "scheduled-cohort.json"
+
+    def run_child(script, args=None, **_kwargs):
+        assert script.endswith("universal_harvester.py")
+        child = json.loads(args[0])
+        started.append(child["id"])
+        # SourceBlocked is recorded by the child as a completed blocked outcome
+        # (exit 0); the parent may continue only through the frozen cohort.
+        update_manifest_institution(
+            cohort_path,
+            institution_id=child["id"],
+            http_requests=1 if child["id"] == INSTITUTION_A else 2,
+            unique_urls=1 if child["id"] == INSTITUTION_A else 2,
+            result="blocked" if child["id"] == INSTITUTION_A else "complete",
+        )
+        return True
+
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+    monkeypatch.setenv("GITHUB_RUN_ID", "123456789")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    monkeypatch.setenv("GITHUB_SHA", SOURCE_SHA)
+    monkeypatch.setattr(orchestrator, "_get_db", lambda: database)
+    monkeypatch.setattr(orchestrator, "run_script", run_child)
+
+    result = orchestrator.main(
+        [
+            "--scheduled-cohort",
+            "--skip-cleansing",
+            "--limit",
+            "10",
+            "--max-urls",
+            "10",
+            "--cohort-manifest",
+            str(cohort_path),
+        ]
+    )
+
+    assert result == 0
+    assert started == [INSTITUTION_A, INSTITUTION_B]
+    manifest = FG2CohortManifest.load(
+        cohort_path,
+        expected_run_id="123456789",
+        expected_run_attempt=1,
+        expected_source_sha=SOURCE_SHA,
+        allow_empty=True,
+    )
+    assert manifest.institution_ids == (INSTITUTION_A, INSTITUTION_B)
+    assert [item["result"] for item in manifest.payload["institutions"]] == ["blocked", "complete"]
+
+
 def test_scheduled_cohort_freezes_main_rotation_selection_without_source_or_database_writes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

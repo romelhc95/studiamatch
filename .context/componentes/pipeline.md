@@ -193,6 +193,41 @@ camino ordinario, que no consume estos manifests y conserva los límites vigente
 El camino ordinario puede leer colas globales; habilitarlo o despacharlo requiere
 los gates propios y una revisión separada de ese alcance.
 
+### Identidad de staging por alcance — corrección local 2026-11-19
+
+El harvester de un `approved_lot` carga las identidades de `staging_raw` solo
+para las URLs incluidas en el lote: revalida por ID las filas del snapshot y
+comprueba por alias las identidades que el snapshot declara vacías. El alcance
+vacío falla cerrado. Filas históricas fuera de esas URLs, aunque tengan aliases
+normalizados duplicados, no bloquean el lote ni se modifican.
+
+El `scheduled_cohort` no barre `staging_raw` antes del discovery. Una vez que el
+selector del orquestador congela instituciones y seeds elegibles en el manifest,
+el harvester consulta la identidad de staging por alias para cada URL descubierta
+de esa cohorte, con límite de dos filas. Exige una única fila con URL normalizada,
+institución propietaria y estado conocidos; una colisión dentro de la identidad
+seleccionada, una respuesta malformada o un propietario distinto falla antes de
+escribir y sin escoger una fila arbitraria. Si no existe fila, conserva el flujo
+de discovery actual. El staging histórico ajeno a las URLs seleccionadas no
+amplía el lote ni lo bloquea.
+
+Un HTTP 403 o 429 bloquea el origen después de una sola solicitud y no reintenta
+esa respuesta, incluso cuando 429 incluye `Retry-After`. El hijo controlado lo
+registra como `blocked`; detiene la discovery de la institución y no encola
+enlaces parciales de un sitemap después del bloqueo. El orquestador puede
+continuar solo con las otras instituciones que ya quedaron congeladas en el
+manifest, nunca seleccionar una fuente de reemplazo. Un error de base, drift o
+identidad ambigua sigue siendo fatal y no se convierte en `blocked`.
+
+Transición: `expand` aplica la lectura acotada solo a `approved_lot` y
+`scheduled_cohort`; `compatibilidad` mantiene sin cambios el camino ordinario y
+los demás modos legacy; `deploy` requiere las promociones protegidas y su gate
+operativo independiente; `contract` solo se evalúa después de una corrida
+funcional autorizada y su postflight. Rollback: pausar los writers conforme a su
+autorización y revertir el código por la ruta protegida; no borrar ni reclasificar
+filas históricas. Las regresiones de este cambio usan mocks y datos sintéticos en
+Docker sin red; no acreditan schedule funcional, estado de Pro ni otro piloto.
+
 La ejecución controlada mantiene el selector rotativo por
 `last_harvest_at ASC NULLS FIRST`, exige que las instituciones aprobadas sigan
 siendo el prefijo elegible de esa rotación, y valida perfiles, elegibilidad y
