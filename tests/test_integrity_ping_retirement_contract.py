@@ -1,9 +1,14 @@
-from datetime import datetime, timedelta, timezone
 import socket
 import ssl
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest import TestCase
 from unittest.mock import Mock, patch
 from scripts.core import integrity_ping
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "core"))
+from scripts.core import sync_vector_worker
 
 
 class FakeTimeGuard:
@@ -374,6 +379,139 @@ class IntegrityPingWpRem07Contract(TestCase):
         self.assertEqual(result, 0)
         self.assertFalse(db.transitions)
 
+    def test_redirected_404_confirmation_uses_final_url_within_three_attempts(self):
+        origin = "https://institution.example/course"
+        destination = "https://catalog.example/program"
+        course = self.course()
+        course["url"] = origin
+
+        result, db, requests, logs, _ = run_with_http_sequence(
+            course,
+            [
+                (302, {"Location": destination}),
+                404,
+                410,
+            ],
+        )
+
+        self.assertEqual(
+            requests,
+            [("HEAD", origin), ("HEAD", destination), ("GET", destination)],
+        )
+        self.assertEqual(result, 0)
+        self.assertEqual(len(db.transitions), 1)
+        self.assertEqual(db.transitions[0]["p_action"], "start_404_grace")
+        self.assertEqual(db.transitions[0]["p_http_status"], 410)
+        self.assertIn("action=start_404_grace", logs)
+
+    def test_redirected_410_confirmation_deactivates_only_after_grace(self):
+        origin = "https://institution.example/course"
+        destination = "https://catalog.example/program"
+        old_marker = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+        course = self.course(old_marker)
+        course["url"] = origin
+
+        result, db, requests, logs, _ = run_with_http_sequence(
+            course,
+            [
+                (302, {"Location": destination}),
+                410,
+                404,
+            ],
+        )
+
+        self.assertEqual(
+            requests,
+            [("HEAD", origin), ("HEAD", destination), ("GET", destination)],
+        )
+        self.assertEqual(result, 0)
+        self.assertEqual(db.transitions[0]["p_action"], "deactivate_after_grace")
+        self.assertEqual(db.transitions[0]["p_http_status"], 404)
+        self.assertFalse(db.base_courses[0]["is_active"])
+        self.assertIn("action=deactivate_after_grace", logs)
+
+    def test_redirected_403_405_501_fallbacks_get_the_final_destination(self):
+        origin = "https://institution.example/course"
+        destination = "https://catalog.example/program"
+        old_marker = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+
+        for status in (403, 405, 501):
+            with self.subTest(status=status):
+                course = self.course(old_marker)
+                course["url"] = origin
+                result, db, requests, _, _ = run_with_http_sequence(
+                    course,
+                    [
+                        (302, {"Location": destination}),
+                        status,
+                        200,
+                    ],
+                )
+
+                self.assertEqual(
+                    requests,
+                    [("HEAD", origin), ("HEAD", destination), ("GET", destination)],
+                )
+                self.assertEqual(result, 0)
+                self.assertEqual(db.transitions[0]["p_action"], "clear_404_grace")
+                self.assertIsNone(db.base_courses[0]["last_404_at"])
+
+    def test_get_confirmation_rejects_an_unsafe_redirect_target(self):
+        origin = "https://institution.example/course"
+        unsafe = integrity_ping.PinnedHTTPResponse(
+            302,
+            {"Location": "http://127.0.0.1/private"},
+            origin,
+        )
+        responses = [
+            integrity_ping.PinnedHTTPResponse(404, {}, origin),
+            unsafe,
+        ]
+        calls = []
+
+        def request(url, method="HEAD", timeout=10, budget=None):
+            calls.append((method, url))
+            return responses.pop(0)
+
+        with patch.object(integrity_ping, "request_pinned_public_url", side_effect=request):
+            with self.assertRaises(integrity_ping.ProbeFailure) as raised:
+                integrity_ping.probe_public_course(origin)
+
+        self.assertEqual(calls, [("HEAD", origin), ("GET", origin)])
+        self.assertEqual(raised.exception.phase, "redirect_validation")
+        self.assertEqual(raised.exception.category, "unsafe_target")
+
+    def test_redirect_hostname_with_private_dns_is_rejected_before_connection(self):
+        origin = "https://institution.example/course"
+        destination = "https://catalog.example/program"
+        real_request = integrity_ping.request_pinned_public_url
+        requests = []
+
+        def request(url, method="HEAD", timeout=10, budget=None):
+            requests.append((method, url))
+            if url == origin:
+                return integrity_ping.PinnedHTTPResponse(
+                    302, {"Location": destination}, origin
+                )
+            return real_request(url, method=method, timeout=timeout, budget=budget)
+
+        private_answer = [
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("10.20.30.40", 443))
+        ]
+        with (
+            patch.object(integrity_ping, "request_pinned_public_url", side_effect=request),
+            patch.object(integrity_ping.socket, "getaddrinfo", return_value=private_answer) as resolver,
+            patch.object(integrity_ping, "FixedIPHTTPSConnection") as connection,
+        ):
+            with self.assertRaises(integrity_ping.ProbeFailure) as raised:
+                integrity_ping.fetch_public_url(origin)
+
+        self.assertEqual(requests, [("HEAD", origin), ("HEAD", destination)])
+        self.assertEqual(raised.exception.phase, "dns_resolution")
+        self.assertEqual(raised.exception.category, "unsafe_dns_answer")
+        resolver.assert_called_once()
+        connection.assert_not_called()
+
     def test_retryable_statuses_share_three_http_attempt_budget(self):
         result, db, requests, logs, sleeper = run_with_http_sequence(
             self.course(), [503, 429, 503]
@@ -597,6 +735,92 @@ class IntegrityPingWpRem07Contract(TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(len(db.transitions), 1)
         self.assertNotIn("WRITE_RUNTIME_SENTINEL", str(logger.warning.call_args_list))
+
+
+class SyncVectorWorkerPublicUrlValidation(TestCase):
+    def enriched(self):
+        return {
+            "id": "synthetic-enriched-id",
+            "institution_id": "synthetic-institution-id",
+            "official_name": "Synthetic course name",
+            "url": "https://sync.example/program",
+        }
+
+    def worker_at_url_gate(self):
+        worker = sync_vector_worker.SyncVectorWorker.__new__(
+            sync_vector_worker.SyncVectorWorker
+        )
+        worker._verify_fg2_manifest_url_identity = Mock()
+        worker.update_enriched_status = Mock()
+        worker.ready_inst_ids = set()
+        return worker
+
+    def test_sync_rejects_private_dns_resolution_without_course_write(self):
+        worker = self.worker_at_url_gate()
+        logger = Mock()
+        private_answer = [
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("10.20.30.40", 443))
+        ]
+
+        with (
+            patch.object(integrity_ping.socket, "getaddrinfo", return_value=private_answer) as resolver,
+            patch.object(sync_vector_worker, "logger", logger),
+        ):
+            result = worker.sync_to_production(self.enriched())
+
+        self.assertFalse(result)
+        resolver.assert_called_once()
+        worker.update_enriched_status.assert_called_once_with(
+            "synthetic-enriched-id",
+            "error",
+            error_msg="invalid_enriched_url",
+            existing_metadata=None,
+        )
+        logger.error.assert_called_once()
+
+    def test_sync_rejects_unresolvable_hostname_without_course_write(self):
+        worker = self.worker_at_url_gate()
+        logger = Mock()
+
+        with (
+            patch.object(
+                integrity_ping.socket,
+                "getaddrinfo",
+                side_effect=socket.gaierror(socket.EAI_NONAME, "name not known"),
+            ) as resolver,
+            patch.object(sync_vector_worker, "logger", logger),
+        ):
+            result = worker.sync_to_production(self.enriched())
+
+        self.assertFalse(result)
+        resolver.assert_called_once()
+        worker.update_enriched_status.assert_called_once_with(
+            "synthetic-enriched-id",
+            "error",
+            error_msg="invalid_enriched_url",
+            existing_metadata=None,
+        )
+        logger.error.assert_called_once()
+
+    def test_sync_accepts_a_public_dns_answer_and_continues_to_pipeline_gate(self):
+        worker = self.worker_at_url_gate()
+        logger = Mock()
+        public_answer = [
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", 443))
+        ]
+
+        with (
+            patch.object(integrity_ping.socket, "getaddrinfo", return_value=public_answer) as resolver,
+            patch.object(sync_vector_worker, "logger", logger),
+        ):
+            result = worker.sync_to_production(self.enriched())
+
+        self.assertFalse(result)
+        resolver.assert_called_once()
+        worker.update_enriched_status.assert_not_called()
+        logger.error.assert_not_called()
+        logger.warning.assert_called_once()
+        self.assertIn("pipeline_gate=false", logger.warning.call_args.args[0])
 
 
 if __name__ == "__main__":

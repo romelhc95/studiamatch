@@ -140,11 +140,21 @@ solo IPs públicas antes de abrir HTTPS; no se registran títulos, URLs ni texto
 crudo de excepciones. Resultado incierto de una RPC detiene el lote y no se
 repite.
 
+La confirmación GET comienza en el `response.url` final validado por HEAD, por
+lo que no vuelve a consumir intentos repitiendo redirects ya recorridos. El GET
+vuelve a resolver y fijar por DNS público cada destino bajo el mismo presupuesto
+`ProbeTrace`. El helper público `is_safe_public_url()` conserva resolución DNS
+pública para el consumidor `SyncVectorWorker` antes de persistir un curso; el
+probe usa `_is_syntactically_safe_public_url()` para validar formato y delega la
+resolución acotada y el pinning a cada request HTTPS.
+
 Los logs por ID registran método, estados HTTP, fase/categoría, acción y campos
 FG3 resultantes. Sirven para reconciliar transiciones por ID sin depender del
 título; no contienen cuerpos de respuesta ni errores completos. La suite
 `tests/test_integrity_ping_retirement_contract.py` usa fixtures sintéticos y se
-ejecuta en Docker `--network none`; no demuestra acceso a las instituciones,
+ejecuta en Docker `--network none`; incluye redirects HEAD→GET al destino final
+y mocks DNS para Sync (rechazo de resolución privada o inexistente y aceptación
+de una dirección pública). No demuestra acceso a las instituciones,
 estado Pro ni aceptación funcional remota. Expansión: agregar el probe y los
 logs conservando la RPC/contrato existente. Compatibilidad: mantener los
 writers pausados mientras se publica y se observa. Deploy: requiere promoción

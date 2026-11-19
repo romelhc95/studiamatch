@@ -304,7 +304,8 @@ def resolve_public_host(host, budget=None):
     return addresses
 
 
-def is_safe_public_url(url):
+def _is_syntactically_safe_public_url(url):
+    """Validate the URL shape without an unbudgeted hostname lookup."""
     parsed = urlparse(str(url or '').strip())
     if (
         parsed.scheme != 'https'
@@ -325,10 +326,31 @@ def is_safe_public_url(url):
     try:
         ipaddress.ip_address(host)
     except ValueError:
-        # Hostname DNS is resolved and pinned for each actual request below.
         return bool(host) and not any(ord(char) < 32 for char in host)
     else:
         return is_safe_public_ip(host)
+
+
+def is_safe_public_url(url):
+    """Return whether a URL resolves only to public HTTPS targets.
+
+    SyncVectorWorker uses this before persisting a course URL, so hostname
+    validation includes a public DNS resolution. The FG3 probe uses the
+    syntax-only helper and performs its own budgeted DNS resolution/pinning
+    immediately before each request.
+    """
+    if not _is_syntactically_safe_public_url(url):
+        return False
+
+    host = urlparse(str(url or '').strip()).hostname or ''
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        try:
+            resolve_public_host(host)
+        except ProbeFailure:
+            return False
+    return True
 
 
 def request_pinned_public_url(url, method='HEAD', timeout=10, budget=None):
@@ -382,7 +404,7 @@ def fetch_public_url(url, method='HEAD', max_redirects=MAX_REDIRECTS_PER_METHOD,
     current_url = url
     redirects = 0
     while True:
-        if not is_safe_public_url(current_url):
+        if not _is_syntactically_safe_public_url(current_url):
             trace.add_diagnostic("redirect_validation", "unsafe_target")
             raise ProbeFailure("redirect_validation", "unsafe_target", trace)
         trace.reserve_attempt(method)
@@ -420,7 +442,7 @@ def fetch_public_url(url, method='HEAD', max_redirects=MAX_REDIRECTS_PER_METHOD,
                 trace.add_diagnostic("redirect_validation", "redirect_limit")
                 raise ProbeFailure("redirect_validation", "redirect_limit", trace)
             next_url = urljoin(current_url, location)
-            if not is_safe_public_url(next_url):
+            if not _is_syntactically_safe_public_url(next_url):
                 trace.add_diagnostic("redirect_validation", "unsafe_target")
                 raise ProbeFailure("redirect_validation", "unsafe_target", trace)
             current_url = next_url
@@ -442,7 +464,8 @@ def probe_public_course(url):
     response = fetch_public_url(url, method="HEAD", budget=trace)
     method = "HEAD"
     if response.status_code in HTTP_GET_CONFIRMATION_STATUSES:
-        response = fetch_public_url(url, method="GET", budget=trace)
+        confirmation_url = getattr(response, "url", url)
+        response = fetch_public_url(confirmation_url, method="GET", budget=trace)
         method = "GET"
     return response, method, trace
 
@@ -665,7 +688,7 @@ def run_integrity_ping(institution_id=None, limit=None):
             response, response_method, trace = probe_public_course(course_url)
             _log_probe_trace(course_id, response, response_method, trace)
             final_url = getattr(response, 'url', course_url)
-            if not is_safe_public_url(final_url):
+            if not _is_syntactically_safe_public_url(final_url):
                 trace.add_diagnostic("redirect_validation", "unsafe_target")
                 raise ProbeFailure("redirect_validation", "unsafe_target", trace)
 
