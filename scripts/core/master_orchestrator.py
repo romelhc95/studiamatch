@@ -29,6 +29,45 @@ db = None
 logger = setup_lima_logging("MasterOrchestrator")
 MAX_RUN_SECONDS = 20400
 CIRCUIT_COOLDOWN = timedelta(hours=24)
+FG2_DIAGNOSTIC_PREFIX = "[FG2_DIAGNOSTIC] "
+FG2_DIAGNOSTIC_PHASES = frozenset({
+    "dependency_import",
+    "module_initialization",
+    "mode_validation",
+    "input_decode",
+    "harvester_initialization",
+    "profile_gate",
+    "browser_initialization",
+    "source_discovery",
+    "course_detail",
+    "staging_write",
+    "telemetry",
+    "shutdown",
+})
+FG2_DIAGNOSTIC_CATEGORIES = frozenset({
+    "dependency_import_failed",
+    "module_initialization_failed",
+    "controlled_run_rejected",
+    "invalid_input",
+    "database_api_error",
+    "database_write_outcome_unknown",
+    "harvester_rejected",
+    "source_request_error",
+    "timeout",
+    "os_error",
+    "profile_missing",
+    "circuit_open",
+    "discovery_unavailable",
+    "unexpected_exception",
+})
+FG2_DIAGNOSTIC_TABLES = frozenset({
+    "institutions",
+    "institution_site_profiles",
+    "staging_raw",
+    "courses",
+    "cleansed_programs",
+    "enriched_programs",
+})
 
 
 def _is_f10_production_canary():
@@ -75,6 +114,53 @@ def _approved_lot_preflight_error_label(error):
     return f"verification_failed: {type(error).__name__}"
 
 
+# StudIAMatch-Docs: .context/componentes/pipeline.md#concurrencia-idempotencia-requeue-y-errores
+def _safe_stage_label(script_path):
+    """Map child paths to a fixed operational label for sensitive logs."""
+    basename = str(script_path).replace("\\", "/").rsplit("/", 1)[-1]
+    return {
+        "universal_harvester.py": "harvester",
+        "cleansing_worker.py": "cleansing",
+        "enrichment_worker.py": "enrichment",
+        "sync_vector_worker.py": "sync",
+    }.get(basename, "unknown")
+
+
+def _parse_child_diagnostic(stdout, stderr):
+    """Accept only the worker's versioned, fixed-vocabulary failure event."""
+    for stream in (stderr, stdout):
+        if not isinstance(stream, str):
+            continue
+        for line in (stream or "").splitlines():
+            if not line.startswith(FG2_DIAGNOSTIC_PREFIX):
+                continue
+            try:
+                payload = json.loads(line[len(FG2_DIAGNOSTIC_PREFIX):])
+            except (TypeError, ValueError):
+                continue
+            version = payload.get("version") if isinstance(payload, dict) else None
+            if not isinstance(version, int) or isinstance(version, bool) or version != 1:
+                continue
+            phase = payload.get("phase")
+            category = payload.get("category")
+            if (
+                not isinstance(phase, str)
+                or phase not in FG2_DIAGNOSTIC_PHASES
+                or not isinstance(category, str)
+                or category not in FG2_DIAGNOSTIC_CATEGORIES
+            ):
+                continue
+            diagnostic = {"phase": phase, "category": category}
+            table = payload.get("table")
+            if isinstance(table, str) and table in FG2_DIAGNOSTIC_TABLES:
+                diagnostic["table"] = table
+            status = payload.get("http_status")
+            if isinstance(status, int) and not isinstance(status, bool) and 100 <= status <= 599:
+                diagnostic["http_status"] = status
+            return diagnostic
+    return None
+
+
 def _get_db():
     global db
     if db is None:
@@ -94,13 +180,15 @@ def run_script(script_path, args=None, timeout=None):
     if args:
         cmd.extend(args)
 
-    if _is_sensitive_log_context():
-        logger.info(f"[STAGE START] {script_path} args=redacted count={len(args or [])}")
+    sensitive = _is_sensitive_log_context()
+    safe_stage = _safe_stage_label(script_path)
+    if sensitive:
+        logger.info("[STAGE START] stage=%s args=redacted count=%s", safe_stage, len(args or []))
     else:
         logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
     # Explicitly pass environment to subprocess
     try:
-        capture_child_output = _is_sensitive_log_context()
+        capture_child_output = sensitive
         result = subprocess.run(
             cmd,
             capture_output=capture_child_output,
@@ -109,19 +197,67 @@ def run_script(script_path, args=None, timeout=None):
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        logger.error(f"[STAGE TIMEOUT] {script_path}")
+        if sensitive:
+            logger.error(
+                "[STAGE FAILURE] stage=%s phase=subprocess_execution failure_class=child_timeout",
+                safe_stage,
+            )
+        else:
+            logger.error(f"[STAGE TIMEOUT] {script_path}")
+        return False
+    except OSError as exc:
+        if sensitive:
+            error_class = type(exc).__name__
+            if error_class not in {"FileNotFoundError", "PermissionError", "OSError"}:
+                error_class = "OSError"
+            logger.error(
+                "[STAGE FAILURE] stage=%s phase=subprocess_start failure_class=process_start_failed error_class=%s",
+                safe_stage,
+                error_class,
+            )
+        else:
+            logger.error(f"[STAGE START FAILED] {script_path} ({type(exc).__name__})")
         return False
 
-    if _is_sensitive_log_context():
+    if sensitive:
         if result.stdout:
-            logger.info(f"[STAGE STDOUT REDACTED] {script_path} lines={len(result.stdout.splitlines())}")
+            logger.info("[STAGE STDOUT REDACTED] stage=%s lines=%s", safe_stage, len(result.stdout.splitlines()))
         if result.stderr:
-            logger.warning(f"[STAGE STDERR REDACTED] {script_path} lines={len(result.stderr.splitlines())}")
+            logger.warning("[STAGE STDERR REDACTED] stage=%s lines=%s", safe_stage, len(result.stderr.splitlines()))
 
     if result.returncode == 0:
-        logger.info(f"✅ [STAGE SUCCESS] {script_path}")
+        if sensitive:
+            logger.info("[STAGE SUCCESS] stage=%s", safe_stage)
+        else:
+            logger.info(f"✅ [STAGE SUCCESS] {script_path}")
         return True
     else:
+        if sensitive:
+            exit_code = (
+                result.returncode
+                if isinstance(result.returncode, int) and not isinstance(result.returncode, bool)
+                else "unknown"
+            )
+            stdout_lines = len(result.stdout.splitlines()) if result.stdout else 0
+            stderr_lines = len(result.stderr.splitlines()) if result.stderr else 0
+            diagnostic = _parse_child_diagnostic(result.stdout, result.stderr)
+            phase = diagnostic["phase"] if diagnostic else "unknown"
+            failure_class = diagnostic["category"] if diagnostic else "child_process_exit"
+            table = diagnostic.get("table", "unknown") if diagnostic else "unknown"
+            http_status = diagnostic.get("http_status", "unknown") if diagnostic else "unknown"
+            logger.error(
+                "[STAGE FAILURE] stage=%s phase=%s failure_class=%s table=%s http_status=%s "
+                "exit_code=%s stdout_lines=%s stderr_lines=%s",
+                safe_stage,
+                phase,
+                failure_class,
+                table,
+                http_status,
+                exit_code,
+                stdout_lines,
+                stderr_lines,
+            )
+            return False
         logger.error(f"❌ [STAGE FAILED] {script_path} (Exit Code: {result.returncode})")
         return False
 

@@ -6,9 +6,11 @@ import logging
 import ipaddress
 import socket
 import ssl
+from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
 from http.client import HTTPSConnection
 from urllib.parse import quote, urljoin, urlparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,8 +27,182 @@ logger = setup_lima_logging("IntegrityPing")
 
 HTTP_GONE_STATUSES = {404, 410}
 HTTP_TRANSIENT_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+HTTP_GET_CONFIRMATION_STATUSES = {403, 404, 405, 410, 501}
 HTTPS_PORT = 443
 SOURCE_REMOVAL_GRACE = timedelta(days=3)
+MAX_HTTP_ATTEMPTS_PER_URL = 3
+HTTP_REQUEST_TIMEOUT_SECONDS = 10
+MAX_REDIRECTS_PER_METHOD = 2
+MAX_TOTAL_RETRY_DELAY_SECONDS = 30
+MAX_URL_PROBE_SECONDS = 60
+
+DIAGNOSTIC_PHASES = frozenset({
+    "target_validation",
+    "dns_resolution",
+    "tcp_connect",
+    "tls_handshake",
+    "http_request",
+    "redirect_validation",
+    "retry_backoff",
+    "time_budget",
+    "response_classification",
+    "transition_write",
+})
+DIAGNOSTIC_CATEGORIES = frozenset({
+    "unsafe_target",
+    "unsafe_dns_answer",
+    "dns_no_answers",
+    "dns_failure",
+    "pinned_peer_mismatch",
+    "tls_failure",
+    "timeout",
+    "transport_os_error",
+    "unexpected_runtime_error",
+    "unexpected_exception",
+    "http_transient_status",
+    "http_status_inconclusive",
+    "exponential_backoff",
+    "retry_after",
+    "attempts_exhausted",
+    "time_budget_exhausted",
+    "retry_after_budget_exhausted",
+    "retry_after_invalid",
+    "redirect_limit",
+    "database_write_outcome_unknown",
+    "database_api_error",
+})
+
+
+class ProbeFailure(RuntimeError):
+    """Internal failure with fixed, sanitized phase/category fields."""
+
+    def __init__(self, phase, category, trace=None, retryable=False):
+        self.phase = phase if phase in DIAGNOSTIC_PHASES else "http_request"
+        self.category = category if category in DIAGNOSTIC_CATEGORIES else "unexpected_exception"
+        self.trace = trace
+        self.retryable = retryable
+        super().__init__(f"{self.phase}:{self.category}")
+
+
+@dataclass
+class ProbeTrace:
+    """One URL's bounded wire-request and retry accounting."""
+
+    started_at: float = field(default_factory=time.monotonic)
+    attempts: int = 0
+    retry_delay_seconds: float = 0
+    methods: list = field(default_factory=list)
+    statuses: list = field(default_factory=list)
+    diagnostics: list = field(default_factory=list)
+
+    def add_diagnostic(self, phase, category):
+        if phase not in DIAGNOSTIC_PHASES:
+            phase = "http_request"
+        if category not in DIAGNOSTIC_CATEGORIES:
+            category = "unexpected_exception"
+        self.diagnostics.append((phase, category))
+
+    def elapsed_seconds(self):
+        try:
+            return time.monotonic() - self.started_at
+        except RuntimeError:
+            self.add_diagnostic("time_budget", "unexpected_runtime_error")
+            raise ProbeFailure(
+                "time_budget", "unexpected_runtime_error", self
+            ) from None
+
+    def check_time(self):
+        if self.elapsed_seconds() >= MAX_URL_PROBE_SECONDS:
+            self.add_diagnostic("time_budget", "time_budget_exhausted")
+            raise ProbeFailure("time_budget", "time_budget_exhausted", self)
+
+    def reserve_attempt(self, method):
+        self.check_time()
+        if self.attempts >= MAX_HTTP_ATTEMPTS_PER_URL:
+            self.add_diagnostic("retry_backoff", "attempts_exhausted")
+            raise ProbeFailure("retry_backoff", "attempts_exhausted", self)
+        self.attempts += 1
+        self.methods.append(method)
+
+    def record_status(self, status_code):
+        if isinstance(status_code, int) and 100 <= status_code <= 599:
+            self.statuses.append(status_code)
+
+    def wait_before_retry(self, delay_seconds, phase, category):
+        if self.attempts >= MAX_HTTP_ATTEMPTS_PER_URL:
+            self.add_diagnostic("retry_backoff", "attempts_exhausted")
+            raise ProbeFailure("retry_backoff", "attempts_exhausted", self)
+        if self.retry_delay_seconds + delay_seconds > MAX_TOTAL_RETRY_DELAY_SECONDS:
+            failure = "retry_after_budget_exhausted" if category == "retry_after" else "time_budget_exhausted"
+            self.add_diagnostic("retry_backoff", failure)
+            raise ProbeFailure("retry_backoff", failure, self)
+        if self.elapsed_seconds() + delay_seconds >= MAX_URL_PROBE_SECONDS:
+            self.add_diagnostic("time_budget", "time_budget_exhausted")
+            raise ProbeFailure("time_budget", "time_budget_exhausted", self)
+        self.add_diagnostic(phase, category)
+        self.retry_delay_seconds += delay_seconds
+        try:
+            time.sleep(delay_seconds)
+        except RuntimeError:
+            self.add_diagnostic("retry_backoff", "unexpected_runtime_error")
+            raise ProbeFailure(
+                "retry_backoff", "unexpected_runtime_error", self
+            ) from None
+
+    def safe_summary(self):
+        methods = ",".join(method for method in self.methods if method in {"HEAD", "GET"}) or "none"
+        statuses = ",".join(str(code) for code in self.statuses) or "none"
+        diagnostics = ",".join(f"{phase}:{category}" for phase, category in self.diagnostics) or "none"
+        return methods, statuses, diagnostics
+
+
+def _retry_after_seconds(value):
+    if not isinstance(value, str) or not value.strip():
+        return None
+    raw = value.strip()
+    try:
+        seconds = float(raw)
+        return seconds if seconds >= 0 else None
+    except ValueError:
+        pass
+    try:
+        retry_at = parsedate_to_datetime(raw)
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _network_failure(exc, default_phase="http_request"):
+    if isinstance(exc, socket.gaierror):
+        return "dns_resolution", "dns_failure", True
+    if isinstance(exc, ssl.SSLError):
+        return "tls_handshake", "tls_failure", True
+    if isinstance(exc, (socket.timeout, TimeoutError)):
+        return default_phase, "timeout", True
+    if isinstance(exc, OSError):
+        return default_phase, "transport_os_error", True
+    if isinstance(exc, RuntimeError):
+        return default_phase, "unexpected_runtime_error", False
+    return default_phase, "unexpected_exception", False
+
+
+def _retry_delay(trace, response=None, fallback_category="exponential_backoff"):
+    retry_after = None
+    if response is not None:
+        retry_after = _retry_after_seconds(response.headers.get("retry-after"))
+        if response.headers.get("retry-after") and retry_after is None:
+            trace.add_diagnostic("retry_backoff", "retry_after_invalid")
+    if retry_after is not None:
+        return retry_after, "retry_after"
+    return float(2 ** max(0, trace.attempts - 1)), fallback_category
+
+
+def _is_retryable_http_status(status_code, method):
+    if status_code in HTTP_TRANSIENT_STATUSES:
+        return True
+    return 500 <= status_code < 600 and not (method == "HEAD" and status_code == 501)
 
 
 def is_confirmed_source_removal(status_code, last_404_at, now=None):
@@ -51,13 +227,28 @@ class FixedIPHTTPSConnection(HTTPSConnection):
         self.fixed_ip = fixed_ip
 
     def connect(self):
-        raw_sock = socket.create_connection((self.fixed_ip, self.port), self.timeout)
-        peer_ip = ipaddress.ip_address(raw_sock.getpeername()[0])
-        expected_ip = ipaddress.ip_address(self.fixed_ip)
-        if peer_ip != expected_ip:
+        try:
+            raw_sock = socket.create_connection((self.fixed_ip, self.port), self.timeout)
+        except Exception as exc:
+            phase, category, retryable = _network_failure(exc, "tcp_connect")
+            raise ProbeFailure(phase, category, retryable=retryable) from None
+        try:
+            try:
+                peer_ip = ipaddress.ip_address(raw_sock.getpeername()[0])
+                expected_ip = ipaddress.ip_address(self.fixed_ip)
+            except Exception as exc:
+                phase, category, retryable = _network_failure(exc, "tcp_connect")
+                raise ProbeFailure(phase, category, retryable=retryable) from None
+            if peer_ip != expected_ip:
+                raise ProbeFailure("tls_handshake", "pinned_peer_mismatch")
+            try:
+                self.sock = self._context.wrap_socket(raw_sock, server_hostname=self.host)
+            except Exception as exc:
+                phase, category, retryable = _network_failure(exc, "tls_handshake")
+                raise ProbeFailure(phase, category, retryable=retryable) from None
+        except Exception:
             raw_sock.close()
-            raise RuntimeError("connected peer does not match pinned DNS result")
-        self.sock = self._context.wrap_socket(raw_sock, server_hostname=self.host)
+            raise
 
 
 class PinnedHTTPResponse:
@@ -93,22 +284,35 @@ def is_safe_public_ip(value):
     )
 
 
-def resolve_public_host(host):
+def resolve_public_host(host, budget=None):
     addresses = []
-    for info in socket.getaddrinfo(host, HTTPS_PORT, type=socket.SOCK_STREAM):
+    try:
+        address_info = socket.getaddrinfo(host, HTTPS_PORT, type=socket.SOCK_STREAM)
+    except Exception as exc:
+        phase, category, retryable = _network_failure(exc, "dns_resolution")
+        raise ProbeFailure(phase, category, retryable=retryable) from None
+    if budget is not None:
+        budget.check_time()
+    for info in address_info:
         resolved = info[4][0]
         if not is_safe_public_ip(resolved):
-            raise RuntimeError(f"unsafe resolved IP for {host}")
+            raise ProbeFailure("dns_resolution", "unsafe_dns_answer")
         if resolved not in addresses:
             addresses.append(resolved)
     if not addresses:
-        raise RuntimeError(f"no DNS results for {host}")
+        raise ProbeFailure("dns_resolution", "dns_no_answers")
     return addresses
 
 
-def is_safe_public_url(url):
+def _is_syntactically_safe_public_url(url):
+    """Validate the URL shape without an unbudgeted hostname lookup."""
     parsed = urlparse(str(url or '').strip())
-    if parsed.scheme != 'https' or not parsed.netloc:
+    if (
+        parsed.scheme != 'https'
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
         return False
     try:
         port = parsed.port
@@ -122,38 +326,55 @@ def is_safe_public_url(url):
     try:
         ipaddress.ip_address(host)
     except ValueError:
-        pass
+        return bool(host) and not any(ord(char) < 32 for char in host)
     else:
         return is_safe_public_ip(host)
-    if host.startswith(('127.', '10.', '192.168.', '169.254.')):
+
+
+def is_safe_public_url(url):
+    """Return whether a URL resolves only to public HTTPS targets.
+
+    SyncVectorWorker uses this before persisting a course URL, so hostname
+    validation includes a public DNS resolution. The FG3 probe uses the
+    syntax-only helper and performs its own budgeted DNS resolution/pinning
+    immediately before each request.
+    """
+    if not _is_syntactically_safe_public_url(url):
         return False
-    if host.startswith('172.'):
-        try:
-            second_octet = int(host.split('.')[1])
-            if 16 <= second_octet <= 31:
-                return False
-        except (IndexError, ValueError):
-            pass
+
+    host = urlparse(str(url or '').strip()).hostname or ''
     try:
-        resolve_public_host(host)
-    except (OSError, RuntimeError, ValueError):
-        return False
+        ipaddress.ip_address(host)
+    except ValueError:
+        try:
+            resolve_public_host(host)
+        except ProbeFailure:
+            return False
     return True
 
 
-def request_pinned_public_url(url, method='HEAD', timeout=10):
+def request_pinned_public_url(url, method='HEAD', timeout=10, budget=None):
     parsed = urlparse(str(url or '').strip())
-    if parsed.scheme != 'https' or not parsed.hostname:
-        raise RuntimeError(f"unsafe URL target: {url}")
+    if (
+        parsed.scheme != 'https'
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ProbeFailure("target_validation", "unsafe_target")
     try:
         port = parsed.port
-    except ValueError as exc:
-        raise RuntimeError(f"unsupported HTTPS port: {url}") from exc
+    except ValueError:
+        raise ProbeFailure("target_validation", "unsafe_target") from None
     if port not in (None, HTTPS_PORT):
-        raise RuntimeError(f"unsupported HTTPS port: {url}")
-    addresses = resolve_public_host(parsed.hostname)
+        raise ProbeFailure("target_validation", "unsafe_target")
+    addresses = resolve_public_host(parsed.hostname, budget=budget)
     fixed_ip = addresses[0]
-    context = ssl.create_default_context()
+    try:
+        context = ssl.create_default_context()
+    except Exception as exc:
+        phase, category, retryable = _network_failure(exc, "tls_handshake")
+        raise ProbeFailure(phase, category, retryable=retryable) from None
     connection = FixedIPHTTPSConnection(
         parsed.hostname,
         fixed_ip=fixed_ip,
@@ -174,20 +395,79 @@ def request_pinned_public_url(url, method='HEAD', timeout=10):
         connection.close()
 
 
-def fetch_public_url(url, method='HEAD', max_redirects=5):
+def fetch_public_url(url, method='HEAD', max_redirects=MAX_REDIRECTS_PER_METHOD, budget=None):
+    trace = budget or ProbeTrace()
+    method = method.upper()
+    if method not in {"HEAD", "GET"}:
+        trace.add_diagnostic("target_validation", "unsafe_target")
+        raise ProbeFailure("target_validation", "unsafe_target", trace)
     current_url = url
-    for _ in range(max_redirects + 1):
-        if not is_safe_public_url(current_url):
-            raise RuntimeError(f"unsafe URL target: {current_url}")
-        response = request_pinned_public_url(current_url, method=method, timeout=10)
+    redirects = 0
+    while True:
+        if not _is_syntactically_safe_public_url(current_url):
+            trace.add_diagnostic("redirect_validation", "unsafe_target")
+            raise ProbeFailure("redirect_validation", "unsafe_target", trace)
+        trace.reserve_attempt(method)
+        try:
+            response = request_pinned_public_url(
+                current_url,
+                method=method,
+                timeout=HTTP_REQUEST_TIMEOUT_SECONDS,
+                budget=trace,
+            )
+            trace.check_time()
+        except ProbeFailure as failure:
+            trace.add_diagnostic(failure.phase, failure.category)
+            if failure.retryable:
+                delay, delay_category = _retry_delay(trace)
+                trace.wait_before_retry(delay, "retry_backoff", delay_category)
+                continue
+            raise ProbeFailure(failure.phase, failure.category, trace) from None
+        except Exception as exc:
+            phase, category, retryable = _network_failure(exc)
+            trace.add_diagnostic(phase, category)
+            if not retryable:
+                raise ProbeFailure(phase, category, trace) from None
+            delay, delay_category = _retry_delay(trace)
+            trace.wait_before_retry(delay, "retry_backoff", delay_category)
+            continue
+
+        trace.record_status(response.status_code)
         if response.is_redirect or response.is_permanent_redirect:
             location = response.headers.get('location')
             if not location:
                 return response
-            current_url = urljoin(current_url, location)
+            redirects += 1
+            if redirects > max_redirects:
+                trace.add_diagnostic("redirect_validation", "redirect_limit")
+                raise ProbeFailure("redirect_validation", "redirect_limit", trace)
+            next_url = urljoin(current_url, location)
+            if not _is_syntactically_safe_public_url(next_url):
+                trace.add_diagnostic("redirect_validation", "unsafe_target")
+                raise ProbeFailure("redirect_validation", "unsafe_target", trace)
+            current_url = next_url
+            continue
+        if _is_retryable_http_status(response.status_code, method):
+            trace.add_diagnostic("http_request", "http_transient_status")
+            delay, delay_category = _retry_delay(trace, response)
+            trace.wait_before_retry(delay, "retry_backoff", delay_category)
             continue
         return response
-    raise RuntimeError("too many redirects")
+
+
+def probe_public_course(url):
+    """Probe HEAD and, only for ambiguous/removal statuses, confirm with bounded GET."""
+    try:
+        trace = ProbeTrace()
+    except RuntimeError:
+        raise ProbeFailure("time_budget", "unexpected_runtime_error") from None
+    response = fetch_public_url(url, method="HEAD", budget=trace)
+    method = "HEAD"
+    if response.status_code in HTTP_GET_CONFIRMATION_STATUSES:
+        confirmation_url = getattr(response, "url", url)
+        response = fetch_public_url(confirmation_url, method="GET", budget=trace)
+        method = "GET"
+    return response, method, trace
 
 
 def load_selected_course_state(db, public_courses, batch_size=100):
@@ -264,7 +544,50 @@ def apply_public_course_transition(db, course, http_status, action):
         raise DatabaseWriteOutcomeUnknown(
             "FG3 grace result returned an invalid course state; do not retry"
         )
+    logger.info(
+        "[FG3_TRANSITION] course_id=%s action=%s http_status=%s outcome=%s "
+        "resulting_last_404_at=%s resulting_is_active=%s",
+        course['id'],
+        action,
+        http_status,
+        outcome,
+        resulting_marker if resulting_marker is not None else "null",
+        resulting_active if isinstance(resulting_active, bool) else "unknown",
+    )
     return outcome
+
+
+def _log_probe_trace(course_id, response, method, trace):
+    methods, statuses, diagnostics = trace.safe_summary()
+    logger.info(
+        "[FG3_PROBE] course_id=%s outcome=response method=%s http_status=%s "
+        "attempts=%s attempt_methods=%s response_statuses=%s retry_delay_seconds=%s diagnostics=%s",
+        course_id,
+        method,
+        response.status_code,
+        trace.attempts,
+        methods,
+        statuses,
+        int(trace.retry_delay_seconds),
+        diagnostics,
+    )
+
+
+def _log_probe_failure(course_id, phase, category, trace=None, http_status="unknown"):
+    methods, statuses, diagnostics = trace.safe_summary() if trace else ("none", "none", "none")
+    logger.warning(
+        "[FG3_DIAGNOSTIC] course_id=%s phase=%s category=%s http_status=%s "
+        "attempts=%s attempt_methods=%s response_statuses=%s retry_delay_seconds=%s history=%s",
+        course_id,
+        phase if phase in DIAGNOSTIC_PHASES else "http_request",
+        category if category in DIAGNOSTIC_CATEGORIES else "unexpected_exception",
+        http_status if isinstance(http_status, int) and 100 <= http_status <= 599 else "unknown",
+        trace.attempts if trace else 0,
+        methods,
+        statuses,
+        int(trace.retry_delay_seconds) if trace else 0,
+        diagnostics,
+    )
 
 
 def _append_filter(base_filter, extra_filter):
@@ -357,26 +680,24 @@ def run_integrity_ping(institution_id=None, limit=None):
 
         course_id = course['id']
         course_url = course['url']
-
-        if not is_safe_public_url(course_url):
-            failed += 1
-            logger.warning(f"[Unsafe URL] Saltando {course['name']} ({course_url})")
-            continue
+        trace = None
+        response = None
+        phase = "http_request"
 
         try:
-            response = fetch_public_url(course_url, method='HEAD')
-            if response.status_code in (405, 501):
-                response = fetch_public_url(course_url, method='GET')
+            response, response_method, trace = probe_public_course(course_url)
+            _log_probe_trace(course_id, response, response_method, trace)
             final_url = getattr(response, 'url', course_url)
-            if not is_safe_public_url(final_url):
-                failed += 1
-                logger.warning(f"[Unsafe Redirect] Saltando {course['name']} ({final_url})")
-                continue
+            if not _is_syntactically_safe_public_url(final_url):
+                trace.add_diagnostic("redirect_validation", "unsafe_target")
+                raise ProbeFailure("redirect_validation", "unsafe_target", trace)
 
+            phase = "response_classification"
             if response.status_code in HTTP_GONE_STATUSES:
                 last_404 = course.get('last_404_at')
 
                 if not last_404:
+                    phase = "transition_write"
                     outcome = apply_public_course_transition(
                         db,
                         course,
@@ -385,14 +706,26 @@ def run_integrity_ping(institution_id=None, limit=None):
                     )
                     if outcome == 'applied':
                         flagged += 1
-                        logger.info(f"[Flagged] {course['name']} ({response.status_code} observado; inicia la gracia de retirada)")
+                        logger.info(
+                            "[FG3_RESULT] course_id=%s outcome=grace_started http_status=%s",
+                            course_id,
+                            response.status_code,
+                        )
                     else:
                         stale += 1
-                        logger.info(f"[Stale eligibility] Sin cambios para {course_id}; la elegibilidad o el estado cambió antes de la transacción FG3")
+                        logger.info(
+                            "[FG3_RESULT] course_id=%s outcome=stale_transition action=start_404_grace",
+                            course_id,
+                        )
                 elif not is_confirmed_source_removal(response.status_code, last_404):
                     flagged += 1
-                    logger.info(f"[Pending] {course['name']} ({response.status_code} repetido antes de confirmar la gracia de retirada)")
+                    logger.info(
+                        "[FG3_RESULT] course_id=%s outcome=grace_pending http_status=%s",
+                        course_id,
+                        response.status_code,
+                    )
                 else:
+                    phase = "transition_write"
                     outcome = apply_public_course_transition(
                         db,
                         course,
@@ -401,18 +734,39 @@ def run_integrity_ping(institution_id=None, limit=None):
                     )
                     if outcome == 'applied':
                         deactivated += 1
-                        logger.info(f"[Deactivated] {course['name']} ({response.status_code} repetido tras la gracia de retirada)")
+                        logger.info(
+                            "[FG3_RESULT] course_id=%s outcome=deactivated http_status=%s",
+                            course_id,
+                            response.status_code,
+                        )
                     elif outcome == 'grace_pending':
                         flagged += 1
-                        logger.info(f"[Pending] {course['name']} (la base de datos aún no confirma la gracia de retirada)")
+                        logger.info(
+                            "[FG3_RESULT] course_id=%s outcome=grace_pending http_status=%s",
+                            course_id,
+                            response.status_code,
+                        )
                     else:
                         stale += 1
-                        logger.info(f"[Stale eligibility] Sin cambios para {course_id}; la elegibilidad o el estado cambió antes de la transacción FG3")
-            elif response.status_code in HTTP_TRANSIENT_STATUSES:
+                        logger.info(
+                            "[FG3_RESULT] course_id=%s outcome=stale_transition action=deactivate_after_grace",
+                            course_id,
+                        )
+            elif (
+                response.status_code in HTTP_TRANSIENT_STATUSES
+                or 500 <= response.status_code < 600
+            ):
                 failed += 1
-                logger.warning(f"[Transient HTTP {response.status_code}] {course['name']}")
+                _log_probe_failure(
+                    course_id,
+                    "response_classification",
+                    "http_transient_status",
+                    trace,
+                    response.status_code,
+                )
             elif 200 <= response.status_code < 300:
                 if course.get('last_404_at'):
+                    phase = "transition_write"
                     outcome = apply_public_course_transition(
                         db,
                         course,
@@ -421,33 +775,80 @@ def run_integrity_ping(institution_id=None, limit=None):
                     )
                     if outcome == 'applied':
                         recovered += 1
-                        logger.info(f"[Recovered] {course['name']} (Vuelve a estar online)")
+                        logger.info(
+                            "[FG3_RESULT] course_id=%s outcome=marker_cleared http_status=%s",
+                            course_id,
+                            response.status_code,
+                        )
                     else:
                         stale += 1
-                        logger.info(f"[Stale eligibility] Sin cambios para {course_id}; la elegibilidad o el estado cambió antes de la transacción FG3")
+                        logger.info(
+                            "[FG3_RESULT] course_id=%s outcome=stale_transition action=clear_404_grace",
+                            course_id,
+                        )
             else:
                 failed += 1
-                logger.warning(f"[Unhandled HTTP {response.status_code}] {course['name']}")
+                _log_probe_failure(
+                    course_id,
+                    "response_classification",
+                    "http_status_inconclusive",
+                    trace,
+                    response.status_code,
+                )
 
-        except DatabaseWriteOutcomeUnknown as e:
+        except ProbeFailure as exc:
             failed += 1
-            logger.error(
-                f"[Write outcome unknown] Deteniendo FG3 en {course_id}; "
-                f"sin reintento y sin continuar el lote: {type(e).__name__}"
+            failure_trace = exc.trace if isinstance(exc.trace, ProbeTrace) else trace
+            _log_probe_failure(
+                course_id,
+                exc.phase,
+                exc.category,
+                failure_trace,
+            )
+
+        except DatabaseWriteOutcomeUnknown:
+            failed += 1
+            _log_probe_failure(
+                course_id,
+                "transition_write",
+                "database_write_outcome_unknown",
+                trace,
+                response.status_code if response else "unknown",
             )
             partial = True
             break
-        except DatabaseAPIError as e:
+        except DatabaseAPIError:
             failed += 1
-            logger.error(
-                f"[Write rejected] Deteniendo FG3 en {course_id}; "
-                f"no se continúa el lote: {type(e).__name__}"
+            _log_probe_failure(
+                course_id,
+                "transition_write",
+                "database_api_error",
+                trace,
+                response.status_code if response else "unknown",
             )
             partial = True
             break
-        except Exception as e:
+        except RuntimeError:
             failed += 1
-            logger.warning(f"[Timeout/Error] Saltando {course['name']} por error de conexión: {type(e).__name__}")
+            _log_probe_failure(
+                course_id,
+                phase,
+                "unexpected_runtime_error",
+                trace,
+                response.status_code if response else "unknown",
+            )
+            if phase == "transition_write":
+                partial = True
+                break
+        except Exception:
+            failed += 1
+            _log_probe_failure(
+                course_id,
+                phase,
+                "unexpected_exception",
+                trace,
+                response.status_code if response else "unknown",
+            )
 
         guard.tick(every=100)
 
