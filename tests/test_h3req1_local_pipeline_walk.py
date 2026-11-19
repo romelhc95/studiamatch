@@ -2415,6 +2415,7 @@ def test_oversized_controlled_sitemap_detail_does_not_persist_discovered_candida
     harvester.approved_lot = object()
     harvester.approved_lot_scope = {
         normalize_url(COURSE_URL): {
+            "institution_id": INSTITUTION_ID,
             "snapshot": {"staging_rows": [], "course_rows": []}
         }
     }
