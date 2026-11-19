@@ -5,7 +5,7 @@
 | Estación | Fuente → destino | Trabajo y estado |
 |---|---|---|
 | FG1 discovery | config/institution_sources.json → institutions e institution_site_profiles | discovery_institutions.py comprueba instituciones y puede insertar las faltantes; --no-insert detiene el caso sin catálogo. Escritura de catálogo, autorización operacional separada. |
-| FG2 orchestration | perfiles y flags → tareas por institución | master_orchestrator.py decide elegibilidad/recencia/circuit breaker, ejecuta workers por subproceso y aplica time guard. |
+| FG2 orchestration | perfiles y flags → tareas por institución | master_orchestrator.py decide elegibilidad/recencia/circuit breaker, ejecuta workers por subproceso y aplica time guard. En contextos controlados conserva solo diagnósticos versionados con fase/categoría allowlistadas y metadatos DB sanitizados; nunca publica stdout/stderr ni argumentos. |
 | FG2-1 harvester | web/sitemap/config → staging_raw | universal_harvester.py descubre URLs, filtra/noise/exclusiones, canonicaliza, extrae HTML/metadata, calcula SHA-256 content_hash y omite contenido sin cambio. En el modo controlado, el GET limita el cuerpo antes de parsearlo. |
 | FG2-1.5 cleansing | staging_raw → cleansed_programs | cleansing_worker.py bloquea batch, limpia texto, consolida páginas y filtra ruido; usa atomic_cleansing_promote y conserva estados/errores de origen. |
 | FG2-2 enrichment | cleansed_programs → enriched_programs | enrichment_worker.py aplica prompt/campos, normaliza respuestas y usa proveedor configurado con fallback/mock; atomic_enrichment_promote guarda la unidad de trabajo. |
@@ -122,6 +122,20 @@ La implementación actual usa los gates Fase 100 discovery_enabled, pipeline_ena
 ## Concurrencia, idempotencia, requeue y errores
 
 Harvester usa content_hash SHA-256 y estados para no reprocesar contenido idéntico. SQL lock_staging_records/lock_cleansed_records marca trabajo y evita que workers consuman dos veces una misma cohorte; RPC atómicas preservan estados de origen/destino. Orchestrator time guard y circuit breaker limitan un job largo; gate cerrado salta institución. Los workers registran processing_error/reason/error y no consideran output LLM como schema garantizado. La regla de retry/requeue está en RPCs y scripts; no requeue en esta transferencia.
+
+En modo controlado, el harvester emite `[FG2_DIAGNOSTIC]` solo con `version`,
+`phase` y `category` de vocabulario fijo, más tabla/HTTP status cuando provienen
+de un error DB y pasan su allowlist. Las fases incluyen la carga de módulos,
+la inicialización de runtime, la validación de modo,
+decodificación, inicialización, gate de perfil, arranque de Playwright,
+discovery, detalle, escritura,
+telemetría o cierre. `master_orchestrator.py` valida el evento y conserva esos
+campos; si el hijo no lo produjo, registra `phase=unknown` y
+`failure_class=child_process_exit`. El texto de errores, stdout/stderr,
+argumentos, secretos, cuerpos y URLs no se exponen. La categoría identifica
+una clase operativa observable, no demuestra por sí sola la causa histórica de
+un run cuyos logs no conservaron ese evento. Los eventos solo se emiten cuando
+el proceso tiene el marcador de canary o de cohorte/controlado.
 
 ## Primera corrida FG2 acotada — candidato local 2026-11-09
 
