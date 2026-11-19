@@ -1042,10 +1042,7 @@ class UniversalHarvester:
                 if loc:
                     links.extend(await self._fetch_sitemap(session, loc))
             for url in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url'):
-                if self.check_time_guard() or (
-                    self.controlled and self.controlled_stop_reason
-                ):
-                    break
+                if self.check_time_guard(): break
                 loc = sitemap_location(url)
                 if loc:
                     links.append(loc)
@@ -1942,9 +1939,14 @@ class UniversalHarvester:
                         ):
                             break
                         sitemap_links.extend(await self._fetch_sitemap(session, sitemap_seed))
-            if getattr(self, "controlled_stop_reason", None):
-                # A blocked/deferred/budget-exhausted source ends this
-                # institution before any partial sitemap links are queued.
+            stop_reason = getattr(self, "controlled_stop_reason", None)
+            if stop_reason and (
+                not getattr(self, "scheduled_cohort", False)
+                or stop_reason != "RunBudgetExceeded"
+            ):
+                # A blocked/deferred source ends this institution before any
+                # partial links are queued. Scheduled mode preserves links
+                # already read before its run budget is exhausted.
                 return []
             for link in sitemap_links:
                 if self.check_time_guard() or not self._can_discover_more():
