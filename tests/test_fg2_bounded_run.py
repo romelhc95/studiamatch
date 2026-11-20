@@ -293,6 +293,46 @@ def test_blocked_status_stops_origin_without_retry(status: int) -> None:
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("status", [403, 429])
+def test_blocked_origin_does_not_retry_and_keeps_other_reviewed_origin_available(status: int) -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        origin_state: dict[str, dict] = {}
+        blocked_url = "https://blocked.synthetic.example/first"
+        allowed_url = "https://approved.synthetic.example/second"
+        blocked_headers = {"Retry-After": "1"} if status == 429 else {}
+        blocked_session = FakeSession(
+            clock,
+            [FakeResponse(status, blocked_headers), FakeResponse(200)],
+        )
+        blocked_budget = make_budget(
+            clock,
+            allowed_urls=[blocked_url],
+            origin_state=origin_state,
+        )
+
+        with pytest.raises(SourceBlocked):
+            await blocked_budget.get(blocked_session, blocked_url)
+
+        assert len(blocked_session.calls) == 1
+        assert blocked_session.calls[0][0] == blocked_url
+        assert blocked_budget.http_requests == 1
+
+        allowed_session = FakeSession(clock, [FakeResponse(200)])
+        allowed_budget = make_budget(
+            clock,
+            allowed_urls=[allowed_url],
+            origin_state=origin_state,
+        )
+        response = await allowed_budget.get(allowed_session, allowed_url)
+
+        assert response.status_code == 200
+        assert len(allowed_session.calls) == 1
+        assert allowed_budget.http_requests == 1
+
+    asyncio.run(scenario())
+
+
 def test_retry_after_over_thirty_seconds_defers_origin_without_retry() -> None:
     async def scenario() -> None:
         clock = FakeClock()
