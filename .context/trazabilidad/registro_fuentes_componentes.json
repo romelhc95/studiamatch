@@ -21353,7 +21353,7 @@
       ],
       "contracts": {
         "state": "verified",
-        "note": "Hace site_type/discovery_mode nullable para pending_review, agrega observed/suggested/provenance, status y resource origins exactos, y CHECK para exigir modo en active. No backfill ni DML operativo.",
+        "note": "Hace site_type/discovery_mode nullable para pending_review, agrega observed/suggested/provenance, status y resource origins; conserva checks para estados, origins array y modo efectivo en active. No backfill ni DML operativo.",
         "evidence": [
           "path:db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
           "path:.context/componentes/database_migrations.md"
@@ -21361,11 +21361,13 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "Consumida por profile_onboarding/master_orchestrator y validada por fixture PG17/PostgREST. Ningún workflow Pro la incluye automáticamente.",
+        "note": "El workflow DB Sync incluye el manifest independiente fg2-profile-onboarding, fijado al hash de esta migration; report usa dry-run, apply conserva Production + autorización DDL JIT exacta y verify consulta un contrato RPC read-only. No se añade a H3 ni se heredan sus precondiciones/digests. La ruta todavía no se ejecutó en Pro.",
         "evidence": [
-          "path:scripts/core/profile_onboarding.py",
-          "path:scripts/core/master_orchestrator.py",
-          "path:tests/fg2_full_pipeline_pg17/run.sh"
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:scripts/maintenance/db_migrate.py",
+          "path:scripts/maintenance/check_db_parity.py",
+          "path:tests/test_h2_pro_migration_controls.py"
         ]
       },
       "data": {
@@ -21378,16 +21380,18 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "PG17 efímero aplicó el DDL versionado; entrypoints escribieron/leyeron columnas por PostgREST local con synthetic auth. El resultado no prueba grants o schema remoto.",
+        "note": "El PG17/PostgREST sintético aplica la migration y verifica columnas, restricciones y permisos del RPC de schema; la suite de ruta Pro verifica manifest/hash, report no-DDL, rechazo de apply sin autorización y contrato FG2 separado. No acredita permisos ni aplicación remota.",
         "evidence": [
           "path:tests/fg2_full_pipeline_pg17/run.sh",
-          "path:tests/fg2_full_pipeline_pg17/fixture_schema.sql"
+          "path:tests/fg2_full_pipeline_pg17/verify_admin_queue.py",
+          "path:tests/test_h2_pro_migration_controls.py"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "No se ejecutó en Free o Pro. Cada ambiente requiere baseline, diff, JIT DDL y verificación antes de activar el caller que dependa de columnas nuevas.",
+        "note": "La migration no se aplicó en Free, Certification o Pro. La ruta report/verify es de lectura; apply requiere workflow manual en main, gate Production, backup/PITR y autorización DDL JIT que nombre manifest, payload y hash de migration. Verificar el RPC/ACL precede a habilitar el caller; no se reutiliza autorización H3.",
         "evidence": [
+          "path:.github/workflows/db-sync-to-pro.yml",
           "path:AGENTS.md",
           "path:.context/componentes/database_migrations.md"
         ]

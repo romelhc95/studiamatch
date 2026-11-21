@@ -20,7 +20,7 @@ out="$(mktemp -d /tmp/fg2-full-pg17.XXXXXX)"
 run_dir="$out/run"
 mkdir "$run_dir"
 chmod 711 "$out"
-chmod 777 "$run_dir"
+chmod 1777 "$run_dir"
 jwt_secret="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 pg_password="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 fixture_publishable_key="sb_publishable_$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
@@ -220,7 +220,11 @@ run_cli() {
 run_master() {
   local phase="$1" response_file="$2" run_id="$3"
   local manifest_sha log="$out/${phase}.log"
-  : > "$manifest"
+  # A prior container exports this file as UID 1000 and mode 0644. The host
+  # runner may have a different UID, so replace the directory entry instead
+  # of trying to truncate a file it does not own. The sticky bit lets the
+  # directory owner reset it without allowing unrelated users to unlink it.
+  rm -f -- "$manifest"
   if ! docker run "${common_docker_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
       --env FG2_FIXTURE_RESPONSE_FILE="/workspace/tests/fg2_full_pipeline_pg17/$response_file" \
@@ -362,7 +366,7 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
 docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000003 \
   "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/verify_admin_queue.py \
   >"$out/admin.log" 2>&1 || { cat "$out/admin.log"; fail admin_queue ADMIN_RPC_OR_PUBLIC_VIEW_ASSERTION; }
-grep -E '^phase=admin_queue_rpc\|' "$out/admin.log"
+grep -E '^phase=(fg2_profile_schema_contract|admin_queue_rpc)\|' "$out/admin.log"
 
 docker run --pull=never --rm --network none --read-only \
   --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \

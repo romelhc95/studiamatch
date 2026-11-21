@@ -184,7 +184,7 @@ APPROVED_TEST_BEARER_TRANSPORTS = {
     },
     "tests/fg2_full_pipeline_pg17/verify_admin_queue.py": {
         "identities": {"token", "SERVICE_JWT"},
-        "expected_occurrences": 2,
+        "expected_occurrences": 3,
         "required_markers": (
             'BASE_URL = os.environ["SUPABASE_URL"].rstrip("/")',
             'user_token = _jwt(role="authenticated", sub=ADMIN_ID)',

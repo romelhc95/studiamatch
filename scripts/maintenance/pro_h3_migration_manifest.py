@@ -111,6 +111,15 @@ H3_PRO_EXTERNAL_PREREQUISITE = (
     "H2 migrations are intentionally not included in this manifest."
 )
 
+# FG2 onboarding is a separate, single-migration Pro manifest. It is not part
+# of the pinned H3 inventory and has no H2 cohort/digest prerequisite.
+FG2_PROFILE_ONBOARDING_MANIFEST_NAME = "fg2-profile-onboarding"
+FG2_PROFILE_ONBOARDING_MIGRATION = "20261120120000_fg2_profile_onboarding_state"
+FG2_PROFILE_ONBOARDING_MIGRATIONS = (FG2_PROFILE_ONBOARDING_MIGRATION,)
+FG2_PROFILE_ONBOARDING_MIGRATION_SHA256 = (
+    "12de04d082169043f21500ec907940b125ab0821cbd98296a7ef5a506f90ecad"
+)
+
 
 # Shared by the runtime migrator and the dependency-free workflow preflight.
 # Importing this registry never loads database clients, environment files or keys.
@@ -135,7 +144,20 @@ PRO_MIGRATION_MANIFESTS = {
         "20260827_h2_pro_rollback_public_reader_contract",
     ),
     H3_PRO_MANIFEST_NAME: H3_PRO_MIGRATIONS,
+    FG2_PROFILE_ONBOARDING_MANIFEST_NAME: FG2_PROFILE_ONBOARDING_MIGRATIONS,
 }
+
+
+def validate_fg2_profile_onboarding_manifest_tree(migrations_dir: str | Path) -> str:
+    """Fail closed unless the separate FG2 onboarding SQL is byte-identical."""
+    root = Path(migrations_dir)
+    path = root / f"{FG2_PROFILE_ONBOARDING_MIGRATION}.sql"
+    if not path.is_file():
+        raise ValueError("FG2 onboarding migration is missing from its pinned manifest")
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest != FG2_PROFILE_ONBOARDING_MIGRATION_SHA256:
+        raise ValueError("FG2 onboarding migration hash differs from its pinned manifest")
+    return digest
 
 
 def validate_h3_manifest_names(names: tuple[str, ...] | list[str]) -> None:

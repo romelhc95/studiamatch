@@ -24,6 +24,7 @@ on:
           - h2-contract-legacy-cohort
           - h2-rollback-public-reader-contract
           - h3-editorial-expand
+          - fg2-profile-onboarding
       candidate_sha:
         description: "Immutable certificacion/main evidence commit approved for Production DB operation"
         required: true
@@ -111,6 +112,9 @@ jobs:
               test "${GITHUB_REF_NAME}" = "certificacion"
               ;;
             h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract|h3-editorial-expand)
+              test "${GITHUB_REF_NAME}" = "main"
+              ;;
+            fg2-profile-onboarding)
               test "${GITHUB_REF_NAME}" = "main"
               ;;
           esac
@@ -210,7 +214,7 @@ jobs:
           MIGRATION_MANIFEST: ${{ inputs.migration_manifest }}
         run: |
           set -euo pipefail
-          printf '%s' "$MIGRATION_MANIFEST" | grep -Eq '^(f10-8-atomic-cleansing-provenance|h2-expand-compat|h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract|h3-editorial-expand)$'
+          printf '%s' "$MIGRATION_MANIFEST" | grep -Eq '^(f10-8-atomic-cleansing-provenance|h2-expand-compat|h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract|h3-editorial-expand|fg2-profile-onboarding)$'
           python3 - <<'PY'
           import os
           import pathlib
@@ -222,7 +226,9 @@ jobs:
               PRO_MIGRATION_MANIFESTS,
               H3_PRO_MANIFEST_NAME,
               H3_PRO_MIGRATIONS,
+              FG2_PROFILE_ONBOARDING_MANIFEST_NAME,
               validate_h3_manifest_tree,
+              validate_fg2_profile_onboarding_manifest_tree,
           )
           required = {
               "f10-8-atomic-cleansing-provenance",
@@ -231,6 +237,7 @@ jobs:
               "h2-contract-legacy-cohort",
               "h2-rollback-public-reader-contract",
               "h3-editorial-expand",
+              "fg2-profile-onboarding",
           }
           if set(PRO_MIGRATION_MANIFESTS) != required:
               raise SystemExit("Pro manifest registry differs from the closed workflow contract")
@@ -245,6 +252,8 @@ jobs:
               raise SystemExit("H3 manifest registry differs from the pinned inventory")
           if selected == H3_PRO_MANIFEST_NAME:
               validate_h3_manifest_tree("db/migrations")
+          if selected == FG2_PROFILE_ONBOARDING_MANIFEST_NAME:
+              validate_fg2_profile_onboarding_manifest_tree("db/migrations")
           PY
 
   report:
@@ -377,6 +386,16 @@ jobs:
           grep -Fx "Status: APPROVED_FOR_PRODUCTION_DDL" "$auth_file"
           grep -Fx "Authorized manifest: ${MIGRATION_MANIFEST}" "$auth_file"
           grep -Fx "Authorized payload SHA: ${PAYLOAD_SHA}" "$auth_file"
+          if [ "$MIGRATION_MANIFEST" = "fg2-profile-onboarding" ]; then
+            fg2_migration_sha="$(python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          from maintenance.pro_h3_migration_manifest import FG2_PROFILE_ONBOARDING_MIGRATION_SHA256
+          print("sha256:" + FG2_PROFILE_ONBOARDING_MIGRATION_SHA256)
+          PY
+          )"
+            grep -Fx "Authorized FG2 migration SHA256: ${fg2_migration_sha}" "$auth_file"
+          fi
           if [ "$MIGRATION_MANIFEST" = "h2-expand-compat" ] || [ "$MIGRATION_MANIFEST" = "h3-editorial-expand" ]; then
             printf '%s' "$H2_EXPECTED_ELIGIBLE_COUNT" | grep -Eq '^[1-9][0-9]*$'
             printf '%s' "$H2_EXPECTED_COHORT_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
@@ -539,6 +558,8 @@ jobs:
           set -euo pipefail
           if [ "$MIGRATION_MANIFEST" = "h3-editorial-expand" ]; then
             python3 scripts/maintenance/check_db_parity.py --env pro --target-only --h3-manifest "$MIGRATION_MANIFEST"
+          elif [ "$MIGRATION_MANIFEST" = "fg2-profile-onboarding" ]; then
+            python3 scripts/maintenance/check_db_parity.py --env pro --target-only --fg2-manifest "$MIGRATION_MANIFEST"
           else
             python3 scripts/maintenance/check_db_parity.py --env pro --target-only --h2-manifest "$MIGRATION_MANIFEST"
           fi

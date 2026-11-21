@@ -10,6 +10,15 @@ ALTER TABLE public.institution_site_profiles
 CREATE UNIQUE INDEX IF NOT EXISTS fg2_fixture_site_profile_id_unique
   ON public.institution_site_profiles (id);
 
+-- Constraint names are not globally unique in PostgreSQL. This fixture
+-- catches migrations that mistake a same-named check on another relation
+-- for the FG2 profile constraint.
+CREATE TABLE public.fg2_constraint_name_collision_fixture (
+  enabled boolean NOT NULL,
+  CONSTRAINT institution_site_profiles_active_requires_effective_mode
+    CHECK (enabled)
+);
+
 CREATE OR REPLACE FUNCTION public.fg2_fixture_touch_updated_at()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

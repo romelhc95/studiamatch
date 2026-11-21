@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
+from pathlib import Path
 
 import requests
 
 from sitecustomize import SERVICE_JWT, _jwt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.maintenance.check_db_parity import (
+    FG2_PROFILE_ONBOARDING_COLUMNS,
+    FG2_PROFILE_ONBOARDING_CONSTRAINTS,
+)
 
 BASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 ADMIN_ID = "30000000-0000-0000-0000-000000000001"
@@ -32,7 +40,79 @@ def fail(code: str) -> None:
     raise SystemExit(1)
 
 
+def verify_fg2_profile_schema_contract() -> None:
+    endpoint = f"{BASE_URL}/rest/v1/rpc/fg2_profile_onboarding_schema_contract"
+    headers = {
+        "apikey": os.environ["FG2_FIXTURE_PUBLISHABLE_API_KEY"],
+        "Authorization": f"Bearer {SERVICE_JWT}",
+    }
+    response = requests.get(endpoint, headers=headers, timeout=10)
+    if response.status_code != 200:
+        fail(f"profile_schema_contract_service_http_{response.status_code}")
+    try:
+        contract = response.json()
+        columns = contract["columns"]
+        constraints = contract["constraints"]
+        function = contract["function"]
+    except (ValueError, KeyError, TypeError):
+        fail("profile_schema_contract_shape")
+    expected_constraints = set(FG2_PROFILE_ONBOARDING_CONSTRAINTS)
+    if not isinstance(columns, dict) or not isinstance(constraints, dict) or not isinstance(function, dict):
+        fail("profile_schema_contract_shape")
+    mismatches = []
+    if contract.get("schema_version") != 1:
+        mismatches.append("schema_version")
+    if contract.get("table_exists") is not True:
+        mismatches.append("table_exists")
+    if contract.get("effective_modes_nullable") is not True:
+        mismatches.append("effective_modes_nullable")
+    if set(columns) != set(FG2_PROFILE_ONBOARDING_COLUMNS):
+        mismatches.append("column_set")
+    for name, expected in FG2_PROFILE_ONBOARDING_COLUMNS.items():
+        actual = columns.get(name)
+        if not isinstance(actual, dict) or any(
+            actual.get(key) != value
+            for key, value in zip(("data_type", "is_nullable", "column_default"), expected)
+        ):
+            mismatches.append(f"column_{name}")
+    if not expected_constraints.issubset(constraints):
+        mismatches.append("constraint_set")
+    for name, expected in FG2_PROFILE_ONBOARDING_CONSTRAINTS.items():
+        actual = constraints.get(name)
+        if (
+            not isinstance(actual, dict)
+            or actual.get("validated") is not True
+            or re.sub(r"\s+", " ", str(actual.get("definition", "")).lower()).strip()
+            != re.sub(r"\s+", " ", expected.lower()).strip()
+        ):
+            mismatches.append(f"constraint_{name}")
+    for name, expected in {
+        "identity_arguments": "",
+        "return_type": "jsonb",
+        "volatility": "s",
+        "security_definer": False,
+        "search_path": ["search_path=pg_catalog"],
+        "anon_can_execute": False,
+        "authenticated_can_execute": False,
+        "service_role_can_execute": True,
+    }.items():
+        if function.get(name) != expected:
+            mismatches.append(f"function_{name}")
+    if mismatches:
+        fail("profile_schema_contract_mismatch_" + "_".join(mismatches))
+
+    public_response = requests.get(
+        endpoint,
+        headers={"apikey": os.environ["FG2_FIXTURE_PUBLISHABLE_API_KEY"]},
+        timeout=10,
+    )
+    if public_response.status_code not in (401, 403, 404):
+        fail(f"profile_schema_contract_public_acl_http_{public_response.status_code}")
+    print("phase=fg2_profile_schema_contract|result=PASS|columns=6|constraints=4|public=denied")
+
+
 def main() -> None:
+    verify_fg2_profile_schema_contract()
     user_token = _jwt(role="authenticated", sub=ADMIN_ID)
     role_response = call("admin_current_user_role", {}, user_token)
     if role_response.status_code != 200:
