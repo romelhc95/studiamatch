@@ -259,6 +259,7 @@ jobs:
               tests/test_protected_workflow_review.py \
               tests/test_h3req1_c03_docker_daemon_identity_f2d.py \
               tests/test_site_diagnostics_security.py \
+              tests/test_fg2_profile_onboarding.py \
               tests/test_taxonomy_roi_audit_privacy.py \
               tests/test_h3req1_local_pipeline_walk.py \
               tests/test_fg2_bounded_run.py \
@@ -267,6 +268,16 @@ jobs:
               tests/test_fg2_bounded_workflow.py \
              -q
            python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
+      - name: Build candidate app runner for the isolated FG2 fixture
+        run: docker build --tag "studiamatch-fg2-e2e:${GITHUB_SHA}" .
+      - name: Exercise the complete FG2 pipeline against isolated PG17 and PostgREST
+        env:
+          FG2_FIXTURE_APP_IMAGE: studiamatch-fg2-e2e:${{ github.sha }}
+          FG2_FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          image_id="$(docker image inspect --format '{{.Id}}' "$FG2_FIXTURE_APP_IMAGE")"
+          FG2_FIXTURE_APP_IMAGE_ID="$image_id" bash tests/fg2_full_pipeline_pg17/run.sh
 
   lint:
     name: ESLint

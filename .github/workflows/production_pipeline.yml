@@ -123,6 +123,10 @@ jobs:
           FG2_APPROVED_LOT_REFERENCE: ${{ inputs.approved_lot_reference }}
           FG2_APPROVED_LOT_SHA256: ${{ inputs.approved_lot_sha256 }}
           FG2_APPROVED_LOT_MANIFEST_B64: ${{ inputs.approved_lot_manifest_b64 }}
+          FG2_PROFILE_DIAGNOSTICS_ENABLED: ${{ vars.FG2_PROFILE_DIAGNOSTICS_ENABLED }}
+          FG2_PROFILE_DIAGNOSTIC_SLUGS: ${{ vars.FG2_PROFILE_DIAGNOSTIC_SLUGS }}
+          FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED: ${{ vars.FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED }}
+          FG2_PROFILE_AUTO_ACTIVATE_VERIFIED: ${{ vars.FG2_PROFILE_AUTO_ACTIVATE_VERIFIED }}
         run: |
           set -euo pipefail
           if [[ "$FG2_SCHEDULED_COHORT" == "true" ]]; then

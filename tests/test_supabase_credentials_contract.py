@@ -154,6 +154,8 @@ APPROVED_BEARER_TEST_LITERALS = {
     # This generated JWT exists only for the isolated PG17/PostgREST harness;
     # its single construction and local proxy path are pinned below.
     "tests/h3req1_pipeline_postgrest_pg17_integration.py": {"token"},
+    "tests/fg2_full_pipeline_pg17/sitecustomize.py": {"SERVICE_JWT"},
+    "tests/fg2_full_pipeline_pg17/verify_admin_queue.py": {"token", "SERVICE_JWT"},
 }
 
 APPROVED_TEST_BEARER_TRANSPORTS = {
@@ -167,6 +169,29 @@ APPROVED_TEST_BEARER_TRANSPORTS = {
             'proxy_url = f"http://127.0.0.1:{proxy.server_address[1]}"',
             'f"http://postgrest:3000{route}"',
             'ThreadingHTTPServer(("127.0.0.1", 0), PrefixProxyHandler)',
+        ),
+    },
+    "tests/fg2_full_pipeline_pg17/sitecustomize.py": {
+        "identity": "SERVICE_JWT",
+        "expected_occurrences": 1,
+        "required_markers": (
+            'secret = os.environ["FG2_FIXTURE_JWT_SECRET"].encode("utf-8")',
+            'SERVICE_JWT = _jwt()',
+            '"Authorization": f"Bearer {SERVICE_JWT}"',
+            '"apikey": os.environ["FG2_FIXTURE_SECRET_API_KEY"]',
+            'parsed.netloc == "postgrest:3000"',
+        ),
+    },
+    "tests/fg2_full_pipeline_pg17/verify_admin_queue.py": {
+        "identities": {"token", "SERVICE_JWT"},
+        "expected_occurrences": 2,
+        "required_markers": (
+            'BASE_URL = os.environ["SUPABASE_URL"].rstrip("/")',
+            'user_token = _jwt(role="authenticated", sub=ADMIN_ID)',
+            '"Authorization": f"Bearer {token}"',
+            '"Authorization": f"Bearer {SERVICE_JWT}"',
+            '"apikey": os.environ["FG2_FIXTURE_PUBLISHABLE_API_KEY"]',
+            '"apikey": os.environ["FG2_FIXTURE_SECRET_API_KEY"]',
         ),
     },
 }
@@ -220,7 +245,10 @@ APPROVED_SESSION_BEARER_INVENTORY = {
 # This inventory includes test-only clients that replace get_db_client with a local fake.
 DIRECT_SUPABASE_CONSUMERS = {
     "tests/test_admin_invite_edge_contract.py": "supabase-pattern-test-only",
+    "tests/fg2_full_pipeline_pg17/sitecustomize.py": "supabase-data-api-test",
+    "tests/fg2_full_pipeline_pg17/verify_admin_queue.py": "supabase-data-api-test",
     "tests/test_fg2_bounded_orchestration.py": "supabase-data-api-test",
+    "tests/test_fg2_bounded_workflow.py": "supabase-data-api-test",
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "tests/test_integrity_ping_retirement_contract.py": "supabase-data-api-test",
@@ -232,6 +260,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/core/fg2_bounded_run.py": "supabase-data-api",
     "scripts/core/integrity_ping.py": "supabase-data-api",
     "scripts/core/master_orchestrator.py": "supabase-data-api",
+    "scripts/core/profile_onboarding.py": "supabase-data-api",
     "scripts/core/production_canary_manifest.py": "supabase-data-api",
     "scripts/core/production_canary_source_preflight.py": "supabase-data-api",
     "scripts/core/production_canary_state.py": "supabase-data-api",
@@ -982,7 +1011,10 @@ def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
                 if transport:
                     if len(matches) != transport["expected_occurrences"]:
                         findings.append(f"{relative}: test bearer use count changed")
-                    if identities != {transport["identity"]}:
+                    expected_identities = transport.get("identities") or {
+                        transport["identity"]
+                    }
+                    if identities != set(expected_identities):
                         findings.append(f"{relative}: test bearer identity changed")
                     findings.extend(
                         f"{relative}: test bearer transport marker missing"
@@ -1086,6 +1118,22 @@ def test_pipeline_disables_dotenv_before_worker_imports():
     assert dotenv_guard in source
     assert source.index(dotenv_guard) < source.index("from scripts.core import enrichment_worker")
     assert source.index(dotenv_guard) < source.index("from scripts.shared import db_client")
+
+
+def test_fg2_pg17_fixture_generates_api_keys_at_runtime_without_persisting_values():
+    fixture = ROOT / "tests/fg2_full_pipeline_pg17"
+    run_script = (fixture / "run.sh").read_text(encoding="utf-8-sig")
+    sitecustomize = (fixture / "sitecustomize.py").read_text(encoding="utf-8-sig")
+    admin_probe = (fixture / "verify_admin_queue.py").read_text(encoding="utf-8-sig")
+
+    assert 'fixture_publishable_key="sb_publishable_$(od -An -N24 -tx1 /dev/urandom' in run_script
+    assert 'fixture_secret_key="sb_secret_$(od -An -N24 -tx1 /dev/urandom' in run_script
+    assert '--env FG2_FIXTURE_PUBLISHABLE_API_KEY="$fixture_publishable_key"' in run_script
+    assert '--env FG2_FIXTURE_SECRET_API_KEY="$fixture_secret_key"' in run_script
+    assert '"apikey": os.environ["FG2_FIXTURE_SECRET_API_KEY"]' in sitecustomize
+    assert '"apikey": os.environ["FG2_FIXTURE_PUBLISHABLE_API_KEY"]' in admin_probe
+    assert '"apikey": os.environ["FG2_FIXTURE_SECRET_API_KEY"]' in admin_probe
+    assert "synthetic_fixture_identity" not in sitecustomize + admin_probe
 
 
 def test_direct_supabase_consumer_inventory_is_complete():

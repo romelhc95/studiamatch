@@ -37,6 +37,7 @@ from scripts.core.fg2_bounded_run import (
     url_sha256,
     public_url_resolve_entry,
     parse_retry_after,
+    profile_url_policy_rejection,
     validate_public_redirect_target,
     validate_controlled_profile,
     validate_harvester_run_mode,
@@ -141,6 +142,110 @@ def test_budget_rejects_unreviewed_url_before_any_http_request() -> None:
         budget = make_budget(clock, allowed_urls=["https://synthetic.example/approved"])
         with pytest.raises(InvalidControlledRun, match="outside the reviewed FG2 lot"):
             await budget.get(session, "https://synthetic.example/unreviewed")
+        assert session.calls == []
+        assert budget.snapshot() == {"http_requests": 0, "unique_urls": 0}
+
+    asyncio.run(scenario())
+
+
+def test_same_origin_browser_subresources_use_http_budget_without_consuming_course_url_slots() -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        session = FakeSession(clock)
+        detail = "https://synthetic.example/programas/curso-a"
+        budget = make_budget(
+            clock,
+            max_unique_urls=1,
+            allowed_urls=[detail],
+        )
+        await budget.get(session, detail, allowed_origin="https://synthetic.example")
+        await budget.get(
+            session,
+            "https://synthetic.example/assets/app.js",
+            allowed_origin="https://synthetic.example",
+            request_kind="subresource",
+        )
+        assert budget.snapshot() == {"http_requests": 2, "unique_urls": 1}
+        with pytest.raises(InvalidControlledRun):
+            await budget.get(
+                session,
+                "https://cdn.synthetic.example/app.js",
+                allowed_origin="https://synthetic.example",
+                request_kind="subresource",
+            )
+        assert len(session.calls) == 2
+
+    asyncio.run(scenario())
+
+
+def test_browser_subresource_policy_allows_only_exact_configured_public_origins() -> None:
+    website = "https://institution.example"
+    allowed = {
+        "allowed_resource_origins": ["https://cdn.institution.example"],
+        "exclusion_patterns": ["/logout"],
+        "allowed_url_patterns": ["/courses/"],
+    }
+
+    assert profile_url_policy_rejection(
+        "https://cdn.institution.example/assets/app.js",
+        website,
+        allowed,
+        role="subresource",
+    ) is None
+    assert profile_url_policy_rejection(
+        "https://unlisted.example/assets/app.js",
+        website,
+        allowed,
+        role="subresource",
+    ) == "outside_institution_origin"
+    assert profile_url_policy_rejection(
+        "https://cdn.institution.example/logout",
+        website,
+        allowed,
+        role="subresource",
+    ) is None
+    assert profile_url_policy_rejection(
+        "https://cdn.institution.example/assets/app.js",
+        website,
+        {"allowed_resource_origins": ["https://cdn.institution.example/private"]},
+        role="subresource",
+    ) == "invalid_profile_url_policy"
+
+
+def test_request_budget_revalidates_each_redirect_with_shared_profile_policy() -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        session = FakeSession(clock, [FakeResponse(302, {"location": "/news/"})])
+        profile = {"exclusion_patterns": ["/news/"], "allowed_url_patterns": ["/courses/"]}
+        validator = lambda url, kind: profile_url_policy_rejection(
+            url,
+            "https://synthetic.example",
+            profile,
+            role="course_detail" if kind == "detail" else "catalog_source",
+        )
+        budget = make_budget(clock, url_validator=validator)
+
+        with pytest.raises(OriginDeferred, match="shared FG2 policy"):
+            await budget.get(session, "https://synthetic.example/courses/program")
+
+        assert [call[0] for call in session.calls] == [
+            "https://synthetic.example/courses/program"
+        ]
+        assert budget.snapshot() == {"http_requests": 1, "unique_urls": 1}
+
+    asyncio.run(scenario())
+
+
+def test_budget_rejects_query_for_reviewed_url_before_any_http_request() -> None:
+    async def scenario() -> None:
+        clock = FakeClock()
+        session = FakeSession(clock)
+        url = "https://synthetic.example/catalog/?page=1"
+        budget = make_budget(clock, allowed_urls=["https://synthetic.example/catalog"])
+
+        with pytest.raises(InvalidControlledRun, match="cannot contain query data"):
+            await budget.get(session, url)
+
         assert session.calls == []
         assert budget.snapshot() == {"http_requests": 0, "unique_urls": 0}
 
@@ -841,8 +946,8 @@ def test_profile_preflight_checks_all_gates_and_normalizes_seeds_without_network
     institution, profile = _eligible_institution_and_profile()
     result = validate_controlled_profile(institution, profile)
     assert result["seed_urls"] == [
-        "https://institution.example/programs/",
-        "https://institution.example/careers/",
+        "https://institution.example/programs",
+        "https://institution.example/careers",
     ]
     assert len(result["profile_sha256"]) == 64
     assert len(result["seed_sha256"]) == 64
@@ -893,10 +998,362 @@ def test_profile_preflight_accepts_an_ordered_reviewed_subset_of_configured_seed
         selected_seed_urls=selected,
     )
 
-    assert result["seed_urls"] == selected
+    expected_selected = [
+        "https://institution.example/program-11",
+        "https://institution.example/program-12",
+    ]
+    assert result["seed_urls"] == expected_selected
     assert result["profile_sha256"] == default["profile_sha256"]
-    assert result["seed_sha256"] == stable_json_sha256(selected)
+    assert result["seed_sha256"] == stable_json_sha256(expected_selected)
     assert result["seed_sha256"] != default["seed_sha256"]
+
+
+@pytest.mark.parametrize("scheduled_cohort", [False, True])
+def test_hardcoded_preflight_selects_runtime_admissible_urls_in_profile_order(
+    scheduled_cohort: bool,
+) -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = [
+        "https://institution.example/pregrado/hidden/",
+        "https://institution.example/courses/first/",
+        "https://institution.example/catalog/",
+        "https://institution.example/courses/file.pdf",
+        "https://institution.example/courses/second/",
+    ]
+    profile["exclusion_patterns"] = ["/pregrado/"]
+    profile["allowed_url_patterns"] = ["/courses/"]
+
+    result = validate_controlled_profile(
+        institution,
+        profile,
+        scheduled_cohort=scheduled_cohort,
+    )
+
+    assert result["seed_urls"] == [
+        "https://institution.example/courses/first",
+        "https://institution.example/courses/second",
+    ]
+
+
+def test_reviewed_hardcoded_lot_rejects_partially_or_completely_excluded_urls() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = [
+        "https://institution.example/pregrado/hidden/",
+        "https://institution.example/courses/visible/",
+    ]
+    profile["exclusion_patterns"] = ["/pregrado/"]
+
+    with pytest.raises(InvalidControlledRun, match="runtime-rejected URL"):
+        validate_controlled_profile(
+            institution,
+            profile,
+            selected_seed_urls=profile["seed_urls"],
+        )
+    with pytest.raises(InvalidControlledRun, match="runtime-rejected URL"):
+        validate_controlled_profile(
+            institution,
+            profile,
+            selected_seed_urls=[profile["seed_urls"][0]],
+        )
+
+
+def test_sitemap_discovery_seed_is_not_filtered_as_a_course_detail_url() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile.update(
+        discovery_mode="sitemap_bfs",
+        seed_urls=["https://institution.example/sitemap.xml"],
+        exclusion_patterns=["sitemap"],
+        allowed_url_patterns=["/program/"],
+    )
+
+    result = validate_controlled_profile(institution, profile, scheduled_cohort=True)
+
+    assert result["seed_urls"] == ["https://institution.example/sitemap.xml"]
+
+
+def test_paginated_catalog_source_is_not_filtered_as_a_course_detail_url() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile.update(
+        discovery_mode="paginated_catalog",
+        catalog_url_patterns=["https://institution.example/catalog/?page={page}"],
+        exclusion_patterns=["/catalog/"],
+        allowed_url_patterns=["/program/"],
+    )
+
+    result = validate_controlled_profile(institution, profile)
+
+    assert result["seed_urls"] == ["https://institution.example/catalog/?page=1"]
+
+
+def test_scheduled_paginated_catalog_freezes_all_bounded_query_pages() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile.update(
+        discovery_mode="paginated_catalog",
+        catalog_url_patterns=["https://institution.example/catalog/?page={page}&limit=20"],
+        catalog_max_pages=3,
+    )
+
+    result = validate_controlled_profile(institution, profile, scheduled_cohort=True)
+
+    assert result["seed_urls"] == ["https://institution.example/catalog/?limit=20&page=1"]
+    assert result["source_urls"] == [
+        "https://institution.example/catalog/?limit=20&page=1",
+        "https://institution.example/catalog/?limit=20&page=2",
+        "https://institution.example/catalog/?limit=20&page=3",
+    ]
+    assert result["effective_profile"]["catalog_max_pages"] == 3
+
+
+def test_scheduled_paginated_catalog_caps_source_pages_to_reserved_detail_budget() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile.update(
+        discovery_mode="paginated_catalog",
+        catalog_url_patterns=["https://institution.example/catalog/?page={page}"],
+        catalog_max_pages=100,
+    )
+
+    result = validate_controlled_profile(institution, profile, scheduled_cohort=True)
+
+    assert len(result["source_urls"]) == 8
+    assert result["source_urls"][0].endswith("page=1")
+    assert result["source_urls"][-1].endswith("page=8")
+    assert result["effective_profile"]["catalog_max_pages"] == 8
+
+
+def test_approved_lot_preflight_preserves_bounded_catalog_pagination_query() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    source_seed = "https://institution.example/catalog/?page=1"
+    profile.update(
+        discovery_mode="paginated_catalog",
+        catalog_url_patterns=["https://institution.example/catalog/?page={page}"],
+    )
+
+    accepted = validate_controlled_profile(
+        institution,
+        profile,
+        selected_seed_urls=[source_seed],
+    )
+    assert accepted["seed_urls"] == [source_seed]
+    assert accepted["source_urls"] == [
+        f"https://institution.example/catalog/?page={page}"
+        for page in range(1, 6)
+    ]
+
+    profile["catalog_url_patterns"] = ["https://institution.example/catalog/?page={page}&utm_source=synthetic"]
+    tracking_source = "https://institution.example/catalog/?page=1&utm_source=synthetic"
+    normalized = validate_controlled_profile(
+        institution,
+        profile,
+        selected_seed_urls=[tracking_source],
+    )
+    assert normalized["seed_urls"] == [source_seed]
+
+    profile["catalog_url_patterns"] = ["https://institution.example/catalog/?token={page}"]
+    with pytest.raises(InvalidControlledRun, match="pagination parameter"):
+        validate_controlled_profile(institution, profile)
+
+
+def test_discovery_sources_still_require_approved_lot_membership() -> None:
+    profile = {
+        "exclusion_patterns": ["/catalog/"],
+        "allowed_url_patterns": ["/program/"],
+    }
+
+    rejection = profile_url_policy_rejection(
+        "https://institution.example/catalog/?page=1",
+        "https://institution.example/",
+        profile,
+        approved_lot_scope={"https://institution.example/program/approved/"},
+        role="catalog_source",
+    )
+
+    assert rejection == "outside_approved_lot"
+
+
+def test_catalog_source_uses_source_rules_while_extracted_courses_use_detail_rules() -> None:
+    catalog_url = "https://institution.example/catalog/?page=1"
+    profile = {
+        "exclusion_patterns": ["/catalog"],
+        "allowed_url_patterns": ["/program/"],
+    }
+    approved_scope = {
+        "https://institution.example/catalog",
+        "https://institution.example/program/approved",
+    }
+
+    assert profile_url_policy_rejection(
+        catalog_url,
+        "https://institution.example/",
+        profile,
+        approved_lot_scope=approved_scope,
+        role="catalog_source",
+    ) is None
+    assert profile_url_policy_rejection(
+        catalog_url,
+        "https://institution.example/",
+        profile,
+        approved_lot_scope=approved_scope,
+        role="course_detail",
+    ) == "excluded_by_profile"
+    assert profile_url_policy_rejection(
+        "https://institution.example/program/approved/",
+        "https://institution.example/",
+        profile,
+        approved_lot_scope=approved_scope,
+        role="course_detail",
+    ) is None
+
+
+def test_runtime_detail_policy_normalizes_query_before_allow_and_scope_checks() -> None:
+    from scripts.core.universal_harvester import UniversalHarvester
+
+    harvester = object.__new__(UniversalHarvester)
+    harvester.institution = {"website_url": "https://institution.example/"}
+    harvester.approved_lot_scope = {"https://institution.example/program"}
+    harvester.profile = {
+        "allowed_url_patterns": ["?campaign=allow-only-sentinel"],
+    }
+
+    assert not harvester._is_valid_crawl_url(
+        "https://institution.example/program/?campaign=allow-only-sentinel"
+    )
+
+    harvester.profile = {"allowed_url_patterns": ["re:^/program$"]}
+    assert harvester._is_valid_crawl_url(
+        "https://institution.example/en/program/?campaign=not-policy-input"
+    )
+
+
+def test_shared_profile_policy_logs_sanitized_regex_failures_and_fails_closed(caplog) -> None:
+    private_url = "https://institution.example/private-url-sentinel/"
+    private_pattern = "private-regex-sentinel"
+
+    dependency_rejection = profile_url_policy_rejection(
+        private_url,
+        "https://institution.example/",
+        {"exclusion_patterns": [f"re:{private_pattern}"]},
+        regex_module=None,
+    )
+    assert dependency_rejection == "invalid_profile_url_policy"
+    assert "category=dependency_unavailable" in caplog.text
+    assert private_url not in caplog.text
+    assert private_pattern not in caplog.text
+
+    caplog.clear()
+
+    class BrokenRegex:
+        IGNORECASE = 0
+
+        @staticmethod
+        def search(*_args, **_kwargs):
+            raise RuntimeError("private regex exception sentinel")
+
+    evaluation_rejection = profile_url_policy_rejection(
+        private_url,
+        "https://institution.example/",
+        {"allowed_url_patterns": [f"re:{private_pattern}"]},
+        regex_module=BrokenRegex,
+    )
+    assert evaluation_rejection == "invalid_profile_url_policy"
+    assert "category=evaluation_failed" in caplog.text
+    assert private_url not in caplog.text
+    assert private_pattern not in caplog.text
+    assert "private regex exception sentinel" not in caplog.text
+
+
+def test_shared_profile_policy_logs_unsafe_regex_rules_and_fails_closed(caplog) -> None:
+    private_url = "https://institution.example/program/private-url-sentinel/"
+    private_pattern = "private-pattern-sentinel(a+)+"
+    profile = {
+        "exclusion_patterns": [f"re:{private_pattern}"],
+        "allowed_url_patterns": [f"re:{private_pattern}"],
+    }
+
+    rejection = profile_url_policy_rejection(
+        private_url,
+        "https://institution.example/",
+        profile,
+    )
+
+    assert rejection == "invalid_profile_url_policy"
+    assert "category=unsafe_exclusion_complexity" in caplog.text
+    assert "category=unsafe_allow_pattern_complexity" in caplog.text
+    assert private_url not in caplog.text
+    assert private_pattern not in caplog.text
+
+
+def test_preflight_fails_closed_when_all_configured_course_seeds_are_excluded() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = [
+        "https://institution.example/pregrado/hidden-one/",
+        "https://institution.example/pregrado/hidden-two/",
+    ]
+    profile["exclusion_patterns"] = ["/pregrado/"]
+
+    with pytest.raises(InvalidControlledRun, match="no runtime-eligible seed URLs"):
+        validate_controlled_profile(institution, profile)
+
+
+def test_scheduled_hardcoded_preflight_uses_runtime_normalized_seed_for_policy() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    raw_seed = "https://institution.example/program/"
+    profile["seed_urls"] = [raw_seed]
+    profile["allowed_url_patterns"] = ["re:^/program$"]
+
+    preflight = validate_controlled_profile(
+        institution,
+        profile,
+        scheduled_cohort=True,
+    )
+
+    assert preflight["seed_urls"] == ["https://institution.example/program"]
+    assert profile_url_policy_rejection(
+        preflight["seed_urls"][0],
+        institution["website_url"],
+        profile,
+    ) is None
+
+
+def test_scheduled_hardcoded_preflight_does_not_admit_query_only_allow_match() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = ["https://institution.example/program/"]
+    profile["allowed_url_patterns"] = ["?campaign=private-sentinel"]
+
+    with pytest.raises(InvalidControlledRun, match="no runtime-eligible seed URLs"):
+        validate_controlled_profile(
+            institution,
+            profile,
+            scheduled_cohort=True,
+        )
+
+
+def test_preflight_and_runtime_keep_trailing_slash_exclusion_after_normalization() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["seed_urls"] = [
+        "https://institution.example/pregrado/",
+        "https://institution.example/courses/valid/",
+    ]
+    profile["exclusion_patterns"] = ["/pregrado/"]
+    profile["allowed_url_patterns"] = ["/courses/"]
+
+    result = validate_controlled_profile(institution, profile)
+
+    assert result["seed_urls"] == ["https://institution.example/courses/valid"]
+    assert profile_url_policy_rejection(
+        "https://institution.example/pregrado/",
+        institution["website_url"],
+        profile,
+    ) == "excluded_by_profile"
+
+
+def test_controlled_pipeline_eligibility_does_not_imply_public_activation() -> None:
+    institution, profile = _eligible_institution_and_profile()
+    profile["production_enabled"] = False
+
+    result = validate_controlled_profile(institution, profile)
+
+    assert result["seed_urls"]
+    assert result["effective_profile"]["production_enabled"] is False
 
 
 @pytest.mark.parametrize(
@@ -944,7 +1401,6 @@ def test_profile_preflight_rejects_reviewed_seed_subset_over_limit() -> None:
     [
         ("discovery_enabled", False),
         ("pipeline_enabled", False),
-        ("production_enabled", False),
         ("site_type", "spa"),
         ("requires_stealth", True),
         ("requires_cloudflare_bypass", True),
