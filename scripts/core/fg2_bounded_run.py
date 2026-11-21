@@ -11,6 +11,7 @@ import base64
 import hashlib
 import ipaddress
 import json
+import logging
 import math
 import os
 import re
@@ -21,7 +22,32 @@ from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping
-from urllib.parse import quote, urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlsplit, urlunsplit
+
+try:
+    import regex as _safe_regex
+except ImportError:
+    _safe_regex = None
+
+_DEFAULT_PROFILE_REGEX = object()
+_PROFILE_REGEX_DIAGNOSTICS_REPORTED: set[tuple[str, str]] = set()
+_PROFILE_REGEX_DIAGNOSTIC_LIMIT = 512
+
+
+def _report_profile_regex_issue(category: str, pattern: str, *, level: int) -> None:
+    """Log a bounded, sanitized regex diagnostic once per rule and category."""
+    pattern_digest = hashlib.sha256(str(pattern).encode("utf-8", errors="replace")).hexdigest()
+    key = (category, pattern_digest)
+    if key in _PROFILE_REGEX_DIAGNOSTICS_REPORTED:
+        return
+    if len(_PROFILE_REGEX_DIAGNOSTICS_REPORTED) >= _PROFILE_REGEX_DIAGNOSTIC_LIMIT:
+        _PROFILE_REGEX_DIAGNOSTICS_REPORTED.clear()
+    _PROFILE_REGEX_DIAGNOSTICS_REPORTED.add(key)
+    logging.getLogger(__name__).log(
+        level,
+        "FG2 profile regex category=%s; URL policy fails closed or ignores the rule",
+        category,
+    )
 
 try:
     from scripts.shared.utils import normalize_url as _normalize_url
@@ -55,6 +81,14 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _SOURCE_SHA = re.compile(r"^[0-9a-f]{40}$")
 _REDIRECTS = {301, 302, 303, 307, 308}
 _TRANSIENT = {408, 425} | set(range(500, 600))
+_NON_HTML_EXTENSIONS = (
+    ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".pptx", ".ppt",
+    ".zip", ".rar", ".7z", ".tar", ".gz",
+    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp", ".ico",
+    ".mp4", ".mp3", ".avi", ".mov", ".wmv",
+    ".css", ".js", ".json", ".xml",
+)
+FG2_NON_HTML_EXTENSIONS = _NON_HTML_EXTENSIONS
 
 
 class InvalidControlledRun(ValueError):
@@ -83,6 +117,323 @@ class RunBudgetExceeded(RuntimeError):
 
 class SitemapBudgetYield(RuntimeError):
     """Sitemap traversal reached its allocation while detail capacity remains reserved."""
+
+
+def _quantifier_end(pattern: str, index: int) -> int | None:
+    """Return the end of a quantifier token at index without regex matching."""
+    if index >= len(pattern):
+        return None
+    if pattern[index] in "*+?":
+        return index + 1
+    if pattern[index] != "{":
+        return None
+
+    cursor = index + 1
+    first_digits = cursor
+    while cursor < len(pattern) and pattern[cursor].isdigit():
+        cursor += 1
+    if cursor == first_digits:
+        return None
+    if cursor < len(pattern) and pattern[cursor] == ",":
+        cursor += 1
+        while cursor < len(pattern) and pattern[cursor].isdigit():
+            cursor += 1
+    return cursor + 1 if cursor < len(pattern) and pattern[cursor] == "}" else None
+
+
+def _has_nested_quantified_group(pattern: str) -> bool:
+    """Reject quantified groups containing a repeated atom in one linear scan."""
+    groups: list[bool] = []
+    in_character_class = False
+    escaped = False
+    index = 0
+
+    while index < len(pattern):
+        char = pattern[index]
+        if escaped:
+            escaped = False
+            index += 1
+            continue
+        if char == "\\":
+            escaped = True
+            index += 1
+            continue
+        if in_character_class:
+            if char == "]":
+                in_character_class = False
+            index += 1
+            continue
+        if char == "[":
+            in_character_class = True
+            index += 1
+            continue
+        if char == "(":
+            groups.append(False)
+            index += 2 if index + 1 < len(pattern) and pattern[index + 1] == "?" else 1
+            continue
+        if char == ")":
+            if not groups:
+                index += 1
+                continue
+            contains_quantifier = groups.pop()
+            end = _quantifier_end(pattern, index + 1)
+            if contains_quantifier and end is not None:
+                return True
+            if groups:
+                groups[-1] = groups[-1] or contains_quantifier or end is not None
+            index = end if end is not None else index + 1
+            continue
+        if char in "*+?":
+            if groups:
+                groups[-1] = True
+            index += 1
+            if index < len(pattern) and pattern[index] in "?+":
+                index += 1
+            continue
+        if char == "{":
+            end = _quantifier_end(pattern, index)
+            if end is not None:
+                if groups:
+                    groups[-1] = True
+                index = end
+                if index < len(pattern) and pattern[index] in "?+":
+                    index += 1
+                continue
+        index += 1
+
+    return False
+
+
+def is_safe_profile_regex(pattern: Any) -> bool:
+    """Match the bounded allow-pattern checks used by FG2 runtime filtering."""
+    if not isinstance(pattern, str) or len(pattern) > 200:
+        return False
+    unsafe = (r"\\[1-9]", r"\(\?([=!<])")
+    return not _has_nested_quantified_group(pattern) and not any(
+        re.search(expression, pattern) for expression in unsafe
+    )
+
+
+def safe_profile_regex_search(
+    pattern: str,
+    text: str,
+    *,
+    regex_module: Any = _DEFAULT_PROFILE_REGEX,
+) -> tuple[bool, Any]:
+    """Return (evaluated, match); no-match is distinct from a fail-closed error."""
+    engine = _safe_regex if regex_module is _DEFAULT_PROFILE_REGEX else regex_module
+    if engine is None:
+        _report_profile_regex_issue(
+            "dependency_unavailable", pattern, level=logging.ERROR
+        )
+        return False, None
+    try:
+        sample = str(text or "")[:2000]
+        return True, engine.search(pattern, sample, engine.IGNORECASE, timeout=0.05)
+    except TimeoutError:
+        _report_profile_regex_issue("timeout", pattern, level=logging.WARNING)
+        return False, None
+    except Exception:
+        _report_profile_regex_issue(
+            "evaluation_failed", pattern, level=logging.ERROR
+        )
+        return False, None
+
+
+def _canonical_source_url(url: str) -> str:
+    """Canonicalize a discovery URL while retaining bounded pagination data."""
+    parsed = urlsplit(url)
+    kept: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    try:
+        parameters = parse_qsl(parsed.query, keep_blank_values=True, max_num_fields=20)
+    except ValueError as exc:
+        raise InvalidControlledRun("discovery source query is malformed") from exc
+    for key, value in parameters:
+        normalized_key = key.strip().lower()
+        if normalized_key.startswith("utm_") or normalized_key in _TRACKING_QUERY_KEYS:
+            continue
+        if normalized_key not in _PAGINATION_QUERY_KEYS or normalized_key in seen:
+            raise InvalidControlledRun("discovery source query is not an approved pagination parameter")
+        if not value.isdecimal() or len(value) > 7:
+            raise InvalidControlledRun("discovery source pagination value is malformed")
+        numeric_value = int(value)
+        upper_bound = 1_000_000 if normalized_key == "offset" else 1_000
+        if numeric_value < 1 or numeric_value > upper_bound:
+            raise InvalidControlledRun("discovery source pagination value is out of range")
+        seen.add(normalized_key)
+        kept.append((normalized_key, str(numeric_value)))
+    kept.sort()
+    return urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path or "/", urlencode(kept), ""))
+
+
+def profile_url_policy_rejection(
+    url: str,
+    website_url: str,
+    profile: Mapping[str, Any] | None,
+    *,
+    approved_lot_scope: Mapping[str, Any] | set[str] | None = None,
+    role: str = "course_detail",
+    regex_module: Any = _DEFAULT_PROFILE_REGEX,
+) -> str | None:
+    """Return a stable rejection code for the URL policy shared by preflight/runtime.
+
+    Discovery sources (sitemaps/catalog pages) are origin-checked but do not
+    inherit course-detail exclusions, file extensions, or positive URL rules.
+    """
+    if not isinstance(url, str) or not url.strip():
+        return "malformed_url"
+    url = url.strip()
+    profile = profile if isinstance(profile, Mapping) else {}
+    if role not in {"course_detail", "sitemap_source", "catalog_source", "subresource"}:
+        return "invalid_url_role"
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+            return "unsupported_scheme"
+        request_origin = _origin(url)
+        website_origin = _origin(str(website_url or ""))
+    except (InvalidControlledRun, TypeError, ValueError):
+        return "malformed_url"
+
+    if role in {"sitemap_source", "catalog_source"}:
+        try:
+            _canonical_source_url(url)
+        except (InvalidControlledRun, TypeError, ValueError):
+            return "unsupported_source_query"
+
+    if request_origin != website_origin:
+        if role != "subresource":
+            return "outside_institution_origin"
+        try:
+            configured_origins = _json_list(
+                profile.get("allowed_resource_origins", []), "allowed_resource_origins"
+            )
+        except InvalidControlledRun:
+            return "invalid_profile_url_policy"
+        permitted_origins = {website_origin}
+        for configured in configured_origins:
+            if not isinstance(configured, str) or not configured.strip():
+                return "invalid_profile_url_policy"
+            try:
+                validate_public_url_shape(configured.strip())
+                configured_parts = urlsplit(configured.strip())
+                if (
+                    configured_parts.path not in {"", "/"}
+                    or configured_parts.query
+                    or configured_parts.fragment
+                ):
+                    return "invalid_profile_url_policy"
+                permitted_origins.add(_origin(configured.strip()))
+            except (InvalidControlledRun, TypeError, ValueError):
+                return "invalid_profile_url_policy"
+        if request_origin not in permitted_origins:
+            return "outside_institution_origin"
+
+    policy_url = url
+    policy_parsed = parsed
+    if role == "course_detail":
+        try:
+            # Runtime discovery normalizes detail URLs before adding them to
+            # the cohort. Evaluate the same identity here so query-only rules
+            # cannot admit a URL that runtime later fetches without its query.
+            policy_url = _normalize_url(url)
+            policy_parsed = urlsplit(policy_url)
+            if _origin(policy_url) != _origin(str(website_url or "")):
+                return "outside_institution_origin"
+        except (InvalidControlledRun, TypeError, ValueError):
+            return "malformed_url"
+
+    if approved_lot_scope is not None:
+        try:
+            scope_url = policy_url if role == "course_detail" else _normalize_url(url)
+            if scope_url not in approved_lot_scope:
+                return "outside_approved_lot"
+        except (TypeError, ValueError):
+            return "malformed_url"
+
+    if role in {"sitemap_source", "catalog_source", "subresource"}:
+        if role == "sitemap_source" and policy_parsed.path.lower().endswith(".xml.gz"):
+            return "unsupported_compressed_sitemap"
+        return None
+
+    low_url = policy_url.lower()
+    low_path = policy_parsed.path.lower()
+    # URL identity normalization removes a trailing slash, but legacy profile
+    # exclusions often include it (for example /pregrado/). Evaluate both
+    # equivalent path spellings so the shared preflight/runtime policy keeps
+    # that exclusion effective after normalization.
+    exclusion_urls = {low_url}
+    if policy_parsed.path != "/":
+        exclusion_urls.add(
+            urlunsplit((policy_parsed.scheme, policy_parsed.netloc, policy_parsed.path.rstrip("/") + "/", policy_parsed.query, "")).lower()
+        )
+    allowed_paths = {low_path}
+    if policy_parsed.path != "/":
+        allowed_paths.add(policy_parsed.path.rstrip("/").lower() + "/")
+    if low_path.endswith(_NON_HTML_EXTENSIONS):
+        return "non_html_extension"
+    try:
+        exclusions = _json_list(profile.get("exclusion_patterns", []), "exclusion_patterns")
+        allowed_patterns = _json_list(profile.get("allowed_url_patterns", []), "allowed_url_patterns")
+    except InvalidControlledRun:
+        return "invalid_profile_url_policy"
+
+    invalid_regex_policy = False
+    for exclusion in exclusions:
+        if not isinstance(exclusion, str) or not exclusion:
+            return "invalid_profile_url_policy"
+        if exclusion.startswith("re:"):
+            pattern = exclusion[3:]
+            if not is_safe_profile_regex(pattern):
+                _report_profile_regex_issue(
+                    "unsafe_exclusion_complexity", pattern, level=logging.WARNING
+                )
+                invalid_regex_policy = True
+                continue
+            for candidate in exclusion_urls:
+                evaluated, match = safe_profile_regex_search(
+                    pattern, candidate, regex_module=regex_module
+                )
+                if not evaluated:
+                    invalid_regex_policy = True
+                    break
+                if match:
+                    return "excluded_by_profile"
+        elif any(exclusion.lower() in candidate for candidate in exclusion_urls):
+            return "excluded_by_profile"
+
+    allowed_match = False
+    if allowed_patterns:
+        for pattern in allowed_patterns:
+            if not isinstance(pattern, str):
+                continue
+            if pattern.startswith("re:"):
+                regex_pattern = pattern[3:]
+                if not is_safe_profile_regex(regex_pattern):
+                    _report_profile_regex_issue(
+                        "unsafe_allow_pattern_complexity", regex_pattern, level=logging.WARNING
+                    )
+                    invalid_regex_policy = True
+                    continue
+                for candidate_path in allowed_paths:
+                    evaluated, match = safe_profile_regex_search(
+                        regex_pattern, candidate_path, regex_module=regex_module
+                    )
+                    if not evaluated:
+                        invalid_regex_policy = True
+                    elif match:
+                        allowed_match = True
+            elif any(pattern.lower() in candidate for candidate in exclusion_urls):
+                allowed_match = True
+        if invalid_regex_policy:
+            return "invalid_profile_url_policy"
+        if allowed_match:
+            return None
+        return "not_allowed_by_profile"
+    if invalid_regex_policy:
+        return "invalid_profile_url_policy"
+    return None
 
 
 def _origin(url: str) -> str:
@@ -252,6 +603,22 @@ def _approved_scope_url(url: str) -> str:
     return _normalize_url(url)
 
 
+def profile_seed_role(mode: str, url: str) -> str:
+    """Classify a configured seed as a course identity or a discovery source."""
+    if mode == "hardcoded_urls":
+        return "course_detail"
+    if mode == "sitemap_bfs":
+        path = urlsplit(str(url or "")).path.lower()
+        if path.endswith((".xml", ".xml.gz")) or "sitemap" in path:
+            return "sitemap_source"
+        # Legacy profiles used page seeds with sitemap_bfs. Those pages are
+        # discovery sources and must not inherit course-detail exclusions.
+        return "catalog_source"
+    if mode in {"paginated_catalog", "catalog_link_extraction"}:
+        return "catalog_source"
+    return "invalid_url_role"
+
+
 def _header(headers: Any, name: str) -> str | None:
     if not headers:
         return None
@@ -302,10 +669,13 @@ class FG2RequestBudget:
         max_redirects: int = 5,
         detail_redirect_reserve: int = 1,
         allowed_urls: tuple[str, ...] | list[str] | None = None,
+        allowed_source_urls: tuple[str, ...] | list[str] | None = None,
+        allowed_resource_origins: tuple[str, ...] | list[str] | None = None,
         origin_state: Mapping[str, Mapping[str, Any]] | None = None,
         on_origin_state_change: Callable[[str, float | None, str | None], Any] | None = None,
         request_preparer: Callable[[str], Any] | None = None,
         requester: Callable[[Any, str, Any, str, int], Any] | None = None,
+        url_validator: Callable[[str, str], str | None] | None = None,
         monotonic: Callable[[], float] | None = None,
         sleeper: Callable[[float], Any] | None = None,
         utcnow: Callable[[], datetime] | None = None,
@@ -338,6 +708,19 @@ class FG2RequestBudget:
             if allowed_urls is not None
             else None
         )
+        self.allowed_source_urls = (
+            {_canonical_request_url(value) for value in allowed_source_urls}
+            if allowed_source_urls is not None
+            else None
+        )
+        self.allowed_resource_origins = (
+            {_origin(value) for value in allowed_resource_origins}
+            if allowed_resource_origins is not None
+            else {
+                _origin(value)
+                for value in tuple(allowed_urls or ()) + tuple(allowed_source_urls or ())
+            }
+        )
         self._monotonic = monotonic or __import__("time").monotonic
         self._sleep = sleeper or asyncio.sleep
         self._utcnow = utcnow or (lambda: datetime.now(timezone.utc))
@@ -350,6 +733,7 @@ class FG2RequestBudget:
         self._on_origin_state_change = on_origin_state_change
         self._request_preparer = request_preparer
         self._requester = requester
+        self._url_validator = url_validator
         for digest, state in (origin_state or {}).items():
             if not _SHA256.fullmatch(str(digest)) or not isinstance(state, Mapping):
                 raise ValueError("invalid persisted origin state")
@@ -408,10 +792,14 @@ class FG2RequestBudget:
                 raise OriginDeferred("origin deferred for this run")
             if self._run_exhausted:
                 raise RunBudgetExceeded("institution HTTP budget exhausted")
+            if request_kind == "subresource":
+                # Browser assets/API reads consume HTTP attempts, but do not
+                # consume one of the ten approved course/source URL slots.
+                return
             if canonical not in self._unique_urls:
                 sitemap_limit = self.max_unique_urls - self._detail_reserved_unique_urls
-                if request_kind == "sitemap" and len(self._unique_urls) >= sitemap_limit:
-                    raise SitemapBudgetYield("sitemap URL allocation reached; detail URL capacity remains reserved")
+                if request_kind in {"sitemap", "catalog_source"} and len(self._unique_urls) >= sitemap_limit:
+                    raise SitemapBudgetYield("source URL allocation reached; detail URL capacity remains reserved")
                 if len(self._unique_urls) >= self.max_unique_urls:
                     self._run_exhausted = True
                     raise RunBudgetExceeded("institution unique URL budget exhausted")
@@ -464,8 +852,8 @@ class FG2RequestBudget:
                     self._run_exhausted = True
                     raise RunBudgetExceeded("institution HTTP budget exhausted")
                 sitemap_http_limit = self.max_http_requests - self._detail_reserved_http_requests
-                if request_kind == "sitemap" and self.http_requests >= sitemap_http_limit:
-                    raise SitemapBudgetYield("sitemap HTTP allocation reached; detail request capacity remains reserved")
+                if request_kind in {"sitemap", "catalog_source"} and self.http_requests >= sitemap_http_limit:
+                    raise SitemapBudgetYield("source HTTP allocation reached; detail request capacity remains reserved")
                 self.http_requests += 1
                 self._last_started[digest] = self._monotonic()
                 # Persist before the outbound call so the next institution process
@@ -521,18 +909,27 @@ class FG2RequestBudget:
         request_kind: str = "detail",
     ) -> Any:
         """GET with explicit redirect accounting, pacing, retry and stop rules."""
-        if request_kind not in {"detail", "sitemap"}:
-            raise InvalidControlledRun("controlled request kind must be detail or sitemap")
+        if request_kind not in {"detail", "sitemap", "catalog_source", "subresource"}:
+            raise InvalidControlledRun("controlled request kind is unsupported")
         current = _canonical_request_url(url)
         origin = _origin(current)
         permitted_origin = _origin(allowed_origin) if allowed_origin else origin
         if origin != permitted_origin:
             raise InvalidControlledRun("initial request is outside the preflighted origin")
-        if self.allowed_urls is not None:
+        if self._url_validator is not None:
+            rejection = self._url_validator(current, request_kind)
+            if rejection:
+                raise InvalidControlledRun("request URL rejected by shared FG2 policy")
+        if request_kind == "subresource" and origin not in self.allowed_resource_origins:
+            raise InvalidControlledRun("browser resource origin is outside the reviewed profile")
+        if request_kind == "detail" and self.allowed_urls is not None:
             if urlsplit(current).query:
                 raise InvalidControlledRun("reviewed FG2 requests cannot contain query data")
             if _approved_scope_url(current) not in self.allowed_urls:
                 raise InvalidControlledRun("request URL is outside the reviewed FG2 lot")
+        if request_kind in {"sitemap", "catalog_source"} and self.allowed_source_urls is not None:
+            if current not in self.allowed_source_urls:
+                raise InvalidControlledRun("discovery source is outside the preflighted profile seeds")
         await self._reserve_unique_url(current, permitted_origin, request_kind=request_kind)
         redirects = 0
 
@@ -576,18 +973,41 @@ class FG2RequestBudget:
             if status not in _REDIRECTS or not location:
                 return response
             if redirects >= self.max_redirects:
+                close = getattr(response, "close", None)
+                if callable(close):
+                    close()
                 await self._defer(permitted_origin)
                 raise OriginDeferred("redirect limit exceeded")
             target = _canonical_request_url(urljoin(current, location))
             if _origin(target) != permitted_origin:
+                close = getattr(response, "close", None)
+                if callable(close):
+                    close()
                 await self._defer(permitted_origin)
                 raise OriginDeferred("cross-origin redirect rejected")
-            if self.allowed_urls is not None and urlsplit(target).query:
+            if self._url_validator is not None:
+                rejection = self._url_validator(target, request_kind)
+                if rejection:
+                    close = getattr(response, "close", None)
+                    if callable(close):
+                        close()
+                    await self._defer(permitted_origin)
+                    raise OriginDeferred("redirect target rejected by shared FG2 policy")
+            if self.allowed_urls is not None and request_kind == "detail" and urlsplit(target).query:
+                close = getattr(response, "close", None)
+                if callable(close):
+                    close()
                 await self._defer(permitted_origin)
                 raise OriginDeferred("redirect query is outside the reviewed FG2 lot")
-            if self.allowed_urls is not None and _approved_scope_url(target) not in self.allowed_urls:
+            if self.allowed_urls is not None and request_kind == "detail" and _approved_scope_url(target) not in self.allowed_urls:
+                close = getattr(response, "close", None)
+                if callable(close):
+                    close()
                 await self._defer(permitted_origin)
                 raise OriginDeferred("redirect target is outside the reviewed FG2 lot")
+            close = getattr(response, "close", None)
+            if callable(close):
+                close()
             await self._reserve_unique_url(target, permitted_origin, request_kind=request_kind)
             current = target
             redirects += 1
@@ -743,8 +1163,7 @@ class FG2CohortManifest:
                 raise InvalidControlledRun("invalid or duplicate controlled discovery-row id")
             if not _valid_sha256(row.get("url_sha256")):
                 raise InvalidControlledRun("controlled discovery-row URL digest is invalid")
-            if row.get("initial_status") != "discovered":
-                raise InvalidControlledRun("controlled discovery row must retain discovered status")
+            initial_status = row.get("initial_status")
             if row.get("kind") not in {"new_discovery", "refresh_existing"}:
                 raise InvalidControlledRun("invalid controlled discovery-row classification")
             course_id = row.get("course_id")
@@ -752,6 +1171,11 @@ class FG2CohortManifest:
                 raise InvalidControlledRun("invalid controlled discovery course id")
             if (row["kind"] == "refresh_existing") != (course_id is not None):
                 raise InvalidControlledRun("controlled discovery classification does not match its course reference")
+            if initial_status == "processed":
+                if row["kind"] != "refresh_existing" or not _valid_sha256(row.get("content_sha256")):
+                    raise InvalidControlledRun("processed refresh discovery must bind its course and prior content hash")
+            elif initial_status != "discovered":
+                raise InvalidControlledRun("controlled discovery row has an unsupported initial status")
             discovery_ids.add(staging_id.lower())
 
         entry_ids: set[str] = set()
@@ -1016,6 +1440,10 @@ _APPROVED_SNAPSHOT_KEYS = (
     "cleansed_rows",
     "enriched_rows",
 )
+_PAGINATION_QUERY_KEYS = frozenset({
+    "page", "paged", "offset", "limit", "per_page", "page_size", "pagesize"
+})
+_TRACKING_QUERY_KEYS = frozenset({"gclid", "fbclid", "msclkid"})
 
 
 @dataclass(frozen=True)
@@ -1156,11 +1584,14 @@ class FG2ApprovedLotManifest:
                 if not isinstance(seed, str):
                     raise InvalidControlledRun("approved FG2 lot seeds are malformed")
                 validate_public_url_shape(seed)
-            normalized_seeds = [_canonical_request_url(seed) for seed in seed_urls if isinstance(seed, str)]
+                if urlsplit(seed).fragment:
+                    raise InvalidControlledRun("approved FG2 lot seeds cannot contain fragments")
+            try:
+                normalized_seeds = [_canonical_source_url(seed) for seed in seed_urls if isinstance(seed, str)]
+            except InvalidControlledRun as exc:
+                raise InvalidControlledRun("approved FG2 lot has an invalid discovery seed") from exc
             if len(normalized_seeds) != len(seed_urls) or len(set(normalized_seeds)) != len(seed_urls):
                 raise InvalidControlledRun("approved FG2 lot seeds are malformed or duplicated")
-            if any(urlsplit(seed).query or urlsplit(seed).fragment for seed in normalized_seeds):
-                raise InvalidControlledRun("approved FG2 lot seeds cannot contain query data")
             if stable_json_sha256(normalized_seeds) != item["seed_sha256"]:
                 raise InvalidControlledRun("approved FG2 lot seed digest does not match its seeds")
             item["seed_urls"] = normalized_seeds
@@ -1866,6 +2297,11 @@ def _json_list(value: Any, field: str) -> list[Any]:
     return value
 
 
+def _profile_seed_role(discovery_mode: str, url: str) -> str:
+    """Compatibility alias for the shared, role-aware seed classifier."""
+    return profile_seed_role(discovery_mode, url)
+
+
 def validate_controlled_profile(
     institution: Mapping[str, Any],
     profile: Mapping[str, Any],
@@ -1876,21 +2312,34 @@ def validate_controlled_profile(
 ) -> dict[str, Any]:
     """Validate gates and configured seeds without making a network request.
 
-    A reviewed lot may choose an ordered subset of the configured seeds. The
-    normal controlled path keeps the configured prefix when no selection is
-    supplied.
+    A reviewed lot may choose an ordered subset of configured seeds, but every
+    selected hardcoded course URL must also pass the harvester's runtime URL
+    policy. An unreviewed selection takes the first ten runtime-eligible seeds
+    in configured order.
     """
     if not isinstance(institution, Mapping) or not isinstance(profile, Mapping):
         raise InvalidControlledRun("institution/profile preflight payload is malformed")
+    if profile.get("profile_status", "active") != "active":
+        raise InvalidControlledRun("institution profile is pending review")
     if not _valid_uuid(institution.get("id")):
         raise InvalidControlledRun("institution id is invalid")
     normalized_profile = dict(profile)
-    for field in ("catalog_url_patterns", "exclusion_patterns", "allowed_url_patterns", "seed_urls"):
+    for field in (
+        "catalog_url_patterns",
+        "exclusion_patterns",
+        "allowed_url_patterns",
+        "allowed_resource_origins",
+        "seed_urls",
+    ):
         if field in normalized_profile:
             normalized_profile[field] = (
                 [] if normalized_profile[field] is None else _json_list(normalized_profile[field], field)
             )
-    for gate in ("discovery_enabled", "pipeline_enabled", "production_enabled"):
+    # Discovery, pipeline processing, and public activation are independent.
+    # This preflight admits discovery and ETL only. The workflow's writer gate
+    # authorizes production writes, while production_enabled controls whether a
+    # synced course can become active/publicly eligible.
+    for gate in ("discovery_enabled", "pipeline_enabled"):
         if profile.get(gate) is not True:
             raise InvalidControlledRun(f"institution {gate} is not enabled")
 
@@ -1915,15 +2364,18 @@ def validate_controlled_profile(
         effective_profile["circuit_open"] = False
         effective_profile["circuit_opened_at"] = None
 
-    if profile.get("site_type", "traditional_ssr") != "traditional_ssr":
-        raise InvalidControlledRun("controlled run supports only traditional SSR profiles")
+    site_type = profile.get("site_type")
+    if site_type not in {"traditional_ssr", "spa_js_heavy", "ecommerce"}:
+        raise InvalidControlledRun("profile site type is not an enabled FG2 mode")
     if profile.get("requires_stealth") is True or profile.get("requires_cloudflare_bypass") is True:
-        raise InvalidControlledRun("controlled run defers stealth/anti-bot profiles before origin access")
+        raise InvalidControlledRun("controlled run requires a profile without stealth or bypass")
 
     website_url = institution.get("website_url")
     validate_public_url_shape(str(website_url or ""))
     website_origin = _origin(str(website_url or ""))
     mode = profile.get("discovery_mode")
+    if site_type in {"spa_js_heavy", "ecommerce"} and mode == "hardcoded_urls":
+        raise InvalidControlledRun("SPA/ecommerce profiles require a reusable sitemap or catalog source")
     if mode == "hardcoded_urls":
         seeds = _json_list(profile.get("seed_urls", []), "seed_urls")
     elif mode == "sitemap_bfs":
@@ -1937,25 +2389,66 @@ def validate_controlled_profile(
     elif mode == "paginated_catalog":
         patterns = _json_list(profile.get("catalog_url_patterns", []), "catalog_url_patterns")
         seeds = [str(item).replace("{page}", "1") for item in patterns]
+    elif mode == "catalog_link_extraction":
+        seeds = _json_list(profile.get("seed_urls", []), "seed_urls")
     else:
-        raise InvalidControlledRun("discovery mode is not supported in the bounded run")
+        raise InvalidControlledRun("discovery mode is not supported by FG2")
     if not seeds:
         raise InvalidControlledRun("eligible source has no configured seed URL")
+
+    resource_origins = normalized_profile.get("allowed_resource_origins", [])
+    for raw_origin in resource_origins:
+        if not isinstance(raw_origin, str) or not raw_origin.strip():
+            raise InvalidControlledRun("browser resource origin is malformed")
+        validate_public_url_shape(raw_origin.strip())
+        parsed_origin = urlsplit(raw_origin.strip())
+        if parsed_origin.path not in {"", "/"} or parsed_origin.query or parsed_origin.fragment:
+            raise InvalidControlledRun("browser resource allowlist must contain exact origins")
 
     normalized_seeds: list[str] = []
     seen: set[str] = set()
     for seed in seeds:
         if not isinstance(seed, str) or not seed.strip():
             raise InvalidControlledRun("source seed is empty or malformed")
-        validate_public_url_shape(seed.strip())
-        normalized = _canonical_request_url(seed.strip())
+        raw_seed = seed.strip()
+        validate_public_url_shape(raw_seed)
+        raw_parts = urlsplit(raw_seed)
+        if raw_parts.fragment:
+            raise InvalidControlledRun("source seed cannot contain fragment data")
+        if mode == "hardcoded_urls":
+            if raw_parts.query:
+                raise InvalidControlledRun("hardcoded course seeds cannot contain query data")
+            normalized = _canonical_request_url(_normalize_url(raw_seed))
+        else:
+            if mode == "sitemap_bfs" and raw_parts.path.lower().endswith(".xml.gz"):
+                raise InvalidControlledRun("compressed sitemap seeds are unsupported in controlled runs")
+            normalized = _canonical_source_url(raw_seed)
         if _origin(normalized) != website_origin:
             raise InvalidControlledRun("source seed is outside the institution origin")
+        role = profile_seed_role(str(mode), normalized)
+        rejection = profile_url_policy_rejection(
+            normalized, str(website_url), normalized_profile, role=role
+        )
+        if rejection is not None and mode != "hardcoded_urls":
+            raise InvalidControlledRun("configured seed conflicts with the runtime URL policy")
         if normalized not in seen:
             seen.add(normalized)
             normalized_seeds.append(normalized)
     if selected_seed_urls is None:
-        selected_seeds = normalized_seeds[: FG2_LIMITS["max_urls_per_institution"]]
+        eligible_seeds = [
+            seed for seed in normalized_seeds
+            if profile_url_policy_rejection(
+                seed,
+                str(website_url),
+                normalized_profile,
+                role=_profile_seed_role(str(mode), seed),
+            ) is None
+        ]
+        selected_seeds = eligible_seeds[: FG2_LIMITS["max_urls_per_institution"]]
+        if not selected_seeds and mode == "sitemap_bfs" and any(
+            urlsplit(seed).path.lower().endswith(".xml.gz") for seed in normalized_seeds
+        ):
+            raise InvalidControlledRun("compressed sitemap seeds are unsupported in controlled runs")
     else:
         if not isinstance(selected_seed_urls, (list, tuple)) or not selected_seed_urls:
             raise InvalidControlledRun("approved seed selection is empty or malformed")
@@ -1966,10 +2459,31 @@ def validate_controlled_profile(
         for seed in selected_seed_urls:
             if not isinstance(seed, str) or not seed.strip():
                 raise InvalidControlledRun("approved seed selection is malformed")
-            validate_public_url_shape(seed.strip())
-            normalized = _canonical_request_url(seed.strip())
+            raw_seed = seed.strip()
+            validate_public_url_shape(raw_seed)
+            raw_parts = urlsplit(raw_seed)
+            if raw_parts.fragment:
+                raise InvalidControlledRun("approved FG2 lot seed contains a fragment")
+            if mode == "hardcoded_urls":
+                if raw_parts.query:
+                    raise InvalidControlledRun("approved FG2 lot course seed cannot contain query data")
+                normalized = _canonical_request_url(_normalize_url(raw_seed))
+            else:
+                normalized = _canonical_source_url(raw_seed)
             if _origin(normalized) != website_origin:
                 raise InvalidControlledRun("approved seed selection is outside the institution origin")
+            rejection = profile_url_policy_rejection(
+                normalized,
+                str(website_url),
+                normalized_profile,
+                role=profile_seed_role(str(mode), normalized),
+            )
+            if rejection is not None:
+                if profile_seed_role(str(mode), normalized) == "course_detail":
+                    raise InvalidControlledRun(
+                        "approved seed selection contains a runtime-rejected URL"
+                    )
+                raise InvalidControlledRun("approved source selection conflicts with the runtime URL policy")
             if normalized in requested_seen:
                 raise InvalidControlledRun("approved seed selection contains duplicates")
             requested_seen.add(normalized)
@@ -1981,7 +2495,46 @@ def validate_controlled_profile(
         if selected_seeds != requested_seeds:
             raise InvalidControlledRun("approved seed selection order differs from the configured profile")
     if not selected_seeds:
-        raise InvalidControlledRun("source seed set is empty after validation")
+        raise InvalidControlledRun("source has no runtime-eligible seed URLs")
+
+    controlled_source_urls = [
+        seed for seed in selected_seeds
+        if profile_seed_role(str(mode), seed) != "course_detail"
+    ]
+    if mode == "paginated_catalog":
+        raw_page_limit = profile.get("catalog_max_pages", 5)
+        if isinstance(raw_page_limit, bool) or not isinstance(raw_page_limit, int) or raw_page_limit < 1:
+            raise InvalidControlledRun("catalog page limit is invalid")
+        # Leave room for one detail URL and the configured redirect reserve.
+        source_page_limit = max(1, FG2_LIMITS["max_urls_per_institution"] - 2)
+        page_limit = min(raw_page_limit, source_page_limit)
+        selected_seed_set = set(selected_seeds)
+        expanded_sources: list[str] = []
+        seen_sources: set[str] = set()
+        for raw_pattern in _json_list(profile.get("catalog_url_patterns", []), "catalog_url_patterns"):
+            if not isinstance(raw_pattern, str) or not raw_pattern.strip():
+                raise InvalidControlledRun("catalog URL pattern is malformed")
+            first_page = _canonical_source_url(raw_pattern.replace("{page}", "1"))
+            if first_page not in selected_seed_set:
+                continue
+            for page_number in range(1, page_limit + 1):
+                source_url = _canonical_source_url(raw_pattern.replace("{page}", str(page_number)))
+                if source_url in seen_sources:
+                    continue
+                seen_sources.add(source_url)
+                if len(expanded_sources) >= source_page_limit:
+                    break
+                expanded_sources.append(source_url)
+            if len(expanded_sources) >= source_page_limit:
+                break
+        if not expanded_sources:
+            raise InvalidControlledRun("paginated catalog has no bounded source pages")
+        controlled_source_urls = expanded_sources
+        effective_profile["catalog_url_patterns"] = [
+            pattern for pattern in _json_list(profile.get("catalog_url_patterns", []), "catalog_url_patterns")
+            if _canonical_source_url(str(pattern).replace("{page}", "1")) in selected_seed_set
+        ]
+        effective_profile["catalog_max_pages"] = len(expanded_sources)
 
     if mode == "sitemap_bfs" and any(
         urlsplit(seed).path.lower().endswith(".xml.gz") for seed in selected_seeds
@@ -1993,6 +2546,7 @@ def validate_controlled_profile(
         "seed_urls": selected_seeds,
         "profile_sha256": stable_json_sha256(normalized_profile),
         "seed_sha256": stable_json_sha256(selected_seeds),
+        "source_urls": controlled_source_urls,
         "circuit_expired": circuit_expired,
     }
 

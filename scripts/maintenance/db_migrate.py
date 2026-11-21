@@ -38,6 +38,8 @@ from maintenance.pro_h3_migration_manifest import (
     PRO_MIGRATION_MANIFESTS,
     H3_PRO_MANIFEST_NAME,
     H3_PRO_MIGRATIONS,
+    FG2_PROFILE_ONBOARDING_MANIFEST_NAME,
+    validate_fg2_profile_onboarding_manifest_tree,
     validate_h3_manifest_tree,
     validate_h2_cohort_inputs,
 )
@@ -138,6 +140,11 @@ def resolve_requested_migrations(args, parser):
     if args.manifest == H3_PRO_MANIFEST_NAME:
         try:
             validate_h3_manifest_tree(MIGRATIONS_DIR)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+    if args.manifest == FG2_PROFILE_ONBOARDING_MANIFEST_NAME:
+        try:
+            validate_fg2_profile_onboarding_manifest_tree(MIGRATIONS_DIR)
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
 

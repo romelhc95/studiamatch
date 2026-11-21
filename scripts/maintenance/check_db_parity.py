@@ -31,6 +31,8 @@ from shared.supabase_credentials import (
     require_distinct_environments,
 )
 from maintenance.pro_h3_migration_manifest import (
+    FG2_PROFILE_ONBOARDING_MANIFEST_NAME,
+    FG2_PROFILE_ONBOARDING_MIGRATIONS,
     H3_PRO_MANIFEST_NAME,
     H3_PRO_MIGRATIONS,
     validate_h2_cohort_inputs,
@@ -111,6 +113,30 @@ OPERATIONAL_TABLES = {
     "cleansed_programs",
     "enriched_programs",
     "courses",
+}
+
+FG2_PROFILE_ONBOARDING_COLUMNS = {
+    "profile_status": ("text", "NO", "'active'::text"),
+    "diagnostic_status": ("text", "NO", "'not_requested'::text"),
+    "diagnostic_observed": ("jsonb", "NO", "'{}'::jsonb"),
+    "diagnostic_suggested": ("jsonb", "NO", "'{}'::jsonb"),
+    "diagnostic_provenance": ("jsonb", "NO", "'{}'::jsonb"),
+    "allowed_resource_origins": ("jsonb", "NO", "'[]'::jsonb"),
+}
+
+FG2_PROFILE_ONBOARDING_CONSTRAINTS = {
+    "institution_site_profiles_profile_status_check": (
+        "check (profile_status = any (array['active'::text, 'pending_review'::text]))"
+    ),
+    "institution_site_profiles_diagnostic_status_check": (
+        "check (diagnostic_status = any (array['not_requested'::text, 'verified'::text, 'review_required'::text, 'blocked'::text]))"
+    ),
+    "institution_site_profiles_resource_origins_array": (
+        "check (jsonb_typeof(allowed_resource_origins) = 'array'::text)"
+    ),
+    "institution_site_profiles_active_requires_effective_mode": (
+        "check (profile_status <> 'active'::text or site_type is not null and discovery_mode is not null)"
+    ),
 }
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -666,6 +692,102 @@ def check_h3_manifest_contract(db_target: DatabaseClient, manifest: str | None):
     return "OK", []
 
 
+def check_fg2_profile_onboarding_manifest_contract(db_target: DatabaseClient, manifest: str | None):
+    if manifest is None:
+        return "OK", []
+    if manifest != FG2_PROFILE_ONBOARDING_MANIFEST_NAME:
+        return "ERROR", [f"Manifest FG2 Pro no permitido: {manifest}"]
+
+    print(f"\n[CHECK FG2] Production profile onboarding manifest contract: {manifest}")
+    errors: list[str] = []
+    migration_name = FG2_PROFILE_ONBOARDING_MIGRATIONS[0]
+    try:
+        target_migrations = service_select(db_target, "supabase_migrations", "name") or []
+        applied = {row.get("name") for row in target_migrations if row.get("name")}
+        if migration_name not in applied:
+            errors.append(f"Migración FG2 Pro faltante: {migration_name}")
+    except Exception as exc:
+        errors.append(f"No se pudo verificar supabase_migrations para FG2: {exc}")
+
+    schema_res = service_get(db_target, "rpc/fg2_profile_onboarding_schema_contract")
+    if schema_res.status_code != 200:
+        errors.append(
+            "fg2_profile_onboarding_schema_contract no está disponible al service role: "
+            f"HTTP {schema_res.status_code}"
+        )
+        contract = None
+    else:
+        try:
+            contract = schema_res.json()
+        except (TypeError, ValueError):
+            contract = None
+            errors.append("El contrato FG2 de schema no devolvió JSON válido")
+
+    if isinstance(contract, dict):
+        if contract.get("schema_version") != 1 or contract.get("table_exists") is not True:
+            errors.append("La versión o tabla del contrato de perfil FG2 no coincide")
+        if contract.get("effective_modes_nullable") is not True:
+            errors.append("site_type/discovery_mode no permiten la fila FG2 pending_review")
+
+        actual_columns = contract.get("columns")
+        if not isinstance(actual_columns, dict):
+            errors.append("El contrato FG2 no devolvió el inventario de columnas")
+        else:
+            for name, expected in FG2_PROFILE_ONBOARDING_COLUMNS.items():
+                actual = actual_columns.get(name)
+                expected_value = {
+                    "data_type": expected[0],
+                    "is_nullable": expected[1],
+                    "column_default": expected[2],
+                }
+                if not isinstance(actual, dict) or any(
+                    actual.get(key) != value for key, value in expected_value.items()
+                ):
+                    errors.append(f"Columna FG2 ausente o con contrato distinto: {name}")
+
+        actual_constraints = contract.get("constraints")
+        if not isinstance(actual_constraints, dict):
+            errors.append("El contrato FG2 no devolvió restricciones")
+        else:
+            for name, expected_definition in FG2_PROFILE_ONBOARDING_CONSTRAINTS.items():
+                actual = actual_constraints.get(name)
+                if not isinstance(actual, dict) or actual.get("validated") is not True:
+                    errors.append(f"Restricción FG2 ausente o no validada: {name}")
+                    continue
+                definition = re.sub(r"\s+", " ", str(actual.get("definition", "")).lower()).strip()
+                expected_normalized = re.sub(r"\s+", " ", expected_definition.lower()).strip()
+                if definition != expected_normalized:
+                    errors.append(f"Definición de restricción FG2 distinta: {name}")
+
+        function_contract = contract.get("function")
+        if not isinstance(function_contract, dict) or any(
+            function_contract.get(key) != value
+            for key, value in {
+                "identity_arguments": "",
+                "return_type": "jsonb",
+                "volatility": "s",
+                "security_definer": False,
+                "search_path": ["search_path=pg_catalog"],
+                "anon_can_execute": False,
+                "authenticated_can_execute": False,
+                "service_role_can_execute": True,
+            }.items()
+        ):
+            errors.append("La firma, search_path o ACL del verificador FG2 no cumple el contrato")
+
+    public_res = public_get(db_target, "rpc/fg2_profile_onboarding_schema_contract")
+    if public_res.status_code not in (401, 403, 404):
+        errors.append(
+            "El contrato FG2 no está restringido a service_role: "
+            f"HTTP {public_res.status_code}"
+        )
+
+    if errors:
+        return "ERROR", errors
+    print("  OK: migration, seis columnas, cuatro constraints y RPC de verificación FG2")
+    return "OK", []
+
+
 def compare_institutions(db_free: DatabaseClient, db_target: DatabaseClient):
     print("\n[CHECK 3] Catalogo institutions por slug")
     free_rows = _select_all(db_free, "institutions", "slug,name,website_url")
@@ -849,21 +971,35 @@ def main() -> None:
         choices=[H3_PRO_MANIFEST_NAME],
         help="Valida el contrato H3 Pro aplicado y su prerrequisito H2 expand/compat.",
     )
+    parser.add_argument(
+        "--fg2-manifest",
+        choices=[FG2_PROFILE_ONBOARDING_MANIFEST_NAME],
+        help="Valida solo el contrato de onboarding FG2; no implica prerrequisitos H2/H3.",
+    )
     args = parser.parse_args()
 
-    if args.h2_manifest and args.h3_manifest:
-        parser.error("--h2-manifest y --h3-manifest son mutuamente excluyentes")
+    selected_manifests = [args.h2_manifest, args.h3_manifest, args.fg2_manifest]
+    if sum(value is not None for value in selected_manifests) > 1:
+        parser.error("--h2-manifest, --h3-manifest y --fg2-manifest son mutuamente excluyentes")
 
     if args.target_only:
         load_environment(args.env)
         assert_environment(args.env)
         db_target = DatabaseClient()
-        legacy_public_required = args.h2_manifest in (None, "f10-8-atomic-cleansing-provenance", "h2-expand-compat")
+        legacy_public_required = (
+            False
+            if args.fg2_manifest
+            else args.h2_manifest in (None, "f10-8-atomic-cleansing-provenance", "h2-expand-compat")
+        )
         results = [
             ("target_columns", check_target_columns(db_target)),
             ("schema_contracts", check_schema_contracts(db_target, check_public=legacy_public_required)),
             ("h2_manifest_contract", check_h2_manifest_contract(db_target, args.h2_manifest)),
             ("h3_manifest_contract", check_h3_manifest_contract(db_target, args.h3_manifest)),
+            (
+                "fg2_profile_onboarding_manifest_contract",
+                check_fg2_profile_onboarding_manifest_contract(db_target, args.fg2_manifest),
+            ),
         ]
         has_error = any(status == "ERROR" for _, (status, _) in results)
         print(f"\n{'=' * 60}")

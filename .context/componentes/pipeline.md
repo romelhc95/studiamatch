@@ -12,6 +12,79 @@
 | FG2-3 sync | enriched_programs → courses + editorial quality | sync_vector_worker.py es writer normal de datos finales, conserva overrides y aplica guards de mock/canary/quality. El nombre no acredita embeddings activos. |
 | FG3 integrity | courses_public_effective → RPC atómica limitada de courses | integrity_ping.py valida con HEAD/GET y decisión conservadora; el RPC revalida elegibilidad y snapshot en la transacción y solo cambia last_404_at o is_active. |
 
+## FG2 multiformato y onboarding de perfiles — candidato local 2026-11-20
+
+`run_profile_onboarding()` precede al selector dentro del entrypoint del
+orquestador FG2. Examina solo instituciones existentes cuyos slugs están en
+`FG2_PROFILE_DIAGNOSTIC_SLUGS`; perfil inexistente no es requisito para esa
+primera lectura. `FG2_PROFILE_DIAGNOSTICS_ENABLED` permite diagnosticar;
+`FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED` controla persistencia de observación;
+`FG2_PROFILE_AUTO_ACTIVATE_VERIFIED` es una política separada y requiere
+persistencia habilitada. Son variables declaradas por workflow, no se
+confirmaron valores de GitHub ni se habilitó ningún Environment.
+
+`scripts/shared/site_diagnostics.py` limita a 20 las solicitudes HTTP externas por
+diagnóstico y cuenta aparte los intentos WebSocket bloqueados,
+3 redirects por respuesta, dos detalles de curso, 2 MiB por cuerpo y cinco
+segundos entre requests del origen. Usa la política común de URL/SSRF, valida
+DNS público y vuelve a validar cada redirect. Para SPA y ecommerce utiliza
+Chromium con sandbox: HTTP y subrecursos pasan por la ruta interceptada y el
+transporte HTTP validado; WebSocket se cierra antes de conectar, WebRTC y
+WebTransport se deshabilitan antes de cargar la institución, QUIC queda apagado
+y service workers bloqueados. Los intentos WebSocket quedan registrados como
+bloqueos requeridos y no se envían al origen; sin evidencia de control completo el perfil queda en
+`review_required`. La salida se sanitiza antes de guardarse:
+quita tracking, retiene solo parámetros de paginación permitidos y redacciona
+URLs sanitizadas mayores a 2.048 caracteres, dejando el diagnóstico en
+`review_required` en vez de truncar y habilitar una URL distinta.
+
+El runtime de `universal_harvester.py` instala las mismas fronteras de
+transporte en cada `BrowserContext`, incluidos los perfiles `spa_js_heavy` y
+`ecommerce` en modo ordinario y acotado. La ruta HTTP resuelve, valida, fija y
+cuenta cada navegación/subrecurso mediante `FG2RequestBudget`; service workers
+quedan bloqueados. WebSocket se cierra antes de conectar y cualquier intento
+detiene la institución sin persistir el detalle parcial. RTCPeerConnection,
+webkitRTCPeerConnection y WebTransport se deshabilitan y verifican sobre
+`about:blank` antes de navegar. Si falta la API de interceptación o la
+verificación no pasa, el contexto se cierra y el harvester no continúa.
+
+### Estados, activación y límites
+
+| Resultado del diagnóstico | Perfil/efectivo | Efecto | Evidencia requerida |
+|---|---|---|---|
+| Sin perfil | `pending_review`, modos efectivos nulos | Puede persistir observado/sugerido si la puerta de persistencia está abierta | diagnóstico con transport controls, origen y detalles de curso verificados |
+| Incompleto o ambiguo | `pending_review` | No activa cosecha ni escritores | causa sanitizada y revisión posterior |
+| Bloqueo 403/429 | `blocked` | Corta el examen de esa institución sin fallback evasivo | estado HTTP y conteo acotado |
+| Sugerencia verificada + política de autoactivación | solo perfil autogenerado incompleto puede recibir campos efectivos | `discovery_enabled`/`pipeline_enabled`; `production_enabled` permanece false | política explícita, prueba del origen, programa nuevo y dos fichas |
+| Perfil efectivo activo | conserva valores manuales/validados | onboarding rutinario no los reemplaza | el harvester aplica los gates efectivos existentes |
+
+La columna histórica `pipeline_ready` no constituye por sí sola autorización de
+diagnóstico, harvesting o producción. Las puertas de examen, persistencia,
+activación de discovery/pipeline y `production_enabled` son distintas. La
+detección de JavaScript no habilita stealth ni bypass. Una detección pendiente
+no es selección elegible; el selector regular continúa fallando cerrado.
+
+### Ensayo PG17/PostgREST acotado
+
+`tests/fg2_full_pipeline_pg17/run.sh` construye un entorno efímero con migraciones
+versionadas, roles sintéticos y red Docker interna sin egress. Llama los mismos
+entrypoints de las cuatro estaciones desde procesos separados y valida
+manifiesto, staging, cleansing, enrichment y sync mediante PostgREST real contra
+PG17. HTTP institucional y proveedor de enrichment son simulados; el proveedor
+registrado es `local_smart_mock`. En la última ejecución, el ensayo terminó
+PASS con 6 cursos sintéticos en destino, 5 pendientes de revisión en la cola
+Admin y 0 en `courses_public_effective`; el refresh preservó ID y override.
+También comprobó perfil ambiguo, 403/429, fallo RPC transitorio con salida
+no-cero y recuperación sin duplicación. No demuestra datos/proveedores reales,
+permisos remotos, deployment, ni resultado productivo.
+
+**Transición:** `expand` incorpora schema y modo explícito de diagnóstico;
+`compatibilidad` conserva el camino existente y activa defaults conservadores;
+`deploy` necesita PR/promoción protegida, baseline schema y autorización DB
+JIT separada; `contract` queda después de un piloto funcional autorizado.
+Rollback local es descartar el diff aislado. Después de integrar, reversión por
+PR; no borrar observaciones ni ejecutar DDL rollback destructivo sin aprobación.
+
 ## Mapa de módulos mantenidos
 
 | Archivo/símbolo | Responsabilidad e interfaz local | Consumidor/dependencia demostrada | Datos y permiso |
@@ -211,6 +284,46 @@ escribir y sin escoger una fila arbitraria. Si no existe fila, conserva el flujo
 de discovery actual. El staging histórico ajeno a las URLs seleccionadas no
 amplía el lote ni lo bloquea.
 
+### Admisión de semillas alineada con runtime — corrección local 2026-11-19
+
+El preflight de `approved_lot` y la validación de candidatos del harvester usan
+`profile_url_policy_rejection()` en `fg2_bounded_run.py`. Para
+`hardcoded_urls`, toma como máximo diez semillas que pasen la misma regla de
+origen, pertenencia al lote, extensiones, exclusiones y `allowed_url_patterns`
+que se aplica en runtime, después de la misma normalización de `normalize_url`
+(query, fragmento y barra final), conservando el orden del perfil. Una selección
+explícita revisada no se sustituye: si una de sus URLs queda bloqueada por el
+perfil, el preflight termina antes del contacto. Si ninguna semilla configurada
+es procesable, termina con error y no genera una cohorte vacía.
+
+Las semillas de `sitemap_bfs` y `paginated_catalog` representan páginas de
+discovery: deben conservar origen y pertenecer al lote aprobado, pero no son
+URLs de detalle y no se filtran por exclusiones de cursos, extensiones de
+detalle ni `allowed_url_patterns`. Los enlaces extraídos sí pasan por la regla
+completa de detalle antes de incorporarse a la cohorte. En `scheduled_cohort`,
+`hardcoded_urls` mantiene esta misma selección; `sitemap_bfs` conserva su
+semilla programada `/sitemap.xml`. Los sitemaps `.xml.gz` continúan rechazados
+en la ruta controlada. El parser del lote aprobado rechaza query y fragmento
+tanto en las semillas como en sus URLs de detalle revisadas. En runtime, el
+presupuesto controlado rechaza una query en la solicitud revisada y en sus
+redirects; la canonicalización quita fragmentos antes de emitir HTTP. Una
+fuente `paginated_catalog` cuya página solo exista como `?page=1` se rechaza en
+preflight; usa una ruta de página sin query. La política compartida clasifica la
+fuente sin aplicar reglas de detalle y conserva su query; el parser del lote
+impide aprobar esa semilla con query. Los contratos locales están en
+`tests/test_fg2_bounded_run.py`, `tests/test_fg2_bounded_orchestration.py` y
+`tests/test_fg2_bounded_workflow.py`; sus fixtures no prueban la selección
+actual de Pro ni una corrida institucional.
+
+En este candidato local, un patrón regex de exclusión inválido/inseguro, una
+allowlist inválida, la ausencia de `regex`, un timeout o un error de evaluación
+rechazan la URL con una categoría sanitizada; no se ignora el patrón para
+continuar. Este comportamiento es más estricto que la regla histórica de
+ignorar algunos patrones inseguros y puede reducir la cohorte elegible. No se
+retiran reglas de perfiles para conseguir candidatos. La validación de este
+delta y su compatibilidad con perfiles de los tres modos siguen pendientes;
+el texto no acredita ejecución Docker ni configuración remota.
+
 Un HTTP 403 o 429 bloquea el origen después de una sola solicitud y no reintenta
 esa respuesta, incluso cuando 429 incluye `Retry-After`. El hijo controlado lo
 registra como `blocked`; detiene la discovery de la institución y no encola
@@ -305,9 +418,12 @@ ruta ordinaria conserva la navegación Playwright existente, incluida la
 validación de forma de la URL inicial; esa navegación no comparte el pin DNS ni
 los límites del transporte HTTP acotado y no acredita cobertura de E9/E10.
 
-El modo bounded usa solo el transporte HTTP que pasa por ese presupuesto. El
-preflight admite perfiles `traditional_ssr` y rutas de discovery HTTP; perfiles
-SPA/ecommerce, `catalog_link_extraction`, stealth o bypass anti-bot quedan fuera.
+**Corte local anterior, supersedido por el candidato del 2026-11-20:** entonces
+bounded aceptaba solo SSR y difería SPA/ecommerce porque el transporte de
+Chromium no pasaba por el socket HTTP pinneado. Se conserva el estado histórico
+para explicar el gap; no describe este candidato. Ver
+[FG2 multiformato y onboarding](#fg2-multiformato-y-onboarding-de-perfiles--candidato-local-2026-11-20).
+
 Una ejecución programada en `main` crea un manifiesto ligado a run, intento y
 SHA y pasa al proceso hijo `--scheduled-cohort`, distinto de `--controlled` de
 la primera corrida manual con lote revisado. El preflight del hijo exige evento
@@ -319,7 +435,7 @@ y `Retry-After` de hasta 30 segundos. El presupuesto incluye redirecciones y
 reintentos. Los perfiles que requieren Playwright se difieren antes de contacto
 y no se sustituyen dentro de la cohorte.
 
-En este modo, `sitemap_bfs` conserva la ruta ordinaria: el preflight de
+En ese corte, `sitemap_bfs` conservaba la ruta ordinaria: el preflight de
 schedule fija `{website_url}/sitemap.xml`; los `seed_urls` del perfil no se
 interpretan como XML cuando son páginas de catálogo o cursos. Cada destino de
 redirect consume tanto una solicitud HTTP como una URL única antes de seguirlo,
@@ -502,11 +618,13 @@ lock/constraint DB ni resuelve duplicados históricos fuera del lote.
 El `CurlOpt.RESOLVE` de `curl_cffi` recibe una lista de entradas, aun cuando el
 pin calculado corresponda a un solo salto. El harvester y el diagnóstico
 comparten ese formato en GETs y en cada redirect validado; el binding se prueba
-localmente sin abrir sockets. La ruta browser ordinaria no usa `curl_cffi`; el
-modo acotado la rechaza antes de navegar. Por ello los perfiles Playwright no
-tienen refresh en esta cohorte hasta validar un transporte browser bounded
-compatible. La navegación ordinaria existente aplica solo a corridas no acotadas
-con aprobación Production y no se considera una alternativa para el schedule.
+localmente sin abrir sockets. El browser no abre su propio HTTP, DNS ni socket
+WebSocket hacia la institución: la ruta intercepta HTTP y entrega al navegador
+la respuesta obtenida por el transporte fijado; WebSocket se bloquea antes de
+conectar. Los perfiles SPA/ecommerce pueden recorrer este mismo camino tanto en
+modo ordinario como acotado, sujeto al perfil, alcance y presupuesto efectivos.
+La regresión Chromium sintética prueba el guard y la detención por WebSocket; no
+acredita disponibilidad, permisos ni comportamiento de una institución real.
 
 La transición es aditiva: `expand` añade el modo opt-in y el manifest;
 `compatibilidad` conserva default false y el camino ordinario; `deploy` pasa por
