@@ -59,6 +59,18 @@ forward-fix autorizado si el schema queda parcial; rollback de aplicación al
 código compatible, no rollback destructivo de DB. Gateway, cuotas, Edge,
 Auth/primer Admin, Pages/BFF, abrir Admin y smoke Pro conservan JIT separados.
 
+### migration-20261120120000-fg2-profile-onboarding-state
+
+**Path:** [`20261120120000_fg2_profile_onboarding_state.sql`](../../db/migrations/20261120120000_fg2_profile_onboarding_state.sql)
+
+**Propósito/por qué:** permite que FG2 diagnostique instituciones registradas aunque todavía no tengan perfil efectivo y conserva separadas observación, sugerencia, procedencia y configuración runnable. No agrega tabla, no copia perfiles entre ambientes y no activa productores/escritores. La activación automática requiere una política externa explícita y diagnóstico verificado.
+
+**Contrato local:** `institution_site_profiles.site_type` y `discovery_mode` admiten NULL solo mientras `profile_status='pending_review'`; `active` exige ambos modos efectivos. `diagnostic_status` usa `not_requested`, `verified`, `review_required` o `blocked`. Los objetos `diagnostic_observed`, `diagnostic_suggested` y `diagnostic_provenance` son JSONB; `allowed_resource_origins` debe ser un array JSONB. El cambio es aditivo y conserva columnas/gates anteriores.
+
+**Validación/estado:** migration aplicada en un PG17 efímero aislado como parte del E2E del candidato y comprobada por onboarding y por los entrypoints vía PostgREST local. Fixture con datos/roles sintéticos; no aplicada ni verificada en Free, Certificación o Pro. La definición sigue candidata local y necesita revisión, baseline por ambiente y JIT DDL para aplicación remota.
+
+**Transición y recuperación:** `expand` agrega columnas/checks y permite perfil inicial pendiente; `compatibilidad` conserva los perfiles efectivos existentes y el flujo previo; `deploy` por promoción protegida, con verificación de schema en cada ambiente y escritores cerrados; `contract` solo tras observación del runtime y decisión. Revertir el código por PR si no se adopta; no ejecutar DROP ni backfill/reparación sin JIT separado.
+
 ## h3-pro-promotion-manifest
 
 ### Preflight offline del registro compartido — corrección P1 de PR 514

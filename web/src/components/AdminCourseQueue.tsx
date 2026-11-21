@@ -115,7 +115,9 @@ export default function AdminCourseQueue({ role }: { role: 'admin' | 'user' }) {
   const [assurance, setAssurance] = useState<'checking' | 'aal1' | 'aal2'>('checking');
   const [filters, setFilters] = useState({
     editorial_status: role === 'admin' ? 'pending_review' : 'draft',
-    quality_status: role === 'admin' ? 'complete' : 'pending',
+    // New synced courses begin with quality=pending; filtering to complete
+    // would make them invisible in the editorial review queue.
+    quality_status: role === 'admin' ? '' : 'pending',
   });
   const latestQueueRequestId = useRef(0);
   const latestAssuranceCheckId = useRef(0);

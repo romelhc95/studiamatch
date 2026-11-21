@@ -131,6 +131,73 @@ if len(h1_path_records) != len(expected_h1_paths) or h1_paths != expected_h1_pat
     raise SystemExit("protected path integration test: H1 allowlist differs from the exact rejected-path set")
 if any(any(char in path for char in "*?[]") or path.startswith("/") or ".." in path.split("/") for path in h1_paths):
     raise SystemExit("protected path integration test: H1 allowlist contains a wildcard or unsafe path")
+
+fg2_full_match = re.search(
+    r"<<'FG2_FULL_LOCAL_PATHS'\s*\n(?P<body>.*?)\n\s*FG2_FULL_LOCAL_PATHS",
+    guard,
+    re.DOTALL,
+)
+if not fg2_full_match:
+    raise SystemExit("protected path integration test: missing exact full-FG2 allowlist")
+expected_fg2_full_paths = {
+    ".context/arquitectura.md",
+    ".context/ci_cd.md",
+    ".context/componentes/database_migrations.md",
+    ".context/componentes/datos_pipeline.md",
+    ".context/componentes/infra_release.md",
+    ".context/componentes/pipeline.md",
+    ".context/database.md",
+    ".context/estado_del_proyecto.md",
+    ".context/evidencias_cliente/sprint_1/paquete_hito_001.md",
+    ".context/trazabilidad/registro_fuentes_componentes.json",
+    ".context/trazabilidad/registro_fuentes_componentes.md",
+    ".github/workflows/production_pipeline.yml",
+    ".github/workflows/security-audit.yml",
+    "db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+    "scripts/core/fg2_bounded_run.py",
+    "scripts/core/master_orchestrator.py",
+    "scripts/core/profile_onboarding.py",
+    "scripts/core/universal_harvester.py",
+    "scripts/security/protected_path_scope_guard.sh",
+    "scripts/shared/site_diagnostics.py",
+    "tests/fg2_full_pipeline_pg17/assert_state.sql",
+    "tests/fg2_full_pipeline_pg17/fixture_schema.sql",
+    "tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql",
+    "tests/fg2_full_pipeline_pg17/prepare_refresh.sql",
+    "tests/fg2_full_pipeline_pg17/responses_initial.json",
+    "tests/fg2_full_pipeline_pg17/responses_refresh.json",
+    "tests/fg2_full_pipeline_pg17/run.sh",
+    "tests/fg2_full_pipeline_pg17/run_entrypoint.py",
+    "tests/fg2_full_pipeline_pg17/seed_admin.sql",
+    "tests/fg2_full_pipeline_pg17/seed_profiles.sql",
+    "tests/fg2_full_pipeline_pg17/sitecustomize.py",
+    "tests/fg2_full_pipeline_pg17/verify_admin_queue.py",
+    "tests/test_protected_path_scope_guard.sh",
+    "tests/test_fg2_bounded_orchestration.py",
+    "tests/test_fg2_bounded_run.py",
+    "tests/test_fg2_bounded_workflow.py",
+    "tests/test_fg2_profile_onboarding.py",
+    "tests/test_h3_admin_queue_ux_contract.py",
+    "tests/test_h3req1_local_pipeline_walk.py",
+    "tests/test_site_diagnostics_security.py",
+    "tests/test_supabase_credentials_contract.py",
+    "web/src/components/AdminCourseQueue.tsx",
+}
+fg2_full_records = [line.strip() for line in fg2_full_match.group("body").splitlines() if line.strip()]
+fg2_full_paths = set(fg2_full_records)
+if len(fg2_full_records) != 42 or fg2_full_paths != expected_fg2_full_paths:
+    raise SystemExit("protected path integration test: full-FG2 allowlist differs from exact candidate inventory")
+if any(any(char in path for char in "*?[]") or path.startswith("/") or ".." in path.split("/") for path in fg2_full_paths):
+    raise SystemExit("protected path integration test: full-FG2 allowlist contains a wildcard or unsafe path")
+for neighbor in (
+    "scripts/core/profile_onboarding_extra.py",
+    "db/migrations/20261120120000_fg2_profile_onboarding_state_extra.sql",
+    "tests/fg2_full_pipeline_pg17/run-extra.sh",
+    ".context/componentes/pipeline_extra.md",
+):
+    if neighbor in fg2_full_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+        raise SystemExit(f"protected path integration test: neighboring full-FG2 path is admitted: {neighbor}")
+
 writer_paths = {
     ".github/scripts/production_control_preflight.sh",
     "tests/test_fase09_10_pre_main_controls.py",
@@ -794,7 +861,7 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     if result.returncode == 0:
         raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=20|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=20|FG2_full_exact_paths=42|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'

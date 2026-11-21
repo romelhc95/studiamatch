@@ -1,0 +1,263 @@
+"""Boundary adapters for the isolated FG2 PG17/PostgREST fixture.
+
+Only HTTP endpoints and DNS answers for the reserved synthetic test domain are
+substituted. Pipeline code, budgets, URL policy, Playwright, parsers, SQL/RPCs,
+and stage entrypoints remain the candidate implementations.
+"""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import json
+import os
+import requests
+import socket
+import time as _real_time
+from pathlib import Path
+from types import SimpleNamespace
+from urllib.parse import urlsplit, urlunsplit
+
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+
+
+def _b64url(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+
+def _jwt(role: str = "service_role", sub: str | None = None) -> str:
+    secret = os.environ["FG2_FIXTURE_JWT_SECRET"].encode("utf-8")
+    header = _b64url(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+    claims = {"role": role, "iat": int(_real_time.time()), "exp": int(_real_time.time()) + 7200}
+    if sub:
+        claims.update({"sub": sub, "aal": "aal2"})
+    payload = _b64url(json.dumps(claims, separators=(",", ":")).encode())
+    content = f"{header}.{payload}".encode("ascii")
+    signature = _b64url(hmac.new(secret, content, hashlib.sha256).digest())
+    return f"{header}.{payload}.{signature}"
+
+
+SERVICE_JWT = _jwt()
+
+
+def _fixture_url_key(value: str) -> str:
+    parsed = urlsplit(str(value))
+    return urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path or "/", parsed.query, ""))
+
+
+_response_path = Path(os.environ["FG2_FIXTURE_RESPONSE_FILE"])
+_responses = json.loads(_response_path.read_text(encoding="utf-8"))
+_responses = {_fixture_url_key(key): value for key, value in _responses.items()}
+_event_path = Path(os.environ["FG2_FIXTURE_EVENT_LOG"])
+
+
+def _record(url: str, *, status: int, pinned: bool, boundary: str) -> None:
+    parsed = urlsplit(url)
+    event = {
+        "boundary": boundary,
+        "run_id": os.environ.get("GITHUB_RUN_ID", "unknown"),
+        "host": parsed.hostname or "invalid",
+        "path": parsed.path or "/",
+        "query": parsed.query,
+        "status": status,
+        "pinned": bool(pinned),
+    }
+    line = (json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    descriptor = os.open(_event_path, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
+    try:
+        os.write(descriptor, line)
+    finally:
+        os.close(descriptor)
+
+
+def _record_api_response(method: str, url: str, status: int) -> None:
+    parsed = urlsplit(str(url))
+    if parsed.netloc != "postgrest:3000" or not parsed.path.startswith("/rest/v1/"):
+        return
+    event = {
+        "boundary": "postgrest_api",
+        "method": method.upper(),
+        "resource": parsed.path.removeprefix("/rest/v1/")[:100],
+        "status": int(status),
+    }
+    line = (json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    descriptor = os.open(_event_path, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
+    try:
+        os.write(descriptor, line)
+    finally:
+        os.close(descriptor)
+
+
+for _method_name in ("get", "post", "patch", "delete"):
+    _original_request = getattr(requests, _method_name)
+
+    def _request_with_safe_status(method_name, original_request):
+        def _wrapped(url, *args, **kwargs):
+            parsed = urlsplit(str(url))
+            routed_url = url
+            if parsed.netloc == "postgrest:3000" and parsed.path.startswith("/rest/v1/"):
+                # Supabase's Kong gateway owns /rest/v1; standalone PostgREST
+                # serves the same resource path at /. This fixture-only route
+                # adapter preserves the real PostgREST request and response.
+                routed_url = urlunsplit((
+                    parsed.scheme,
+                    parsed.netloc,
+                    parsed.path.removeprefix("/rest/v1"),
+                    parsed.query,
+                    "",
+                ))
+            response = original_request(routed_url, *args, **kwargs)
+            _record_api_response(method_name, url, response.status_code)
+            return response
+
+        return _wrapped
+
+    setattr(requests, _method_name, _request_with_safe_status(_method_name, _original_request))
+
+
+class _SyntheticResponse:
+    def __init__(self, url: str, value: dict, *, forced_status: int | None = None, pinned: bool = True, boundary: str):
+        self.url = str(value.get("final_url") or url)
+        self.status_code = int(forced_status if forced_status is not None else value.get("status", 599))
+        self.status = self.status_code
+        self.headers = {str(k).lower(): str(v) for k, v in (value.get("headers") or {}).items()}
+        content_type = value.get("content_type")
+        if content_type:
+            self.headers.setdefault("content-type", str(content_type))
+        self.content = str(value.get("body", "")).encode("utf-8")
+        self.text = self.content.decode("utf-8", errors="replace")
+        self.pinned = pinned
+        self.closed = False
+        _record(url, status=self.status_code, pinned=pinned, boundary=boundary)
+
+    def iter_content(self, chunk_size: int = 65536):
+        for offset in range(0, len(self.content), chunk_size):
+            yield self.content[offset : offset + chunk_size]
+
+    def close(self):
+        self.closed = True
+
+
+def _lookup_response(url: str, *, boundary: str, pinned: bool):
+    key = _fixture_url_key(url)
+    value = _responses.get(key)
+    if value is None:
+        return _SyntheticResponse(
+            url,
+            {"status": 599, "content_type": "text/plain", "body": "unmapped synthetic fixture request"},
+            pinned=pinned,
+            boundary=boundary,
+        )
+    return _SyntheticResponse(url, value, pinned=pinned, boundary=boundary)
+
+
+_original_getaddrinfo = socket.getaddrinfo
+
+
+def _synthetic_public_dns(host, port, *args, **kwargs):
+    hostname = str(host or "").rstrip(".").lower()
+    if hostname.endswith(".fg2.example"):
+        return [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", port or 443))]
+    return _original_getaddrinfo(host, port, *args, **kwargs)
+
+
+socket.getaddrinfo = _synthetic_public_dns
+
+
+class _VirtualClock:
+    def __init__(self):
+        self.value = 1_000_000.0
+
+    def monotonic(self):
+        return self.value
+
+    async def sleep(self, seconds):
+        self.value += max(0.0, float(seconds))
+
+    def advance(self, seconds):
+        self.value += max(0.0, float(seconds))
+
+
+_clock = _VirtualClock()
+
+
+async def _synthetic_budget_requester(_session, url, prepared, _impersonate, _timeout):
+    from curl_cffi import CurlOpt
+
+    pinned = bool(prepared and prepared.get(CurlOpt.RESOLVE))
+    response = _lookup_response(url, boundary="harvester_budget", pinned=pinned)
+    if not pinned:
+        response.status_code = response.status = 598
+    return response
+
+
+from scripts.core import fg2_bounded_run as _bounded
+from scripts.shared import db_client as _db_client
+import shared.db_client as _legacy_import_path_db_client
+from scripts.shared import site_diagnostics as _diagnostics
+from curl_cffi import CurlOpt
+
+_original_budget_init = _bounded.FG2RequestBudget.__init__
+
+
+def _fixture_budget_init(self, *args, **kwargs):
+    if kwargs.get("request_preparer") is not None:
+        kwargs["requester"] = _synthetic_budget_requester
+        kwargs["monotonic"] = _clock.monotonic
+        kwargs["sleeper"] = _clock.sleep
+    _original_budget_init(self, *args, **kwargs)
+
+
+_bounded.FG2RequestBudget.__init__ = _fixture_budget_init
+
+
+def _fixture_headers(self, use_service_role=None):
+    return {
+        "apikey": os.environ["FG2_FIXTURE_SECRET_API_KEY"],
+        "Authorization": f"Bearer {SERVICE_JWT}",
+        "Content-Type": "application/json",
+    }
+
+
+_db_client.DatabaseClient._get_headers = _fixture_headers
+_legacy_import_path_db_client.DatabaseClient._get_headers = _fixture_headers
+if (
+    _db_client.DatabaseClient._get_headers is not _fixture_headers
+    or _legacy_import_path_db_client.DatabaseClient._get_headers is not _fixture_headers
+):
+    raise RuntimeError("fixture_db_adapter_not_installed")
+
+
+class _FixtureCurlSession:
+    def __init__(self, *args, **kwargs):
+        self.options = kwargs.get("curl_options") or {}
+        self.verify = kwargs.get("verify")
+        self.closed = False
+
+    def get(self, url, **kwargs):
+        pinned = bool(self.options.get(CurlOpt.RESOLVE)) and self.verify is True
+        response = _lookup_response(url, boundary="site_diagnostics", pinned=pinned)
+        if not pinned:
+            response.status_code = response.status = 598
+        return response
+
+    def close(self):
+        self.closed = True
+
+
+_diagnostics.CurlSession = _FixtureCurlSession
+
+
+class _DiagnosticClock:
+    def monotonic(self):
+        return _clock.monotonic()
+
+    def time(self):
+        return _real_time.time()
+
+    def sleep(self, seconds):
+        _clock.advance(seconds)
+
+
+_diagnostics.time = _DiagnosticClock()

@@ -27,6 +27,7 @@ from scripts.core.universal_harvester import HarvesterRunError, UniversalHarvest
 from scripts.core.fg2_bounded_run import (
     FG2ApprovedLotManifest,
     FG2CohortManifest,
+    FG2RequestBudget,
     FG2_LIMITS,
     append_manifest_discovery_row,
     append_manifest_entry,
@@ -34,9 +35,12 @@ from scripts.core.fg2_bounded_run import (
     initialize_manifest,
     stable_json_sha256,
     update_manifest_institution,
+    OriginDeferred,
+    InvalidControlledRun,
     UnsafePublicTarget,
     url_sha256,
     validate_controlled_profile,
+    profile_url_policy_rejection,
 )
 
 
@@ -46,6 +50,36 @@ STAGING_B = "40000000-0000-0000-0000-000000000002"
 COURSE_B = "70000000-0000-0000-0000-000000000002"
 URL_B = "https://b.example/programs"
 SOURCE_SHA = "a" * 40
+
+
+async def _synthetic_budget_requester(_session, url, curl_options, impersonate, timeout):
+    """Use the test's pinned-session factory while retaining request options."""
+    async with harvester_module.AsyncSession(
+        trust_env=False,
+        proxies={},
+        curl_options=curl_options or {},
+        verify=True,
+        allow_redirects=False,
+        max_redirects=0,
+        retry=0,
+    ) as session:
+        return await session.get(
+            url,
+            impersonate=impersonate,
+            timeout=timeout,
+            allow_redirects=False,
+            proxies={},
+            verify=True,
+        )
+
+
+def _synthetic_harvester_budget():
+    return FG2RequestBudget(
+        request_preparer=harvester_module._prepare_controlled_request,
+        requester=_synthetic_budget_requester,
+        min_interval_seconds=0,
+        max_attempts_per_url=1,
+    )
 
 
 class FakeDB:
@@ -372,7 +406,7 @@ def test_controlled_selection_preserves_rotation_but_skips_missing_seeds_before_
         )
 
     assert [row["id"] for row in selected] == [INSTITUTION_B]
-    assert selected[0]["_controlled_seed_urls"] == ["https://b.example/programs/"]
+    assert selected[0]["_controlled_seed_urls"] == ["https://b.example/programs"]
     assert len(selected[0]["_controlled_profile_sha256"]) == 64
     assert len(selected[0]["_controlled_seed_sha256"]) == 64
     assert database.writes == []
@@ -823,7 +857,11 @@ def test_scheduled_harvester_noop_or_controlled_stop_updates_rotation_and_manife
             assert kwargs["scheduled_cohort"] is True
             assert kwargs["require_approved_lot"] is False
             assert kwargs["approved_lot_manifest"] is None
-            self.profile = {"enabled": True}
+            self.profile = {
+                "profile_status": "active",
+                "site_type": "traditional_ssr",
+                "discovery_mode": "hardcoded_urls",
+            }
             self.db = database
             self.site_type = "traditional_ssr"
             self.discovery_mode = "hardcoded_urls"
@@ -921,7 +959,11 @@ def test_scheduled_partial_harvest_preserves_successes_for_downstream_workers(
         def __init__(self, *_args, **kwargs) -> None:
             self.db = database
             self.cohort_manifest_path = kwargs["cohort_manifest"]
-            self.profile = {"enabled": True}
+            self.profile = {
+                "profile_status": "active",
+                "site_type": "traditional_ssr",
+                "discovery_mode": "hardcoded_urls",
+            }
             self.site_type = "traditional_ssr"
             self.discovery_mode = "hardcoded_urls"
             self.requires_stealth = False
@@ -1100,7 +1142,7 @@ def test_approved_lot_passes_non_prefix_seed_subset_to_child_without_writes(tmp_
                 approved_lot_sha256=option("--approved-lot-sha256"),
                 require_approved_lot=True,
             )
-        assert child.controlled_seed_urls == [selected_seed]
+        assert child.controlled_seed_urls == ["https://b.example/programs"]
         return False
 
     result, payload, _raw, _digest, _approved_path, _cohort_path = run_approved_dispatch(
@@ -1113,9 +1155,41 @@ def test_approved_lot_passes_non_prefix_seed_subset_to_child_without_writes(tmp_
     assert result == 1
     assert len(started) == 1
     child_institution = json.loads(started[0][0])
-    assert child_institution["_controlled_seed_urls"] == [selected_seed]
+    assert child_institution["_controlled_seed_urls"] == ["https://b.example/programs"]
     assert child_institution["_controlled_seed_sha256"] == payload["institutions"][0]["seed_sha256"]
     assert database.writes == []
+
+
+def test_hardcoded_preflight_and_runtime_share_exclusion_allowlist_and_lot_policy() -> None:
+    institution = {"website_url": "https://institution.example/"}
+    profile = {
+        "exclusion_patterns": ["re:/legacy/"],
+        "allowed_url_patterns": ["re:^/courses/"],
+    }
+    allowed_scope = {"https://institution.example/courses/current": {}}
+    harvester = UniversalHarvester.__new__(UniversalHarvester)
+    harvester.institution = institution
+    harvester.profile = profile
+    harvester.approved_lot_scope = allowed_scope
+
+    cases = {
+        "https://institution.example/courses/current/": True,
+        "https://institution.example/courses/legacy/": False,
+        "https://institution.example/catalog/current/": False,
+        "https://elsewhere.example/courses/current/": False,
+        "https://institution.example/courses/other/": False,
+    }
+    for url, expected in cases.items():
+        # The fixture URLs are deliberately synthetic; only the policy result
+        # is shared with the production call path.
+        reason = profile_url_policy_rejection(
+            url,
+            institution["website_url"],
+            profile,
+            approved_lot_scope=allowed_scope,
+        )
+        assert (reason is None) is expected
+        assert harvester._is_valid_crawl_url(url) is expected
 
 
 def test_approved_non_prefix_seed_drift_fails_before_child_without_substitution(tmp_path: Path) -> None:
@@ -1301,7 +1375,11 @@ def test_browser_start_failure_reports_its_phase_without_exception_details(
 
     class BrowserStartHarvester:
         def __init__(self, *_args, **_kwargs):
-            self.profile = {"enabled": True}
+            self.profile = {
+                "profile_status": "active",
+                "site_type": "spa_js_heavy",
+                "discovery_mode": "catalog_link_extraction",
+            }
             self.site_type = "spa_js_heavy"
             self.discovery_mode = "hardcoded_urls"
             self.requires_stealth = False
@@ -1492,6 +1570,23 @@ def test_approved_lot_exact_match_starts_only_approved_institution_after_clean_p
     assert len(started) == 1
     assert database.writes == []
     assert source_requests == []
+
+
+def test_approved_lot_rejects_fragment_in_raw_seed_before_canonicalizing() -> None:
+    database = FakeDB()
+    payload, _raw, _digest = approved_lot(database)
+    payload["institutions"][0]["seed_urls"][0] += "#not-sent-to-origin"
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+
+    with pytest.raises(ValueError, match="seeds cannot contain fragments"):
+        FG2ApprovedLotManifest.from_bytes(
+            raw,
+            payload,
+            expected_sha256=digest,
+            expected_reference=payload["reference"],
+            expected_source_sha=SOURCE_SHA,
+        )
 
 
 def test_approved_lot_profile_drift_fails_before_harvester_without_substitution(tmp_path) -> None:
@@ -2461,6 +2556,123 @@ def test_schedule_refresh_finds_existing_course_stored_as_detail_alias(requested
     assert course == {"kind": "refresh_existing", "course_id": COURSE_B}
 
 
+def _processed_schedule_refresh(tmp_path: Path):
+    database = FakeDB()
+    previous_html = "<html><body>prior synced course</body></html>"
+    database.staging_rows[0].update(
+        status="processed",
+        content_hash=hashlib.sha256(previous_html.encode()).hexdigest(),
+        raw_html=previous_html,
+    )
+    cohort_path = tmp_path / "processed-refresh-cohort.json"
+    initialize_manifest(
+        cohort_path,
+        run_id="123456789",
+        run_attempt=1,
+        source_sha=SOURCE_SHA,
+        institutions=[
+            {
+                "institution_id": INSTITUTION_B,
+                "profile_sha256": "b" * 64,
+                "seed_sha256": "c" * 64,
+                "http_requests": 0,
+                "unique_urls": 0,
+                "result": "preflight_passed",
+            }
+        ],
+    )
+    harvester = object.__new__(UniversalHarvester)
+    harvester.db = database
+    harvester.institution = {"id": INSTITUTION_B}
+    harvester.controlled = True
+    harvester.scheduled_cohort = True
+    harvester.approved_lot = None
+    harvester.cohort_manifest_path = cohort_path
+    harvester._discovered_rows_by_url = {}
+    harvester._recorded_discovery_ids = set()
+    harvester._recorded_blocker_ids = set()
+    harvester.approved_lot_scope_verified_for_write = False
+    harvester._select_staging_rows_by_url = Mock(return_value=[database.staging_rows[0]])
+    return database, harvester, cohort_path
+
+
+def test_processed_refresh_requeues_only_changed_html_with_exact_identity_and_hash(tmp_path: Path) -> None:
+    database, harvester, cohort_path = _processed_schedule_refresh(tmp_path)
+    discovered = harvester._save_discovered_url(URL_B)
+    changed_html = "<html><body>updated synthetic course</body></html>"
+    item = {
+        "url": URL_B,
+        "institution_id": INSTITUTION_B,
+        "status": "pending",
+        "raw_html": changed_html,
+        "raw_name": "Synthetic course",
+        "content_hash": hashlib.sha256(changed_html.encode()).hexdigest(),
+    }
+
+    promoted = harvester._save_to_staging(item)
+    manifest = FG2CohortManifest.load(cohort_path, allow_empty=True)
+
+    assert discovered["status"] == "discovered"
+    assert discovered["original_status"] == "processed"
+    assert discovered["kind"] == "refresh_existing"
+    assert database.staging_rows[0]["id"] == STAGING_B
+    assert database.staging_rows[0]["status"] == "pending"
+    assert database.staging_rows[0]["content_hash"] == item["content_hash"]
+    assert database.writes[-1][1].endswith(
+        f"&status=eq.processed&content_hash=eq.{hashlib.sha256(b'<html><body>prior synced course</body></html>').hexdigest()}"
+    )
+    assert manifest.payload["discovery_rows"] == [
+        {
+            "institution_id": INSTITUTION_B,
+            "staging_id": STAGING_B,
+            "url_sha256": url_sha256(URL_B),
+            "initial_status": "processed",
+            "kind": "refresh_existing",
+            "course_id": COURSE_B,
+            "content_sha256": hashlib.sha256(b"<html><body>prior synced course</body></html>").hexdigest(),
+        }
+    ]
+    assert manifest.payload["entries"][0]["kind"] == "refresh_existing"
+    assert manifest.payload["entries"][0]["course_id"] == COURSE_B
+    assert promoted["status"] == "pending"
+
+
+def test_processed_refresh_with_unchanged_content_keeps_processed_row_out_of_cohort(tmp_path: Path) -> None:
+    database, harvester, cohort_path = _processed_schedule_refresh(tmp_path)
+    previous_hash = database.staging_rows[0]["content_hash"]
+    harvester._save_discovered_url(URL_B)
+    item = {
+        "url": URL_B,
+        "institution_id": INSTITUTION_B,
+        "status": "pending",
+        "raw_html": database.staging_rows[0]["raw_html"],
+        "raw_name": "Synthetic course",
+        "content_hash": previous_hash,
+    }
+
+    promoted = harvester._save_to_staging(item)
+    manifest = FG2CohortManifest.load(cohort_path, allow_empty=True)
+
+    assert promoted["status"] == "processed"
+    assert database.staging_rows[0]["status"] == "processed"
+    assert database.writes == []
+    assert manifest.staging_ids == ()
+    assert manifest.payload["discovery_rows"][0]["initial_status"] == "processed"
+
+
+def test_processed_refresh_without_exact_existing_course_remains_blocked(tmp_path: Path) -> None:
+    database, harvester, cohort_path = _processed_schedule_refresh(tmp_path)
+    database.course_rows.clear()
+
+    row = harvester._save_discovered_url(URL_B)
+    manifest = FG2CohortManifest.load(cohort_path, allow_empty=True)
+
+    assert row["status"] == "processed"
+    assert database.staging_rows[0]["status"] == "processed"
+    assert manifest.payload["entries"] == []
+    assert manifest.payload["blocked_staging_rows"][0]["staging_id"] == STAGING_B
+
+
 def test_approved_lot_binds_detail_alias_to_existing_parent_course() -> None:
     database = FakeDB()
     alias_url = f"{URL_B}/presentacion"
@@ -2800,6 +3012,96 @@ def test_paginated_catalog_deduplicates_same_url_across_pages(monkeypatch: pytes
     queued.assert_called_once_with("https://synthetic.example/program/course")
 
 
+def test_controlled_paginated_catalog_uses_only_preflighted_query_pages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SyntheticSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+    response = SimpleNamespace(
+        status_code=200,
+        text='<a class="course" href="/program/new">New program</a>',
+    )
+    monkeypatch.setattr(harvester_module, "AsyncSession", SyntheticSession)
+    harvester = object.__new__(UniversalHarvester)
+    harvester.profile = {
+        "catalog_url_patterns": ["https://synthetic.example/catalog?page={page}"],
+    }
+    harvester.catalog_max_pages = 1
+    harvester.catalog_link_selector = "a.course"
+    harvester.site_type = "traditional_ssr"
+    harvester.controlled = True
+    harvester.controlled_source_urls = [
+        "https://synthetic.example/catalog?page=1",
+        "https://synthetic.example/catalog?page=2",
+    ]
+    harvester._discovery_fetch_attempts = 0
+    harvester._discovery_fetch_successes = 0
+    harvester.course_urls = set()
+    harvester.max_discovered_urls = 10
+    harvester.check_time_guard = lambda: False
+    harvester._can_discover_more = lambda: True
+    harvester._load_existing_urls = AsyncMock(return_value=set())
+    requested_urls = []
+
+    async def safe_request(_session, url, *, request_kind):
+        assert request_kind == "catalog_source"
+        requested_urls.append(url)
+        return response
+
+    harvester._safe_request = safe_request
+    harvester._is_valid_crawl_url = lambda _url: True
+    harvester._mark_controlled_url_examined = lambda _url: True
+    harvester._queue_discovered_candidate = Mock(return_value={"status": "discovered"})
+    harvester._merge_resumable_urls = lambda urls: urls
+    harvester._limit_urls = lambda urls: urls
+
+    result = asyncio.run(harvester.discover_paginated_catalog())
+
+    assert requested_urls == harvester.controlled_source_urls
+    assert result == ["https://synthetic.example/program/new"]
+
+
+def test_controlled_catalog_link_extraction_does_not_add_unreviewed_homepage() -> None:
+    class SyntheticPage:
+        pass
+
+    harvester = object.__new__(UniversalHarvester)
+    harvester.controlled = True
+    harvester.controlled_source_urls = ["https://synthetic.example/catalog"]
+    harvester.profile = {"seed_urls": ["https://synthetic.example/catalog"]}
+    harvester.institution = {"website_url": "https://synthetic.example/"}
+    harvester.max_discovered_urls = 10
+    harvester.requires_stealth = False
+    harvester.catalog_scroll_iterations = 0
+    harvester.catalog_link_selector = "a.program"
+    harvester._discovery_fetch_attempts = 0
+    harvester._discovery_fetch_successes = 0
+    harvester.check_time_guard = lambda: False
+    harvester._can_discover_more = lambda: True
+    harvester._load_existing_urls = AsyncMock(return_value=set())
+    harvester._new_browser_page = AsyncMock(return_value=SyntheticPage())
+    harvester._close_browser_page = AsyncMock()
+    harvester._dismiss_popups = AsyncMock()
+    navigated = []
+
+    async def navigate(_page, url, **kwargs):
+        assert kwargs["request_kind"] == "catalog_source"
+        navigated.append(url)
+        return SimpleNamespace(status=200)
+
+    harvester._navigate_browser_page = navigate
+
+    result = asyncio.run(harvester.discover_catalog_links(browser=object()))
+
+    assert navigated == ["https://synthetic.example/catalog"]
+    assert result == []
+
+
 @pytest.mark.parametrize(
     "blocked_url",
     [
@@ -2813,7 +3115,9 @@ def test_ordinary_harvester_blocks_nonpublic_initial_request_before_transport(
 ) -> None:
     harvester = object.__new__(UniversalHarvester)
     harvester.controlled = False
-    harvester.institution = {"name": "Synthetic", "website_url": URL_B}
+    harvester.institution = {"name": "Synthetic", "website_url": blocked_url}
+    harvester.request_budget = _synthetic_harvester_budget()
+    harvester.impersonate = "chrome110"
     harvester.error_count = 0
     harvester.max_consecutive_errors = 3
     harvester.circuit_open = False
@@ -2828,9 +3132,8 @@ def test_ordinary_harvester_blocks_nonpublic_initial_request_before_transport(
         lambda **_kwargs: pytest.fail("nonpublic URL reached HTTP transport"),
     )
 
-    result = asyncio.run(harvester._safe_request(object(), blocked_url))
-
-    assert result is None
+    with pytest.raises(OriginDeferred):
+        asyncio.run(harvester._safe_request(object(), blocked_url))
 
 
 def test_ordinary_harvester_rejects_private_redirect_before_second_request(
@@ -2858,6 +3161,7 @@ def test_ordinary_harvester_rejects_private_redirect_before_second_request(
     harvester = object.__new__(UniversalHarvester)
     harvester.controlled = False
     harvester.institution = {"name": "Synthetic", "website_url": URL_B}
+    harvester.request_budget = _synthetic_harvester_budget()
     harvester.error_count = 0
     harvester.max_consecutive_errors = 3
     harvester.circuit_open = False
@@ -2867,19 +3171,17 @@ def test_ordinary_harvester_rejects_private_redirect_before_second_request(
             raise UnsafePublicTarget("private redirect fixture")
         return "https://b.example:443", "b.example:443:93.184.216.34"
 
-    monkeypatch.setattr(harvester_module, "validate_public_request_url", validate_request)
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", lambda _url: "b.example:443:93.184.216.34")
 
     def validate_redirect(_current: str, location: str, **_kwargs):
         assert "169.254.169.254" in location
         raise UnsafePublicTarget("private redirect fixture")
 
-    monkeypatch.setattr(harvester_module, "validate_public_redirect_target", validate_redirect)
     monkeypatch.setattr(harvester_module, "AsyncSession", lambda **_kwargs: PinnedSession())
     monkeypatch.setattr(harvester_module.asyncio, "sleep", AsyncMock())
 
-    result = asyncio.run(harvester._safe_request(object(), URL_B))
-
-    assert result is None
+    with pytest.raises(OriginDeferred):
+        asyncio.run(harvester._safe_request(object(), URL_B))
     assert calls == [URL_B]
     redirect_response.close.assert_called_once()
 
@@ -2917,15 +3219,11 @@ def test_ordinary_harvester_pins_each_public_redirect_with_a_resolve_list(
 
     monkeypatch.setattr(
         harvester_module,
-        "validate_public_request_url",
-        lambda _url: ("https://b.example:443", "b.example:443:93.184.216.34"),
-    )
-    monkeypatch.setattr(
-        harvester_module,
-        "validate_public_redirect_target",
-        lambda _current, _location: (
-            redirect_url,
-            "b.example:443:93.184.216.35",
+        "public_url_resolve_entry",
+        lambda url: (
+            "b.example:443:93.184.216.34"
+            if url == URL_B
+            else "b.example:443:93.184.216.35"
         ),
     )
     monkeypatch.setattr(harvester_module, "AsyncSession", create_session)
@@ -2935,6 +3233,7 @@ def test_ordinary_harvester_pins_each_public_redirect_with_a_resolve_list(
     harvester = object.__new__(UniversalHarvester)
     harvester.controlled = False
     harvester.institution = {"name": "Synthetic", "website_url": URL_B}
+    harvester.request_budget = _synthetic_harvester_budget()
     harvester.error_count = 0
     harvester.max_consecutive_errors = 3
     harvester.circuit_open = False
@@ -2956,7 +3255,7 @@ def test_ordinary_harvester_pins_each_public_redirect_with_a_resolve_list(
 def test_all_direct_playwright_navigation_is_behind_the_controlled_mode_guard() -> None:
     source = Path(__file__).parents[1] / "scripts/core/universal_harvester.py"
     tree = ast.parse(source.read_text(encoding="utf-8"))
-    navigation_calls: list[str | None] = []
+    navigation_calls: list[tuple[str | None, str | None]] = []
 
     class NavigationVisitor(ast.NodeVisitor):
         def __init__(self) -> None:
@@ -2976,11 +3275,20 @@ def test_all_direct_playwright_navigation_is_behind_the_controlled_mode_guard() 
                 and isinstance(function.value, ast.Name)
                 and function.value.id == "page"
             ):
-                navigation_calls.append(self.function_name)
+                    try:
+                        first_argument = ast.literal_eval(node.args[0])
+                    except (IndexError, ValueError, TypeError):
+                        first_argument = None
+                    navigation_calls.append(
+                        (self.function_name, first_argument if isinstance(first_argument, str) else None)
+                    )
             self.generic_visit(node)
 
     NavigationVisitor().visit(tree)
-    assert navigation_calls == ["_navigate_browser_page"]
+    assert navigation_calls == [
+        ("_new_browser_page", "about:blank"),
+        ("_navigate_browser_page", None),
+    ]
 
 
 def test_staging_state_drift_fails_before_first_source_request(tmp_path) -> None:

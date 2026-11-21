@@ -32,6 +32,13 @@ def test_queue_ux_migration_keeps_auth_and_editor_gates() -> None:
     assert "Invalid quality status" in source
 
 
+def test_admin_default_queue_includes_pending_quality_courses_for_editorial_review() -> None:
+    source = read("web/src/components/AdminCourseQueue.tsx")
+
+    assert "editorial_status: role === 'admin' ? 'pending_review' : 'draft'" in source
+    assert "quality_status: role === 'admin' ? '' : 'pending'" in source
+
+
 def test_queue_pagination_rejects_null_limits_in_rpc_and_signed_dispatcher() -> None:
     queue_migration = read("db/migrations/20260927_h3_admin_queue_facets_filter.sql")
     queue_guard_migration = read("db/migrations/20261004_h3_admin_queue_first_null_guard.sql")

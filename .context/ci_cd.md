@@ -4,7 +4,7 @@
 
 | Archivo | Triggers declarados | Jobs/responsabilidad | Estado real |
 |---|---|---|---|
-| security-audit.yml | pull_request, push, workflow_dispatch | credenciales, protected paths, Python, ESLint, TypeScript, static build, actionlint/ShellCheck, DB gate, agregador security-audit | YAML del candidato; instalación/required check remoto sin verificar. |
+| security-audit.yml | pull_request, push, workflow_dispatch | credenciales, protected paths, selector documental, Python, ESLint, TypeScript, static build, actionlint/ShellCheck, DB gate, E2E FG2 con PG17/PostgREST internos y agregador security-audit | YAML del candidato; instalación/required check remoto sin verificar. |
 | protected-workflow-integrity.yml (retirado) | Histórico: pull_request_target, pull_request_review | Sucesor de PR 501 lo retiró; el fallo PWI de `a73af141…` se conserva como histórico. No atribuir ese resultado a la App. |
 | production_pipeline.yml | schedule diario UTC, workflow_dispatch | preflight y FG2 harvest/cleanse/enrichment/sync/audit | Cron definido; ejecución actual desconocida. |
 | fg1_inventory.yml | schedule mensual UTC, workflow_dispatch | preflight e inventario institucional | Cron definido; ejecución actual desconocida. |
@@ -14,6 +14,15 @@
 | opencode.yml | issue_comment, pull_request_review_comment | integración OpenCode según condiciones YAML | Config local; uso remoto no comprobado. |
 
 Workflows FG llaman .github/scripts/production_control_preflight.sh antes de los writers y solo continúan con allow_writer. Sus ramas/ref/environment son expresiones del YAML, no prueba de branch protection ni de schedule instalado. Permissions local más visible: contents: read; security audit añade actions: read y workflow-integrity pull-requests: read. Revisar permisos completos por job cuando se cambie.
+
+El E2E candidato `tests/fg2_full_pipeline_pg17/run.sh` construye y ejecuta el
+mismo Dockerfile de la aplicación para probar entrypoints reales contra PG17 y
+PostgREST aislados, con datos/credenciales sintéticos y sin egress. Comprueba
+manifiestos transportados entre procesos, las cuatro estaciones, el error y la
+recuperación, la cola Admin y ausencia de publicación pública automática. El
+cliente HTTP de sitios y el proveedor de enrichment están simulados. El selector
+Python del workflow incluye `tests/test_fg2_profile_onboarding.py`; estos cambios
+aún son locales y ninguno de los checks de Actions se presenta como ejecutado.
 
 `db-sync-to-pro.yml` instala `requirements-db-migrate.txt` con `pip install --require-hashes` en tres pasos; ese lock específico queda descrito en [tecnologías](tecnologias.md). La definición versionada del workflow no acredita que haya corrido ni que una migration se haya aplicado. Los cinco `.github/commands/*.toml`, como [`gemini-invoke.toml`](../.github/commands/gemini-invoke.toml), son prompts de Gemini auxiliares y no se referencian como jobs/triggers en los workflows inspeccionados; su invocación desde herramientas/personas no está comprobada.
 

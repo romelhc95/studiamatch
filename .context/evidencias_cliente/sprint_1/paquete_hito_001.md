@@ -21,6 +21,29 @@ La evidencia privada permanece fuera de Git. Esta atestacion no copia contenido
 comercial, firmas, datos personales, rutas privadas, hashes completos ni
 credenciales.
 
+## Trazabilidad Del Alcance Tecnico FG2 — 2026-11-20
+
+Esta seccion es una decision de implementacion del responsable del ciclo; no
+modifica `EVID-H1-001`, no afirma aceptacion adicional del cliente y no sustituye
+la conformidad de Hito 1.
+
+| Requisito | Fuente disponible | Criterio aplicable | Implementacion del ciclo | Estado de aceptacion |
+|---|---|---|---|---|
+| Operar FG2 bajo gates, circuit breakers, controles de credenciales y evidencia funcional | `ADENDA-REQ-EST-001-001`, inventario sanitizado de fuente cliente, y `HITO-001` | `H1-CA1`; FG2 es parte del alcance y la ejecucion funcional requiere evidencia, no solo readiness | Completar localmente el recorrido de FG2 y sus controles sin omitir estaciones ni confundir preflight con resultado funcional | Criterio H1 existente; la ejecucion productiva y la conformidad siguen pendientes |
+| Diagnosticar instituciones registradas sin perfil elegible y atender `traditional_ssr`, `spa_js_heavy` y `ecommerce` | Instruccion del responsable en la continuacion FG2 del 2026-11-20 | Decision tecnica para implementar FG2 de forma completa; la fuente cliente sanitizada vigente no desglosa estos modos | Onboarding/diagnostico acotado y rutas controladas por modo; la incertidumbre queda `review_required`; no activar stealth ni prometer disponibilidad universal | Autorizacion de implementacion local, no aceptacion contractual |
+| Mantener identidad, presupuesto, seguridad de red y frontera editorial | `HITO-001`, contratos versionados de pipeline/editorial y la misma instruccion del responsable | Controles internos requeridos para ejecutar CA1 con seguridad; H2/H3 conserva sus propios criterios editoriales | Preservar identidad/overrides, dejar cursos nuevos pendientes de Admin y no publicar automaticamente | Evidencia tecnica local pendiente; no cambia el criterio cliente ni cierra H2/H3 |
+
+La matriz sanitizada `CA1` describe schedules, ejecucion segura del harvester y
+pipeline, gates, circuit breakers y secretos en CI. No enumera los tres tipos de
+sitio ni promete que toda fuente externa permita extraccion. Por ello, este
+ciclo implementa esos modos como decision tecnica del responsable dentro de
+FG2, sin presentarlos como ampliacion aceptada por el cliente. Una futura
+declaracion contractual que los convierta en criterios nuevos, o que prometa
+procesabilidad universal/disponibilidad externa, requiere evidencia directa de
+la fuente cliente `SRC-REQ-002-DOCX` o confirmacion del aprobador cliente; esa
+fuente privada no se cita como leida ni se reproduce aqui. La evidencia
+productiva, permisos remotos y conformidad siguen sus gates independientes.
+
 ## Resultado Ejecutivo
 
 Candidate local F9.8 CA1-only implementado y replay-validado post-merge en

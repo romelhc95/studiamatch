@@ -55,6 +55,35 @@ Fuente: `.github/workflows/production_pipeline.yml`. Declara ventana diaria (`0 
 
 `tests/test_fase09_10_pre_main_controls.py`, `tests/test_fase10_main_boundary.py` y `tests/test_supabase_credentials_contract.py` leen estos pasos para validar controles, ramas y origen de credenciales. La secuencia local no demuestra schedule activo, secrets provisionados, datos procesados o que una estación haya terminado correctamente en un run remoto.
 
+#### Onboarding y ensayo completo — candidato local 2026-11-20
+
+El job de harvest ejecuta en `master_orchestrator.py` el diagnóstico opcional
+antes de la selección ordinaria. Las variables de Environment
+`FG2_PROFILE_DIAGNOSTICS_ENABLED`, `FG2_PROFILE_DIAGNOSTIC_SLUGS`,
+`FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED` y
+`FG2_PROFILE_AUTO_ACTIVATE_VERIFIED` son independientes y fail closed: el
+diagnóstico exige slugs explícitos ya presentes en `institutions`, persistir
+requiere su puerta propia y autoactivar exige ambas y evidencia verificada.
+No se leyó la configuración remota ni se modificaron flags. La puerta no
+incorpora aprobación humana por cada corrida; la política requiere aprobación
+operativa aparte antes de instalarse en un Environment.
+
+El código conserva el cron declarado `0 5 * * *`, dispatch y gates de pausa;
+la adición local no modifica la configuración de schedule. La salida del
+diagnóstico no entra al selector/havest en el mismo run, evitando que HTTP de
+perfilado se reste del presupuesto institucional de harvesting o que un perfil
+recién detectado procese sin revisión. El candidato integra un job de CI que
+construye el Dockerfile del repo y ejecuta el E2E con PostgreSQL 17/PostgREST
+efímeros en una red interna sin egress; los cuerpos HTTP y proveedor son mocks.
+La prueba local pasó; no equivale a CI ejecutado en GitHub ni a runtime Pro.
+
+Transición: expand migration local aditiva; compatibilidad por defaults y
+modos efectivos actuales; deploy vía ruta protegida y JIT DB/Environment
+independientes; contract solo al evaluar observación de piloto. Rollback local
+es descartar el diff. Después de un deployment, detener activaciones nuevas,
+revertir consumidor por PR, preservar filas metadata y definir cualquier DDL
+reverso como aprobación JIT separada.
+
 El candidato local añade la entrada manual `bounded_first_run`, booleana y
 predeterminada a `false`, además de `approved_lot_reference`,
 `approved_lot_sha256` y `approved_lot_manifest_b64`. El dispatch bounded conserva
@@ -72,16 +101,19 @@ su digest y consultan solo IDs relacionados de la corrida. Cleansing selecciona
 camino; estados históricos `processing`/`processed` no se reabren ni reencolan.
 El artifact de cada corrida se conserva por siete días.
 
-El bounded runner rechaza antes del contacto perfiles SPA/ecommerce,
-`catalog_link_extraction`, stealth y bypass anti-bot. La ruta de navegador
-ordinaria ahora aborta HTTP(S) porque Chromium no comparte el pin DNS del socket
-curl. El snapshot read-only Pro del 2026-11-11 identificó once perfiles de
-producción, discovery y pipeline habilitados que dependen de Playwright:
+En el baseline local anterior al 2026-11-20, bounded rechazaba SPA/ecommerce y
+`catalog_link_extraction` porque el navegador no estaba ligado al transporte
+pinneado. El snapshot Pro read-only del 2026-11-11 identificó entonces once
+perfiles que dependían de Playwright:
 coderhouse, datapath, digitalhouse, dmc, educacionit, idat, lewagon, smartdata,
-soyhenry, tripleten y upc. Quedan fuera del cohort schedule bounded hasta que se
-implemente y revise un transporte de navegador con pin DNS y presupuesto, o el
-owner acepte expresamente el alcance reducido. La selección sigue la rotación de
-perfiles bounded elegibles y no reabre estados ni reemplaza URLs del lote manual.
+soyhenry, tripleten y upc. Esa lectura no se actualizó aquí y no representa una
+cohorte vigente.
+
+El candidato local del 2026-11-20 añade transporte Chromium cuyos requests,
+redirects y subrecursos pasan por HTTP público validado, pin DNS y presupuesto.
+La clasificación no activa stealth ni bypass. Esto valida el camino local
+sintético; no acredita qué perfil Pro es elegible ni que sus variables estén
+guardadas. El schedule y sus escritores siguen bajo gates independientes.
 
 La aprobación inicial de E10 y la activación gradual siguen separadas de cada
 run. Tras activación, el schedule automático en `main` no pide aprobación por
