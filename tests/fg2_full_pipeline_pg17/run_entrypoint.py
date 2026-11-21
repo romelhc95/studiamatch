@@ -29,6 +29,19 @@ def restore_manifest() -> None:
     print(f"phase=manifest_restore|result=PASS|sha256={actual}")
 
 
+def export_manifest_for_host() -> None:
+    target = os.environ.get("FG2_FIXTURE_EXPORT_MANIFEST")
+    if not target:
+        return
+    if target != "/run/fg2-cohort-manifest.json":
+        raise SystemExit("phase=manifest_export|result=FAIL|code=unexpected_path")
+    try:
+        os.chmod(target, 0o644)
+    except OSError:
+        raise SystemExit("phase=manifest_export|result=FAIL|code=chmod_failed") from None
+    print("phase=manifest_export|result=PASS|mode=0644")
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         raise SystemExit("phase=entrypoint|result=FAIL|code=missing_target")
@@ -41,7 +54,15 @@ def main() -> None:
     if str(script_path.parent) not in sys.path:
         sys.path.insert(0, str(script_path.parent))
     sys.argv = [script, *args]
-    runpy.run_path(str(script_path), run_name="__main__")
+    try:
+        runpy.run_path(str(script_path), run_name="__main__")
+    except SystemExit as exc:
+        if exc.code not in (None, 0):
+            raise
+        export_manifest_for_host()
+        raise
+    else:
+        export_manifest_for_host()
 
 
 if __name__ == "__main__":

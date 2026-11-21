@@ -219,7 +219,7 @@ run_cli() {
 
 run_master() {
   local phase="$1" response_file="$2" run_id="$3"
-  local log="$out/${phase}.log"
+  local manifest_sha log="$out/${phase}.log"
   : > "$manifest"
   if ! docker run "${common_docker_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
@@ -228,6 +228,7 @@ run_master() {
       --env FG2_PROFILE_DIAGNOSTIC_SLUGS=fg2-ssr-onboard,fg2-ambiguous \
       --env FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED=true \
       --env FG2_PROFILE_AUTO_ACTIVATE_VERIFIED=true \
+      --env FG2_FIXTURE_EXPORT_MANIFEST=/run/fg2-cohort-manifest.json \
       "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
       /workspace/scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing \
       --scheduled-cohort --cohort-manifest /run/fg2-cohort-manifest.json >"$log" 2>&1; then
@@ -236,7 +237,10 @@ run_master() {
     grep -E '"boundary":"postgrest_api"' "$events" | tail -n 20 || true
     exit 2
   fi
-  printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$(sha256sum "$manifest" | cut -d' ' -f1)"
+  if ! manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)" || [[ ! "$manifest_sha" =~ ^[0-9a-f]{64}$ ]]; then
+    fail "$phase" MANIFEST_EXPORT_NOT_READABLE
+  fi
+  printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
   grep -E '^phase=fg2_diagnostic\|' "$log" || true
 }
 
