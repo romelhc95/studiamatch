@@ -229,6 +229,8 @@ jobs:
           python-version: '3.11'
       - name: Install test runner
         run: python3 -m pip install --require-hashes -r requirements-pipeline.txt
+      - name: Install Playwright Chromium for browser-backed tests
+        run: python3 -m playwright install chromium
       - name: Compile Python scripts
         run: find scripts -name '*.py' -exec python3 -m py_compile {} \;
       - name: Run offline security tests
