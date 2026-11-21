@@ -46,6 +46,7 @@ La página estática se descarga desde Pages; durante uso público el navegador 
 flowchart TD
   Sources[config/institution_sources.json y perfiles]
   FG1[FG1 discovery_institutions]
+  Onboard[FG2 perfilado acotado]
   FG2[FG2 master_orchestrator]
   H[Harvester]
   C[Cleansing]
@@ -64,6 +65,8 @@ flowchart TD
   Sources --> FG1
   Sources --> FG2
   FG1 --> FG2
+  Sources --> Onboard
+  Onboard --> FG2
   FG2 --> H --> Raw --> C --> Clean --> E --> Enriched --> S --> Courses
   S --> Editorial
   Admin --> Editorial
@@ -72,6 +75,55 @@ flowchart TD
   Effective --> Public
   I --> Courses
 ```
+
+### FG2: perfilado, tres modos web y frontera editorial — candidato local 2026-11-20
+
+Antes de seleccionar instituciones para harvest, `master_orchestrator.py` puede
+diagnosticar únicamente slugs de instituciones ya registradas y explícitamente
+incluidos en `FG2_PROFILE_DIAGNOSTIC_SLUGS`. Ese diagnóstico no depende de que
+exista un perfil efectivo: usa `institutions.website_url`, aplica límites de
+HTTP, DNS público, pinning, validación de redirects, cuerpos de hasta 2 MiB y
+una pausa de cinco segundos por origen. Una persona no aprueba cada corrida;
+la selección de slugs, persistencia y autoactivación son controles distintos
+por Environment. Sus valores remotos no se comprobaron en este ciclo.
+
+El resultado mantiene separados `diagnostic_observed`,
+`diagnostic_suggested` y el perfil efectivo. Una señal ambigua o incompleta
+queda `pending_review`; no inventa campos, no elimina exclusiones ni activa
+stealth. Un perfil activo validado se conserva íntegro. Autoactivación rutinaria
+solo puede ocurrir bajo la política explícita y después de verificar origen,
+descubrimiento de un programa nuevo y dos fichas de curso; esto no se aplica a
+Pro en este candidato. Los perfiles sugeridos no se copian de Free a Pro.
+
+El harvester soporta perfiles `traditional_ssr`, `spa_js_heavy` y `ecommerce`.
+Sitemap, catálogo paginado y extracción de enlaces son fuentes de discovery;
+las páginas de detalle usan filtros de cursos. Tanto el diagnóstico como el
+runtime browser de cosecha usan Chromium con sandbox: HTTP de página y
+subrecursos cruzan la ruta validada, fijada y contabilizada; WebSocket se cierra
+antes de conectar; WebRTC y WebTransport se deshabilitan y verifican antes de
+cargar contenido. En el diagnóstico también se apaga QUIC. La cosecha falla
+cerrada si no instala o verifica sus guardas; un intento WebSocket detiene la
+institución y no se registra el curso parcial. Los orígenes de recursos de
+terceros se bloquean salvo allowlist exacta. Los límites por institución cubren
+requests, URLs, redirects, retries, concurrencia y ritmo. 403/429 detiene esa
+institución y no abre una exclusión permanente.
+
+La ruta de datos continúa por staging, cleansing, enrichment y sync. El curso
+nuevo entra a `courses` con su estado editorial `pending_review`; el
+ensayo candidato comprobó que queda en la cola leída por las RPC Admin y que
+no aparece en `courses_public_effective`. El refresh sintético conservó
+`course_id` y el override editorial. HTTP y proveedor fueron fixtures locales;
+esto no acredita extracción institucional real, credenciales, permisos,
+políticas remotas ni disponibilidad de los proveedores.
+
+La migration `20261120120000_fg2_profile_onboarding_state.sql` es aditiva y
+local. Transición: `expand` agrega metadata diagnóstica y estados compatibles;
+`compatibilidad` mantiene el perfil efectivo actual y deja los nuevos campos
+con defaults; `deploy` requiere promoción protegida, comparación de schema y
+autorización DB JIT por ambiente; `contract` solo después de observación
+funcional y sin retirar compatibilidad útil. Rollback antes de aplicar es
+descartar el diff; tras integración, revertir por PR y conservar datos
+diagnósticos antes de cualquier DDL destructivo separado.
 
 ## Datos y dependencias
 

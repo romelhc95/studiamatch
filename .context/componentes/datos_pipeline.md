@@ -11,6 +11,45 @@ Esta ficha agrupa los objetos DB y su relación con el pipeline. El diccionario 
 | Seguridad del DB reader | vistas/RLS/grants/gateway | frontend/BFF | campos efectivos/allowlist | tests contracts/PG17; no prueba pre-request remoto. |
 | Writer excepcional | scripts/maintenance, scripts/deprecated | operación autorizada por separado | catálogo o datos operativos | no usar nombre de audit como garantía; inspeccionar script, JIT y rollback. |
 
+## Perfilado inicial FG2 y recorrido editorial — candidato local 2026-11-20
+
+El diagnóstico se ancla en una fila existente de `institutions`; no requiere
+`institution_site_profiles` para empezar. Si existe un perfil completo activo,
+se conserva y onboarding no lo vuelve a escribir. Si falta el perfil, la fila
+pendiente separa los campos efectivos (sin modo runnable) de la observación,
+la sugerencia y su procedencia. Una sugerencia verificada solo puede poblar un
+perfil autogenerado/incompleto bajo la política explícita; un perfil manual
+validado no se sustituye. El nuevo `allowed_resource_origins` es una lista JSON
+de orígenes exactos para recursos del navegador, no un permiso DNS: cada
+destino sigue validándose y pinneándose.
+
+| Paso | Lectura/escritura y transición | Evidencia local | Límite |
+|---|---|---|---|
+| Diagnóstico | `institutions` → observado/sugerido/procedencia en `institution_site_profiles`; `pending_review` si falta certeza | `test_fg2_profile_onboarding.py`, Browser + HTTP controlados del E2E | no coteja configuración Pro ni scrapea instituciones |
+| Discovery | sitemap, catálogo paginado o enlaces → URLs detalle elegibles | SSR, SPA y ecommerce sintéticos; páginas nuevas descubiertas desde el catálogo | no garantiza que la fuente real publique URLs utilizables |
+| Harvest | GET controlado / Chromium interceptado → `staging_raw.discovered/pending/processed` con identidad y hash | PostgREST inserta filas sintéticas y los runners posteriores reciben el manifest hash | no verifica secret key, permisos ni datos remotos |
+| Cleansing | claim por IDs de manifest; RPC SQL atómica → `cleansed_programs` y staging processed | migrations/RPC aplicadas en PG17 efímero, handoff entre contenedores | fixture no reproduce extensiones/roles/config completos de Pro |
+| Enrichment | IDs asociados a staging manifest → salida validada en `enriched_programs` | provider `local_smart_mock`, fallo RPC inyectado y recuperación | no invoca ni acredita proveedor real o coste |
+| Sync/editorial | IDs asociados → `courses` + `course_editorial_state.pending_review` | postflight por ID, Admin count/list RPC; nuevos ausentes de vista pública | no prueba la sesión/Auth Admin remota ni puede aprobar editorial |
+
+La última ejecución del fixture reportó 6 cursos sintéticos, 5 en la cola
+Admin pendientes y cero en `courses_public_effective`. El curso refreshed
+retuvo su ID y override editorial. El conteo de PG17 no representa filas o
+permisos de Pro. `processing` histórico no se resetea, y un refresh ordinario
+usa el ID/manifiesto existente; reparación de filas abandonadas sigue siendo
+operación separada con IDs concretos y JIT DML.
+
+La cola de Admin usa `admin_get_course_queue_filtered` y
+`admin_count_course_queue_filtered`. El componente mantiene el requisito AAL2;
+para `admin` inicia en `editorial_status=pending_review` y manda
+`p_quality_status=NULL`, por lo que los cursos nuevos con calidad pendiente
+son visibles para revisión. El rol `user` conserva su filtro `draft` más
+`quality_status=pending`. Un admin puede filtrar calidad después de cargar la
+cola. Este ajuste no publica cursos: la decisión editorial sigue bajo el
+estado/override y las RPC existentes. El fixture comprueba las RPC contra
+PostgreSQL 17; el contrato UI focal comprueba los filtros iniciales, sin sesión
+remota de Admin.
+
 ## Alcance por manifest para la primera FG2 controlada
 
 El modo local `bounded_first_run` congela las instituciones y filas mediante un
@@ -45,7 +84,14 @@ duplicados, cambio de owner o aparición de un curso en un lote `new_discovery`
 son deriva bloqueante, no dedupe automático. Solo la ejecución que recibe y
 verifica el manifest queda confinada a sus relaciones.
 
-### Consumidores de la ruta schedule FG2
+### Consumidores de schedule FG2 — baseline anterior al manifest acotado
+
+Esta sección conserva el contrato previo de colas globales, que motivó el
+scope por manifest. En el candidato local del 2026-11-20,
+`production_pipeline.yml` activa `FG2_COHORT_SCOPED` para schedule en `main`,
+transporta y verifica el manifest entre jobs y cada worker limita sus lecturas
+a IDs/relaciones aprobados. El runtime del workflow y sus variables remotas no
+se consultaron en este ciclo.
 
 En `schedule`, el workflow ejecuta el orquestador ordinario con
 `--limit 10 --skip-cleansing`; la fase de cleansing corre después en otro job y

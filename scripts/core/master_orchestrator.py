@@ -24,6 +24,11 @@ from scripts.core.fg2_bounded_run import (
     validate_controlled_profile,
     verify_approved_lot_scope,
 )
+from scripts.core.profile_onboarding import (
+    authorized_diagnostic_slugs,
+    persist_profile_onboarding_plan,
+    plan_profile_onboarding,
+)
 
 db = None
 logger = setup_lima_logging("MasterOrchestrator")
@@ -168,6 +173,94 @@ def _get_db():
     return db
 
 
+def run_profile_onboarding(*, source_sha=None):
+    """Run explicit, allowlisted diagnostics before the ordinary cohort selector.
+
+    Newly diagnosed institutions are excluded from this run's harvesting so
+    diagnostic HTTP cannot reset or exceed the later harvesting budget.
+    """
+    if os.getenv("FG2_PROFILE_DIAGNOSTICS_ENABLED", "").strip().lower() != "true":
+        return set()
+    raw_slugs = os.getenv("FG2_PROFILE_DIAGNOSTIC_SLUGS", "")
+    slugs = authorized_diagnostic_slugs(raw_slugs)
+    if raw_slugs.strip() and not slugs:
+        raise InvalidControlledRun("profile diagnostic slug allowlist is malformed")
+    if not slugs:
+        raise InvalidControlledRun("profile diagnostics require an explicit institution allowlist")
+    if os.getenv("FG2_CONTROLLED_FIRST_RUN", "").strip().lower() == "true":
+        raise InvalidControlledRun("profile onboarding cannot mutate an approved controlled lot context")
+
+    from scripts.shared.site_diagnostics import diagnose_site
+
+    client = _get_db()
+    institutions = client.select_service_raise(
+        "institutions",
+        columns="id,name,slug,website_url",
+        order="last_harvest_at.asc.nullsfirst",
+    )
+    profiles = client.select_pipeline_raise("institution_site_profiles", columns="*")
+    profile_rows: dict[str, dict] = {}
+    for profile in profiles:
+        if not isinstance(profile, dict) or not profile.get("institution_id"):
+            raise InvalidControlledRun("profile diagnostic inventory is malformed")
+        key = str(profile["institution_id"]).lower()
+        if key in profile_rows:
+            raise InvalidControlledRun("profile diagnostic inventory contains duplicate institution rows")
+        profile_rows[key] = profile
+
+    matching = [institution for institution in institutions if institution.get("slug") in slugs]
+    found_slugs = {institution.get("slug") for institution in matching}
+    if found_slugs != set(slugs):
+        missing = len(set(slugs) - found_slugs)
+        logger.error("FG2 profile onboarding allowlist does not match the registered catalog (missing=%s).", missing)
+        raise InvalidControlledRun("profile diagnostic allowlist does not match registered institutions")
+
+    diagnosed_slugs = set()
+    persist_diagnostics = (
+        os.getenv("FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED", "").strip().lower()
+        == "true"
+    )
+    auto_activate = os.getenv("FG2_PROFILE_AUTO_ACTIVATE_VERIFIED", "").strip().lower() == "true"
+    if auto_activate and not persist_diagnostics:
+        raise InvalidControlledRun(
+            "automatic profile activation requires the separate diagnostic persistence gate"
+        )
+    for institution in matching:
+        inst_id = str(institution["id"])
+        existing = profile_rows.get(inst_id.lower())
+        if existing and (
+            existing.get("profile_status", "active") == "active"
+            and existing.get("site_type")
+            and existing.get("discovery_mode")
+        ):
+            continue
+        website_url = institution.get("website_url")
+        diagnosis = diagnose_site(website_url) if isinstance(website_url, str) and website_url else {
+            "status": "review_required",
+            "observed": {"website_url_present": False},
+            "suggested": {},
+            "verification": {"eligible": False, "verified_detail_count": 0, "new_course_discovery": False, "reasons": ["institution_url_missing"]},
+        }
+        plan = plan_profile_onboarding(
+            institution=institution,
+            existing_profile=existing,
+            diagnosis=diagnosis,
+            auto_activation_policy=auto_activate,
+            source_sha=source_sha,
+        )
+        if persist_diagnostics:
+            persist_profile_onboarding_plan(client, inst_id, plan)
+        diagnosed_slugs.add(institution["slug"])
+        logger.info(
+            "FG2 profile onboarding completed: status=%s, persisted=%s, auto_activation_policy=%s, requests=%s.",
+            plan["row"].get("diagnostic_status", "review_required"),
+            persist_diagnostics,
+            auto_activate,
+            (diagnosis.get("observed") or {}).get("request_count", 0),
+        )
+    return diagnosed_slugs
+
+
 def _parse_timestamp(value):
     if not value:
         return None
@@ -284,7 +377,10 @@ def get_institutions(
     )
     profiles = client.select_pipeline_raise(
         'institution_site_profiles',
-        columns="institution_id,discovery_enabled,circuit_open,circuit_opened_at" if not controlled else "*",
+        # The table is small; reading the row keeps this selector compatible
+        # with additive onboarding metadata without projecting new columns on
+        # installations that have not applied its migration yet.
+        columns="*",
     )
     profile_by_institution = {
         str(profile.get('institution_id')).lower(): profile
@@ -434,6 +530,8 @@ def get_institutions(
         if slug in excluded:
             continue
         if not profile or not profile.get('discovery_enabled'):
+            continue
+        if profile.get("profile_status", "active") != "active":
             continue
         if profile.get('circuit_open'):
             try:
@@ -588,6 +686,15 @@ def main(argv=None):
         slug.strip() for slug in args.exclude.split(',') if slug.strip()
     } if args.exclude else set()
     failures = []
+    newly_diagnosed_slugs = set()
+    if os.getenv("FG2_PROFILE_DIAGNOSTICS_ENABLED", "").strip().lower() == "true":
+        try:
+            newly_diagnosed_slugs = run_profile_onboarding(source_sha=os.getenv("GITHUB_SHA"))
+        except Exception as exc:
+            logger.error("FG2 profile onboarding stopped before cohort selection: %s", _safe_error_label(exc))
+            return 1
+        # A diagnosis and its later harvest never share a fresh request budget.
+        excluded_slugs.update(newly_diagnosed_slugs)
 
     # 🚉 PHASE 1: Discovery & Harvesting
     logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
