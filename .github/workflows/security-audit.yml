@@ -272,6 +272,35 @@ jobs:
            python3 -m pytest tests/test_admin_invite_edge_contract.py tests/test_h3_invitation_callback_contract.py tests/test_h3_mock_invitation_contract.py -q
       - name: Build candidate app runner for the isolated FG2 fixture
         run: docker build --tag "studiamatch-fg2-e2e:${GITHUB_SHA}" .
+      - name: Prepare pinned PG17 and PostgREST fixture images
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_ref='postgres@sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f'
+          pg_tag='postgres:17'
+          pg_config_id='sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f'
+          pgrst_ref='postgrest/postgrest@sha256:0a46780309a604cdc8b56c776c6e5e15788ce58174d709e40459ab5a2d44d228'
+          pgrst_tag='postgrest/postgrest:v13.0.7'
+          pgrst_config_id='sha256:0a46780309a604cdc8b56c776c6e5e15788ce58174d709e40459ab5a2d44d228'
+
+          docker pull --platform linux/amd64 "$pg_ref"
+          actual_pg_id="$(docker image inspect --format '{{.Id}}' "$pg_ref")"
+          [[ "$actual_pg_id" == "$pg_config_id" ]] || {
+            printf 'phase=fixture_image_bootstrap|result=FAIL|image=postgres17|code=CONFIG_ID_MISMATCH\n' >&2
+            exit 2
+          }
+          docker image tag "$actual_pg_id" "$pg_tag"
+          [[ "$(docker image inspect --format '{{.Id}}' "$pg_tag")" == "$pg_config_id" ]]
+
+          docker pull --platform linux/amd64 "$pgrst_ref"
+          actual_pgrst_id="$(docker image inspect --format '{{.Id}}' "$pgrst_ref")"
+          [[ "$actual_pgrst_id" == "$pgrst_config_id" ]] || {
+            printf 'phase=fixture_image_bootstrap|result=FAIL|image=postgrest|code=CONFIG_ID_MISMATCH\n' >&2
+            exit 2
+          }
+          docker image tag "$actual_pgrst_id" "$pgrst_tag"
+          [[ "$(docker image inspect --format '{{.Id}}' "$pgrst_tag")" == "$pgrst_config_id" ]]
+          printf 'phase=fixture_image_bootstrap|result=PASS|postgres17=verified|postgrest_v13=verified\n'
       - name: Exercise the complete FG2 pipeline against isolated PG17 and PostgREST
         env:
           FG2_FIXTURE_APP_IMAGE: studiamatch-fg2-e2e:${{ github.sha }}
