@@ -95,7 +95,13 @@ patterns = [
     workflow_regex("allowed_h3_extra"),
     workflow_regex("allowed_h3_migration_manifest"),
 ]
-local_paths = {line.strip() for line in local_match.group("body").splitlines() if line.strip()}
+local_path_records = [line.strip() for line in local_match.group("body").splitlines() if line.strip()]
+local_paths = set(local_path_records)
+fg2_ddl_auth_path = ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md"
+if local_path_records.count(fg2_ddl_auth_path) != 1:
+    raise SystemExit("protected path integration test: exact FG2 DDL authorization path is not admitted")
+if ".context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md" not in local_paths:
+    raise SystemExit("protected path integration test: existing H3 DDL authorization path was removed")
 h1_match = re.search(
     r"<<'H1_LOCAL_PATHS'\s*\n(?P<body>.*?)\n\s*H1_LOCAL_PATHS",
     guard,
@@ -290,6 +296,14 @@ for neighbor in (
 ):
     if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
         raise SystemExit(f"protected path integration test: neighboring H3 Pro manifest path is admitted: {neighbor}")
+for neighbor in (
+    ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261122.md",
+    ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md.bak",
+    ".context/operaciones/ddl_authorizations/DDL-FG2-OTHER-PRO-20261121.md",
+    ".context/operaciones/ddl_authorizations/other.md",
+):
+    if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+        raise SystemExit(f"protected path integration test: neighboring FG2 DDL authorization path is admitted: {neighbor}")
 
 diff_scope = guard.split('git diff --name-only -z "$base" HEAD -- \\\n', 1)[1].split('>"$changed_path_file"', 1)[0]
 pathspecs = diff_scope.replace("\\\n", " ").split()
@@ -723,6 +737,7 @@ paths = (
     ".github/scripts/production_control_preflight.sh",
     "tests/test_fase09_10_pre_main_controls.py",
     ".context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json",
+    ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md",
 )
 h1_paths = (
     ".context/componentes/utilidades_compartidas.md",
@@ -857,11 +872,23 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     result = create_candidate(root, "fg2-neighbor", fg2_neighbor)
     if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
         raise SystemExit("protected path candidate regression: neighboring FG2 path was not rejected")
+    fg2_ddl_neighbors = (
+        ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261122.md",
+        ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md.bak",
+        ".context/operaciones/ddl_authorizations/DDL-FG2-OTHER-PRO-20261121.md",
+        ".context/operaciones/ddl_authorizations/other.md",
+    )
+    for index, neighbor in enumerate(fg2_ddl_neighbors):
+        result = create_candidate(root, f"fg2-ddl-neighbor-{index}", neighbor)
+        if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+            raise SystemExit(
+                f"protected path candidate regression: neighboring FG2 DDL path was not rejected: {neighbor}"
+            )
     result = create_candidate(root, "invalid-scope", h1_paths[0], baseline_override="not-a-git-sha")
     if result.returncode == 0:
         raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|H1_exact_paths=20|FG2_full_exact_paths=42|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|FG2_DDL_exact_path=admitted|FG2_DDL_neighbors=4_rejected|H1_exact_paths=20|FG2_full_exact_paths=42|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'
@@ -1493,4 +1520,270 @@ print("promotion-callers=PASS|certification_PR_push=1|main_PR_push=1|later_basel
 print("candidate-manifest-selector-regressions=PASS|successor=1|D04_changed=1|H1_pull_request_development=selected|H1_empty_scope=fail_closed|H1_incomplete_scope=fail_closed|H1_omitted_candidate_source=fail_closed|H1_invalid_prshape_promotion=fail_closed|H1_invalid_schema=fail_closed|H1_invalid_json=fail_closed|H1_promotion_union=complete|R21_fallback=1|D04_fallback=1|ambiguous=fail_closed|deleted_manifest=fail_closed|renamed_manifest=fail_closed|invalid_json=fail_closed|invalid_structure=fail_closed|wrong_role=fail_closed|LF_CR_TAB=fail_closed_before_output|baseline_missing=fail_closed")
 print("promotion-manifest-selector=PASS|development_to_certification=1|certification_to_main=1|postmerge_certification=1|postmerge_main=1|full_diff_and_package_union=1|exact_digests=1|missing_input=fail_closed|invalid_pr_scope=fail_closed|ordinary_PR_ambiguity=fail_closed")
 print("promotion-path-pins=PASS|exact_tree=1|neighbor_not_selected=1|wrong_baseline=fail_closed|forged_blob=fail_closed|duplicate=fail_closed|content_drift=fail_closed")
+PY
+
+python3 - "$ROOT/.github/workflows/db-sync-to-pro.yml" "$ROOT/scripts/maintenance/pro_h3_migration_manifest.py" \
+  "$ROOT/scripts/security/protected_path_scope_guard.sh" <<'PY'
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+workflow_path, manifest_module_path, guard_source = map(Path, sys.argv[1:])
+workflow_text = workflow_path.read_text(encoding="utf-8")
+module_text = manifest_module_path.read_text(encoding="utf-8")
+auth_path = ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md"
+auth_id = "DDL-FG2-PROFILE-ONBOARDING-PRO-20261121"
+migration_sha_match = re.search(
+    r"FG2_PROFILE_ONBOARDING_MIGRATION_SHA256\s*=\s*\(\s*\"([0-9a-f]{64})\"",
+    module_text,
+)
+if not migration_sha_match:
+    raise SystemExit("FG2 DDL workflow regression: migration digest pin is unavailable")
+migration_sha = migration_sha_match.group(1)
+
+step_marker = "      - name: Verify explicit DDL authorization\n"
+if workflow_text.count(step_marker) != 1:
+    raise SystemExit("FG2 DDL workflow regression: expected exactly one authorization step")
+step_start = workflow_text.index(step_marker)
+run_marker = "        run: |\n"
+run_start = workflow_text.find(run_marker, step_start)
+if run_start < 0:
+    raise SystemExit("FG2 DDL workflow regression: authorization step has no shell body")
+step_header = workflow_text[step_start:run_start]
+if (
+    "if: inputs.operation == 'apply'" not in step_header
+    or "DDL_AUTHORIZATION_ID: ${{ inputs.ddl_authorization_id }}" not in step_header
+    or "CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}" not in step_header
+    or "MIGRATION_MANIFEST: ${{ inputs.migration_manifest }}" not in step_header
+    or "PAYLOAD_SHA: ${{ inputs.payload_sha }}" not in step_header
+):
+    raise SystemExit("FG2 DDL workflow regression: apply-only authorization inputs changed")
+body_start = run_start + len(run_marker)
+body_lines = []
+for line in workflow_text[body_start:].splitlines():
+    if line and not line.startswith("          "):
+        break
+    body_lines.append(line[10:] if line.startswith("          ") else "")
+workflow_script = "\n".join(body_lines).rstrip() + "\n"
+if "Production DDL authorization governance boundary passed" not in workflow_script:
+    raise SystemExit("FG2 DDL workflow regression: extracted the wrong workflow body")
+
+def git(repo, *args, check=True):
+    result = subprocess.run(
+        ["git", *args], cwd=repo, text=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    if check and result.returncode:
+        raise RuntimeError(f"synthetic git fixture failed: {args[0]}")
+    return result
+
+def commit(repo, message):
+    git(repo, "add", "--all")
+    git(repo, "commit", "-qm", message)
+    return git(repo, "rev-parse", "HEAD").stdout.strip()
+
+def digest_non_auth_delta(repo, base, payload):
+    raw = subprocess.check_output(
+        ["git", "diff", "--name-status", "-z", "--find-renames", "--find-copies", base, payload, "--"],
+        cwd=repo,
+    )
+    fields = raw.split(b"\0")
+    records = []
+    i = 0
+    while i < len(fields) and fields[i]:
+        status = fields[i].decode("ascii")
+        i += 1
+        if status.startswith(("R", "C")):
+            i += 1
+        path = fields[i].decode("utf-8", "surrogateescape")
+        i += 1
+        meta = subprocess.check_output(["git", "ls-tree", payload, "--", path], cwd=repo, text=True).strip()
+        mode, kind, blob = meta.split(None, 3)[:3]
+        if kind != "blob":
+            raise RuntimeError("synthetic fixture expected a blob")
+        contents = subprocess.check_output(["git", "cat-file", "blob", blob], cwd=repo)
+        records.append({"mode": mode, "path": path, "sha256": hashlib.sha256(contents).hexdigest(), "status": status})
+    return "sha256:" + hashlib.sha256(
+        json.dumps(records, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+def authorization_text(base, payload, non_auth_digest, *, status="APPROVED_FOR_PRODUCTION_DDL",
+                       bound_payload=None, bound_migration=None, bound_digest=None):
+    return "\n".join((
+        f"Status: {status}",
+        "Authorized manifest: fg2-profile-onboarding",
+        f"Authorized payload SHA: {bound_payload or payload}",
+        f"Authorized FG2 migration SHA256: sha256:{bound_migration or migration_sha}",
+        "Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED",
+        "Pro apply gate: APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR",
+        f"Authorized base SHA: {base}",
+        f"Authorized non-auth digest SHA256: {bound_digest or non_auth_digest}",
+        "Synthetic private-body sentinel: FIXTURE_SENTINEL_DO_NOT_ECHO_8ea9121f",
+        "",
+    ))
+
+def make_fixture(root, name, *, squash=False, later_non_auth=False, auth_changes=None):
+    repo = root / name
+    repo.mkdir()
+    git(repo, "init", "-q")
+    git(repo, "config", "user.name", "Synthetic DDL authorization test")
+    git(repo, "config", "user.email", "ddl-auth-fixture@example.invalid")
+    (repo / "scripts/maintenance").mkdir(parents=True)
+    shutil.copyfile(manifest_module_path, repo / "scripts/maintenance/pro_h3_migration_manifest.py")
+    fixture = repo / "fixture.txt"
+    fixture.write_text("baseline\n", encoding="utf-8")
+    base = commit(repo, "synthetic authorization base")
+
+    if squash:
+        git(repo, "checkout", "--orphan", "synthetic-squash")
+        git(repo, "rm", "-rf", "--ignore-unmatch", ".")
+        (repo / "scripts/maintenance").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(manifest_module_path, repo / "scripts/maintenance/pro_h3_migration_manifest.py")
+        fixture.write_text("squashed payload\n", encoding="utf-8")
+        payload = commit(repo, "synthetic squash payload")
+    else:
+        fixture.write_text("approved payload\n", encoding="utf-8")
+        payload = commit(repo, "synthetic FG2 payload")
+
+    non_auth_digest = digest_non_auth_delta(repo, base, payload) if not squash else "sha256:" + "0" * 64
+    branch = f"auth-{name}"
+    git(repo, "checkout", "-qb", branch)
+    if later_non_auth:
+        (repo / "unreviewed.txt").write_text("late non-auth change\n", encoding="utf-8")
+    auth_file = repo / auth_path
+    auth_file.parent.mkdir(parents=True, exist_ok=True)
+    text = authorization_text(base, payload, non_auth_digest)
+    if auth_changes:
+        text = auth_changes(text)
+    auth_file.write_text(text, encoding="utf-8")
+    auth_commit = commit(repo, "synthetic authorization file commit")
+    git(repo, "checkout", payload)
+    merge = git(repo, "merge", "--no-ff", "-m", "synthetic protected authorization merge", branch, check=False)
+    if merge.returncode:
+        raise RuntimeError("synthetic protected merge failed")
+    candidate = git(repo, "rev-parse", "HEAD").stdout.strip()
+    return repo, base, payload, auth_commit, candidate
+
+def run_workflow(repo, candidate, payload, *, ddl_id=auth_id):
+    env = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": os.environ.get("HOME", "/tmp"),
+        "DDL_AUTHORIZATION_ID": ddl_id,
+        "CANDIDATE_SHA": candidate,
+        "MIGRATION_MANIFEST": "fg2-profile-onboarding",
+        "PAYLOAD_SHA": payload,
+        "H2_EXPECTED_ELIGIBLE_COUNT": "",
+        "H2_EXPECTED_COHORT_DIGEST": "",
+    }
+    return subprocess.run(
+        ["bash", "-e", "-c", workflow_script], cwd=repo, env=env,
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+
+def run_scope_guard(root, name, changed_path):
+    repo = root / name
+    repo.mkdir()
+    git(repo, "init", "-q")
+    git(repo, "config", "user.name", "Synthetic scope guard test")
+    git(repo, "config", "user.email", "scope-fixture@example.invalid")
+    guard = repo / "scripts/security/protected_path_scope_guard.sh"
+    guard.parent.mkdir(parents=True)
+    shutil.copyfile(guard_source, guard)
+    guard.chmod(0o755)
+    path = repo / changed_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("synthetic path only; no authorization status\n", encoding="utf-8")
+    git(repo, "add", "--all")
+    git(repo, "commit", "-qm", "scope baseline")
+    baseline = git(repo, "rev-parse", "HEAD").stdout.strip()
+    path.write_text("synthetic candidate content\n", encoding="utf-8")
+    git(repo, "add", changed_path)
+    git(repo, "commit", "-qm", "scope candidate")
+    runner_temp = repo / "runner-temp"
+    runner_temp.mkdir()
+    env = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": os.environ.get("HOME", "/tmp"),
+        "PROTECTED_BASELINE_SHA": baseline,
+        "RUNNER_TEMP": str(runner_temp),
+        "GITHUB_EVENT_NAME": "pull_request",
+        "GITHUB_BASE_REF": "desarrollo",
+        "GITHUB_HEAD_REF": "fixture",
+        "GITHUB_REF": "refs/pull/1/merge",
+    }
+    return subprocess.run(
+        ["bash", str(guard), "--compare-candidate"], cwd=repo, env=env,
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+
+with tempfile.TemporaryDirectory(prefix="fg2-ddl-workflow-contract-") as temp:
+    root = Path(temp)
+    scope_pass = run_scope_guard(root, "scope-exact", auth_path)
+    if scope_pass.returncode or "protected H3 candidate paths are allowlisted" not in scope_pass.stdout:
+        raise SystemExit("FG2 DDL workflow regression: exact auth path did not pass the real scope guard")
+    scope_neighbor = ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261122.md"
+    scope_fail = run_scope_guard(root, "scope-neighbor", scope_neighbor)
+    if scope_fail.returncode == 0 or "candidate path omitted" not in scope_fail.stdout + scope_fail.stderr:
+        raise SystemExit("FG2 DDL workflow regression: neighboring auth path was not rejected by the real scope guard")
+    if scope_neighbor in scope_fail.stdout + scope_fail.stderr:
+        raise SystemExit("FG2 DDL workflow regression: rejected path was echoed by the real scope guard")
+
+    repo, base, payload, auth_commit, candidate = make_fixture(root, "valid-merge")
+    parents = git(repo, "rev-list", "--parents", "-n", "1", candidate).stdout.split()
+    changed_after_payload = git(repo, "diff", "--name-only", payload, candidate).stdout.splitlines()
+    if len(parents) != 3 or payload not in parents[1:] or auth_commit not in parents[1:]:
+        raise SystemExit("FG2 DDL workflow regression: merge fixture does not preserve P/A ancestry")
+    if changed_after_payload != [auth_path]:
+        raise SystemExit("FG2 DDL workflow regression: protected merge changed more than auth_file")
+    result = run_workflow(repo, candidate, payload)
+    if result.returncode or "Production DDL authorization governance boundary passed" not in result.stdout:
+        raise SystemExit("FG2 DDL workflow regression: synthetic approved P/A merge did not pass")
+    if "FIXTURE_SENTINEL_DO_NOT_ECHO_8ea9121f" in result.stdout + result.stderr:
+        raise SystemExit("FG2 DDL workflow regression: authorization body was printed")
+    for case, options in (
+        ("wrong-status", {"auth_changes": lambda value: value.replace("Status: APPROVED_FOR_PRODUCTION_DDL", "Status: DRAFT_NOT_AUTHORIZED")}),
+        ("wrong-payload", {"auth_changes": lambda value: value.replace("Authorized payload SHA: ", "Authorized payload SHA: ffffffffffffffffffffffffffffffffffffffff # ")}),
+        ("wrong-migration", {"auth_changes": lambda value: value.replace(f"sha256:{migration_sha}", "sha256:" + "0" * 64)}),
+        ("wrong-digest", {"auth_changes": lambda value: re.sub(
+            r"Authorized non-auth digest SHA256: sha256:[0-9a-f]{64}",
+            "Authorized non-auth digest SHA256: sha256:" + "0" * 64,
+            value,
+        )}),
+        ("late-non-auth", {"later_non_auth": True}),
+    ):
+        case_repo, _, case_payload, _, case_candidate = make_fixture(root, case, **options)
+        case_result = run_workflow(case_repo, case_candidate, case_payload)
+        if case_result.returncode == 0 or "Production DDL authorization governance boundary passed" in case_result.stdout:
+            raise SystemExit(f"FG2 DDL workflow regression: invalid case was accepted: {case}")
+        if "FIXTURE_SENTINEL_DO_NOT_ECHO_8ea9121f" in case_result.stdout + case_result.stderr:
+            raise SystemExit(f"FG2 DDL workflow regression: authorization body leaked for {case}")
+    neighbor_repo, _, neighbor_payload, _, neighbor_candidate = make_fixture(root, "neighbor-id")
+    neighbor_result = run_workflow(
+        neighbor_repo,
+        neighbor_candidate,
+        neighbor_payload,
+        ddl_id="DDL-FG2-PROFILE-ONBOARDING-PRO-20261122",
+    )
+    if neighbor_result.returncode == 0:
+        raise SystemExit("FG2 DDL workflow regression: neighboring authorization ID was accepted")
+    invalid_id_result = run_workflow(
+        neighbor_repo,
+        neighbor_candidate,
+        neighbor_payload,
+        ddl_id="DDL-FG2-PROFILE-ONBOARDING-PRO-20261121/../other",
+    )
+    if invalid_id_result.returncode == 0:
+        raise SystemExit("FG2 DDL workflow regression: malformed authorization ID was accepted")
+    squash_repo, _, squash_payload, _, squash_candidate = make_fixture(root, "squash", squash=True)
+    squash_result = run_workflow(squash_repo, squash_candidate, squash_payload)
+    if squash_result.returncode == 0:
+        raise SystemExit("FG2 DDL workflow regression: squash history without authorized ancestry was accepted")
+
+print("FG2-DDL-workflow-contract=PASS|actual_yaml_step=1|synthetic_approved_record=temporary_only|P_A_merge_ancestry=preserved|auth_file_only=1|wrong_status_payload_migration_digest=4_rejected|neighbor_and_malformed_ID=2_rejected|post_payload_non_auth_drift=1_rejected|squash_ancestry=1_rejected|body_sentinel_not_echoed=1|real_approval=none|Pro=untouched")
 PY
