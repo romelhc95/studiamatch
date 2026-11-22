@@ -111,7 +111,9 @@ pg_id="$(docker run --pull=never --detach --name "$pg" --network "$net" --networ
 
 ready=0
 for _ in $(seq 1 45); do
-  if docker exec "$pg" pg_isready -U postgres -d "$DATABASE" >/dev/null 2>&1; then ready=1; break; fi
+  # pg_isready can accept the temporary initialization server before
+  # POSTGRES_DB has been created. Require a successful query on the target DB.
+  if docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc 'SELECT 1' >/dev/null 2>&1; then ready=1; break; fi
   sleep 1
 done
 (( ready == 1 )) || fail pg17 PG17_READINESS_TIMEOUT
@@ -159,6 +161,13 @@ common_docker_args=(
   --mount "type=bind,src=$ROOT/.github,dst=/workspace/.github,readonly"
   --mount "type=bind,src=$run_dir,dst=/run"
 )
+approved_docker_args=("${common_docker_args[@]}")
+for index in "${!approved_docker_args[@]}"; do
+  case "${approved_docker_args[$index]}" in
+    GITHUB_EVENT_NAME=schedule) approved_docker_args[$index]='GITHUB_EVENT_NAME=workflow_dispatch' ;;
+    AUTOMATION_ENABLED=true) approved_docker_args[$index]='AUTOMATION_ENABLED=false' ;;
+  esac
+done
 
 # Exercise the versioned production control gate separately from the local
 # synthetic writer run. No remote environment or flags are touched.
@@ -248,6 +257,70 @@ run_master() {
   grep -E '^phase=fg2_diagnostic\|' "$log" || true
 }
 
+prepare_approved_lot() {
+  local phase="$1" run_id="$2" log
+  log="$out/${phase}.log"
+  rm -f -- "$run_dir/fg2-approved-lot.json"
+  if ! docker run "${common_docker_args[@]}" \
+      --env GITHUB_RUN_ID="$run_id" \
+      --env FG2_FIXTURE_RESPONSE_FILE=/workspace/tests/fg2_full_pipeline_pg17/responses_refresh.json \
+      "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+      /workspace/tests/fg2_full_pipeline_pg17/prepare_approved_lot.py >"$log" 2>&1; then
+    printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
+    tail -n 60 "$log"
+    exit 2
+  fi
+  grep -E '^phase=approved_lot_fixture\|' "$log"
+}
+
+run_approved_master() {
+  local phase="$1" run_id="$2" expect_noop="${3:-false}"
+  local response_file="${4:-responses_refresh.json}"
+  local log="$out/${phase}.log" lot_path=/run/fg2-approved-lot.json
+  local cohort_path=/run/fg2-cohort-manifest.json
+  local lot_sha lot_b64
+  lot_sha="$(sha256sum "$run_dir/fg2-approved-lot.json" | cut -d' ' -f1)"
+  lot_b64="$(base64 -w0 "$run_dir/fg2-approved-lot.json")"
+  rm -f -- "$manifest"
+  if docker run "${approved_docker_args[@]}" \
+      --env GITHUB_RUN_ID="$run_id" \
+      --env FG2_FIXTURE_RESPONSE_FILE="/workspace/tests/fg2_full_pipeline_pg17/$response_file" \
+      --env FG2_APPROVED_LOT_MANIFEST_B64="$lot_b64" \
+      --env FG2_FIXTURE_EXPORT_MANIFEST=/run/fg2-cohort-manifest.json \
+      "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+      /workspace/scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing \
+      --controlled-first-run --cohort-manifest "$cohort_path" \
+      --approved-lot-manifest "$lot_path" \
+      --approved-lot-reference fixture-processed-refresh-existing-course \
+      --approved-lot-sha256 "$lot_sha" >"$log" 2>&1; then
+    if [[ "$expect_noop" == true ]]; then
+      fail "$phase" IDENTICAL_REFRESH_UNEXPECTEDLY_PRODUCED_A_COHORT
+    fi
+  else
+    if [[ "$expect_noop" != true ]]; then
+      printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
+      tail -n 100 "$log"
+      grep -E '"boundary":"postgrest_api"' "$events" | tail -n 20 || true
+      exit 2
+    fi
+    if ! grep -q 'Controlled first run produced no cohort rows; no downstream stage may run' "$log"; then
+      printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
+      tail -n 80 "$log"
+      fail "$phase" NOOP_DID_NOT_STOP_AT_EMPTY_COHORT_GUARD
+    fi
+  fi
+  if [[ "$expect_noop" == true ]]; then
+    printf 'phase=%s|result=PASS|expected=empty_cohort_guard|manifest_sha256=%s\n' \
+      "$phase" "$(sha256sum "$manifest" | cut -d' ' -f1)"
+  else
+    local manifest_sha
+    if ! manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)" || [[ ! "$manifest_sha" =~ ^[0-9a-f]{64}$ ]]; then
+      fail "$phase" MANIFEST_EXPORT_NOT_READABLE
+    fi
+    printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
+  fi
+}
+
 run_worker() {
   local phase="$1" script="$2" run_id="$3"
   local manifest_sha manifest_b64 log
@@ -335,9 +408,38 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -At -c \
   >"$out/ssr_course_paths.log"
 cat "$out/ssr_course_paths.log"
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixture/prepare_refresh.sql >/dev/null
+
+# The unchanged-content case runs first against the same fresh synthetic
+# rotation snapshot. A completed content-changing harvest advances
+# last_harvest_at and can legitimately move this institution out of the
+# rotation prefix for a subsequent, separately approved dispatch.
+prepare_approved_lot run_4_identical_refresh_manifest 9000004
+noop_event_start="$(wc -l <"$events")"
+noop_staging_before="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -At -c \
+  "SELECT status || '|' || content_hash FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada'")"
+run_approved_master run_4_identical_refresh 9000004 true responses_initial.json
+noop_staging_after="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -At -c \
+  "SELECT status || '|' || content_hash FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada'")"
+[[ "$noop_staging_before" == "$noop_staging_after" ]] || fail run_4_identical_refresh STAGING_CHANGED_DURING_NOOP
+docker run --pull=never --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+  --mount "type=bind,src=$manifest,dst=/run/cohort.json,readonly" \
+  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,pathlib,sys; m=json.loads(pathlib.Path("/run/cohort.json").read_text()); rows=m.get("discovery_rows", []); ok=not m.get("entries") and len(rows)==1 and rows[0].get("initial_status")=="processed" and rows[0].get("kind")=="refresh_existing"; ok or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=cohort_not_empty_guarded"); print("phase=approved_refresh_identical_noop|result=PASS|cohort_entries=0|processed_discovery=1")' \
+  >"$out/identical_refresh_manifest.log" 2>&1 || { cat "$out/identical_refresh_manifest.log"; fail run_4_identical_refresh NOOP_COHORT_ASSERTION; }
+cat "$out/identical_refresh_manifest.log"
+docker run --pull=never --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+  --mount "type=bind,src=$events,dst=/run/events.jsonl,readonly" \
+  --env FG2_EVENT_OFFSET="$noop_event_start" \
+  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,os,pathlib,sys; lines=pathlib.Path("/run/events.jsonl").read_text().splitlines()[int(os.environ["FG2_EVENT_OFFSET"]):]; events=[json.loads(line) for line in lines if line]; writes=[event for event in events if event.get("boundary")=="postgrest_api" and event.get("method") in {"POST","PATCH","DELETE"}]; not writes or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=unexpected_database_write"); print("phase=approved_refresh_identical_noop|result=PASS|database_writes=0|downstream_jobs=not_started")' \
+  >"$out/identical_refresh_audit.log" 2>&1 || { cat "$out/identical_refresh_audit.log"; fail run_4_identical_refresh DATABASE_WRITE_DURING_NOOP; }
+cat "$out/identical_refresh_audit.log"
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "DO \$\$ BEGIN IF (SELECT count(*) FROM public.staging_raw WHERE status='processed') <> 6 THEN RAISE EXCEPTION 'no_op_stage_status_changed'; END IF; IF NOT EXISTS (SELECT 1 FROM public.staging_raw WHERE url='https://ssr.fg2.example/programas/outside-approved-cohort' AND status='pending') THEN RAISE EXCEPTION 'out_of_cohort_sentinel_changed'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE status='synced') <> 6 THEN RAISE EXCEPTION 'no_op_enrichment_changed'; END IF; IF (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN RAISE EXCEPTION 'no_op_publication_changed'; END IF; END \$\$" >/dev/null
+printf 'phase=approved_refresh_identical_noop|result=PASS|staging=unchanged|providers=not_invoked|cohort_entries=0\n'
+
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixture/inject_one_cleansing_failure.sql >/dev/null
 
-run_master run_3_processed_refresh responses_refresh.json 9000003
+prepare_approved_lot run_3_processed_refresh_manifest 9000003
+run_approved_master run_3_processed_refresh 9000003
 manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
 manifest_b64="$(base64 -w0 "$manifest")"
 fault_log="$out/refresh_expected_failure.log"
@@ -350,13 +452,13 @@ if docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000003 \
 fi
 printf 'phase=refresh_rpc_failure|result=PASS|expected=cleansing_nonzero\n'
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
-  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND status='pending') THEN RAISE EXCEPTION 'refresh_pending_rollback_assertion'; END IF; IF (SELECT count(*) FROM public.cleansed_programs) <> 6 THEN RAISE EXCEPTION 'refresh_no_partial_cleansing_assertion'; END IF; END \$\$" >/dev/null
+  "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND status='pending') THEN RAISE EXCEPTION 'refresh_pending_rollback_assertion'; END IF; IF NOT EXISTS (SELECT 1 FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/outside-approved-cohort' AND status='pending') THEN RAISE EXCEPTION 'out_of_cohort_sentinel_changed_after_failure'; END IF; IF (SELECT count(*) FROM public.cleansed_programs) <> 6 THEN RAISE EXCEPTION 'refresh_no_partial_cleansing_assertion'; END IF; END \$\$" >/dev/null
 run_worker run_3_cleansing_recovery cleansing_worker.py 9000003
-assert_counts 6 6 6 6
+assert_counts 7 6 6 6
 run_worker run_3_enrichment enrichment_worker.py 9000003
-assert_counts 6 6 6 6
+assert_counts 7 6 6 6
 run_worker run_3_sync sync_vector_worker.py 9000003
-assert_counts 6 6 6 6
+assert_counts 7 6 6 6
 
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
   "DO \$\$ BEGIN IF (SELECT count(*) FROM public.staging_raw WHERE status='processed') <> 6 THEN RAISE EXCEPTION 'staging_processed_count_assertion'; END IF; IF (SELECT count(*) FROM public.cleansed_programs WHERE status='enriched') <> 6 THEN RAISE EXCEPTION 'cleansed_enriched_count_assertion'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE status='synced') <> 6 THEN RAISE EXCEPTION 'enriched_synced_count_assertion'; END IF; IF (SELECT count(*) FROM public.course_editorial_state WHERE editorial_status='pending_review') <> 5 THEN RAISE EXCEPTION 'pending_editorial_count_assertion'; END IF; IF (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN RAISE EXCEPTION 'public_effective_must_be_empty_assertion'; END IF; IF EXISTS (SELECT 1 FROM public.staging_raw WHERE institution_id='20000000-0000-0000-0000-000000000004') THEN RAISE EXCEPTION 'blocked_source_must_not_create_staging'; END IF; IF NOT EXISTS (SELECT 1 FROM public.institution_site_profiles WHERE institution_id='20000000-0000-0000-0000-000000000005' AND profile_status='pending_review') THEN RAISE EXCEPTION 'ambiguous_profile_must_remain_pending'; END IF; IF NOT EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE rtrim(c.url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND es.editorial_status='published' AND es.manual_overrides->>'name'='Título manual sintético preservado') THEN RAISE EXCEPTION 'editorial_override_was_not_preserved'; END IF; IF EXISTS (SELECT 1 FROM public.courses WHERE is_active OR is_verified OR is_mock_data IS DISTINCT FROM true) THEN RAISE EXCEPTION 'new_mock_courses_public_eligibility_assertion'; END IF; END \$\$" >/dev/null
@@ -382,8 +484,13 @@ if any(event.get("status") == 599 or not event.get("pinned") for event in http_e
     raise SystemExit("phase=synthetic_http_audit|result=FAIL|code=unmapped_or_unpinned")
 blocked=[event for event in http_events if event.get("host") == "blocked.fg2.example" and event.get("status") == 429]
 blocked_per_run=Counter(event.get("run_id") for event in blocked)
-if blocked_per_run != Counter({"9000001": 1, "9000002": 1, "9000003": 1}):
+if blocked_per_run != Counter({"9000001": 1, "9000002": 1}):
     raise SystemExit("phase=synthetic_http_audit|result=FAIL|code=blocked_retry_or_selection_count")
+if any(event.get("host") != "ssr.fg2.example" for event in http_events if event.get("run_id") in {"9000003", "9000004"}):
+    raise SystemExit("phase=synthetic_http_audit|result=FAIL|code=approved_refresh_contacted_out_of_cohort_source")
+noop_requests=[event for event in http_events if event.get("run_id")=="9000004" and event.get("boundary")=="harvester_budget"]
+if len(noop_requests) != 1 or noop_requests[0].get("path") != "/programas/analitica-aplicada":
+    raise SystemExit("phase=synthetic_http_audit|result=FAIL|code=identical_refresh_request_scope_mismatch")
 spa_script=[event for event in http_events if event.get("host") == "spa.fg2.example" and event.get("path") == "/assets/catalogo.js"]
 catalog_pages=[event for event in http_events if event.get("host") == "ecommerce.fg2.example" and event.get("path") == "/catalogo/"]
 if not spa_script or not any(event.get("query") == "page=1" for event in catalog_pages) or not any(event.get("query") == "page=2" for event in catalog_pages):

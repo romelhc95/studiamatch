@@ -500,9 +500,19 @@ La clasificación distingue `new_discovery` (sin fila de curso conocida) de
 Un refresh sintético conserva el ID de curso y `course_editorial_state`; el
 contrato editorial mantiene `manual_override` y su timestamp en sync. La
 unicidad histórica de `staging_raw.url` impide reciclar silenciosamente una fila
-`processing`, `processed`, `discarded` o `skipped`: se registra el bloqueo en el
-manifest y no se reabre ni se resetea. Cualquier transición manual de esos
-estados exige un dry-run con IDs exactos y DML aprobada fuera de este ciclo.
+`processing`, `discarded` o `skipped`: se registra el bloqueo en el manifest y no
+se reabre ni se resetea. Un lote manual aprobado admite un refresh desde
+`processed` únicamente cuando el snapshot liga una fila staging y un curso
+inequívocos, de la misma institución y URL, con hash anterior SHA-256 válido y
+una fila downstream única en `cleansed_programs` y `enriched_programs` cuyas
+identidades y FK forman una cadena comprobable. Antes del PATCH condicionado
+por ID, institución, URL, estado `processed` y hash previo, el harvester vuelve
+a validar perfil/seeds y lee el snapshot de esas cuatro tablas para esa URL.
+Duplicidad, estado no admitido, referencia incompleta o drift rechaza el lote
+sin escribir ni resetear la fila. Contenido idéntico permanece `processed` y no
+genera cohort entry; la postcondición de cohorte vacía impide ejecutar las
+estaciones downstream. Esta excepción no altera el schedule ordinario ni
+autoriza reparar filas históricas.
 
 La identidad del lote usa la misma función `normalize_url` que el harvester
 (quita query/fragment y slash final, baja scheme/host y retira `/en/`). El
@@ -632,6 +642,19 @@ promoción protegida; `contract` queda pendiente de evidencia funcional y gates
 posteriores. Rollback local: descartar el diff aislado. Tras una eventual
 integración, revertir por el mismo flujo protegido; ninguna etapa de este
 contrato activa schedules o cambia flags.
+
+Para el refresh aprobado desde `processed`, `expand` añade la excepción
+estrictamente ligada a `approved_lot`, manteniendo el contrato previo para lotes
+`discovered` y el schedule ordinario. Durante `compatibilidad`, solo se procesa
+el estado adicional si identidad, hash, enlaces y snapshot siguen exactos; no
+cambia el esquema y no requiere otra migración. `deploy` sigue Desarrollo →
+Certificación → main con PRs protegidos. `contract` no elimina tablas ni cambia
+estados: la excepción permanece mientras haya lotes revisados que la necesiten.
+Si falla tras desplegar, detener nuevos dispatches y revertir el código por la
+ruta protegida; no resetear filas ni reintentar ante escritura incierta. La
+reversión al código anterior vuelve a rechazar un manifiesto `processed` antes
+de escribir; requiere manifiesto nuevo solo después de resolver la causa y
+obtener la autorización operativa correspondiente.
 
 ## Proveedores, simulación y discrepancia documental
 
