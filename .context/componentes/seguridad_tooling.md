@@ -99,6 +99,21 @@ Tras congelar `P`, el único archivo modificable será esta autorización DDL;
 el gate conserva su comprobación de estado y contenido. Detalle en el
 [checkpoint](../evidencia/h3req1_protected_path_scope_fix_2026-10-31.md).
 
+### Admisión exacta de la ruta DDL FG2 — 21-nov-2026
+
+El scope guard admite únicamente la ruta literal
+`.context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md`.
+Esta admisión permite que un PR de autorización alcance el gate de contenido;
+no crea el archivo, no declara una aprobación y no permite aplicar la migration.
+El workflow `db-sync-to-pro.yml` sigue exigiendo el ID aprobado, el manifiesto y
+payload exactos, el hash de la migration, el digest del delta ajeno a la
+autorización, la ancestry de base/payload/candidato y que después del payload
+solo cambie ese archivo. Las regresiones conservan la ruta H3 existente y
+rechazan fechas, IDs, sufijos y nombres vecinos.
+El [registro JIT de FG2](../operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md)
+queda clasificado como documento activo; su alcance depende de los hashes y
+del manifest que declara, y no sustituye la autorización operativa de Apply.
+
 ### Snapshot del ledger Pro posterior a #535 — 03-nov-2026
 
 El nuevo snapshot fechado `.context/evidencia/h3req1_pro_ledger_snapshot_2026-11-03.json`
