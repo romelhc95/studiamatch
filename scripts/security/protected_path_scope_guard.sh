@@ -187,6 +187,7 @@ FG2_FULL_LOCAL_PATHS
    # Exact retired paths stay allowlisted so scoped deletions still run this gate.
    # R19's exact reconciled candidate and catalog-reference closure are checked against this list by
    # tests/test_protected_path_scope_guard.sh; keep deletions and ignored evidence explicit.
+   # This single FG2 JIT path only reaches the workflow's separate approval/content checks.
    allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'
 .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json
 .context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json
@@ -195,6 +196,7 @@ FG2_FULL_LOCAL_PATHS
 .context/evidencia/h3req1_first_admin_bootstrap_2026-11-05.md
 .context/operaciones/h2_main_production_expand_evidence.json
 .context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md
+.context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md
 README.md
 .env.example
 .github/pull_request_template.md
