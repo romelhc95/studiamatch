@@ -1769,6 +1769,242 @@ class BoundedReadDB(FakeDB):
         return records
 
 
+def _approved_processed_refresh_lot(database: BoundedReadDB):
+    previous_html = "<html><body>previously synced synthetic course</body></html>"
+    previous_hash = hashlib.sha256(previous_html.encode()).hexdigest()
+    database.profiles[1]["seed_urls"] = [URL_B]
+    database.staging_rows[0].update(status="processed", content_hash=previous_hash)
+    database.course_rows[0]["last_404_at"] = None
+    database.cleansed_rows = [
+        {
+            "id": "50000000-0000-0000-0000-000000000002",
+            "staging_id": STAGING_B,
+            "institution_id": INSTITUTION_B,
+            "url": URL_B,
+            "status": "enriched",
+        }
+    ]
+    database.enriched_rows = [
+        {
+            "id": "60000000-0000-0000-0000-000000000002",
+            "cleansed_id": database.cleansed_rows[0]["id"],
+            "institution_id": INSTITUTION_B,
+            "url": URL_B,
+            "status": "synced",
+        }
+    ]
+    payload, _raw, _digest = approved_lot(database, selected_seed_urls=[URL_B])
+    snapshot = payload["scope"][0]["snapshot"]
+    snapshot["staging_rows"] = [
+        {
+            "id": database.staging_rows[0]["id"],
+            "institution_id": database.staging_rows[0]["institution_id"],
+            "url": database.staging_rows[0]["url"],
+            "status": database.staging_rows[0]["status"],
+            "content_hash": database.staging_rows[0]["content_hash"],
+        }
+    ]
+    snapshot["cleansed_rows"] = [dict(database.cleansed_rows[0])]
+    snapshot["enriched_rows"] = [dict(database.enriched_rows[0])]
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+    approved = FG2ApprovedLotManifest.from_bytes(
+        raw,
+        payload,
+        expected_sha256=digest,
+        expected_reference=payload["reference"],
+        expected_source_sha=SOURCE_SHA,
+    )
+    return payload, raw, digest, approved
+
+
+def test_approved_lot_accepts_exact_processed_refresh_and_verifies_downstream_chain() -> None:
+    database = BoundedReadDB()
+    payload, _raw, _digest, approved = _approved_processed_refresh_lot(database)
+
+    orchestrator.verify_approved_lot_scope(database, approved)
+
+    assert payload["scope"][0]["kind"] == "refresh_existing"
+    assert {table for table, _filters, _limit in database.scoped_reads} >= {
+        "staging_raw",
+        "courses",
+        "cleansed_programs",
+        "enriched_programs",
+    }
+    assert any("staging_id=in." in filters for table, filters, _limit in database.scoped_reads if table == "cleansed_programs")
+    assert any("cleansed_id=in." in filters for table, filters, _limit in database.scoped_reads if table == "enriched_programs")
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("invalid_hash", "staging hash is invalid"),
+        ("missing_course", "classification does not match its course row"),
+        ("missing_cleansed", "verifiable downstream references"),
+        ("missing_enriched", "verifiable downstream references"),
+        ("unsupported_status", "protected staging state"),
+        ("wrong_staging_reference", "conflicting staging-to-cleansed reference"),
+        ("wrong_enriched_reference", "conflicting cleansed-to-enriched reference"),
+        ("wrong_downstream_owner", "mismatched owner"),
+    ],
+)
+def test_approved_lot_rejects_ambiguous_or_drifted_processed_refresh(
+    mutation: str, message: str
+) -> None:
+    database = BoundedReadDB()
+    payload, _raw, _digest, _approved = _approved_processed_refresh_lot(database)
+    scope = payload["scope"][0]
+    snapshot = scope["snapshot"]
+    if mutation == "invalid_hash":
+        snapshot["staging_rows"][0]["content_hash"] = "invalid"
+    elif mutation == "missing_course":
+        snapshot["course_rows"] = []
+    elif mutation == "missing_cleansed":
+        snapshot["cleansed_rows"] = []
+    elif mutation == "missing_enriched":
+        snapshot["enriched_rows"] = []
+    elif mutation == "unsupported_status":
+        snapshot["staging_rows"][0]["status"] = "processing"
+    elif mutation == "wrong_staging_reference":
+        snapshot["cleansed_rows"][0]["staging_id"] = "40000000-0000-0000-0000-000000000009"
+    elif mutation == "wrong_enriched_reference":
+        snapshot["enriched_rows"][0]["cleansed_id"] = "50000000-0000-0000-0000-000000000009"
+    elif mutation == "wrong_downstream_owner":
+        snapshot["enriched_rows"][0]["institution_id"] = INSTITUTION_A
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+
+    with pytest.raises(InvalidControlledRun, match=message):
+        FG2ApprovedLotManifest.from_bytes(
+            raw,
+            payload,
+            expected_sha256=digest,
+            expected_reference=payload["reference"],
+            expected_source_sha=SOURCE_SHA,
+        )
+
+
+def _processed_refresh_harvester(database, approved):
+    scope = approved.scope_for_institution(INSTITUTION_B)[0]
+    harvester = object.__new__(UniversalHarvester)
+    harvester.db = database
+    harvester.institution = dict(database.institutions[1])
+    harvester.controlled = True
+    harvester.approved_lot = approved
+    harvester.approved_lot_scope = {scope["url"]: scope}
+    harvester.approved_lot_scope_verified_for_write = True
+    harvester._discovered_rows_by_url = {}
+    return harvester
+
+
+def test_approved_processed_refresh_changed_content_revalidates_then_patches_exact_row() -> None:
+    database = BoundedReadDB()
+    _payload, _raw, _digest, approved = _approved_processed_refresh_lot(database)
+    harvester = _processed_refresh_harvester(database, approved)
+    prior_hash = database.staging_rows[0]["content_hash"]
+    changed_html = "<html><body>changed synthetic approved refresh</body></html>"
+    item = {
+        "url": URL_B,
+        "institution_id": INSTITUTION_B,
+        "status": "pending",
+        "raw_html": changed_html,
+        "raw_name": "Synthetic course",
+        "content_hash": hashlib.sha256(changed_html.encode()).hexdigest(),
+    }
+    row = {
+        "id": STAGING_B,
+        "url": URL_B,
+        "status": "discovered",
+        "original_status": "processed",
+        "previous_content_hash": prior_hash,
+        "kind": "refresh_existing",
+        "course_id": COURSE_B,
+    }
+
+    promoted = harvester._promote_discovered_to_pending(row, item)
+
+    assert promoted["id"] == STAGING_B
+    assert promoted["status"] == "pending"
+    assert promoted["content_hash"] == item["content_hash"]
+    assert database.staging_rows[0]["status"] == "pending"
+    assert len(database.writes) == 1
+    assert "&status=eq.processed&content_hash=eq." in database.writes[0][1]
+    assert {table for table, _filters, _limit in database.scoped_reads} >= {
+        "staging_raw",
+        "courses",
+        "cleansed_programs",
+        "enriched_programs",
+    }
+
+
+def test_approved_processed_refresh_identical_content_is_noop_without_write() -> None:
+    database = BoundedReadDB()
+    _payload, _raw, _digest, approved = _approved_processed_refresh_lot(database)
+    harvester = _processed_refresh_harvester(database, approved)
+    prior_html = "<html><body>previously synced synthetic course</body></html>"
+    prior_hash = database.staging_rows[0]["content_hash"]
+    item = {
+        "url": URL_B,
+        "institution_id": INSTITUTION_B,
+        "status": "pending",
+        "raw_html": prior_html,
+        "raw_name": "Synthetic course",
+        "content_hash": hashlib.sha256(prior_html.encode()).hexdigest(),
+    }
+    assert item["content_hash"] == prior_hash
+    row = {
+        "id": STAGING_B,
+        "url": URL_B,
+        "status": "discovered",
+        "original_status": "processed",
+        "previous_content_hash": prior_hash,
+        "kind": "refresh_existing",
+        "course_id": COURSE_B,
+    }
+    harvester.db.patch_exact_one_raise = Mock(wraps=database.patch_exact_one_raise)
+
+    unchanged = harvester._promote_discovered_to_pending(row, item)
+
+    assert unchanged["status"] == "processed"
+    assert database.staging_rows[0]["status"] == "processed"
+    harvester.db.patch_exact_one_raise.assert_not_called()
+    assert database.writes == []
+
+
+def test_approved_processed_refresh_revalidates_downstream_snapshot_before_patch() -> None:
+    database = BoundedReadDB()
+    _payload, _raw, _digest, approved = _approved_processed_refresh_lot(database)
+    harvester = _processed_refresh_harvester(database, approved)
+    database.enriched_rows[0]["status"] = "discarded"
+    harvester.db.patch_exact_one_raise = Mock(wraps=database.patch_exact_one_raise)
+    prior_hash = database.staging_rows[0]["content_hash"]
+    changed_html = "<html><body>changed synthetic refresh</body></html>"
+    item = {
+        "url": URL_B,
+        "institution_id": INSTITUTION_B,
+        "status": "pending",
+        "raw_html": changed_html,
+        "raw_name": "Synthetic course",
+        "content_hash": hashlib.sha256(changed_html.encode()).hexdigest(),
+    }
+    row = {
+        "id": STAGING_B,
+        "url": URL_B,
+        "status": "discovered",
+        "original_status": "processed",
+        "previous_content_hash": prior_hash,
+        "kind": "refresh_existing",
+        "course_id": COURSE_B,
+    }
+
+    with pytest.raises(HarvesterRunError, match="state drifted before refresh write"):
+        harvester._promote_discovered_to_pending(row, item)
+
+    harvester.db.patch_exact_one_raise.assert_not_called()
+    assert database.writes == []
+    assert database.staging_rows[0]["status"] == "processed"
+
+
 @pytest.mark.parametrize(
     "alias_url",
     [

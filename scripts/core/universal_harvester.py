@@ -1263,22 +1263,31 @@ class UniversalHarvester:
         ):
             raise HarvesterRunError("approved FG2 lot institution, profile, or seeds drifted")
 
-    def _preflight_approved_scope_before_write(self, normalized_url, staging_rows, course):
+    def _preflight_approved_scope_before_write(
+        self,
+        normalized_url,
+        staging_rows,
+        course,
+        *,
+        revalidate_snapshot=False,
+    ):
         if self.approved_lot is None:
             return
         approved_scope = self.approved_lot_scope.get(normalized_url)
         if not approved_scope:
             raise HarvesterRunError("URL is outside the reviewed FG2 lot")
-        if not self.approved_lot_scope_verified_for_write:
+        if not self.approved_lot_scope_verified_for_write or revalidate_snapshot:
             try:
                 self._verify_approved_institution_binding()
                 verify_approved_lot_scope(
                     self.db,
                     self.approved_lot,
                     institution_ids=[str(self.institution.get("id"))],
+                    scope_urls=[normalized_url] if revalidate_snapshot else None,
                 )
             except InvalidControlledRun as exc:
-                raise HarvesterRunError("approved FG2 lot state drifted before the first write") from exc
+                checkpoint = "before refresh write" if revalidate_snapshot else "before the first write"
+                raise HarvesterRunError(f"approved FG2 lot state drifted {checkpoint}") from exc
         actual_staging = [
             {
                 "id": str(row.get("id", "")).lower(),
@@ -1399,17 +1408,20 @@ class UniversalHarvester:
 
     def _promote_discovered_to_pending(self, row, item):
         self._validate_pending_payload(row, item)
-        if (
-            self.controlled
-            and self.approved_lot is not None
-            and not self.approved_lot_scope_verified_for_write
+        normalized_url = normalize_url(item.get("url") or "")
+        original_status = row.get("original_status") or DISCOVERED_STATUS
+        if self.controlled and self.approved_lot is not None and (
+            not self.approved_lot_scope_verified_for_write or original_status == "processed"
         ):
-            normalized_url = normalize_url(item.get("url") or "")
             staging_rows = self._select_staging_rows_by_url(normalized_url)
             course = self._course_for_refresh(normalized_url)
-            self._preflight_approved_scope_before_write(normalized_url, staging_rows, course)
+            self._preflight_approved_scope_before_write(
+                normalized_url,
+                staging_rows,
+                course,
+                revalidate_snapshot=original_status == "processed",
+            )
         expected_id = row["id"]
-        original_status = row.get("original_status") or DISCOVERED_STATUS
         previous_content_hash = row.get("previous_content_hash")
         if original_status == "processed":
             if not self.controlled or row.get("kind") != "refresh_existing":
