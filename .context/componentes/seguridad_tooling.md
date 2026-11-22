@@ -110,6 +110,9 @@ payload exactos, el hash de la migration, el digest del delta ajeno a la
 autorización, la ancestry de base/payload/candidato y que después del payload
 solo cambie ese archivo. Las regresiones conservan la ruta H3 existente y
 rechazan fechas, IDs, sufijos y nombres vecinos.
+El [registro JIT de FG2](../operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md)
+queda clasificado como documento activo; su alcance depende de los hashes y
+del manifest que declara, y no sustituye la autorización operativa de Apply.
 
 ### Snapshot del ledger Pro posterior a #535 — 03-nov-2026
 
