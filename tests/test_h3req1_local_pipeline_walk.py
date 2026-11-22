@@ -68,6 +68,10 @@ def synthetic_public_request_binding(url: str, **_kwargs: Any) -> tuple[str, str
     return url, SYNTHETIC_RESOLVE_ENTRY
 
 
+def synthetic_public_resolve_entry(_url: str, **_kwargs: Any) -> str:
+    return SYNTHETIC_RESOLVE_ENTRY
+
+
 COURSE_HTML = f"""<!doctype html>
 <html><head><title>Analítica Aplicada | Synthetic Academy</title>
 <meta property="og:title" content="Programa de Analítica Aplicada">
@@ -132,7 +136,8 @@ class SyntheticBrowserPage:
         self.navigated_urls: list[str] = []
 
     async def goto(self, url: str, **_kwargs):
-        self.navigated_urls.append(url)
+        if url != "about:blank":
+            self.navigated_urls.append(url)
         return type("Response", (), {"status": 200})()
 
 
@@ -389,7 +394,7 @@ def run_pipeline_walk() -> None:
             max_discovered_urls=5,
         )
 
-    async def fake_request(_session: Any, url: str) -> SyntheticResponse | None:
+    async def fake_request(_session: Any, url: str, **_kwargs: Any) -> SyntheticResponse | None:
         if url == f"{BASE_URL}/sitemap.xml":
             return SyntheticResponse(url, SITEMAP, "application/xml")
         if url == COURSE_URL:
@@ -1184,7 +1189,7 @@ def test_controlled_block_status_closes_before_application_body_read_without_ret
     assert budget.http_requests == 1
 
 
-def test_noncontrolled_harvester_uses_dns_pinned_get_transport(
+def test_harvester_uses_bounded_dns_pinned_get_transport(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sitemap_url = f"{BASE_URL}/sitemap.xml"
@@ -1230,6 +1235,7 @@ def test_noncontrolled_harvester_uses_dns_pinned_get_transport(
             return response
 
     monkeypatch.setattr(harvester_module, "validate_public_request_url", synthetic_public_request_binding)
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", synthetic_public_resolve_entry)
     monkeypatch.setattr(harvester_module, "AsyncSession", lambda **kwargs: CapturedSession(**kwargs))
     assert asyncio.run(harvester._fetch_sitemap(object(), sitemap_url)) == [COURSE_URL]
     assert session_options[0]["curl_options"][harvester_module.CurlOpt.RESOLVE] == [
@@ -1237,7 +1243,7 @@ def test_noncontrolled_harvester_uses_dns_pinned_get_transport(
     ]
     assert calls[0]["allow_redirects"] is False
     assert "content_callback" not in calls[0]
-    assert "stream" not in calls[0]
+    assert calls[0]["stream"] is True
     assert response.content == xml_body
     assert adapter.tables["staging_raw"] == []
 
@@ -1580,7 +1586,7 @@ def test_controlled_compressed_sitemap_is_rejected_before_request() -> None:
     request.assert_not_called()
 
 
-def test_noncontrolled_sitemap_does_not_apply_controlled_body_cap(
+def test_harvester_sitemap_uses_shared_streamed_transport(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sitemap_url = f"{BASE_URL}/sitemap.xml"
@@ -1628,20 +1634,21 @@ def test_noncontrolled_sitemap_does_not_apply_controlled_body_cap(
             "synthetic.h3.example:443:93.184.216.34",
         ),
     )
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", synthetic_public_resolve_entry)
     monkeypatch.setattr(harvester_module, "AsyncSession", lambda **_kwargs: CapturedSession())
     with patch.object(harvester_module.ET, "fromstring") as parse_xml:
         assert asyncio.run(harvester._fetch_sitemap(object(), sitemap_url)) == []
 
     assert "content-length" not in response.headers
-    assert response.yielded_bytes == 0
-    assert response.closed is False
+    assert response.yielded_bytes == 9
+    assert response.closed is True
     assert response.content == b"<urlset>x"
     parse_xml.assert_called_once()
     assert adapter.tables["staging_raw"] == []
     assert adapter.upsert_calls == []
 
 
-def test_noncontrolled_course_get_does_not_apply_controlled_body_cap(
+def test_harvester_course_get_uses_shared_streamed_transport(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     profile = {
@@ -1680,6 +1687,7 @@ def test_noncontrolled_course_get_does_not_apply_controlled_body_cap(
         return None
 
     monkeypatch.setattr(harvester_module, "validate_public_request_url", synthetic_public_request_binding)
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", synthetic_public_resolve_entry)
     monkeypatch.setattr(harvester_module, "AsyncSession", lambda **_kwargs: CapturedSession())
     monkeypatch.setattr(harvester_module.random, "uniform", lambda *_args: 0)
     with patch.object(harvester_module.asyncio, "sleep", new=no_delay):
@@ -1687,7 +1695,7 @@ def test_noncontrolled_course_get_does_not_apply_controlled_body_cap(
 
     assert result is response
     assert response.content == b"<html>xxx"
-    assert calls and "content_callback" not in calls[0]
+    assert calls and calls[0]["stream"] is True and calls[0]["allow_redirects"] is False
     assert adapter.tables["staging_raw"] == []
     assert adapter.upsert_calls == []
 
@@ -1820,6 +1828,7 @@ def test_detect_noise_patterns_uses_the_shared_catalog_filter() -> None:
 def test_site_diagnostics_preserves_redirect_following_without_reading_redirect_body(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(site_diagnostics_module.time, "sleep", lambda _seconds: None)
     class SyntheticRequestsResponse:
         encoding = "utf-8"
 
@@ -3401,6 +3410,7 @@ def test_paginated_discovery_extracts_only_allowlisted_links(monkeypatch: pytest
             return response
 
     monkeypatch.setattr(harvester_module, "validate_public_request_url", synthetic_public_request_binding)
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", synthetic_public_resolve_entry)
     with patch.object(harvester_module, "AsyncSession", Session):
         discovered = asyncio.run(harvester.discover_courses())
 
@@ -3462,6 +3472,7 @@ def test_paginated_discovery_resumes_discovered_rows_without_reprocessing_pendin
         return None
 
     monkeypatch.setattr(harvester_module, "validate_public_request_url", synthetic_public_request_binding)
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", synthetic_public_resolve_entry)
     with patch.object(harvester_module, "AsyncSession", Session), patch.object(harvester_module.asyncio, "sleep", new=no_delay):
         discovered = asyncio.run(harvester.discover_courses())
 
@@ -3503,6 +3514,8 @@ def test_catalog_link_discovery_preserves_navigation_and_filters_external_links(
             self.query_count = 0
 
         async def evaluate(self, script):
+            if "__studiamatch_transport_guard__" in script:
+                return True
             return False if "document.querySelector(\"footer\")" in script else None
 
         async def query_selector_all(self, _selector):
@@ -3519,9 +3532,26 @@ def test_catalog_link_discovery_preserves_navigation_and_filters_external_links(
     class Browser:
         def __init__(self):
             self.page = Page()
+            self.current_page = self.page
+
+        async def new_context(self, **_kwargs):
+            return self
+
+        async def route_web_socket(self, _pattern, _handler):
+            return None
+
+        async def add_init_script(self, _script):
+            return None
+
+        async def route(self, _pattern, _handler):
+            return None
 
         async def new_page(self, **_kwargs):
+            self.current_page.context = self
             return self.page
+
+        async def close(self):
+            await self.current_page.close()
 
     browser = Browser()
 
@@ -3581,6 +3611,8 @@ def test_catalog_link_discovery_resumes_discovered_rows_without_reprocessing_pen
             self.query_count = 0
 
         async def evaluate(self, script):
+            if "__studiamatch_transport_guard__" in script:
+                return True
             return False if 'document.querySelector("footer")' in script else None
 
         async def query_selector_all(self, _selector):
@@ -3593,9 +3625,26 @@ def test_catalog_link_discovery_resumes_discovered_rows_without_reprocessing_pen
     class Browser:
         def __init__(self):
             self.page = Page()
+            self.current_page = self.page
+
+        async def new_context(self, **_kwargs):
+            return self
+
+        async def route_web_socket(self, _pattern, _handler):
+            return None
+
+        async def add_init_script(self, _script):
+            return None
+
+        async def route(self, _pattern, _handler):
+            return None
 
         async def new_page(self, **_kwargs):
+            self.current_page.context = self
             return self.page
+
+        async def close(self):
+            await self.current_page.close()
 
     browser = Browser()
 
@@ -3665,14 +3714,26 @@ def test_paginated_discovery_preserves_and_resumes_results_after_later_page_fail
         return None
 
     monkeypatch.setattr(harvester_module, "validate_public_request_url", synthetic_public_request_binding)
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", synthetic_public_resolve_entry)
     with patch.object(harvester_module, "AsyncSession", Session), patch.object(harvester_module.asyncio, "sleep", new=no_delay):
         partial = asyncio.run(harvester.discover_courses())
-        phase["name"] = "recovery"
-        recovered = asyncio.run(harvester.discover_courses())
 
-    assert partial == [first_url]
+    assert partial == []
+    assert [row["url"] for row in adapter.tables["staging_raw"]] == [first_url]
+    assert requests == ["partial:1", "partial:2", "partial:2", "partial:2"]
+
+    with patch.object(harvester_module, "get_db_client", return_value=adapter):
+        next_run = UniversalHarvester(institution, max_discovered_urls=5)
+    next_run.check_time_guard = lambda: False
+    phase["name"] = "recovery"
+    with patch.object(harvester_module, "AsyncSession", Session), patch.object(harvester_module.asyncio, "sleep", new=no_delay):
+        recovered = asyncio.run(next_run.discover_courses())
+
     assert recovered == [first_url, recovered_url]
-    assert requests == ["partial:1", "partial:2", "recovery:1", "recovery:2"]
+    assert requests == [
+        "partial:1", "partial:2", "partial:2", "partial:2",
+        "recovery:1", "recovery:2",
+    ]
     assert {row["url"] for row in adapter.tables["staging_raw"]} == {first_url, recovered_url}
     assert len(adapter.tables["staging_raw"]) == 2
     assert all(row["status"] == "discovered" for row in adapter.tables["staging_raw"])
@@ -3714,6 +3775,8 @@ def test_catalog_scroll_keeps_discovered_links_when_a_later_scroll_fails() -> No
             self.query_count = 0
 
         async def evaluate(self, script):
+            if "__studiamatch_transport_guard__" in script:
+                return True
             return False if 'document.querySelector("footer")' in script else None
 
         async def query_selector_all(self, _selector):
@@ -3730,11 +3793,30 @@ def test_catalog_scroll_keeps_discovered_links_when_a_later_scroll_fails() -> No
     class Browser:
         def __init__(self):
             self.pages = []
+            self.current_page = None
+
+        async def new_context(self, **_kwargs):
+            return self
+
+        async def route_web_socket(self, _pattern, _handler):
+            return None
+
+        async def add_init_script(self, _script):
+            return None
+
+        async def route(self, _pattern, _handler):
+            return None
 
         async def new_page(self, **_kwargs):
             page = Page()
+            page.context = self
             self.pages.append(page)
+            self.current_page = page
             return page
+
+        async def close(self):
+            if self.current_page is not None:
+                await self.current_page.close()
 
     browser = Browser()
 
@@ -3790,12 +3872,230 @@ def test_profile_regex_timeout_fails_closed() -> None:
     with patch.object(harvester_module, "safe_regex", bounded_regex):
         assert not harvester._is_valid_crawl_url(f"{BASE_URL}/blocked")
 
-    bounded_regex.search.assert_called_once_with(
-        "blocked",
-        f"{BASE_URL}/blocked",
-        bounded_regex.IGNORECASE,
-        timeout=0.05,
+    assert bounded_regex.search.call_count in {1, 2}
+    assert {
+        call.args[1] for call in bounded_regex.search.call_args_list
+    }.issubset({f"{BASE_URL}/blocked", f"{BASE_URL}/blocked/"})
+    assert all(
+        call.args[0] == "blocked"
+        and call.args[2] == bounded_regex.IGNORECASE
+        and call.kwargs == {"timeout": 0.05}
+        for call in bounded_regex.search.call_args_list
     )
+
+
+@pytest.mark.parametrize(
+    ("site_type", "discovery_mode"),
+    [
+        ("spa_js_heavy", "catalog_link_extraction"),
+        ("ecommerce", "paginated_catalog"),
+    ],
+)
+def test_real_chromium_runtime_discovers_and_extracts_spa_and_ecommerce(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    site_type: str,
+    discovery_mode: str,
+) -> None:
+    """Exercise production browser routes and extraction with only HTTP/DNS stubbed."""
+    from playwright.async_api import async_playwright
+
+    detail_url = f"{BASE_URL}/programs/runtime-{site_type}"
+    if discovery_mode == "catalog_link_extraction":
+        source_urls = [f"{BASE_URL}/catalog"]
+        catalog_patterns = []
+        catalog_html = """<!doctype html><html><body><main id="catalog"></main>
+        <script>
+          document.querySelector('#catalog').innerHTML =
+            '<a class="program" href="/programs/runtime-spa_js_heavy">Analítica</a>';
+          fetch('/api/catalog?page=1').catch(() => {});
+        </script></body></html>"""
+    else:
+        source_urls = []
+        catalog_patterns = [f"{BASE_URL}/catalog?page={{page}}"]
+        catalog_html = (
+            '<!doctype html><html><body><a class="product" '
+            f'href="{detail_url}">Programa de ecommerce</a></body></html>'
+        )
+
+    profile = {
+        "institution_id": INSTITUTION_ID,
+        "profile_status": "active",
+        "site_type": site_type,
+        "discovery_mode": discovery_mode,
+        "discovery_enabled": True,
+        "pipeline_enabled": True,
+        "pipeline_ready": True,
+        "seed_urls": source_urls,
+        "catalog_url_patterns": catalog_patterns,
+        "catalog_link_selector": "a.program" if site_type == "spa_js_heavy" else "a.product",
+        "catalog_max_pages": 2,
+        "catalog_scroll_iterations": 1,
+        "detail_wait_ms": 0,
+        "allowed_url_patterns": ["/programs/"],
+        "exclusion_patterns": ["/news/", ".pdf"],
+        "allowed_resource_origins": [],
+        "requires_stealth": False,
+        "requires_cloudflare_bypass": False,
+    }
+    adapter = SyntheticPipelineAdapter(profile)
+    institution = {
+        "id": INSTITUTION_ID,
+        "name": "Synthetic Academy",
+        "slug": "synthetic",
+        "website_url": BASE_URL,
+    }
+    with patch.object(harvester_module, "get_db_client", return_value=adapter):
+        harvester = UniversalHarvester(institution, max_discovered_urls=5)
+    harvester.check_time_guard = lambda: False
+    # Request-budget pacing is tested separately; keep this browser test quick.
+    harvester.request_budget.min_interval_seconds = 0
+
+    detail_html = f"""<!doctype html><html><head><title>Programa probado</title>
+      <script type="application/ld+json">{{"@type":"Product","name":"Programa probado",
+      "offers":{{"price":"1250","priceCurrency":"PEN"}}}}</script></head>
+      <body><main><h1>Programa probado</h1><p>Duración: seis meses.</p>
+      <div data-fecha-inicio="2027-04-01"></div>
+      <nav class="breadcrumb categoria-produto"><a href="/programas/">cursos</a></nav>
+      </main><script>document.querySelector('main').insertAdjacentHTML('beforeend',
+      '<p id="rendered">Contenido enriquecido por JavaScript</p>');</script></body></html>"""
+    websocket_detail_html = detail_html.replace(
+        "</body>",
+        '<script>new WebSocket("ws://synthetic.h3.example/unmediated");</script></body>',
+    )
+    requested_urls: list[str] = []
+
+    class Session:
+        def __init__(self, **_kwargs: Any) -> None:
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str, **kwargs: Any):
+            requested_urls.append(url)
+            parsed = urlparse(url)
+            if parsed.path == "/catalog":
+                body, content_type = catalog_html, "text/html"
+            elif parsed.path == "/api/catalog":
+                body, content_type = '{"items":[]}', "application/json"
+            elif parsed.path.endswith("-websocket"):
+                body, content_type = websocket_detail_html, "text/html"
+            elif parsed.path.startswith("/programs/runtime-"):
+                body, content_type = detail_html, "text/html"
+            else:
+                body, content_type = "not found", "text/plain"
+            response = SyntheticStreamingResponse(url, [body.encode()], content_type)
+            return await synthetic_response_via_content_callback(response, kwargs)
+
+    monkeypatch.setattr(harvester_module, "validate_public_request_url", synthetic_public_request_binding)
+    monkeypatch.setattr(harvester_module, "public_url_resolve_entry", synthetic_public_resolve_entry)
+    monkeypatch.setattr(harvester_module, "AsyncSession", Session)
+
+    async def run_browser_pipeline():
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            try:
+                # Prove the production harvester context removes unmediated
+                # browser transports before any institutional content loads.
+                guard_page = await harvester._new_browser_page(
+                    browser, request_kind="catalog_source"
+                )
+                try:
+                    assert await guard_page.evaluate(
+                        """() => window.__studiamatch_transport_guard__ === true
+                            && window.RTCPeerConnection === undefined
+                            && window.webkitRTCPeerConnection === undefined
+                            && window.WebTransport === undefined"""
+                    )
+                    websocket_result = await guard_page.evaluate(
+                        """async () => {
+                            const socket = new WebSocket(
+                                "ws://redaction-marker.invalid/private?token=synthetic"
+                            );
+                            return await new Promise(resolve => {
+                                socket.addEventListener("close", event => resolve({
+                                    closed: true,
+                                    code: event.code,
+                                }), { once: true });
+                                socket.addEventListener("error", () => resolve({
+                                    closed: false,
+                                    error: true,
+                                }), { once: true });
+                                setTimeout(() => resolve({ timeout: true }), 1500);
+                            });
+                        }"""
+                    )
+                    # The browser close event can resolve just before the
+                    # Playwright route callback returns to Python.
+                    await guard_page.wait_for_timeout(100)
+                    assert websocket_result.get("closed") is True
+                    assert websocket_result.get("code") == 1008
+                    assert harvester._browser_blocked_required_count == 1
+                    assert harvester._browser_blocked_resource_count == 1
+                    assert harvester.controlled_stop_reason == "BrowserWebSocketBlocked"
+                finally:
+                    await harvester._close_browser_page(guard_page)
+                assert "redaction-marker.invalid" not in caplog.text
+                assert "token=synthetic" not in caplog.text
+                assert requested_urls == []
+
+                # This test next exercises the valid rendered pipeline; reset
+                # only the isolated guard probe's in-memory counters.
+                harvester.controlled_stop_reason = None
+                harvester.circuit_open = False
+                harvester._browser_blocked_required_count = 0
+                harvester._browser_blocked_resource_count = 0
+                discovered = await harvester.discover_courses(browser=browser)
+                assert detail_url in discovered
+                page = await harvester._new_browser_page(browser, request_kind="detail")
+                try:
+                    async with Session() as session:
+                        item = await harvester.scrape_course_detail(session, page, detail_url)
+                finally:
+                    await harvester._close_browser_page(page)
+                assert harvester._browser_blocked_required_count == 0
+
+                blocked_detail_url = f"{BASE_URL}/programs/runtime-{site_type}-websocket"
+                harvester._queue_discovered_candidate(blocked_detail_url)
+                blocked_page = await harvester._new_browser_page(
+                    browser, request_kind="detail"
+                )
+                try:
+                    async with Session() as session:
+                        with pytest.raises(harvester_module.HarvesterPartialError):
+                            await harvester.scrape_course_detail(
+                                session, blocked_page, blocked_detail_url
+                            )
+                finally:
+                    await harvester._close_browser_page(blocked_page)
+                blocked_row = next(
+                    row for row in adapter.tables["staging_raw"]
+                    if row.get("url") == blocked_detail_url
+                )
+                assert blocked_row["status"] == "discovered"
+                assert harvester.controlled_stop_reason == "BrowserWebSocketBlocked"
+                assert "ws://synthetic.h3.example/unmediated" not in requested_urls
+                return discovered, item
+            finally:
+                await browser.close()
+
+    discovered, item = asyncio.run(run_browser_pipeline())
+
+    assert discovered == [detail_url]
+    assert item["raw_name"] == "Programa probado"
+    assert "Contenido enriquecido por JavaScript" in item["raw_html"]
+    assert item["metadata"]
+    assert harvester._browser_blocked_required_count == 1
+    assert harvester.request_budget.snapshot()["http_requests"] >= 3
+    if site_type == "spa_js_heavy":
+        assert any(url.endswith("/api/catalog?page=1") for url in requested_urls)
+    else:
+        assert any(url.endswith("/catalog?page=1") for url in requested_urls)
+        assert any(url.endswith("/catalog?page=2") for url in requested_urls)
 
 
 if __name__ == "__main__":

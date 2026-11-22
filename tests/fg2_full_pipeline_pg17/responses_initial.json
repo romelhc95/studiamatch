@@ -1,0 +1,142 @@
+{
+  "https://spa.fg2.example/": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Instituto SPA sintético</title></head><body><main id=\"catalog\"></main><a href=\"/programas/\">Catálogo de programas</a><script defer src=\"/assets/catalogo.js\"></script></body></html>"
+  },
+  "https://spa.fg2.example/programas/": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Catálogo de programas SPA</title></head><body><main id=\"catalog\"></main><script defer src=\"/assets/catalogo.js\"></script></body></html>"
+  },
+  "https://ecommerce.fg2.example/": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Instituto Ecommerce sintético</title><meta name=\"generator\" content=\"WooCommerce\"></head><body><main><a href=\"/producto/\">Catálogo</a><a class=\"pagination\" href=\"/producto/page/2\">Siguiente</a></main></body></html>"
+  },
+  "https://ecommerce.fg2.example/producto/": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Catálogo ecommerce</title></head><body><main><article class=\"product-card\"><a href=\"/programas/gestion-productos\">Gestión de Productos</a></article><article class=\"product-card\"><a href=\"/programas/marketing-digital\">Marketing Digital</a></article></main></body></html>"
+  },
+  "https://ecommerce.fg2.example/producto/page/2": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Catálogo ecommerce página 2</title></head><body><main><article class=\"product-card\"><a href=\"/programas/innovacion-comercial\">Innovación Comercial</a></article></main></body></html>"
+  },
+  "https://ssr.fg2.example/": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Synthetic SSR Institute</title><link rel=\"sitemap\" href=\"/sitemap.xml\"></head><body><main><h1>Instituto sintético</h1><p>Este sitio institucional presenta sus programas de formación profesional. Cada ficha incluye objetivos, duración, requisitos de ingreso, modalidad de enseñanza, inversión referencial, certificación y datos académicos verificables. El catálogo se actualiza por ciclo y describe rutas de aprendizaje para estudiantes y profesionales. La información de admisión, noticias, contacto y sedes se publica en secciones separadas de las fichas individuales para facilitar la navegación y revisión editorial. Este párrafo extenso representa una página HTML renderizada desde servidor y permite distinguirla del contenido que requiere ejecución de JavaScript. El instituto sintético conserva sus publicaciones institucionales y señala fuentes oficiales de información. </p><a href=\"/programas/analitica-aplicada\">Analítica</a><a href=\"/programas/gestion-datos\">Gestión de datos</a><a href=\"/noticias/ruido\">Noticias</a></main></body></html>"
+  },
+  "https://ambiguous.fg2.example/": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Sitio ambiguo sintético</title></head><body><main><h1>Bienvenido</h1><p>Información institucional sin catálogo identificable.</p></main></body></html>"
+  },
+  "https://ambiguous.fg2.example/sitemap_index.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://ambiguous.fg2.example/sitemap.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://ssr.fg2.example/sitemap_index.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://ssr.fg2.example/sitemap.xml": {
+    "status": 200,
+    "content_type": "application/xml",
+    "body": "<?xml version=\"1.0\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"><url><loc>https://ssr.fg2.example/programas/analitica-aplicada</loc></url><url><loc>https://ssr.fg2.example/programas/gestion-datos</loc></url><url><loc>https://ssr.fg2.example/noticias/ruido</loc></url></urlset>"
+  },
+  "https://ssr.fg2.example/programas/analitica-aplicada": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Programa Analítica Aplicada SSR</title><meta name=\"description\" content=\"Programa sintético de analítica aplicada, duración 6 meses, modalidad online.\"><link rel=\"canonical\" href=\"https://ssr.fg2.example/programas/analitica-aplicada\"></head><body><main><h1>Programa Analítica Aplicada</h1><p>Duración: 6 meses. Modalidad online. Inversión total S/ 1250.</p><h2>Requisitos</h2><p>Conocimientos básicos de hojas de cálculo.</p><h2>Objetivos</h2><p>Modelar datos y explicar resultados.</p></main></body></html>"
+  },
+  "https://ssr.fg2.example/programas/gestion-datos": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Programa Gestión de Datos SSR</title><meta name=\"description\" content=\"Programa sintético de gestión de datos, duración 9 meses, modalidad presencial.\"><link rel=\"canonical\" href=\"https://ssr.fg2.example/programas/gestion-datos\"></head><body><main><h1>Programa Gestión de Datos</h1><p>Duración: 9 meses. Modalidad presencial. Inversión total S/ 1800.</p><h2>Requisitos</h2><p>Fundamentos de programación y estadística.</p><h2>Objetivos</h2><p>Diseñar modelos de información confiables.</p></main></body></html>"
+  },
+  "https://ssr.fg2.example/noticias/ruido": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Noticia sin programa</title></head><body><main><h1>Noticia</h1></main></body></html>"
+  },
+  "https://spa.fg2.example/catalogo/": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Catálogo SPA sintético</title></head><body><main id=\"catalog\"></main><script defer src=\"/assets/catalogo.js\"></script></body></html>"
+  },
+  "https://spa.fg2.example/catalogo/sitemap_index.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://spa.fg2.example/sitemap.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://spa.fg2.example/sitemap_index.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://spa.fg2.example/assets/catalogo.js": {
+    "status": 200,
+    "content_type": "application/javascript; charset=utf-8",
+    "body": "for (const [href,label] of [['/programas/diseno-digital','Diseño Digital'],['/programas/experiencia-usuario','Experiencia de Usuario']]) { const link=document.createElement('a');link.className='program';link.href=href;link.textContent=label;document.querySelector('#catalog').appendChild(link); }"
+  },
+  "https://spa.fg2.example/programas/experiencia-usuario": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Programa Experiencia de Usuario SPA</title><meta name=\"description\" content=\"Programa sintético de experiencia de usuario, duración 6 meses, modalidad virtual.\"><link rel=\"canonical\" href=\"https://spa.fg2.example/programas/experiencia-usuario\"></head><body><main><h1>Programa Experiencia de Usuario</h1><p>Duración: 6 meses. Modalidad virtual. Inversión total S/ 1200.</p><h2>Objetivos</h2><p>Investigar y diseñar interacciones.</p></main></body></html>"
+  },
+  "https://spa.fg2.example/programas/diseno-digital": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Programa Diseño Digital SPA</title><meta name=\"description\" content=\"Programa sintético de diseño digital, duración 8 meses, modalidad híbrida.\"><link rel=\"canonical\" href=\"https://spa.fg2.example/programas/diseno-digital\"></head><body><main><h1>Programa Diseño Digital</h1><p>Duración: 8 meses. Modalidad híbrida. Inversión total S/ 1400.</p><h2>Objetivos</h2><p>Diseñar experiencias digitales inclusivas.</p></main></body></html>"
+  },
+  "https://ecommerce.fg2.example/catalogo/?page=1": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Catálogo ecommerce página 1</title></head><body><main><article class=\"product-card\"><a href=\"/programas/gestion-productos\">Gestión de Productos</a></article></main></body></html>"
+  },
+  "https://ecommerce.fg2.example/sitemap.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://ecommerce.fg2.example/sitemap_index.xml": {
+    "status": 404,
+    "content_type": "application/xml",
+    "body": ""
+  },
+  "https://ecommerce.fg2.example/catalogo/?page=2": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Catálogo ecommerce página 2</title></head><body><main><article class=\"product-card\"><a href=\"/programas/marketing-digital\">Marketing Digital</a></article></main></body></html>"
+  },
+  "https://ecommerce.fg2.example/programas/gestion-productos": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Programa Gestión de Productos Ecommerce</title><meta name=\"description\" content=\"Programa sintético para gestión de productos, duración 5 meses.\"><link rel=\"canonical\" href=\"https://ecommerce.fg2.example/programas/gestion-productos\"></head><body><main><h1>Programa Gestión de Productos</h1><p>Duración: 5 meses. Modalidad online. Precio S/ 990.</p><h2>Requisitos</h2><p>Experiencia básica en comercio.</p></main></body></html>"
+  },
+  "https://ecommerce.fg2.example/programas/marketing-digital": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Programa Marketing Digital Ecommerce</title><meta name=\"description\" content=\"Programa sintético de marketing digital, duración 7 meses.\"><link rel=\"canonical\" href=\"https://ecommerce.fg2.example/programas/marketing-digital\"></head><body><main><h1>Programa Marketing Digital</h1><p>Duración: 7 meses. Modalidad presencial. Precio S/ 1100.</p><h2>Objetivos</h2><p>Planificar campañas de comercio digital.</p></main></body></html>"
+  },
+  "https://blocked.fg2.example/sitemap.xml": {
+    "status": 429,
+    "content_type": "text/plain; charset=utf-8",
+    "body": "synthetic institution rate limit"
+  }
+}

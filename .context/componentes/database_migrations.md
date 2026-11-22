@@ -59,6 +59,22 @@ forward-fix autorizado si el schema queda parcial; rollback de aplicación al
 código compatible, no rollback destructivo de DB. Gateway, cuotas, Edge,
 Auth/primer Admin, Pages/BFF, abrir Admin y smoke Pro conservan JIT separados.
 
+### migration-20261120120000-fg2-profile-onboarding-state
+
+**Path:** [`20261120120000_fg2_profile_onboarding_state.sql`](../../db/migrations/20261120120000_fg2_profile_onboarding_state.sql)
+
+**Propósito/por qué:** permite que FG2 diagnostique instituciones registradas aunque todavía no tengan perfil efectivo y conserva separadas observación, sugerencia, procedencia y configuración runnable. No agrega tabla, no copia perfiles entre ambientes y no activa productores/escritores. La activación automática requiere una política externa explícita y diagnóstico verificado.
+
+**Contrato local:** `institution_site_profiles.site_type` y `discovery_mode` admiten NULL solo mientras `profile_status='pending_review'`; `active` exige ambos modos efectivos. `diagnostic_status` usa `not_requested`, `verified`, `review_required` o `blocked`. Los objetos `diagnostic_observed`, `diagnostic_suggested` y `diagnostic_provenance` son JSONB; `allowed_resource_origins` debe ser un array JSONB. El cambio es aditivo y conserva columnas/gates anteriores.
+
+**Validación/estado:** migration aplicada en un PG17 efímero aislado como parte del E2E del candidato y comprobada por onboarding y por los entrypoints vía PostgREST local. Fixture con datos/roles sintéticos; no aplicada ni verificada en Free, Certificación o Pro. La definición sigue candidata local y necesita revisión, baseline por ambiente y JIT DDL para aplicación remota.
+
+**Ruta Pro local, separada de H3:** el workflow `db-sync-to-pro.yml` y el registro de `db_migrate.py` incorporan `fg2-profile-onboarding` como manifest independiente de una migration, SHA-256 `12de04d082169043f21500ec907940b125ab0821cbd98296a7ef5a506f90ecad`. El inventory y los digests H3 permanecen intactos; FG2 no hereda el prerequisito ni los digests de cohorte H2/H3. `report` solo llama al migrador con `--dry-run`; `verify` solo consulta ledger/schema. `apply` requiere workflow_dispatch en `main`, aprobación del Environment Production, backup/PITR, `apply_authorized`, ID JIT DDL y una autorización que pinne payload, manifest y este hash. Ninguno de esos gates se ejercitó contra Pro.
+
+La migration agrega `fg2_profile_onboarding_schema_contract()`, SQL `STABLE SECURITY INVOKER`, `search_path=pg_catalog`, sin retornar filas de perfiles. Su ejecución se revoca de `PUBLIC`, `anon` y `authenticated`, y se concede a `service_role`. El verify FG2 consulta el RPC por GET y comprueba las seis columnas, sus tipos/defaults/nullability, los cuatro checks validados, la nulabilidad de `site_type`/`discovery_mode`, el ledger y la ACL; no invoca H2/H3 ni ejecuta DDL. El migrador envuelve el SQL y su registro de ledger en una sola llamada transaccional a `exec_sql`; el archivo no lleva `BEGIN/COMMIT` superiores.
+
+**Transición y recuperación:** `expand` agrega columnas/checks y permite perfil inicial pendiente; `compatibilidad` conserva los perfiles efectivos existentes y el flujo previo; `deploy` por promoción protegida, con verificación de schema en cada ambiente y escritores cerrados; `contract` solo tras observación del runtime y decisión. Revertir el código por PR si no se adopta; no ejecutar DROP ni backfill/reparación sin JIT separado.
+
 ## h3-pro-promotion-manifest
 
 ### Preflight offline del registro compartido — corrección P1 de PR 514

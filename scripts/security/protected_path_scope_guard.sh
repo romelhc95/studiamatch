@@ -138,6 +138,52 @@ tests/test_fg2_bounded_workers.py
 tests/test_fg2_bounded_workflow.py
 H1_LOCAL_PATHS
 )
+   # Exact complete-FG2 local candidate paths; neighbors remain rejected.
+   allowed_fg2_full_local=$(cat <<'FG2_FULL_LOCAL_PATHS'
+.context/arquitectura.md
+.context/ci_cd.md
+.context/componentes/database_migrations.md
+.context/componentes/datos_pipeline.md
+.context/componentes/infra_release.md
+.context/componentes/pipeline.md
+.context/database.md
+.context/estado_del_proyecto.md
+.context/evidencias_cliente/sprint_1/paquete_hito_001.md
+.context/trazabilidad/registro_fuentes_componentes.json
+.context/trazabilidad/registro_fuentes_componentes.md
+.github/workflows/production_pipeline.yml
+.github/workflows/security-audit.yml
+db/migrations/20261120120000_fg2_profile_onboarding_state.sql
+scripts/core/fg2_bounded_run.py
+scripts/core/master_orchestrator.py
+scripts/core/profile_onboarding.py
+scripts/core/universal_harvester.py
+scripts/security/protected_path_scope_guard.sh
+scripts/shared/site_diagnostics.py
+tests/fg2_full_pipeline_pg17/assert_state.sql
+tests/fg2_full_pipeline_pg17/fixture_schema.sql
+tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql
+tests/fg2_full_pipeline_pg17/prepare_refresh.sql
+tests/fg2_full_pipeline_pg17/responses_initial.json
+tests/fg2_full_pipeline_pg17/responses_refresh.json
+tests/fg2_full_pipeline_pg17/run.sh
+tests/fg2_full_pipeline_pg17/run_entrypoint.py
+tests/fg2_full_pipeline_pg17/seed_admin.sql
+tests/fg2_full_pipeline_pg17/seed_profiles.sql
+tests/fg2_full_pipeline_pg17/sitecustomize.py
+tests/fg2_full_pipeline_pg17/verify_admin_queue.py
+tests/test_protected_path_scope_guard.sh
+tests/test_fg2_bounded_orchestration.py
+tests/test_fg2_bounded_run.py
+tests/test_fg2_bounded_workflow.py
+tests/test_fg2_profile_onboarding.py
+tests/test_h3_admin_queue_ux_contract.py
+tests/test_h3req1_local_pipeline_walk.py
+tests/test_site_diagnostics_security.py
+tests/test_supabase_credentials_contract.py
+web/src/components/AdminCourseQueue.tsx
+FG2_FULL_LOCAL_PATHS
+)
    # Exact retired paths stay allowlisted so scoped deletions still run this gate.
    # R19's exact reconciled candidate and catalog-reference closure are checked against this list by
    # tests/test_protected_path_scope_guard.sh; keep deletions and ignored evidence explicit.
@@ -1392,6 +1438,10 @@ H3_LOCAL_PATHS
        matcher_status=$?
        if [ "$matcher_status" -eq 1 ]; then
          grep -Fqx -- "$candidate" <<< "$allowed_h1_local"
+         matcher_status=$?
+       fi
+       if [ "$matcher_status" -eq 1 ]; then
+         grep -Fqx -- "$candidate" <<< "$allowed_fg2_full_local"
          matcher_status=$?
        fi
        set -e

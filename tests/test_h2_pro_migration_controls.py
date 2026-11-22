@@ -9,7 +9,14 @@ from unittest.mock import patch
 import pytest
 
 from scripts.maintenance import check_db_parity, db_migrate
-from scripts.maintenance.pro_h3_migration_manifest import H3_PRO_MIGRATIONS
+from scripts.maintenance.pro_h3_migration_manifest import (
+    FG2_PROFILE_ONBOARDING_MANIFEST_NAME,
+    FG2_PROFILE_ONBOARDING_MIGRATION,
+    FG2_PROFILE_ONBOARDING_MIGRATION_SHA256,
+    FG2_PROFILE_ONBOARDING_MIGRATIONS,
+    H3_PRO_MIGRATIONS,
+    validate_fg2_profile_onboarding_manifest_tree,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +39,10 @@ def test_db_migrate_requires_closed_manifest_for_pro() -> None:
     )
     for name in ("h2-contract-public-reader", "h2-contract-legacy-cohort", "h2-rollback-public-reader-contract"):
         assert name in db_migrate.PRO_MIGRATION_MANIFESTS
+    assert db_migrate.PRO_MIGRATION_MANIFESTS[FG2_PROFILE_ONBOARDING_MANIFEST_NAME] == (
+        FG2_PROFILE_ONBOARDING_MIGRATION,
+    )
+    assert validate_fg2_profile_onboarding_manifest_tree(ROOT / "db/migrations") == FG2_PROFILE_ONBOARDING_MIGRATION_SHA256
     assert 'parser.error("--manifest es obligatorio para Pro")' in text
     assert "--only no esta permitido con --env pro" in text
     assert "resolve_migration_files(requested_migrations)" in text
@@ -44,6 +55,21 @@ def test_db_migrate_requires_closed_manifest_for_pro() -> None:
     assert "Dry-run Pro en CI requiere ledger remoto accesible" in text
     assert "sha256:<64 hex chars>" in text
     assert "F10_8_ALLOWED_PRO_ONLY_MIGRATIONS" not in text
+
+
+def test_fg2_onboarding_migration_is_atomic_runner_compatible_and_report_dry_run() -> None:
+    migration_path = ROOT / "db/migrations/20261120120000_fg2_profile_onboarding_state.sql"
+    migration = migration_path.read_text(encoding="utf-8")
+    top_level_commands = [line.strip().upper() for line in migration.splitlines()]
+
+    assert "BEGIN;" not in top_level_commands
+    assert "COMMIT;" not in top_level_commands
+    assert "SECURITY INVOKER" in migration
+    assert "SET search_path = pg_catalog" in migration
+    assert migration.count("conrelid = 'public.institution_site_profiles'::regclass") == 2
+    assert "REVOKE ALL ON FUNCTION public.fg2_profile_onboarding_schema_contract() FROM PUBLIC" in migration
+    assert "GRANT EXECUTE ON FUNCTION public.fg2_profile_onboarding_schema_contract() TO service_role" in migration
+    assert db_migrate.apply_migration(object(), str(migration_path), dry_run=True) is True
 
 
 def test_h3_pro_manifest_is_closed_pinned_and_has_h2_compat_preflight() -> None:
@@ -77,10 +103,12 @@ def test_db_sync_workflow_uses_manifest_and_authorization_gate() -> None:
     assert "h2-contract-legacy-cohort" in text
     assert "h2-rollback-public-reader-contract" in text
     assert "h3-editorial-expand" in text
+    assert "fg2-profile-onboarding" in text
     assert "h3-editorial-expand" in manifest_allowlist
     assert 'test "${GITHUB_REF_NAME}" = "main"' in text
     assert 'case "$MIGRATION_MANIFEST" in' in text
     assert "validate_h3_manifest_tree" in text
+    assert "validate_fg2_profile_onboarding_manifest_tree" in text
     assert "--h3-manifest \"$MIGRATION_MANIFEST\"" in text
     assert "h2_expected_eligible_count:" in text
     assert "h2_expected_cohort_digest:" in text
@@ -119,6 +147,53 @@ def test_db_sync_workflow_uses_manifest_and_authorization_gate() -> None:
     assert "/advisors?type=" not in text
     assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in text
     assert "production_control_preflight.sh DB-SYNC --enforce" in text
+    assert 'test "${GITHUB_REF_NAME}" = "main"' in text.split(
+        "            fg2-profile-onboarding)", 1
+    )[1].split(";;", 1)[0]
+    assert 'check_db_parity.py --env pro --target-only --fg2-manifest "$MIGRATION_MANIFEST"' in text
+    assert 'Authorized FG2 migration SHA256: ${fg2_migration_sha}' in authorization_gate_run
+
+
+def test_fg2_report_and_verify_are_read_only_and_apply_requires_jit() -> None:
+    workflow = read(".github/workflows/db-sync-to-pro.yml")
+    report = workflow.split("  report:\n", 1)[1].split("  apply:\n", 1)[0]
+    apply = workflow.split("  apply:\n", 1)[1].split("  verify:\n", 1)[0]
+    verify = workflow.split("  verify:\n", 1)[1].split("  defer-fg2:\n", 1)[0]
+    apply_condition = apply.split("    runs-on:", 1)[0]
+
+    assert 'db_migrate.py --env pro --dry-run --manifest "$MIGRATION_MANIFEST"' in report
+    assert "inputs.operation == 'apply'" in apply_condition
+    assert "inputs.apply_authorized" in apply_condition
+    assert "inputs.backup_pitr_verified" in apply_condition
+    assert "inputs.ddl_authorization_id != ''" in apply_condition
+    assert "fromJSON(needs.report.outputs.pending_count) > 0" in apply_condition
+    assert 'if: inputs.operation == \'apply\'' in apply
+    assert "Authorized FG2 migration SHA256:" in apply
+    assert "check_db_parity.py --env pro --target-only --fg2-manifest" in verify
+    assert "db_migrate.py --env pro --manifest" not in verify
+
+    auth_step = workflow.split("      - name: Verify explicit DDL authorization\n", 1)[1].split(
+        "\n      - name:", 1
+    )[0]
+    auth_script = textwrap.dedent(auth_step.split("        run: |\n", 1)[1])
+    rejected = subprocess.run(
+        ["bash", "-eu", "-c", auth_script],
+        cwd=ROOT,
+        env={
+            "PATH": os.environ["PATH"],
+            "DDL_AUTHORIZATION_ID": "",
+            "CANDIDATE_SHA": "a" * 40,
+            "MIGRATION_MANIFEST": FG2_PROFILE_ONBOARDING_MANIFEST_NAME,
+            "PAYLOAD_SHA": "b" * 40,
+            "H2_EXPECTED_ELIGIBLE_COUNT": "224",
+            "H2_EXPECTED_COHORT_DIGEST": "sha256:" + "c" * 64,
+        },
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert rejected.returncode != 0
 
 
 def run_workflow_manifest_preflight(root: Path, manifest: str) -> subprocess.CompletedProcess:
@@ -183,7 +258,7 @@ def test_shared_manifest_registry_needs_only_standard_library() -> None:
     code = (
         "import sys; sys.path.insert(0, 'scripts'); "
         "from maintenance.pro_h3_migration_manifest import PRO_MIGRATION_MANIFESTS; "
-        "assert len(PRO_MIGRATION_MANIFESTS) == 6; "
+        "assert len(PRO_MIGRATION_MANIFESTS) == 7; "
         "assert not {'requests', 'dotenv', 'shared.db_client'} & sys.modules.keys()"
     )
     result = subprocess.run(
@@ -213,6 +288,83 @@ def test_check_db_parity_has_h2_manifest_specific_contracts() -> None:
     assert "debe preservar lectura publica legacy de courses" in text
     assert "h2 contract debe retirar lectura publica directa de courses" in text
     assert "legacy_public_required" in text
+
+
+def test_fg2_schema_verify_is_separate_read_only_contract(monkeypatch) -> None:
+    contract = {
+        "schema_version": 1,
+        "table_exists": True,
+        "effective_modes_nullable": True,
+        "columns": {
+            name: {
+                "data_type": data_type,
+                "is_nullable": nullable,
+                "column_default": default,
+            }
+            for name, (data_type, nullable, default)
+            in check_db_parity.FG2_PROFILE_ONBOARDING_COLUMNS.items()
+        },
+        "constraints": {
+            name: {"definition": definition, "validated": True}
+            for name, definition in check_db_parity.FG2_PROFILE_ONBOARDING_CONSTRAINTS.items()
+        },
+        "function": {
+            "identity_arguments": "",
+            "return_type": "jsonb",
+            "volatility": "s",
+            "security_definer": False,
+            "search_path": ["search_path=pg_catalog"],
+            "anon_can_execute": False,
+            "authenticated_can_execute": False,
+            "service_role_can_execute": True,
+        },
+    }
+
+    class Response:
+        def __init__(self, status_code, value=None):
+            self.status_code = status_code
+            self._value = value
+            self.content = b"contract" if value is not None else b""
+
+        def json(self):
+            return self._value
+
+    monkeypatch.setattr(
+        check_db_parity,
+        "service_select",
+        lambda *_args, **_kwargs: [{"name": FG2_PROFILE_ONBOARDING_MIGRATION}],
+    )
+    monkeypatch.setattr(
+        check_db_parity,
+        "service_get",
+        lambda *_args, **_kwargs: Response(200, contract),
+    )
+    monkeypatch.setattr(check_db_parity, "public_get", lambda *_args, **_kwargs: Response(403))
+    monkeypatch.setattr(
+        check_db_parity,
+        "service_post_rpc",
+        lambda *_args, **_kwargs: pytest.fail("FG2 verify must not invoke H2/H3 RPCs"),
+    )
+
+    status, details = check_db_parity.check_fg2_profile_onboarding_manifest_contract(
+        object(), FG2_PROFILE_ONBOARDING_MANIFEST_NAME
+    )
+    assert status == "OK"
+    assert details == []
+
+    incomplete = dict(contract)
+    incomplete["columns"] = dict(contract["columns"])
+    incomplete["columns"].pop("diagnostic_provenance")
+    monkeypatch.setattr(
+        check_db_parity,
+        "service_get",
+        lambda *_args, **_kwargs: Response(200, incomplete),
+    )
+    status, details = check_db_parity.check_fg2_profile_onboarding_manifest_contract(
+        object(), FG2_PROFILE_ONBOARDING_MANIFEST_NAME
+    )
+    assert status == "ERROR"
+    assert any("diagnostic_provenance" in detail for detail in details)
 
 
 def test_check_db_parity_pins_pro_service_requests_to_canonical_host() -> None:

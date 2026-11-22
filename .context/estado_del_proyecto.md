@@ -6,6 +6,299 @@
 
 ## Corte vigente
 
+### H1REQ1 — FG2 completo: handoff, ruta DDL aislada y colisión de constraint, 2026-11-21 13:09 America/Lima
+
+El paquete local sigue basado en Desarrollo `95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b`, en `feat/fg2-full-pipeline-20261121`. Según el TL, el último HEAD publicado de #575 es `debe175cf04777aa5d4a88f98787f88d20bb6fcf`; el run `44922421641` falló en `tests/fg2_full_pipeline_pg17/run.sh:223` por `Permission denied` al reemplazar el manifiesto entre UIDs, y `security-audit` agregó el fallo. `PostgreSQL DB Change Gate` fue SUCCESS. Sus NOTICE sobre `crawler_exclusions does not exist, skipping` proceden de `DROP TABLE IF EXISTS` en `20260827_h2_pro_expand_schema_compat.sql:7` dentro del PG17 efímero; no prueban ausencia en Pro/Free ni justifican recrear la tabla legacy. No se volvió a consultar el estado remoto.
+
+El fix de handoff usa directorio de intercambio `1777`, reemplaza la entrada anterior en vez de truncar archivo de otro dueño y exporta el manifiesto `0644`. Productor UID 1000 y consumidor UID 2000: `0600` da `EACCES`, el export `0644` se lee con el mismo SHA y el loader real `FG2CohortManifest.load` rechaza el archivo ausente. Evidencia: `/tmp/fg2-manifest-0600-proof-20261121.log`, `/tmp/fg2-manifest-uid-proof-remainder-20261121.log`, `/tmp/fg2-manifest-missing-consumer-proof-20261121.log`. Un helper previo de ausencia falló en `sha256sum` y no se cuenta como PASS; el log válido usa el consumidor real.
+
+La lectura TL de Pro informa que existen las tablas operativas y faltan seis columnas de onboarding. No se hizo otra lectura Pro. No hay lectura de metadata Free que pruebe su schema o paridad; no se copia ni se infiere. El onboarding FG2 tiene una ruta separada de H3: manifest `fg2-profile-onboarding`, migration única `20261120120000_fg2_profile_onboarding_state`, SHA-256 `12de04d082169043f21500ec907940b125ab0821cbd98296a7ef5a506f90ecad`. Report es dry-run, Verify es lectura, y Apply exige `main`, Production, backup/PITR, aprobación JIT con manifest/payload/SHA exactos y `apply_authorized`. La prueba del gate rechaza el Apply sin autorización. El inventario y los digests H3 permanecen intactos; no hubo DDL/DML remoto.
+
+Una revisión local detectó y corrigió un caso idempotente: PostgreSQL permite repetir un nombre de constraint en tablas distintas, así que la existencia se comprueba ahora además por `conrelid`. El fixture PG17 crea deliberadamente la colisión en otra tabla; migration + E2E completo terminaron PASS sobre la nueva huella. Resultado sintético: seis cursos, cinco pendientes en Admin de tres instituciones y cero públicos; SSR, SPA, ecommerce, refresh `processed`, fallo/reanudación, manifest entre procesos y contrato schema (seis columnas, cuatro checks validados, RPC público denegado). Proveedor `local_smart_mock`, red Docker interna sin egress; no acredita proveedor, datos, permisos ni runtime productivo.
+
+La selección Python completa anterior dio 543 passed, 1 warning y 8 subtests, y el grupo duplicado 40 passed. Después del fix SQL/fixture se repitió la suite afectada de controles manifest/report/apply/verify: 33 passed; E2E actual: PASS. Compilación, scans, guard, `actionlint` 1.7.7 y `ShellCheck` 0.11.0 pasaron en el corte anterior y sus entradas no cambiaron con el fix SQL. El selector R21/self-test pasó con 789 fuentes, 9.527 enlaces y 4.831 anchors. El estándar conserva **FAIL**: 348 diagnósticos en base/candidato, cero nuevos/cero resueltos, lista SHA-256 `e739d874045f360b218d5590fcd0b60cb46c6c248c337cddcce308ff9e1edaa0`; la comprobación excluyó artefactos `.pytest_cache` temporales. La disposición previa no cubre esta huella. La revisión manual enfocada confirma RPC de schema sin filas operativas, `SECURITY INVOKER`, `search_path=pg_catalog` y `EXECUTE` solo para `service_role`; el scanner formal Codex Security no se ejecutó.
+
+No hubo commit, push, edición remota de #575, merge, promoción, SQL Pro/Free, configuración, dispatch ni scraping en Free/Certificación. El patch acumulado actual no se publicará bajo la autorización de SHA anterior. Próxima decisión: autorizar exactamente el hash congelado para commit/push no forzado y actualización de #575 con CI/Preview/seguimiento, más una disposición temporal exclusiva hacia Desarrollo por los 348 diagnósticos idénticos. Tras integrar: validar schema Free según sus controles antes de aceptación remota; promover por PRs protegidos; usar report/apply/verify FG2 en Pro con JIT y recuperación; mantener writers pausados hasta verify y después preparar el piloto propio. Este corte local no declara GO productivo ni cierre H1.
+
+### H1REQ1 — FG2 multiformato: cierre local tras corrección del transporte browser, 2026-11-21 02:20 America/Lima (histórico, supersedido)
+
+El candidato local sigue basado en `desarrollo@95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b` y permanece aislado. El cierre de seguridad del snapshot anterior descubrió una brecha material: `universal_harvester.py` mediaba HTTP, pero no WebSocket en su `BrowserContext`; el control existente correspondía al diagnóstico. El candidato ahora registra `route_web_socket` antes de crear páginas, deshabilita y verifica WebRTC/WebTransport sobre `about:blank`, falla cerrado si la guarda no está disponible y detiene la institución ante un intento WebSocket sin persistir el detalle parcial. La regresión usa Chromium y respuestas sintéticas sin egress; verifica cierre 1008, ausencia de URL/parametro sensible en logs y staging conservado en `discovered`. La prueba estructural solo permite la navegación interna literal `about:blank`. Arquitectura y ficha pipeline se corrigieron para describir el runtime real.
+
+La selección completa Python de CI sobre el candidato actual terminó con **539 passed, 1 warning de deprecación y 8 subtests passed**; incluye ambas variantes Chromium SPA/ecommerce y la regresión de transporte. Log: `/tmp/fg2-final-ci-python-20261121-ws-guard3.log`. El fixture E2E PG17/PostgREST terminó PASS: 6 cursos sintéticos en `courses`, 5 pendientes en Admin de 3 instituciones y 0 públicos; recorrió SSR, SPA y ecommerce, refresh desde `processed`, fallo de cleansing y recuperación, manifests entre procesos y RPC Admin. Proveedor `local_smart_mock`; Postgres 17/PostgREST efímeros en red interna sin egress. El código runtime, migraciones y fixtures E2E no cambiaron después de ese run; la aserción AST añadida luego pertenece solo a la selección Python. Log: `/tmp/fg2-e2e-final-ws-guard-20261121.log`. Esto no acredita datos de instituciones, proveedor real, permisos Pro ni interfaz Admin visual/autenticada.
+
+Compilación de todos los scripts, scan de writers, credential scan de árbol y diff, regresiones del scope guard, `tests/test_scan_credentials.sh` y `git diff --check` pasaron. Los checks `actionlint` y `ShellCheck` se reutilizan: sus workflows y scripts de entrada no cambiaron. El selector documental R21/self-test pasó con 789 fuentes, 9.527 enlaces y 4.831 anchors. El gate documental standard conserva **FAIL**: comparación limpia base/candidato de 348 diagnósticos idénticos, cero nuevos y cero resueltos; hash SHA-256 de las listas ordenadas `e739d874045f360b218d5590fcd0b60cb46c6c248c337cddcce308ff9e1edaa0`. La disposición previa no cubre esta huella; se necesita una disposición temporal nueva y limitada a Desarrollo.
+
+La revisión manual de seguridad del delta final no halló otros defectos materiales. El scanner formal Codex Security no se ejecutó: el launcher sigue rechazando el checkout con `Review changes requires a non-bare Git worktree with a resolvable HEAD`; no se repitió ni se declara PASS. El gate H2 Main Production Expand no aplica a la publicación objetivo a Desarrollo; no se marcó como aprobado. No hubo push, PR, merge, configuración, DDL/DML remoto, dispatch ni scraping institucional. FG1/FG3 no se modificaron.
+
+El inventario final de rutas y la huella de patch se registran fuera del paquete en `/tmp/fg2-final-snapshot-inventory-20261121.txt`. Siguiente decisión humana: autorizar un único PR a Desarrollo con CI/Preview y monitoreo, y una disposición documental nueva, exacta a esa huella, para los 348 diagnósticos heredados; sin esas decisiones no se publica. No declara GO productivo.
+
+### H1REQ1 — FG2 multiformato: cierre local del snapshot pre-revisión, 2026-11-21 01:36 America/Lima
+
+Este corte quedó supersedido por la detección y corrección del guard WebSocket del runtime de cosecha que se documenta arriba. Su evidencia sigue vigente solo cuando sus entradas no cambian; su declaración previa de que el P1 WebSocket estaba remediado se limitaba al diagnóstico y no cubría el `BrowserContext` del harvester.
+
+El candidato sigue aislado desde `desarrollo@95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b`; la rama de trabajo es `codex/fg2-full-pipeline-20261120`. El inventario final contiene 43 rutas cambiadas y cero archivos no rastreados. El tree `d90bb13d597b60148034234fe657107dc2510e04` conserva la evidencia funcional de código, E2E y primera revisión documental; las actualizaciones posteriores de este registro son documentales y se validaron por separado. El corte de 17:27 que sigue abajo queda como histórico supersedido. No se hizo push, PR, merge, configuración, DDL/DML remoto, dispatch ni scraping institucional.
+
+La selección Python de CI sobre ese tree terminó con 539 passed, 2 advertencias y 8 subtests passed; el grupo duplicado de CI dio 40 passed y 1 advertencia. La compilación de todos los scripts, el escaneo de writers, el escaneo de credenciales en árbol y diff, y los regresores del protected-path guard pasaron. Evidencia: `/tmp/fg2-pytest-selection-security-fix-20261121.log` y `/tmp/fg2-final-offline-security-checks-20261121.log`.
+
+El E2E completo PG17/PostgREST dio PASS sobre el mismo tree: onboarding y recorrido SSR, refresh desde `processed`, fallo transaccional/reanudación, cleansing, enrichment, sync, transporte de manifiestos entre procesos y consulta RPC Admin. Resultado sintético: 6 cursos en `courses`, 5 pendientes en Admin en 3 instituciones y cero públicos; proveedor `local_smart_mock`, red Docker interna sin egress. No acredita proveedor real, permisos o runtime Pro ni interacción visual/auth completa de Admin. Log: `/tmp/fg2-e2e-security-patch-20261121.log`.
+
+Static Build ejecutó las pruebas Node 20 y los dos runtimes Node 22/Miniflare con PASS; el smoke de build usó datos sintéticos y descargó las fuentes de Google declaradas por la aplicación, sin contactar instituciones. Typecheck, ESLint, actionlint y ShellCheck se reutilizan porque sus inputs no cambiaron desde sus resultados PASS registrados. El contrato PWI también se reutiliza (Node 22: `npm test` 40/40 y runtime 8/8 del 2026-10-20); su fuente, tests y lockfile no cambiaron en este delta. El H2 Main Production Expand Gate queda SKIPPED por aplicarse solo a PR hacia `main`. La migration FG2 aditiva sí se aplicó y verificó en el E2E; el gate agregado `db-gate` de H2/H3 no se repitió porque sus harnesses no cambiaron.
+
+El selector documental efectivo cae en R21 porque el diff no cambia manifests bajo `.context/evidencia`; su self-test dio PASS (789 fuentes, 9.527 enlaces y 4.831 anchors). El checker estándar conserva FAIL: 348 diagnósticos idénticos entre base y candidato, cero nuevos y cero resueltos; SHA de las listas ordenadas `33a2d223a356afa217f629dfea307195a9d15be50821f8d56c2b3a0b503f435b`. La comparación completa de esta huella está en `/tmp/fg2-doc-standard-base-issues-final-exact-20261121.txt` y `/tmp/fg2-doc-standard-candidate-issues-final-exact-20261121.txt`; ambos runs devolvieron FAIL y sus listas coinciden byte a byte. El self-test candidate-aware terminó en PASS sobre el snapshot. Tras actualizar este corte, `tests/test_obsidian_context_state.py` dio 8 passed y el scan de credenciales tree/diff dio PASS.
+
+La revisión de seguridad independiente confirmó remediado el P1 de Chromium sin sandbox y WebSocket no mediado, sin nuevos hallazgos materiales en el diff revisado. La revisión manual no equivale al scanner formal: el launcher ya había rechazado este worktree con `Review changes requires a non-bare Git worktree with a resolvable HEAD`; no se repitió esa llamada sin evidencia nueva ni se declara scanner PASS. La huella del código revisado coincide con el tree anterior; solo cambia este checkpoint factual.
+
+El subgate de imagen se cierra reutilizando la imagen local existente, porque sus entradas de build no cambiaron: `Dockerfile`, `.dockerignore`, `requirements-pipeline.txt`, `init-container.sh`, `web/package.json`, `web/package-lock.json` y el tarball vendorizado coinciden byte a byte con la revisión que construyó la imagen el 2026-10-19, posterior al último cambio de Dockerfile del 2026-10-18. La imagen `studiamatch-h3req1:sync-a57bc415-rebuilt-20261018` tiene ID `sha256:bb30d6237846f120d39b7c9794f8eb0c938c69e8cc15e0e93d2ca03641a7ade1`; sus hashes observados son: requirements `922db6ec7a6cf13978ab9e3f27ecc4e82b3e1d8807c0b519cea0ab7608ba1bf0`, bootstrap `8dd14ad53e9b23b6741786f1b2716707b2577d78d2e2791a68f1f95deaa173ca`, `package.json` `dfdd9a7ea0ff192c7eda7c33d9a2141b5b761fb0c53c472d8209e4fa2c309ab2` y lock `d526163caba9300baf9329121979b9c9bc1bd24dfc10b1b4159d0ee8a36334db`; Node es `v20.20.2` y npm `10.8.2`. Por eso las pruebas locales ejecutadas en esa imagen conservan el mismo runtime y dependencias del Dockerfile vigente. Dos reconstrucciones más recientes quedaron incompletas en `RUN chown -R "1000:1000" /opt/node-staging`; el intento con cache también informó `insufficient_scope` al importar la caché. No se afirma que esas reconstrucciones hayan pasado ni que el motor Docker haya fallado. Logs: `/tmp/fg2-docker-build-final-20261120.log` y `/tmp/fg2-docker-build-cache-from-security-patch-20261121.log`.
+
+El snapshot completo, su inventario con hashes por ruta y el resultado de `git diff --check` se conservan en `/tmp/fg2-final-snapshot-inventory-20261121.txt`. Los gates locales aplicables están cerrados con los límites indicados; el checker documental estándar sigue FAIL heredado con delta cero y requiere disposición temporal específica para esta huella antes de publicar. Siguiente operación: solicitar autorización exacta de un único PR a Desarrollo y, por separado o en la misma decisión, la disposición documental temporal descrita para los 348 diagnósticos históricos. No se hizo push ni PR. El E2E usa webs sintéticas y smart mock, por lo que no es GO productivo. FG1/FG3 conservan su estado y no se modificaron.
+
+### H1REQ1 — FG2 multiformato: checkpoint de validación reanudado, 2026-11-20 17:27 America/Lima
+
+El candidato local continúa en `/tmp/h1req1-fg2-full-20261120`, rama
+`codex/fg2-full-pipeline-20261120`, con base y HEAD de origen
+`desarrollo@95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b`. Inventario actual:
+40 rutas (25 modificadas y 15 nuevas); el diff incluye código FG2, regresiones,
+una migración aditiva y documentos afectados. No se hizo commit en ese checkout,
+push, PR, merge, configuración, DDL/DML remoto ni dispatch. El SHA final se
+calculará después de las validaciones que siguen pendientes.
+
+El TL y los logs locales conservan evidencia válida de una revisión anterior
+del paquete: la selección Python de CI dio 536 passed, 8 subtests passed y una
+advertencia de deprecación; la suite duplicada, 40 passed; el ensayo PG17 +
+PostgREST dio PASS con 6 cursos sintéticos, 5 pendientes de Admin en 3
+instituciones, 0 cursos públicos, 64 solicitudes sintéticas, 3 respuestas 429
+sin reintento y proveedor `local_smart_mock`. Los registros conservados son
+`/tmp/fg2-python-ci-reconciled-20261120.log` y
+`/tmp/fg2-e2e-final-origin-scope-20261120.log`. El ensayo atravesó los cuatro
+entrypoints, restauró manifests entre procesos, probó refresh desde `processed`,
+fallo transaccional de cleansing y recuperación. Solo acredita SQL/RPC local y
+la consulta Admin: no acredita proveedor institucional, permisos Pro ni la
+interacción visual/auth de Admin.
+
+Esos dos resultados son anteriores a la última edición del harness que hace
+que CI registre el SHA de la cabeza del PR, añade su regresión de procedencia
+y ejecuta el auditor de eventos dentro del contenedor. Por ello no se atribuyen
+a la huella actual y la selección completa de CI y el E2E deben repetirse sobre
+el snapshot final. actionlint 1.7.7, `bash -n` del runner y `git diff --check`
+pasaron después de la edición local; ShellCheck no se ejecutó en esta huella.
+Lint/typecheck/build web se reutilizan solo porque esos archivos no cambiaron.
+
+El fixture Docker local sigue dentro de la autorización sintética recibida, pero
+el daemon responde `permission denied` al socket. La elevación de sandbox fue
+rechazada antes de ejecutarse porque el revisor automático no pudo renovar el
+token de sesión (`refresh token was revoked`); no se intentará eludir ni repetir
+la elevación. Quedó solicitada la reautenticación de Codex Desktop para reabrir
+ese gate.
+
+El selector documental candidate-aware R21 y su self-test dieron PASS antes de
+este checkpoint; la comparación del gate estándar con Desarrollo conserva
+FAIL de 348 diagnósticos históricos idénticos, cero nuevos. La comparación
+anterior tuvo diff vacío sobre las líneas ordenadas y SHA-256
+`e739d874045f360b218d5590fcd0b60cb46c6c248c337cddcce308ff9e1edaa0`.
+Sus registros son `/tmp/fg2-doc-standard-base-reconciled-20261120.log` y
+`/tmp/fg2-doc-standard-candidate-reconciled-20261120.log`. La comparación
+precede a esta edición documental y debe repetirse contra el texto final. La
+causa histórica documentada es referencias retiradas/incompletas sin copia
+autorizada. No hay una disposición documental aprobada para la huella actual.
+
+La revisión de Codex Security no se ejecutó. Setup aceptó el rango, pero el
+launcher devolvió `Review changes requires a non-bare Git worktree with a
+resolvable HEAD.` El clon autónomo usado para revisión sí es no bare, tiene HEAD
+resoluble, contiene la base y estaba limpio; por tanto el resultado es una
+limitación del launcher, no evidencia de Git roto. La revisión manual detectó
+que una URL sanitizada de más de 2.048 caracteres se truncaba silenciosamente y
+podía conservar estado verificable. Se corrigió `_safe_url()` para redactarla y
+forzar revisión; se añadió una regresión y se documentó. Esa nueva prueba aún no
+se ejecutó por el bloqueo Docker. El scan formal no corrió y no se declara PASS
+del scanner ni revisión final cerrada.
+
+La transición documentada es `expand -> compatibilidad -> deploy -> contract`.
+Tras promoción, antes de activar onboarding se requiere instalar, con JIT DDL,
+`db/migrations/20261120120000_fg2_profile_onboarding_state.sql`; configurar,
+con aprobación separada, `FG2_PROFILE_DIAGNOSTICS_ENABLED`,
+`FG2_PROFILE_DIAGNOSTIC_SLUGS`, `FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED` y
+`FG2_PROFILE_AUTO_ACTIVATE_VERIFIED` en el entorno destino. Los defaults siguen
+apagados; no se configuró ningún ambiente. Mantener perfiles existentes durante
+compatibilidad; revertir primero flags a false y volver al caller anterior si
+falla, y posponer `contract` hasta evidencia funcional aprobada. La migración no
+se ejecutó en Development, Certification ni Pro.
+
+Siguiente gate exacto: reautenticar la sesión Codex Desktop para que se pueda
+revisar el acceso al daemon; luego repetir la selección completa actual de CI,
+el E2E, ShellCheck/escáneres y los gates documentales aplicables sobre una única
+huella final. Solo con esos resultados se puede congelar el diff y solicitar
+una decisión nueva para commit, push y un único PR a Desarrollo, más una
+disposición documental exclusiva para ese SHA. No se depende de ejecutar un
+piloto para publicar el arreglo, pero tampoco se declara listo el piloto.
+FG1/FG3 no se modificaron; #266 no acredita una ejecución funcional.
+
+### H1REQ1 — FG2 multiformato: checkpoint de exploración inicial, sustituido, 2026-11-20 11:54 America/Lima
+
+El checkout aislado de preparación es
+`/tmp/h1req1-fg2-full-20261120`, rama local
+`codex/fg2-full-pipeline-20261120`, base `desarrollo@95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b`.
+HEAD sigue en esa base, sin commit; main contrastado localmente en
+`b306c990087fd9d3a6eeb55c600d0d9595fddf16`. El checkout tiene 19 rutas
+modificadas o nuevas tras esta actualizacion documental; no hay huella final
+congelada, PR, push ni publicacion.
+
+La fuente sanitizada `ADENDA-REQ-EST-001-001` asigna FG2 a H1-CA1 y requiere
+operacion segura del harvester/pipeline, gates, circuit breakers y evidencia
+funcional; no desglosa onboarding ni los modos web. Las instrucciones del
+responsable del 2026-11-20 autorizan su implementacion local como decisiones
+tecnicas para completar FG2. Se registro esa distincion en
+`evidencias_cliente/sprint_1/paquete_hito_001.md`: no es aceptacion contractual
+nueva, no promete que cualquier fuente externa sea procesable y no cambia
+`EVID-H1-001` ni el estado de conformidad. Por tanto, la trazabilidad ya no
+bloquea el trabajo local solicitado. Si se pretende presentar los modos como
+criterios contractuales nuevos o prometer procesabilidad universal, falta una
+fuente directa de `SRC-REQ-002-DOCX` o una confirmacion del aprobador cliente;
+ese documento privado no se declara leido en este corte.
+
+Revisión estática preliminar, todavía sin validación ejecutable del candidato:
+
+- El preflight valida semillas por rol, pero el manifiesto FG2 vigente no
+  separa semillas fuente de URLs de detalle: rechaza query strings en
+  `seed_urls` y exige que esas semillas pertenezcan al scope de cursos. Esto
+  bloquea catálogos paginados comunes con `?page=1` y no prueba el contrato
+  pedido de discovery; requiere un modelo de manifiesto que distinga fuentes y
+  candidatos antes de afirmar soporte completo.
+- `universal_harvester.py` contiene una captura amplia de errores en la lectura
+  de páginas de discovery. Sin un motivo estructurado, una respuesta sin links
+  podría parecer un lote sin trabajo; debe exponer una categoría sanitizada y
+  bloquear estaciones posteriores cuando corresponda.
+- `tests/test_fg2_bounded_workflow.py` ejecuta entrypoints reales, pero su
+  `FileBackedFG2E2EDatabase` implementa en Python transiciones RPC de cleansing,
+  enrichment y editorial. Esa prueba acredita solo orquestación sintética; no
+  es un E2E con SQL real ni sustituye un fixture PG17.
+- La suite existente no acredita actualmente SPA/ecommerce ejecutados por el
+  navegador con cada request/subrecurso, redirect, origen y resolución segura.
+  La clasificación JS sola no acredita bloqueo ni autoriza stealth.
+- En esta continuación se corrigieron localmente las variables duplicadas del
+  job y se conectó el validador del perfil a cada request/redirect; el cambio
+  sigue sin tests Docker. El allowlist de subrecursos requiere regresión
+  sintética adicional. No se declara PASS.
+
+El usuario autorizó un PostgreSQL 17 desechable, sin red externa, con las
+migraciones versionadas de pipeline/editorial/cola y datos sintéticos. La
+verificacion autorizada mas reciente del daemon informa Docker `29.9.3/29.9.3`;
+no se requiere reinicio. Todavia no se ejecutaron pruebas ni migraciones de este
+candidato. El JIT PG17 no autoriza Pro ni scraping. Si el ensayo necesita que
+los entrypoints usen PostgREST real, primero se presentara el complemento exacto
+para una red interna de contenedores sin egress ni credenciales reales.
+
+La evidencia de **500 pruebas y 10 subtests** consignada en el checkpoint
+anterior corresponde a otra huella y no se reutiliza. Tampoco se reutiliza su
+afirmación de E2E funcional: el fixture de archivo anterior sustituye
+persistencia/RPC por lógica de prueba. `git diff --check` sí pasó en el checkout
+actual; ese resultado solo comprueba whitespace.
+
+Siguiente paso: corregir la indentacion reportada por el TL y ejecutar en
+Docker, en este orden, `py_compile` y una importacion controlada antes de
+pruebas focales. La bateria previa de 508 pruebas pertenece a otra huella y no
+se reutiliza. FG1/FG3 y sus controles no fueron modificados.
+
+### H1REQ1 — FG2: selección alineada y ensayo integral local, 2026-11-19 22:01 America/Lima
+
+El piloto FG2 **#265 no acreditó trabajo funcional**: superó la lectura inicial
+de inventario, pero las diez semillas `/pregrado/` del perfil estaban excluidas.
+El artefacto terminó en `no_op`, con cero solicitudes HTTP y cero entradas de
+cohorte. Se mantiene la postcondición que falla ante cohorte vacía. El step de
+`CA1 Audit Boundary` solo declara el límite de alcance después de sync; no es
+una auditoría de datos ni evidencia de E9.
+
+La corrección local está en el checkout aislado
+`/tmp/h1req1-fg2-endtoend-20261119`, basado en
+`desarrollo@95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b`. Main vigente releído por
+GitHub es `b306c990087fd9d3a6eeb55c600d0d9595fddf16`; Certificación es
+`edd7287376ed390e2c4b6fdc746b82cdfae4d2e2`. Los tres comparten tree
+`ad1e9e0eff341133d37238b61019cd69c73802da`; Desarrollo es ancestro de
+Certificación y Certificación es ancestro de main. No se sincronizaron ramas.
+
+`validate_controlled_profile()` y `UniversalHarvester._is_valid_crawl_url()`
+ahora comparten `profile_url_policy_rejection()`. La selección hardcoded toma
+hasta diez URLs runtime-admisibles en orden del perfil; un lote revisado con
+una URL rechazada no se sustituye en silencio, y cero semillas procesables
+falla cerrado antes del contacto. Las páginas sitemap/catálogo son fuentes de
+discovery: conservan validación de origen y pertenencia al lote, mientras que
+extensiones, exclusiones y `allowed_url_patterns` se aplican a los detalles
+extraídos. `scheduled_cohort` conserva esta política para hardcoded y su
+semilla `/sitemap.xml` para sitemap programado. No se quitó ninguna exclusión.
+
+La selección Python exacta de `security-audit.yml` corrió en Docker sin red:
+**500 passed y 10 subtests passed**; el grupo duplicado separado del workflow
+sumó **40 passed**. Solo apareció la advertencia de deprecación PyPDF2. Esta
+selección incluye las suites FG2 y el ensayo integral sintético. Los restantes
+pasos offline del job también pasaron: escaneo H2 de writers, regresiones de
+credenciales, guard de rutas y compilación de scripts Python. El escaneo de
+credenciales del árbol y diff y la comparación del guard protegido pasaron. El
+selector documental real de Actions eligió el manifiesto R21 de respaldo y su
+self-test pasó con el scope H1; cobertura 774/774 fuentes, 9.473 enlaces,
+4.778 anchors, 122/122 documentos activos alcanzables y 433/433 catálogos
+históricos enlazados.
+
+El lanzamiento de Codex Security para revisión del diff no creó un scan: la
+inspección del setup validó el target, pero el launcher rechazó tanto el clon de
+validación por commit como el checkout por working tree con el mensaje
+`Review changes requires a non-bare Git worktree with a resolvable HEAD.` La
+revisión manual no sustituye ese scan; no se afirma ausencia formal de findings
+HIGH/CRITICAL. La revisión de seguridad independiente sigue pendiente.
+
+El ensayo end-to-end ejecuta los entrypoints reales del YAML en procesos
+separados (harvester con subprocess, cleansing, enrichment y sync); restaura y
+verifica el SHA del manifest entre runners sintéticos. Produjo dos filas de
+staging y recorrió ambas por las cuatro estaciones. Un fallo simulado de RPC de
+enrichment salió no-cero, no habilitó sync, no creó salida parcial en alcance,
+y permitió reanudar exactamente la cohorte. El refresh conservó publicación y
+override editorial; el curso nuevo quedó `pending_review`; filas pendientes
+fuera del alcance permanecieron intactas. HTTP, proveedor y persistencia fueron
+fixtures; el contenedor no tenía red ni secretos. Los casos sintéticos 403/429
+conservan un único request por origen y la continuación solo se permite con
+otras instituciones ya congeladas.
+
+Lectura Pro de solo lectura, 2026-11-19 21:55–22:00 America/Lima, identificó
+que la cohorte revisada actualmente no ofrece URLs procesables bajo el contrato
+de estados staging protegidos. El lote y el runtime fallan cerrados ante esas
+filas; no se reabrieron ni repararon. Después de integrar el código hará falta
+una lectura fresca de la rotación y un manifiesto nuevo para un alcance que sí
+sea procesable. No se fuerza otra institución ni se amplía la cohorte. Los
+valores de inventario, URLs, IDs, digests y estados específicos quedan solo en
+el changelog/evidencia local no versionados; este documento no contiene esas
+filas ni snapshots privados.
+
+El catálogo Pro confirmó la forma de las tablas y RPCs que utilizan los
+workers; las firmas, ACL y fingerprints de definiciones se registraron en el
+changelog no versionado. Solo se consultaron metadatos y datos con SELECT; no
+se invocaron RPCs. Esta lectura no demuestra que las credenciales del workflow
+puedan escribir ni equivale a una transacción funcional. La autorización de
+#265 quedó consumida; no se ejecutó otro piloto, no hubo tráfico institucional,
+llamadas a proveedores reales, escrituras Pro, dispatch ni cambios de flags.
+
+La transición sigue `expand -> compatibilidad -> deploy -> contract`: el modo
+controlado se alinea con el runtime, el camino ordinario mantiene su contrato,
+`deploy` requiere PR/promociones y gates protegidos, y `contract` queda pendiente
+de corrida funcional autorizada y postflight. Recuperación ante fallo: restaurar
+la pausa bajo la autorización JIT vigente, verificar por lectura y no reparar ni
+reintentar escrituras inciertas. E9 no está acreditado; E10/E11 y activación de
+crons permanecen pendientes. H3 aceptado no cambia.
+
+El gate documental estándar conserva **FAIL** frente a Desarrollo: 348
+diagnósticos históricos idénticos, cero nuevos y cero resueltos. La lista
+ordenada de líneas `DOC_GATE_FAIL` (sin la línea resumen `... N more`, con
+newline final) tiene SHA-256
+`e739d874045f360b218d5590fcd0b60cb46c6c248c337cddcce308ff9e1edaa0`; el
+comparador temporal quitó y restauró únicamente el límite de salida de 200 del
+checker en dos clones locales. La disposición anterior de #571 y la disposición
+de sincronización #572 no autorizan este candidato. Si se decide publicarlo,
+requiere una disposición nueva y exclusiva para este SHA hacia Desarrollo.
+
+Siguiente gate: decidir por separado commit, push no forzado y un único PR a
+Desarrollo del paquete final. El selector y self-test candidate-aware pasaron;
+el FAIL integral no equivale a PASS. Cualquier disposición futura no se
+transfiere a Certificación/main. Después de la integración protegida y main
+actualizado se requerirán lecturas Pro frescas, manifiesto nuevo y autorización
+JIT nueva antes de cualquier piloto.
+
 ### H1REQ1 — FG2 #264: corrección local y siguiente gate, 2026-11-19 14:25 America/Lima
 
 El piloto FG2 #264 (`44581032937`) terminó `FAILURE` en `1. Massive

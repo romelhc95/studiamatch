@@ -128,9 +128,9 @@
     "integration_projection": {
       "name": "bootstrap inicial del primer Admin — candidato local 2026-11-05",
       "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap, el path existente del scope guard reclasificado como candidate-only por su cambio y cinco fuentes nuevas exactas del candidato local FG2 H1: scripts/core/fg2_bounded_run.py y sus cuatro pruebas. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.; isolated FG3 atomic follow-up adds exactly five new paths: one migration and four PG17/static test paths. Reconciliación 2026-11-18: base desarrollo 9435bdfd5121e804ef5bfe361cc94db6f5481c6b (tree 12087f431ccdc6c3c89d20e784c0170cd1b81067), igual a main 0037f11d0b058158b244d1bb2e1d8a487e2f62c5; cinco paths FG3 nuevos sobre esa base. Los conteos anteriores 328/774/446 siguen siendo el corte histórico 2026-11-15.",
-      "candidate_only_path_count_at_cut": 328,
-      "note": "Recount for this local candidate: 774 source paths, 328 candidate-only (323 from prior cut plus five exact FG3 atomic paths), leaving 446 paths in the relevant-source projection. Integral result remains separate. Los conteos 328/774/446 son históricos del corte 2026-11-15 y no se presentan como un gate integral recalculado para la base actual; para la reconciliación 2026-11-18 el delta de fuentes nuevo es de cinco paths FG3.",
-      "refresh": "This local cut adds only the five listed FG3 atomic paths; if scope changes, recalculate the source list and assignments before freezing. El candidato reconciliado 2026-11-18 agrega cinco paths FG3 sobre desarrollo@9435bdf; conservar por separado la comparación integral vigente.",
+      "candidate_only_path_count_at_cut": 343,
+      "note": "Reconciliación local 2026-11-20: 789 fuentes totales, 343 candidate-only y 446 fuentes relevantes para la proyección. El candidato añade 15 fuentes exactas de onboarding, migración y ensayo FG2 completo; sus referencias quedan asignadas en el registro. Los valores 328/774/446 se conservan como corte histórico 2026-11-15. El resultado integral se compara por separado y no se convierte en PASS.",
+      "refresh": "El corte actual incorpora 15 rutas nuevas de FG2 completo. Recalcular el inventario si cambia el paquete; conservar el corte histórico 2026-11-15 como evidencia y revisar el total 789/343/446 para esta huella.",
       "projected_relevant_source_paths_at_cut": 446
     }
   },
@@ -14242,7 +14242,7 @@
       ],
       "contracts": {
         "state": "verified",
-        "note": "_get/diagnose_site y detectores parsean CMS, sitemap, JSON-LD, precio, fechas, catálogo/JS y devuelven propuesta; timeout/error produce resultado parcial, sin persistencia directa.",
+        "note": "diagnose_site aplica HTTP bounded, DNS público/pinning y redirects validados; clasifica SSR, SPA y ecommerce, separa fuentes discovery de páginas detalle y devuelve observado/sugerido/verificación. Para SPA/ecommerce Chromium conserva sandbox y renderiza con HTTP/subrecursos por la ruta de transporte validado; cierra WebSocket antes de conectar, deshabilita WebRTC/WebTransport y QUIC antes de cargar contenido, y bloquea service workers. transport_controls_verified requiere que los guardas estén instalados y los contadores HTTP/WebSocket se reconcilien; los intentos WebSocket quedan como bloqueos requeridos. La regresión usa WebSocket sintético a loopback y no abre una conexión externa. El resultado no autoactiva perfil ni demuestra disponibilidad institucional.",
         "evidence": [
           "path:scripts/shared/site_diagnostics.py",
           "path:.context/componentes/utilidades_compartidas.md"
@@ -14250,11 +14250,13 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "AST import directo: diagnose_institution.py consume detectores para borrador; universal_harvester._auto_detect_profile usa diagnose_site y luego actualiza/crea perfil. Ambos paths son comunes a candidato y original.",
+        "note": "diagnose_institution.py sigue generando borradores; el candidato FG2 llama diagnose_site antes del selector desde master_orchestrator.py para slugs existentes explícitamente permitidos. profile_onboarding.py persiste solo observado/sugerido/procedencia bajo su gate; no reemplaza perfiles manuales validados.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
           "path:scripts/maintenance/diagnose_institution.py",
-          "path:scripts/core/universal_harvester.py"
+          "path:scripts/core/universal_harvester.py",
+          "path:scripts/core/master_orchestrator.py",
+          "path:scripts/core/profile_onboarding.py"
         ]
       },
       "data": {
@@ -14268,17 +14270,19 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Focused local tests verify HubSpot detection from parsed exact hostnames, reject attacker-controlled URL substrings and userinfo, and tolerate malformed script URLs without aborting diagnosis.",
+        "note": "tests/test_site_diagnostics_security.py cubre DNS/redirect/SSRF/body limits y controles de navegador; tests/test_fg2_profile_onboarding.py cubre diagnóstico seguro y decisiones de persistencia/activación. El fixture PG17/PostgREST E2E ejecutó SSR, SPA y ecommerce, discovery, cuatro writers, error/recuperación y cola Admin con HTTP sintético. No es scraping de fuente ni prueba remota.",
         "evidence": [
           "path:tests/test_site_diagnostics_security.py",
           "path:.context/evidencia/h3req1_sem_utilidades_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_fase121_extractors.py",
-          "path:scripts/shared/site_diagnostics.py"
+          "path:scripts/shared/site_diagnostics.py",
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:tests/test_fg2_profile_onboarding.py"
         ]
       },
       "operations": {
         "state": "verified",
-        "note": "El diagnóstico hace HTTP GET y sigue redirects; el CLI no tiene allowlist SSRF propia. El camino del harvester puede PATCH/insertar perfil con identidad pipeline. Usar host aprobado y fixture sintético; no ejecutado.",
+        "note": "El diagnóstico hace requests externos solo a slugs explícitos ya registrados. Persistencia y autoactivación dependen de variables distintas; el caller pipeline puede escribir perfil y tablas operativas. Este ciclo usó únicamente HTTP fixture sin egress y PG17 efímero, sin Pro/Free ni cambios remotos.",
         "evidence": [
           "path:scripts/shared/site_diagnostics.py",
           "path:scripts/maintenance/diagnose_institution.py",
@@ -14573,7 +14577,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "El YAML declara el schedule diario y workflow_dispatch. Un job main_ref_guard sin Environment/secrets/vars, checkout ni permisos de contenido (`contents: none`) exige refs/heads/main; preflight y todas las estaciones dependen de su éxito. El preflight por estación vuelve a bloquear refs no-main aun con flags permisivos. bounded_first_run sigue manual-only/default false, exige lote revisado por referencia/SHA/Base64, y pasa manifest/SHA a cleansing/enrichment/sync. El camino ordinario de schedule sigue separado y no hereda el manifest bounded.",
+        "note": "El YAML declara schedule y workflow_dispatch. Un job main_ref_guard sin Environment/secrets/vars, checkout ni permisos de contenido exige refs/heads/main; preflight y estaciones dependen de su éxito. El harvest puede ejecutar onboarding solo para slugs registrados explícitos, con variables separadas para diagnóstico, persistencia y autoactivación; ningún valor remoto se comprobó. Schedule y dispatch cohort-scoped transportan manifest/SHA entre jobs de harvester, cleansing, enrichment y sync; cada worker limita su entrada a IDs/relaciones del manifest. bounded_first_run sigue manual-only/default false y exige lote revisado. Ningún schedule, Environment o flag fue activado por esta definición local.",
         "evidence": [
           "path:.github/workflows/production_pipeline.yml",
           "path:.github/scripts/production_control_preflight.sh"
@@ -14606,11 +14610,13 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_fase09_10_pre_main_controls.py prueba guard, dependencias y preflight; test_fg2_bounded_workflow.py prueba el handoff del manifest; test_fase10_main_boundary.py y el contrato de credenciales inspeccionan el YAML. Regresión Docker --network none: 172 passed, una advertencia PyPDF2. No prueba Actions alojado, secrets, writers, schedule o alcance Pro.",
+        "note": "test_fase09_10_pre_main_controls.py prueba guard, dependencias y preflight; test_fg2_bounded_workflow.py prueba el handoff del manifest; test_fase10_main_boundary.py y el contrato de credenciales inspeccionan el YAML. El E2E del ciclo ejecuta entrypoints reales y verifies manifests/DB entre procesos en PG17/PostgREST internos; HTTP/proveedor son mocks. No prueba Actions alojado, secretos, writers, schedule, permisos o alcance Pro.",
         "evidence": [
           "path:tests/test_fase09_10_pre_main_controls.py",
           "path:tests/test_fase10_main_boundary.py",
-          "path:tests/test_supabase_credentials_contract.py"
+          "path:tests/test_supabase_credentials_contract.py",
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:tests/test_fg2_profile_onboarding.py"
         ]
       },
       "operations": {
@@ -15623,7 +15629,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker. Candidate scope and integral results are recorded separately in the current checkpoint; a scoped PASS is not treated as an integral PASS. test_h2_main_gate_checkout_resolves_verified_ancestor executes the actual YAML depth/fetch against a file:// Git fixture, reproducing the old depth-1 failure and full-history success; this does not claim GitHub Actions execution. The current main-gate H2 evidence is authenticated verify run 93 (C=257b77471e1f0b6bb8714eeaa975b3815668aea9); actual Apply was NO-OP and this does not establish H3 installation. Runs 91 and 89 remain historical. The protected-path suite executes the actual selector block extracted from security-audit.yml for H1 pull_request selection and promotion union, in addition to existing R21/D04, certification and main cases. These tests establish local behavior only; they do not claim a hosted Actions run. The focused actual-YAML regression passes a valid H1 delta with the verified H2 candidate already in main and fails an unrelated candidate, non-allowlisted H2 code drift, altered advisor evidence, and an artifact JSON that differs from the committed evidence. The four H2 cases ran within the 166 tests passing locally in Docker --network none; no hosted check result is inferred.",
+        "note": "La evidencia R11 separa tests estáticos del YAML (test_security_flow.py, test_protected_workflow_review.py, test_h2_writer_scan.py) de una ejecución GitHub. El regresor consume el scope R17 real y el YAML local; no se atribuye Actions PASS y el test local se reporta por su propio resultado Docker. Candidate scope and integral results are recorded separately in the current checkpoint; a scoped PASS is not treated as an integral PASS. test_h2_main_gate_checkout_resolves_verified_ancestor executes the actual YAML depth/fetch against a file:// Git fixture, reproducing the old depth-1 failure and full-history success; this does not claim GitHub Actions execution. The current main-gate H2 evidence is authenticated verify run 93 (C=257b77471e1f0b6bb8714eeaa975b3815668aea9); actual Apply was NO-OP and this does not establish H3 installation. Runs 91 and 89 remain historical. The protected-path suite executes the actual selector block extracted from security-audit.yml for H1 pull_request selection and promotion union, in addition to existing R21/D04, certification and main cases. These tests establish local behavior only; they do not claim a hosted Actions run. The focused actual-YAML regression passes a valid H1 delta with the verified H2 candidate already in main and fails an unrelated candidate, non-allowlisted H2 code drift, altered advisor evidence, and an artifact JSON that differs from the committed evidence. The four H2 cases ran within the 166 tests passing locally in Docker --network none; no hosted check result is inferred. El candidato también construye el Dockerfile versionado y ejecuta el E2E FG2 en una red Docker interna sin egress con PG17/PostgREST efímeros; el workflow solo está versionado y no se ejecutó en GitHub.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_resolucion_relaciones_locales_2026-10-13_r11.md",
           "path:.context/evidencia/h3req1_pr_scope_manifest_2026-10-14_r17_reconciled.json",
@@ -15634,7 +15640,8 @@
           "path:.github/workflows/security-audit.yml",
           "path:.context/evidencia/h3req1_editorial_contract_candidate_scope_2026-10-28.json",
           "path:.context/evidencia/h3req1_protected_path_scope_fix_2026-10-31.md",
-          "path:.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json"
+          "path:.context/evidencia/h1req1_fg2_bounded_local_scope_2026-11-09.json",
+          "path:tests/fg2_full_pipeline_pg17/run.sh"
         ]
       },
       "operations": {
@@ -21163,6 +21170,238 @@
         "evidence": [
           "path:tests/test_fg3_atomic_transition_contract.py",
           "path:db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql"
+        ]
+      }
+    },
+    {
+      "component": "pipeline",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "source_document": {
+        "path": ".context/componentes/pipeline.md",
+        "anchor": "fuentes-y-relaciones"
+      },
+      "id": "pipeline-fg2-profile-onboarding",
+      "purpose": "Diagnóstico inicial y aplicación controlada de perfiles FG2 para instituciones registradas.",
+      "paths": [
+        "scripts/core/profile_onboarding.py",
+        "tests/test_fg2_profile_onboarding.py"
+      ],
+      "candidate_only_paths": [
+        "scripts/core/profile_onboarding.py",
+        "tests/test_fg2_profile_onboarding.py"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Allowlist exige slugs válidos existentes; observado, sugerido y efectivo permanecen separados. Perfil manual/activo válido no se sustituye; incertidumbre queda pending_review; autoactivación requiere diagnóstico verificado y política explícita aparte.",
+        "evidence": [
+          "path:scripts/core/profile_onboarding.py",
+          "path:db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+          "path:.context/componentes/pipeline.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "master_orchestrator ejecuta onboarding antes del selector normal y omite la cohorte diagnosticada en esa corrida; production_pipeline.yml expone variables por Environment, sin que sus valores remotos se hayan comprobado.",
+        "evidence": [
+          "path:scripts/core/master_orchestrator.py",
+          "path:.github/workflows/production_pipeline.yml"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Usa institutions.website_url y fila opcional de institution_site_profiles; guarda observed/suggested/provenance y estados en la misma tabla. La migration local expande schema aditivamente; no agrega tablas ni copia perfiles entre ambientes.",
+        "evidence": [
+          "path:db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+          "path:.context/database.md",
+          "path:.context/componentes/datos_pipeline.md"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "La última suite focal y el E2E PG17/PostgREST del candidato se registran en el checkpoint vigente. HTTP y proveedor son mocks locales; no equivalen a extracción/permiso remoto.",
+        "evidence": [
+          "path:tests/test_fg2_profile_onboarding.py",
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:.context/estado_del_proyecto.md"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "El valor remoto de flags no se verificó. Persistir observación o activar harvesting/escritores requiere los gates de Environment/JIT de su operación; ninguna se hizo en este ciclo.",
+        "evidence": [
+          "path:.github/workflows/production_pipeline.yml",
+          "path:AGENTS.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "La implementación se decide para completar localmente el alcance FG2 solicitado; la fuente sanitizada H1-CA1 fue reconciliada sin presentarla como aceptación contractual nueva.",
+        "evidence": [
+          "path:.context/evidencias_cliente/sprint_1/paquete_hito_001.md",
+          "path:.context/estado_del_proyecto.md"
+        ]
+      }
+    },
+    {
+      "component": "pruebas-evidencia",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "source_document": {
+        "path": ".context/componentes/pipeline.md",
+        "anchor": "fuentes-y-relaciones"
+      },
+      "id": "tests-fg2-full-pipeline-pg17-postgrest",
+      "purpose": "Ensayo end-to-end con entrypoints reales, SQL/RPC PG17 y consulta de la cola Admin.",
+      "paths": [
+        "tests/fg2_full_pipeline_pg17/assert_state.sql",
+        "tests/fg2_full_pipeline_pg17/fixture_schema.sql",
+        "tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql",
+        "tests/fg2_full_pipeline_pg17/prepare_refresh.sql",
+        "tests/fg2_full_pipeline_pg17/responses_initial.json",
+        "tests/fg2_full_pipeline_pg17/responses_refresh.json",
+        "tests/fg2_full_pipeline_pg17/run.sh",
+        "tests/fg2_full_pipeline_pg17/run_entrypoint.py",
+        "tests/fg2_full_pipeline_pg17/seed_admin.sql",
+        "tests/fg2_full_pipeline_pg17/seed_profiles.sql",
+        "tests/fg2_full_pipeline_pg17/sitecustomize.py",
+        "tests/fg2_full_pipeline_pg17/verify_admin_queue.py"
+      ],
+      "candidate_only_paths": [
+        "tests/fg2_full_pipeline_pg17/assert_state.sql",
+        "tests/fg2_full_pipeline_pg17/fixture_schema.sql",
+        "tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql",
+        "tests/fg2_full_pipeline_pg17/prepare_refresh.sql",
+        "tests/fg2_full_pipeline_pg17/responses_initial.json",
+        "tests/fg2_full_pipeline_pg17/responses_refresh.json",
+        "tests/fg2_full_pipeline_pg17/run.sh",
+        "tests/fg2_full_pipeline_pg17/run_entrypoint.py",
+        "tests/fg2_full_pipeline_pg17/seed_admin.sql",
+        "tests/fg2_full_pipeline_pg17/seed_profiles.sql",
+        "tests/fg2_full_pipeline_pg17/sitecustomize.py",
+        "tests/fg2_full_pipeline_pg17/verify_admin_queue.py"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "El harness aplica migrations versionadas y separa procesos/runners; no sustituye lógica de negocio por funciones Python. HTTP y proveedor son fixtures. La red Docker es interna sin egress.",
+        "evidence": [
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:tests/fg2_full_pipeline_pg17/fixture_schema.sql"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "CI construye Dockerfile candidato y llama al mismo run.sh; localmente el harness invoca los entrypoints por CLI con manifest entre procesos.",
+        "evidence": [
+          "path:.github/workflows/security-audit.yml",
+          "path:tests/fg2_full_pipeline_pg17/run_entrypoint.py"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "La postcondición lee filas por ID de cuatro etapas, course_editorial_state, Admin RPC y courses_public_effective. Solo UUIDs/URLs sintéticos.",
+        "evidence": [
+          "path:tests/fg2_full_pipeline_pg17/assert_state.sql",
+          "path:tests/fg2_full_pipeline_pg17/verify_admin_queue.py"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "E2E Docker del candidato: cuatro estaciones completadas, refresh con editorial preservada, bloqueado 403/429 sin retry, error RPC no-cero y recuperación idempotente; Admin muestra pendientes y la vista pública queda vacía. El último conteo/hashes se registra en estado_del_proyecto.md. Ningún resultado acredita runtime Pro.",
+        "evidence": [
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:tests/fg2_full_pipeline_pg17/responses_initial.json",
+          "path:tests/fg2_full_pipeline_pg17/responses_refresh.json",
+          "path:tests/fg2_full_pipeline_pg17/verify_admin_queue.py",
+          "path:.context/estado_del_proyecto.md"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "La suite crea recursos Docker efímeros con --internal, no conecta Free/Pro, scraping institucional o proveedor de pago, y limpia contenedores/redes al terminar. Un fallo local preserva solo logs sintéticos para diagnóstico.",
+        "evidence": [
+          "path:tests/fg2_full_pipeline_pg17/run.sh"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Harness nuevo del candidato local solicitado para separar la prueba end-to-end anterior basada en un adapter Python del contrato SQL real.",
+        "evidence": [
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:.context/estado_del_proyecto.md"
+        ]
+      }
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261120120000-fg2-profile-onboarding-state",
+      "purpose": "Aditivo: estado y metadata para diagnosticar perfiles institucionales sin requerirlos como precondición.",
+      "paths": [
+        "db/migrations/20261120120000_fg2_profile_onboarding_state.sql"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "migration-20261120120000-fg2-profile-onboarding-state"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261120120000_fg2_profile_onboarding_state.sql"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "Hace site_type/discovery_mode nullable para pending_review, agrega observed/suggested/provenance, status y resource origins; conserva checks para estados, origins array y modo efectivo en active. No backfill ni DML operativo.",
+        "evidence": [
+          "path:db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+          "path:.context/componentes/database_migrations.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "El workflow DB Sync incluye el manifest independiente fg2-profile-onboarding, fijado al hash de esta migration; report usa dry-run, apply conserva Production + autorización DDL JIT exacta y verify consulta un contrato RPC read-only. No se añade a H3 ni se heredan sus precondiciones/digests. La ruta todavía no se ejecutó en Pro.",
+        "evidence": [
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:scripts/maintenance/pro_h3_migration_manifest.py",
+          "path:scripts/maintenance/db_migrate.py",
+          "path:scripts/maintenance/check_db_parity.py",
+          "path:tests/test_h2_pro_migration_controls.py"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "Solo altera schema local; los defaults preservan perfiles existentes. Aplicación remota desconocida/no realizada.",
+        "evidence": [
+          "path:db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+          "path:.context/database.md"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "El PG17/PostgREST sintético aplica la migration y verifica columnas, restricciones y permisos del RPC de schema; la suite de ruta Pro verifica manifest/hash, report no-DDL, rechazo de apply sin autorización y contrato FG2 separado. No acredita permisos ni aplicación remota.",
+        "evidence": [
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:tests/fg2_full_pipeline_pg17/verify_admin_queue.py",
+          "path:tests/test_h2_pro_migration_controls.py"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "La migration no se aplicó en Free, Certification o Pro. La ruta report/verify es de lectura; apply requiere workflow manual en main, gate Production, backup/PITR y autorización DDL JIT que nombre manifest, payload y hash de migration. Verificar el RPC/ACL precede a habilitar el caller; no se reutiliza autorización H3.",
+        "evidence": [
+          "path:.github/workflows/db-sync-to-pro.yml",
+          "path:AGENTS.md",
+          "path:.context/componentes/database_migrations.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Migration preparada para el onboarding FG2 del candidato; additive/expand, sin eliminación de configuración preexistente.",
+        "evidence": [
+          "path:db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+          "path:.context/componentes/pipeline.md"
         ]
       }
     }
