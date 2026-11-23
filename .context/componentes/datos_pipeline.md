@@ -32,12 +32,16 @@ destino sigue validándose y pinneándose.
 | Enrichment | IDs asociados a staging manifest → salida validada en `enriched_programs` | provider `local_smart_mock`, fallo RPC inyectado y recuperación | no invoca ni acredita proveedor real o coste |
 | Sync/editorial | IDs asociados → `courses` + `course_editorial_state.pending_review` | postflight por ID, Admin count/list RPC; nuevos ausentes de vista pública | no prueba la sesión/Auth Admin remota ni puede aprobar editorial |
 
-La última ejecución del fixture reportó 6 cursos sintéticos, 5 en la cola
-Admin pendientes y cero en `courses_public_effective`. El curso refreshed
+La última ejecución aceptada del fixture reportó 6 cursos sintéticos, 5 en la
+cola Admin pendientes y cero en `courses_public_effective`. El curso refreshed
 retuvo su ID y override editorial. El conteo de PG17 no representa filas o
-permisos de Pro. `processing` histórico no se resetea, y un refresh ordinario
-usa el ID/manifiesto existente; reparación de filas abandonadas sigue siendo
-operación separada con IDs concretos y JIT DML.
+permisos de Pro. `processing` histórico no se resetea. Un lote manual puede
+refrescar `processed` solo con staging/curso únicos, owner y URL concordantes,
+hash anterior válido, referencias staging→cleansed→enriched verificables y
+relectura del snapshot exacto antes del PATCH condicional. Contenido idéntico
+queda en `processed` sin write y no habilita estaciones por sí solo; la cohorte
+vacía sigue bloqueando la ejecución downstream. La reparación de estados
+abandonados requiere una operación separada con IDs concretos y JIT DML.
 
 La cola de Admin usa `admin_get_course_queue_filtered` y
 `admin_count_course_queue_filtered`. El componente mantiene el requisito AAL2;
@@ -66,11 +70,12 @@ coincide con un curso de la misma institución se registra como
 `refresh_existing` con el `course_id` exacto; el sync mantiene el mismo curso y
 usa `course_editorial_state` para preservar overrides manuales, fuentes y
 timestamps. La prueba sintética verifica `Nombre editorial vigente` con fuente
-`manual_override` tras el refresh. Las filas históricas protegidas de
-`staging_raw` quedan como blockers con su ID, estado y hashes; no se resetean
-`processing`, no se reabren `processed` y no se limpia ni repuebla ninguna cola.
-Si la unicidad por URL impide continuar una fila existente, hace falta presentar
-el ID, estado y transición SQL exacta para aprobación DML separada.
+`manual_override` tras el refresh. Las filas `processing`, `discarded` y
+`skipped` quedan como blockers, no se resetean ni se reabren. Un lote manual
+revisado puede reutilizar `processed` con staging/curso inequívocos, hash válido,
+cadena downstream exacta y revalidación del snapshot antes de la escritura.
+Esta transición no limpia ni repuebla colas; una reparación de otra fila
+requiere ID, efecto y aprobación DML separados.
 
 La comparación usa `normalize_url` igual que FG2; `url_sha256` identifica esa
 clave canónica mientras el digest del lote conserva la URL exacta y el estado de
@@ -114,8 +119,11 @@ Los estados `discovered`, `processing` y `processed` no son seleccionados por
 esas consultas normales de cleansing; activar cron no los reencola ni refresca.
 Los agregados `processing` observados no permiten concluir qué IDs se moverán.
 Antes de E10 se requiere un alcance de consumo por IDs y el control programado
-que preserve filas históricas; no se reabre `processed`, no se resetea
-`processing` y no se deduplican filas por conteos.
+que preserve filas históricas; no se resetea `processing` ni se deduplican filas
+por conteos. El refresh excepcional desde `processed` solo está ligado al
+manifest manual revisado descrito arriba; no lo activa el cron. El cambio es
+solo de aplicación: no agrega tablas, columnas, RPC ni migration. Se conserva el
+esquema desplegado y no se necesita reinstalación para esta corrección.
 
 ## FG3: cohorte pública y transición atómica — candidato local 2026-11-15
 

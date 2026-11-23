@@ -1601,6 +1601,7 @@ class FG2ApprovedLotManifest:
             raise InvalidControlledRun("approved FG2 lot URL scope is empty")
         seen_urls: set[str] = set()
         seen_course_identities: set[str] = set()
+        seen_snapshot_ids = {key: set() for key in _APPROVED_SNAPSHOT_KEYS}
         url_counts: dict[str, int] = {}
         for item in scope:
             if not isinstance(item, dict):
@@ -1639,8 +1640,6 @@ class FG2ApprovedLotManifest:
                 raise InvalidControlledRun("approved FG2 lot URL resolves to multiple unique rows")
             if len(snapshot["cleansed_rows"]) > 1 or len(snapshot["enriched_rows"]) > 1:
                 raise InvalidControlledRun("approved FG2 lot URL has ambiguous downstream references")
-            if snapshot["staging_rows"] and snapshot["staging_rows"][0].get("status") != "discovered":
-                raise InvalidControlledRun("approved FG2 lot cannot reopen a protected staging state")
             for table_key, required in (
                 ("staging_rows", ("id", "institution_id", "url", "status", "content_hash")),
                 ("course_rows", ("id", "institution_id", "url", "is_active", "is_verified", "last_404_at")),
@@ -1653,6 +1652,9 @@ class FG2ApprovedLotManifest:
                     if not _valid_uuid(row.get("id")) or str(row.get("institution_id", "")).lower() != institution_id.lower():
                         raise InvalidControlledRun("approved FG2 lot snapshot row has a mismatched owner")
                     row["id"] = row["id"].lower()
+                    if row["id"] in seen_snapshot_ids[table_key]:
+                        raise InvalidControlledRun("approved FG2 lot repeats a snapshot row identity")
+                    seen_snapshot_ids[table_key].add(row["id"])
                     row["institution_id"] = row["institution_id"].lower()
                     row_url = row.get("url")
                     if not isinstance(row_url, str) or len(row_url) > 2048:
@@ -1691,6 +1693,28 @@ class FG2ApprovedLotManifest:
             course_rows = snapshot["course_rows"]
             if (item["kind"] == "refresh_existing") != bool(course_rows):
                 raise InvalidControlledRun("approved FG2 lot classification does not match its course row")
+            staging_rows = snapshot["staging_rows"]
+            if staging_rows:
+                staging_status = staging_rows[0]["status"]
+                if staging_status == "discovered":
+                    pass
+                elif staging_status == "processed" and item["kind"] == "refresh_existing":
+                    if not _valid_sha256(staging_rows[0].get("content_hash")):
+                        raise InvalidControlledRun(
+                            "approved FG2 processed refresh requires a valid prior content hash"
+                        )
+                    if len(course_rows) != 1:
+                        raise InvalidControlledRun(
+                            "approved FG2 processed refresh requires one existing course identity"
+                        )
+                    if len(snapshot["cleansed_rows"]) != 1 or len(snapshot["enriched_rows"]) != 1:
+                        raise InvalidControlledRun(
+                            "approved FG2 processed refresh requires verifiable downstream references"
+                        )
+                else:
+                    raise InvalidControlledRun(
+                        "approved FG2 lot cannot reopen this protected staging state"
+                    )
             staging_ids = {row["id"] for row in snapshot["staging_rows"]}
             cleansed_ids = {row["id"] for row in snapshot["cleansed_rows"]}
             if any(row["staging_id"] not in staging_ids for row in snapshot["cleansed_rows"]):
@@ -2072,6 +2096,7 @@ def verify_approved_lot_scope(
     approved_lot: FG2ApprovedLotManifest,
     *,
     institution_ids: tuple[str, ...] | list[str] | None = None,
+    scope_urls: tuple[str, ...] | list[str] | None = None,
 ) -> None:
     """Read current table rows and fail closed unless the approved IDs/states still match."""
     selected_ids = {
@@ -2083,6 +2108,22 @@ def verify_approved_lot_scope(
         item for item in approved_lot.payload["scope"]
         if item["institution_id"].lower() in selected_ids
     ]
+    if scope_urls is not None:
+        if not isinstance(scope_urls, (tuple, list)) or not scope_urls:
+            raise InvalidControlledRun("scope verification URL set is empty or malformed")
+        normalized_urls = []
+        for value in scope_urls:
+            if not isinstance(value, str) or not value:
+                raise InvalidControlledRun("scope verification URL is malformed")
+            normalized_urls.append(_approved_scope_url(value))
+        if len(set(normalized_urls)) != len(normalized_urls):
+            raise InvalidControlledRun("scope verification URL set contains duplicates")
+        approved_urls = {item["url"] for item in scope_rows}
+        if not set(normalized_urls).issubset(approved_urls):
+            raise InvalidControlledRun("scope verification URL is outside the approved FG2 lot")
+        scope_rows = [item for item in scope_rows if item["url"] in set(normalized_urls)]
+        if len(scope_rows) != len(normalized_urls):
+            raise InvalidControlledRun("approved FG2 lot URL is not uniquely present for verification")
     if not scope_rows:
         raise InvalidControlledRun("approved FG2 lot has no database rows for scope verification")
     actual_by_url = {

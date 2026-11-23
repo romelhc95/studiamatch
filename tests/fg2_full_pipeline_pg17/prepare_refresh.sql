@@ -21,3 +21,38 @@ BEGIN
     RAISE EXCEPTION 'fixture editorial row missing';
   END IF;
 END $$;
+
+-- Pending work outside the reviewed URL is a sentinel for the delegated
+-- cleansing/enrichment/sync consumers; they must leave it untouched.
+INSERT INTO public.staging_raw (
+  id, institution_id, url, raw_name, raw_html, status, content_hash, metadata
+)
+VALUES (
+  '40000000-0000-0000-0000-000000000009',
+  '20000000-0000-0000-0000-000000000001',
+  'https://ssr.fg2.example/programas/outside-approved-cohort',
+  'Synthetic out-of-cohort sentinel',
+  '<html><body>outside approved cohort</body></html>',
+  'pending',
+  repeat('c', 64),
+  '{}'::jsonb
+);
+
+-- The approved-lot refresh fixture targets the already-synced course above.
+-- It does not discover or add a course; its ordered hardcoded seed is the
+-- exact existing processed URL under test.
+UPDATE public.institution_site_profiles
+SET discovery_mode = 'hardcoded_urls',
+    seed_urls = jsonb_build_array('https://ssr.fg2.example/programas/analitica-aplicada')
+WHERE institution_id = '20000000-0000-0000-0000-000000000001';
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.institution_site_profiles
+    WHERE institution_id = '20000000-0000-0000-0000-000000000001'
+      AND discovery_mode = 'hardcoded_urls'
+      AND seed_urls = jsonb_build_array('https://ssr.fg2.example/programas/analitica-aplicada')
+  ) THEN
+    RAISE EXCEPTION 'refresh fixture profile missing';
+  END IF;
+END $$;

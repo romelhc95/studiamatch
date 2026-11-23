@@ -163,6 +163,7 @@ scripts/shared/site_diagnostics.py
 tests/fg2_full_pipeline_pg17/assert_state.sql
 tests/fg2_full_pipeline_pg17/fixture_schema.sql
 tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql
+tests/fg2_full_pipeline_pg17/prepare_approved_lot.py
 tests/fg2_full_pipeline_pg17/prepare_refresh.sql
 tests/fg2_full_pipeline_pg17/responses_initial.json
 tests/fg2_full_pipeline_pg17/responses_refresh.json
