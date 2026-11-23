@@ -13,7 +13,7 @@ if core_script_dir not in sys.path:
     sys.path.insert(0, core_script_dir)
 
 from scripts.core.cleansing_worker import CleansingWorker
-from scripts.core.enrichment_worker import EnrichmentWorker
+from scripts.core.enrichment_worker import ControlledEnrichmentUnavailable, EnrichmentWorker
 from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
     InvalidControlledRun,
@@ -377,3 +377,323 @@ def test_manifest_identity_accepts_cleansing_url_normalization_and_still_checks_
     database.responses["staging_raw"][0]["url"] = "https://synthetic.example/changed/"
     with pytest.raises(InvalidControlledRun, match="URL identity changed"):
         enrichment._verify_fg2_manifest_url_identity(selected_cleansed[0])
+
+
+def test_controlled_sync_rejects_mock_enrichment_before_any_write() -> None:
+    manifest = cohort_manifest()
+    database = SelectAdapter(
+        {
+            "staging_raw": [dict(raw_row(), status="processed")],
+            "cleansed_programs": [
+                {
+                    "id": CLEANSED_ID,
+                    "staging_id": RAW_ID,
+                    "institution_id": INSTITUTION_ID,
+                    "url": URL,
+                    "status": "enriched",
+                }
+            ],
+            "enriched_programs": [
+                {
+                    "id": ENRICHED_ID,
+                    "cleansed_id": CLEANSED_ID,
+                    "institution_id": INSTITUTION_ID,
+                    "url": URL,
+                    "status": "pending",
+                    "official_name": "Synthetic Program",
+                    "is_mock_data": True,
+                }
+            ],
+        }
+    )
+    worker = SyncVectorWorker.__new__(SyncVectorWorker)
+    worker.db = database
+    worker.ready_inst_ids = {INSTITUTION_ID}
+    selected = worker.get_pending_enriched(cohort_manifest=manifest)
+
+    assert len(selected) == 1
+    assert worker.sync_to_production(selected[0]) is False
+    assert database.writes == []
+
+
+def test_sync_rejects_unbounded_mock_enrichment_without_provider_flag(monkeypatch) -> None:
+    monkeypatch.delenv("FG2_REQUIRE_REAL_PROVIDER", raising=False)
+    database = SelectAdapter({})
+    worker = SyncVectorWorker.__new__(SyncVectorWorker)
+    worker.db = database
+
+    assert worker.sync_to_production(
+        {
+            "id": ENRICHED_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": URL,
+            "status": "pending",
+            "provider_used": "mock",
+            "is_mock_data": True,
+        }
+    ) is False
+    assert database.writes == []
+
+
+def test_sync_rejects_mock_provider_label_without_provider_flag(monkeypatch) -> None:
+    monkeypatch.delenv("FG2_REQUIRE_REAL_PROVIDER", raising=False)
+    database = SelectAdapter({})
+    worker = SyncVectorWorker.__new__(SyncVectorWorker)
+    worker.db = database
+
+    assert worker.sync_to_production(
+        {
+            "id": ENRICHED_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": URL,
+            "status": "pending",
+            "provider_used": "smart-mock",
+            "is_mock_data": False,
+        }
+    ) is False
+    assert database.writes == []
+
+
+def test_sync_rejects_unbounded_unknown_provider_without_provider_flag(monkeypatch) -> None:
+    monkeypatch.delenv("FG2_REQUIRE_REAL_PROVIDER", raising=False)
+    monkeypatch.delattr(SyncVectorWorker, "_fg2_fixture_provider_allowed", raising=False)
+    database = SelectAdapter({})
+    worker = SyncVectorWorker.__new__(SyncVectorWorker)
+    worker.db = database
+
+    assert worker.sync_to_production(
+        {
+            "id": ENRICHED_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": URL,
+            "status": "pending",
+            "provider_used": "fixture-provider",
+            "is_mock_data": False,
+        }
+    ) is False
+    assert database.writes == []
+
+
+def test_production_sync_rejects_mock_provider_even_when_flag_claims_real(monkeypatch) -> None:
+    monkeypatch.setenv("FG2_REQUIRE_REAL_PROVIDER", "true")
+    database = SelectAdapter({})
+    worker = SyncVectorWorker.__new__(SyncVectorWorker)
+    worker.db = database
+
+    assert worker.sync_to_production(
+        {
+            "id": ENRICHED_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": URL,
+            "status": "pending",
+            "provider_used": "mock",
+            "is_mock_data": False,
+        }
+    ) is False
+    assert database.writes == []
+
+
+def test_production_sync_rejects_unknown_provider_provenance_before_any_write(monkeypatch) -> None:
+    monkeypatch.setenv("FG2_REQUIRE_REAL_PROVIDER", "true")
+    database = SelectAdapter({})
+    worker = SyncVectorWorker.__new__(SyncVectorWorker)
+    worker.db = database
+
+    assert worker.sync_to_production(
+        {
+            "id": ENRICHED_ID,
+            "institution_id": INSTITUTION_ID,
+            "url": URL,
+            "status": "pending",
+            "provider_used": "fixture-provider",
+            "is_mock_data": False,
+        }
+    ) is False
+    assert database.writes == []
+
+
+def test_sync_provenance_allowlist_accepts_openai_identity() -> None:
+    from scripts.core.sync_vector_worker import REAL_ENRICHMENT_PROVIDERS
+
+    assert "openai" in REAL_ENRICHMENT_PROVIDERS
+
+
+def test_enrichment_persists_openai_provider_identity_without_mock_provenance(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    class FixtureDB:
+        def __init__(self):
+            self.writes = []
+
+        def rpc_raise(self, function, params):
+            self.writes.append((function, params))
+            return [{"success": True}]
+
+    enriched = {
+        "official_name": "Synthetic OpenAI course",
+        "duration_text": None,
+        "duration_months": None,
+        "total_cost_est": None,
+        "requirements": [],
+        "graduate_profile": None,
+        "target_audience": None,
+        "objectives": None,
+        "benefits": None,
+        "certification": None,
+        "curriculum_summary": {"pilares": []},
+        "modality": None,
+        "primary_campus": None,
+        "degree_type": None,
+        "start_date": None,
+        "categories": [],
+        "difficulty_level": None,
+        "ai_summary": None,
+    }
+    worker = EnrichmentWorker.__new__(EnrichmentWorker)
+    worker.db = FixtureDB()
+    worker.profiles = []
+    worker.require_real_provider = True
+    worker._fetch_sr_enrichment_data = lambda *_args: ({}, {}, {})
+    worker._call_llm_for_pillars = lambda *_args, **_kwargs: (dict(enriched), "OpenAI")
+    worker._merge_pre_extracted = lambda result, _pre_extracted: result
+    worker._ensure_canary_enriched_metadata = lambda *_args: None
+    worker._verify_canary_enriched_row = lambda *_args: None
+    monkeypatch.setattr(enrichment_worker, "_mark_canary_metadata", lambda metadata: metadata)
+
+    assert worker.enrich_record({
+        "id": CLEANSED_ID,
+        "staging_id": RAW_ID,
+        "institution_id": INSTITUTION_ID,
+        "url": URL,
+        "clean_name": "Synthetic OpenAI course",
+        "clean_description": "Synthetic public course fixture",
+    }) is True
+
+    function, params = worker.db.writes[0]
+    assert function == "atomic_enrichment_promote"
+    assert params["p_enriched_data"][0]["provider_used"] == "OpenAI"
+    assert params["p_enriched_data"][0]["is_mock_data"] is False
+
+
+def test_sync_accepts_openai_provenance_and_preserves_nonpublic_new_course(monkeypatch) -> None:
+    from scripts.core import sync_vector_worker
+
+    class FixtureDB:
+        def __init__(self):
+            self.writes = []
+
+        def select_service_raise(self, table, **_kwargs):
+            return []
+
+        def select_all_service(self, _table, **_kwargs):
+            return []
+
+        def upsert(self, table, data, **_kwargs):
+            self.writes.append(("upsert", table, dict(data)))
+            return [{"id": "70000000-0000-0000-0000-000000000001", "url": data["url"], **data}]
+
+        def rpc_raise(self, function, params):
+            self.writes.append(("rpc", function, params))
+            return [{"success": True}]
+
+        def patch_exact_one_raise(self, table, filters, data, expected_id):
+            self.writes.append(("patch", table, dict(data)))
+            return {"id": expected_id, **data}
+
+    database = FixtureDB()
+    worker = SyncVectorWorker.__new__(SyncVectorWorker)
+    worker.db = database
+    worker.profiles = [{
+        "institution_id": INSTITUTION_ID,
+        "pipeline_enabled": True,
+        "production_enabled": False,
+        "noise_patterns": [],
+    }]
+    worker.ready_inst_ids = {INSTITUTION_ID}
+    worker.default_noise_patterns = []
+    worker._fg2_course_inventory = None
+    monkeypatch.setattr(sync_vector_worker, "is_safe_public_url", lambda _url: True)
+
+    assert worker.sync_to_production({
+        "id": ENRICHED_ID,
+        "institution_id": INSTITUTION_ID,
+        "url": URL,
+        "status": "pending",
+        "official_name": "Synthetic OpenAI course",
+        "provider_used": "OpenAI",
+        "is_mock_data": False,
+        "degree_type": "Curso",
+        "duration_months": 6,
+        "categories": ["Data"],
+    }) is True
+
+    course_write = next(payload for operation, table, payload in database.writes if operation == "upsert" and table == "courses")
+    assert course_write["provider_used"] == "OpenAI"
+    assert course_write["is_mock_data"] is False
+    assert course_write["is_active"] is False
+
+
+def test_controlled_enrichment_rejects_mock_provider_name() -> None:
+    worker = EnrichmentWorker.__new__(EnrichmentWorker)
+    worker._mock_only = False
+    worker.require_real_provider = True
+
+    class MockNamedProvider:
+        @staticmethod
+        def call_with_fallback(_prompt, _clean_fn, validate_fn=None):
+            return ({"official_name": "Synthetic program"}, "smart-mock")
+
+    worker.orchestrator = MockNamedProvider()
+
+    with pytest.raises(ControlledEnrichmentUnavailable):
+        worker._call_llm_for_pillars("Synthetic program", "Synthetic description")
+
+
+@pytest.mark.parametrize(
+    "cloudflare_payload",
+    ["{}", "[]", '{"official_name":"X","duration_months":"six"}',
+     '{"official_name":"X","unexpected":"field"}'],
+)
+def test_invalid_provider_schema_aborts_controlled_enrichment_before_writes(
+    cloudflare_payload: str,
+) -> None:
+    import logging
+
+    from scripts.core import enrichment_worker
+
+    class FixtureDB:
+        def __init__(self):
+            self.writes = []
+
+        def rpc_raise(self, function, _params):
+            self.writes.append(function)
+            return [{"success": True}]
+
+    worker = EnrichmentWorker.__new__(EnrichmentWorker)
+    worker.db = FixtureDB()
+    worker.require_real_provider = True
+    worker._mock_only = False
+    worker.profiles = []
+    worker._fetch_sr_enrichment_data = lambda *_args: ({}, {}, {})
+    providers = [
+        enrichment_worker.LLMProvider("OpenAI", lambda _prompt: "{}", lambda: True),
+        enrichment_worker.LLMProvider(
+            "Cloudflare", lambda _prompt: cloudflare_payload, lambda: True
+        ),
+    ]
+    worker.orchestrator = enrichment_worker.ProviderOrchestrator(
+        providers, logging.getLogger("fg2-invalid-provider-schema-test")
+    )
+    worker.orchestrator.run_health_checks()
+
+    with pytest.raises(ControlledEnrichmentUnavailable):
+        worker.enrich_record({
+            "id": CLEANSED_ID,
+            "staging_id": None,
+            "institution_id": INSTITUTION_ID,
+            "url": URL,
+            "clean_name": "Synthetic course",
+            "clean_description": "Synthetic description",
+        })
+
+    assert worker.db.writes == []

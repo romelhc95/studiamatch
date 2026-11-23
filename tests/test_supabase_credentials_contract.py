@@ -92,11 +92,21 @@ APPROVED_BEARERS = {
         "derivation_marker": "GITHUB_TOKEN: ${{ github.token }}",
     },
     "scripts/core/enrichment_worker.py": {
-        "identities": {"CF_API_TOKEN"},
-        "provider": "cloudflare-workers-ai",
-        "provider_marker": "api.cloudflare.com",
-        "provider_env": "CF_API_TOKEN",
-        "derivation_marker": 'CF_API_TOKEN = os.getenv("CF_API_TOKEN")',
+        "identities": {"CF_API_TOKEN", "OPENAI_API_KEY"},
+        "providers": {
+            "CF_API_TOKEN": {
+                "provider": "cloudflare-workers-ai",
+                "provider_marker": "api.cloudflare.com",
+                "provider_env": "CF_API_TOKEN",
+                "derivation_marker": 'CF_API_TOKEN = os.getenv("CF_API_TOKEN")',
+            },
+            "OPENAI_API_KEY": {
+                "provider": "openai-api",
+                "provider_marker": "api.openai.com",
+                "provider_env": "OPENAI_API_KEY",
+                "derivation_marker": 'OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")',
+            },
+        },
     },
     "scripts/maintenance/diag_schema_diff.py": {
         "identities": {"MGMT_TOKEN"},
@@ -981,8 +991,13 @@ def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
     observed_paths = set()
 
     assert all(
-        approval["provider"] != "supabase-data-api"
+        provider["provider"] != "supabase-data-api"
         for approval in APPROVED_BEARERS.values()
+        for provider in (
+            approval["providers"].values()
+            if "providers" in approval
+            else [approval]
+        )
     )
 
     for path in SOURCE_FILES:
@@ -1025,18 +1040,29 @@ def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
                 continue
             findings.append(f"{relative}: path is not approved for Bearer auth")
             continue
-        if not approval["provider"] or approval["provider_marker"] not in source:
-            findings.append(f"{relative}: approved provider marker is absent")
-        if (
-            not approval["provider_env"]
-            or approval["provider_env"] not in source
-            or approval["derivation_marker"] not in source
-        ):
-            findings.append(f"{relative}: approved identity has no provider derivation")
+        providers = approval.get("providers") or {
+            identity: approval for identity in approval["identities"]
+        }
+        if set(providers) != set(approval["identities"]):
+            findings.append(f"{relative}: provider inventory does not match approved identities")
         for match in matches:
             identity = next(group for group in match.groupdict().values() if group)
-            if identity not in approval["identities"]:
+            provider_contract = providers.get(identity)
+            if provider_contract is None:
                 findings.append(f"{relative}: unapproved Bearer identity {identity}")
+                continue
+            if (
+                not provider_contract.get("provider")
+                or provider_contract.get("provider_marker") not in source
+            ):
+                findings.append(f"{relative}: approved provider marker is absent for {identity}")
+            if (
+                not provider_contract.get("provider_env")
+                or provider_contract["provider_env"] not in source
+                or not provider_contract.get("derivation_marker")
+                or provider_contract["derivation_marker"] not in source
+            ):
+                findings.append(f"{relative}: approved identity has no provider derivation for {identity}")
             context = source[max(0, match.start() - 240):match.end() + 240]
             if "Authorization" not in context:
                 findings.append(f"{relative}: Bearer is not bound to Authorization")
