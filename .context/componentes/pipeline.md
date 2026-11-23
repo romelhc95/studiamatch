@@ -8,7 +8,7 @@
 | FG2 orchestration | perfiles y flags → tareas por institución | master_orchestrator.py decide elegibilidad/recencia/circuit breaker, ejecuta workers por subproceso y aplica time guard. En contextos controlados conserva solo diagnósticos versionados con fase/categoría allowlistadas y metadatos DB sanitizados; nunca publica stdout/stderr ni argumentos. |
 | FG2-1 harvester | web/sitemap/config → staging_raw | universal_harvester.py descubre URLs, filtra/noise/exclusiones, canonicaliza, extrae HTML/metadata, calcula SHA-256 content_hash y omite contenido sin cambio. En el modo controlado, el GET limita el cuerpo antes de parsearlo. |
 | FG2-1.5 cleansing | staging_raw → cleansed_programs | cleansing_worker.py bloquea batch, limpia texto, consolida páginas y filtra ruido; usa atomic_cleansing_promote y conserva estados/errores de origen. |
-| FG2-2 enrichment | cleansed_programs → enriched_programs | enrichment_worker.py aplica prompt/campos, normaliza respuestas y usa proveedor configurado con fallback/mock; atomic_enrichment_promote guarda la unidad de trabajo. |
+| FG2-2 enrichment | cleansed_programs → enriched_programs | enrichment_worker.py aplica prompt/campos y normaliza respuestas; los entrypoints fallan cerrados por defecto y requieren resultado real antes de persistir. `atomic_enrichment_promote` guarda la unidad de trabajo. El smart mock solo puede activarse explícitamente en un fixture aislado. |
 | FG2-3 sync | enriched_programs → courses + editorial quality | sync_vector_worker.py es writer normal de datos finales, conserva overrides y aplica guards de mock/canary/quality. El nombre no acredita embeddings activos. |
 | FG3 integrity | courses_public_effective → RPC atómica limitada de courses | integrity_ping.py valida con HEAD/GET y decisión conservadora; el RPC revalida elegibilidad y snapshot en la transacción y solo cambia last_404_at o is_active. |
 
@@ -64,19 +64,68 @@ activación de discovery/pipeline y `production_enabled` son distintas. La
 detección de JavaScript no habilita stealth ni bypass. Una detección pendiente
 no es selección elegible; el selector regular continúa fallando cerrado.
 
+### Enrichment real y Sync en Production
+
+El candidato local, aún no integrado, hace que `schedule` y
+`workflow_dispatch` en `main` establezcan `FG2_REQUIRE_REAL_PROVIDER=true` para
+Enrichment y Sync, incluso si el despacho manual omite `bounded_first_run` y por
+eso no lleva manifiesto. El main que ejecutó #269 todavía no contiene este guard.
+Si los proveedores fallan, Enrichment termina con error antes de promover
+resultados mock y rechaza también una etiqueta de proveedor mock. En Sync,
+Production requiere `is_mock_data=false` y provenance `DeepSeek` o `Cloudflare`;
+Sync rechaza en cualquier ruta —con manifiesto o llamada directa sin manifiesto—
+`is_mock_data` ausente/true y etiquetas de proveedor `mock` antes de escribir.
+También rechaza provenance desconocida en cualquier ruta. Production exige
+además el allowlist de `DeepSeek` o `Cloudflare` incluso si un flag de fixture
+estuviera presente; solo el harness sintético aislado opta por su proveedor de
+prueba. Estos checks ocurren antes de cualquier escritura en `courses`.
+En el despacho no acotado, Harvesting y Cleansing pueden haber persistido su
+estación antes de detectar la indisponibilidad del proveedor; el fail-closed
+evita persistencia mock de Enrichment y Sync, no revierte trabajo válido de
+estaciones anteriores.
+
+Según el último postflight autorizado —no revalidado después— la recuperación de
+#269 es una operación separada: los diez staging seguían `processed`, los diez
+cleansed `enriched`, y los diez enriched eran `pending`
+con `provider_used=mock`/`is_mock_data=true`. Una repetición normal puede no
+recrear entradas si el contenido no cambió. La remediación local se prueba con
+una transacción acotada por los diez IDs del lote: verifica relaciones, estado,
+institución, URL y hash; marca los enriched mock como `discarded` con motivo
+auditable y reencola solo los cleansed correspondientes a `pending`. La segunda
+aplicación debe ser un no-op; cualquier discrepancia cancela la transacción.
+El fixture PG17 efímero del 23-11-2026 pasó dos aplicaciones: la primera aisló
+las diez filas mock y reencoló únicamente su cleansing; la segunda fue no-op.
+Verificó hash de staging, cursos y fila mock de otra institución sin cambios.
+Aunque usa identidades procedentes del manifiesto aprobado, las filas y hashes
+son sintéticos, y los hashes se copiaron del snapshot previo al run: esto prueba
+predicados, alcance e idempotencia, no el estado actual de Pro ni permisos de
+escritura remotos. No se volvió a leer Pro. Para producción aún se requieren
+lecturas frescas de IDs/hashes y un JIT específico; el pipeline actual no tiene
+un modo de re-enrichment aislado que permita asumir que un rerun normal
+consumirá esas filas. No se reinician staging ni se cambian hashes.
+
 ### Ensayo PG17/PostgREST acotado
 
 `tests/fg2_full_pipeline_pg17/run.sh` construye un entorno efímero con migraciones
 versionadas, roles sintéticos y red Docker interna sin egress. Llama los mismos
 entrypoints de las cuatro estaciones desde procesos separados y valida
 manifiesto, staging, cleansing, enrichment y sync mediante PostgREST real contra
-PG17. HTTP institucional y proveedor de enrichment son simulados; el proveedor
-registrado es `local_smart_mock`. En la última ejecución, el ensayo terminó
-PASS con 6 cursos sintéticos en destino, 5 pendientes de revisión en la cola
-Admin y 0 en `courses_public_effective`; el refresh preservó ID y override.
-También comprobó perfil ambiguo, 403/429, fallo RPC transitorio con salida
-no-cero y recuperación sin duplicación. No demuestra datos/proveedores reales,
-permisos remotos, deployment, ni resultado productivo.
+PG17. HTTP institucional y proveedor de enrichment son fronteras sintéticas;
+`sitecustomize.py` sustituye el adaptador externo de proveedores con la respuesta
+determinista `fixture-provider`, sin sustituir la lógica del worker. La salida
+local debe distinguirla del proveedor real y del smart mock. El ensayo local del
+23-11-2026 terminó PASS: 6 cursos sintéticos en destino, 5 pendientes de
+revisión en la cola Admin y 0 en `courses_public_effective`; el refresh preservó
+ID y override. También comprobó perfil ambiguo, 403/429, fallo RPC transitorio
+con salida no-cero y recuperación sin duplicación. La regresión focal separada
+comprueba que tres rutas de indisponibilidad del proveedor en una cohorte
+controlada abortan sin cambiar el estado sintético ni guardar mock. No demuestra
+datos/proveedores reales, permisos remotos, deployment, ni resultado productivo.
+
+El harness de Sync pasa por `run_entrypoint.py`, que carga el mismo script,
+conserva los argumentos de su CLI y llama `main()`; solo en ese proceso de
+fixture permite `fixture-provider`. El worker productivo no tiene una variable
+ambiental que active la excepción.
 
 **Transición:** `expand` incorpora schema y modo explícito de diagnóstico;
 `compatibilidad` conserva el camino existente y activa defaults conservadores;
@@ -94,7 +143,7 @@ PR; no borrar observaciones ni ejecutar DDL rollback destructivo sin aprobación
 | `scripts/core/master_orchestrator.py` | `get_institutions()` resuelve cohortes/gates/recencia/circuit breaker; `run_script()` lanza workers por subprocess con timeout; `main()` aplica límites y flags. | Job FG2 en `production_pipeline.yml`; sus subprocessos y jobs siguientes son etapas separadas. | Lee perfiles/estado y lanza subprocessos; los procesos hijos pueden tocar DB/red. `--limit`, exclusiones y modo canario cambian el lote. |
 | `scripts/core/universal_harvester.py` | `UniversalHarvester` obtiene sitemap/BFS, aplica hosts/gates/exclusiones, extrae HTML/metadata y calcula hash del contenido antes de registrar la URL. | Job de orquestación FG2; `cleansing_worker.py` consume `staging_raw`. | Web externa y `staging_raw`; escribe usando identidad de pipeline autorizada. `content_hash` evita repetir contenido igual, no representa identidad única de curso. |
 | `scripts/core/cleansing_worker.py` | `CleansingWorker` reclama staging, limpia/consolida páginas, aplica ruido y fechas/precio, registra errores y promueve el batch con RPC atómica. | Job separado de `production_pipeline.yml`; RPC lock/promote en el ledger DB. | `staging_raw → cleansed_programs`, estados y errores; writer de pipeline. |
-| `scripts/core/enrichment_worker.py` | `EnrichmentWorker` prepara prompt/contexto, aplica proveedores, normaliza la respuesta; `process_enrichment_records()` limita/agrupa intentos. | Job separado de `production_pipeline.yml`; proveedores por nombre y fallback local/mock según flag. | `cleansed_programs → enriched_programs`; variables por nombre `OPENCODE_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`. Un proveedor real usa red/costo; ninguno se invocó aquí. |
+| `scripts/core/enrichment_worker.py` | `EnrichmentWorker` prepara prompt/contexto, llama OpenAI Responses como proveedor primario, conserva Cloudflare como fallback y normaliza la respuesta; `process_enrichment_records()` limita/agrupa intentos. | Job separado de `production_pipeline.yml`; `OPENAI_API_KEY` llega solo al paso backend de Enrichment. El health check revisa configuración local y no envía una solicitud de prueba. | `cleansed_programs → enriched_programs`; requiere `OPENAI_API_KEY` más `CF_ACCOUNT_ID`/`CF_API_TOKEN` para fallback. Un proveedor real usa red/costo; ninguna llamada real se ejecutó. |
 | `scripts/core/sync_vector_worker.py` | `SyncVectorWorker` valida datos normalizados/calidad/guards y persiste cursos, respetando ownership editorial. El nombre no prueba que embeddings estén activos. | Job separado de `production_pipeline.yml`; `roi_engine.py` calcula campos ROI. | `enriched_programs → courses`; writer normal final, requiere permisos de pipeline y preflight de modo. |
 | `scripts/core/integrity_ping.py` | `run_integrity_ping()` selecciona desde `courses_public_effective`, lee la base solo para esos IDs y llama `fg3_apply_public_course_transition` para revalidar y escribir en una transacción. Cada probe valida/pinea DNS público, HTTPS y redirects; aplica HEAD/GET y retry bounded. | `.github/workflows/fg3_integrity.yml` (comando desde `scripts/core`); `production_canary.yml` lo usa con límites canario. | Lee URLs efectivas públicas y snapshots base de IDs seleccionados; el RPC solo cambia `last_404_at` o `is_active`. `stale` es NO-OP. La revisión local no acredita que la migration esté aplicada en Pro. |
 
@@ -658,9 +707,137 @@ obtener la autorización operativa correspondiente.
 
 ## Proveedores, simulación y discrepancia documental
 
-El código actual construye dos proveedores: DeepSeek v4 Flash por endpoint OpenCode-compatible, seguido de Cloudflare Workers AI Meta Llama 3.1 8B. Si proveedores fallan, el worker puede usar mock/smart-mock y marcar provider_used/is_mock_data. Variables por nombre: OPENCODE_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN. No se leyeron valores ni se invocaron servicios.
+La ruta de enriquecimiento de este candidato sustituye OpenCode por OpenAI API:
+`gpt-6-luna` es el modelo fijo del código y usa `POST /v1/responses` con
+Structured Outputs JSON Schema estricto. El esquema conserva el contrato de
+salida existente del prompt de 14 pilares (18 propiedades incluidas sus
+colecciones auxiliares); sus campos opcionales se representan como `null` y no
+se agregan campos libres. La documentación oficial enumera Responses, salida
+estructurada, contexto de 1.05M tokens y máximo de 128K tokens de salida; eso
+demuestra compatibilidad documentada, no acceso, permiso, billing, cuota o
+rate limit del proyecto API de StudiaMatch. Es el modelo base eficiente elegido
+para completar el contrato existente de 14 pilares, no una reducción del esquema.
+Referencias: [modelo GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna),
+[Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
 
-AGENTS.md y notas históricas describen CF → GitHub → Gemini. Ese orden no coincide con scripts/core/enrichment_worker.py en este candidato. Se registra la diferencia como conflicto documental y runtime remoto desconocido; no se infiere disponibilidad ni se altera funcionalidad.
+El contrato local común para ambos proveedores fija un prompt de hasta 24.000
+bytes UTF-8, salida solicitada de hasta 2.048 tokens, cuerpo HTTP de respuesta
+de hasta 256.000 bytes, timeout de conexión/lectura de 5 segundos por socket,
+deadline local de lectura de 30 segundos, cero reintentos y redirects
+rechazados. El fallback Cloudflare vuelve a validar el tipo y tamaño del prompt
+y no puede eludir ese límite. Las respuestas de ambos proveedores se validan
+contra el mismo JSON Schema local de 18 propiedades; un JSON sintácticamente
+válido pero incompleto o con tipos/campos inesperados se trata como fallo del
+provider y no puede llegar a persistencia. El health check revisa solo la
+presencia de configuración y no hace un POST de prueba facturable. La entrada
+excedida, credencial ausente, rechazo, timeout, cuerpo excesivo, respuesta
+incompleta, refusal, esquema/JSON inválido o error de transporte produce fallo
+sanitizado y permite un único intento con Cloudflare; el orquestador no reintenta
+el mismo proveedor. Cloudflare permanece como fallback con el adapter directo
+existente y sus bindings `CF_ACCOUNT_ID` y `CF_API_TOKEN`.
+No existe un selector de modelo por variable, alias configurable ni ruta nueva
+de Admin: `OPENAI_API_KEY` es el único secreto nuevo de configuración; modelo y
+presupuesto permanecen fijados por código.
+
+La página de modelo publica la tarifa estándar de USD 0,10/M tokens de entrada
+y USD 0,50/M de salida. Como estimación de una fila se asumen conservadoramente
+30.000 tokens de entrada (incluido el esquema) y el límite de 2.048 de salida:
+USD 0,004024 por intento OpenAI; diez intentos serían USD 0,04024. No es un
+tope de facturación: los 24.000 bytes no equivalen a un conteo garantizado de
+tokens, el costo real sigue el uso facturado y el fallback de Cloudflare tiene
+costo separado. Por decisión operativa del responsable, no se agrega un máximo
+arbitrario de registros de enrichment por corrida: se permite procesar todo el
+trabajo elegible que seleccione el modo vigente hasta agotar esa entrada, alcanzar
+el guard temporal o detenerse por un bloqueo/error institucional conforme a la
+política de cosecha. Un run-scoped manifest limita cada estación a la cohorte
+congelada; el despacho manual ordinario sin ese manifiesto puede seleccionar la
+cola global pendiente y su costo total es variable. Esa semántica debe quedar
+visible al aprobar cada ejecución; no hay un límite agregado de facturación en el
+código. El cálculo de diez cursos es solo una estimación ilustrativa, no un
+presupuesto ni una cota. Antes de la primera llamada real se debe verificar acceso
+y saldo del proyecto API; ChatGPT no implica por sí mismo créditos API. No se
+leyó ni configuró una clave, no hubo POST real y no se modificaron los diez IDs
+originales del lote aprobado.
+
+El caller manda la clave solo en `Authorization` desde el proceso backend y el
+workflow la expone exclusivamente al paso `Multicloud AI Enrichment` mediante
+el secreto de Environment `OPENAI_API_KEY`. El selector existente asigna
+`Production` al workflow manual y `Production-Scheduled-FG2` al schedule; si
+ambos se habilitan después, cada Environment necesita su propio Environment
+secret con ese mismo nombre. No usar Repository secrets, variables `vars`,
+`NEXT_PUBLIC_*`, frontend, fixtures, argumentos o logs para la clave. El body
+solicita `store:false`; esto no verifica las políticas de retención del proyecto
+ni elimina los controles de datos que debe comprobar su propietario.
+
+**Preparación de la prueba real acotada (no ejecutada):** tras integrar a main,
+crear la clave en el proyecto de API aprobado y guardarla como Environment
+secret `OPENAI_API_KEY` primero en `Production` (el secreto del Environment
+programado requiere su propia decisión). Para el smoke de una sola llamada,
+sin scraping, curso, proveedores de fallback ni persistencia, ingresar el
+secreto en el shell seguro del runner autorizado, comprobarlo sin imprimirlo y
+enviar únicamente un prompt sintético con Structured Outputs, `gpt-6-luna`,
+`max_output_tokens=16`, `store:false`, timeout 30s, redirects deshabilitados y
+cero reintentos. Aceptar solo HTTP 200 y JSON `{"ok":true}`; registrar status,
+modelo y usage numérico sin prompt, respuesta, headers ni key. El smoke sería
+pagado y requiere autorización específica de una llamada; esta implementación
+no lo ejecutó ni autoriza el piloto, nuevas credenciales o activación del
+schedule. La elegibilidad para créditos API no se infiere de la suscripción
+ChatGPT; verificarlo en el proyecto de API antes de aprobar gasto.
+
+El nombre persistido por el worker es `provider_used=OpenAI`; la allowlist de
+Sync compara en minúsculas y acepta `openai`. Cloudflare se registra como
+`Cloudflare`. La provenance histórica `DeepSeek` se conserva únicamente para
+filas reales existentes; este worker no la produce. La barrera que rechaza
+`is_mock_data` y proveedores mock, y la protección editorial existente, no
+cambian. El modo de producción aún aborta antes de `enriched_programs` si
+ningún proveedor real genera JSON válido.
+
+Todos los entrypoints productivos del worker requieren un proveedor real por
+defecto, tengan o no `--cohort-manifest` o `FG2_REQUIRE_REAL_PROVIDER`. La flag
+de workflow y el manifiesto son controles adicionales; su ausencia nunca
+autoriza persistir un smart mock. Si todos fallan el health check, el fallback
+devuelve un resultado vacío o la orquestación declara degradación total,
+`enrichment_worker.py` termina con el evento estable `FG2_ENRICHMENT_ABORT` y
+código no cero antes de guardar `enriched_programs`. Los logs de fallo de
+proveedor conservan proveedor, categoría sanitizada y estado HTTP cuando existe;
+omiten mensaje de excepción, cuerpo, prompt, respuesta, URL, headers y
+credenciales. OpenAI clasifica falta de binding, tamaño excesivo, auth/permission,
+rate limit, timeout, HTTP transitorio, respuesta incompleta/refusal e inválida;
+Cloudflare conserva sus categorías de binding, auth/permission, model/endpoint,
+rate limit, HTTP transitorio, timeout y respuesta inválida. Ninguno reintenta ni
+sigue redirects. Las pruebas E2E sustituyen explícitamente la frontera del
+proveedor por una respuesta sintética dentro de Docker sin egress; no habilitan
+el fallback smart-mock ni acreditan proveedores reales.
+
+Sync añade una última barrera independiente para toda fila, incluso en una
+llamada directa sin manifiesto ni flag:
+si `is_mock_data` es `true` o está ausente, devuelve fallo antes de escribir
+`courses`, actualizar editorial o marcar la fila como sincronizada. Así, un
+fallo futuro en la propagación del estado del proveedor tampoco convierte un
+resultado mock en escritura. La provenance debe corresponder a un proveedor
+permitido; una excepción sintética solo existe dentro del harness local y se
+desactiva para Production. La ausencia de manifiesto o flag no restaura el
+fallback legacy.
+
+**Transición y recuperación:** `expand` hace fail-closed por defecto los
+entrypoints productivos sin cambiar tablas, RPC ni estados. En
+`compatibilidad`, todos los entrypoints del worker abortan antes de persistir
+mocks, incluso sin manifiesto; solo las pruebas aisladas sustituyen
+explícitamente el proveedor o desactivan el guard en una instancia de fixture.
+`deploy` sigue la promoción protegida Desarrollo →
+Certificación → main; el control productivo continúa pausado hasta obtener una
+nueva aprobación de piloto. `contract` conserva el guard como requisito para
+todo manifest no vacío y no necesita retirar objetos de DB. Ante proveedor no
+disponible, detener la corrida antes de Sync, conservar las filas pendientes y
+la evidencia sanitizada; no reparar, resetear ni reintentar sin autorización.
+La reversión de código requiere PR protegido y la pausa debe seguir cerrada;
+no despachar mientras la versión revertida permita guardar mocks en una
+cohorte controlada.
+
+AGENTS.md y notas históricas describen CF → GitHub → Gemini. Ese orden no
+coincide con este caller OpenAI → Cloudflare. El orden ahora es explícito en
+código y documentación; la instalación de clave, permisos de API, comportamiento
+facturable real y preservación de datos con el proveedor siguen sin verificarse.
 
 ## Writers, schedules y límites
 

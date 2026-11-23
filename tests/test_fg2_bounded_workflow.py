@@ -271,13 +271,19 @@ class FixtureProviderOrchestrator:
         self.providers = list(providers)
         self.logger = logger
 
+    @property
+    def mode(self):
+        return os.getenv("FG2_E2E_PROVIDER_MODE", "success")
+
     def run_health_checks(self):
         for provider in self.providers:
-            provider._healthy = True
+            provider._healthy = self.mode != "all_unhealthy"
         return [provider.name for provider in self.providers]
 
-    def call_with_fallback(self, _prompt, _clean_fn):
-        return ({
+    def call_with_fallback(self, _prompt, _clean_fn, validate_fn=None):
+        if self.mode == "no_result":
+            return None, None
+        payload = {
             "official_name": "Programa sintético verificado",
             "duration_text": "6 meses",
             "duration_months": 6,
@@ -296,10 +302,13 @@ class FixtureProviderOrchestrator:
             "categories": ["Data"],
             "difficulty_level": "Básico",
             "ai_summary": "Resumen de curso sintético.",
-        }, "fixture-provider")
+        }
+        if validate_fn is not None and validate_fn(payload) is not True:
+            return None, None
+        return payload, "OpenAI"
 
     def _all_degraded(self):
-        return False
+        return self.mode == "dynamic_degraded"
 
     def summary(self):
         return "fixture-provider: 2/2"
@@ -374,6 +383,31 @@ def test_ordinary_harvest_and_downstream_paths_remain_available() -> None:
     assert "production_control_preflight.sh FG2-CLEANSING --enforce" in workflow
     assert "production_control_preflight.sh FG2-ENRICHMENT --enforce" in workflow
     assert "production_control_preflight.sh FG2-SYNC --enforce" in workflow
+
+
+def test_production_manual_and_schedule_workers_require_real_enrichment() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    production_guard = (
+        "FG2_REQUIRE_REAL_PROVIDER: ${{ github.ref == 'refs/heads/main' && "
+        "(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}"
+    )
+    for job in ("phase_2_enrichment", "phase_3_sync"):
+        section = workflow.split(f"  {job}:", 1)[1].split("\n  phase_", 1)[0]
+        assert production_guard in section
+
+    assert "default: false" in workflow.split("bounded_first_run:", 1)[1].split("concurrency:", 1)[0]
+
+
+def test_openai_secret_is_bound_only_to_backend_enrichment_step_for_manual_and_schedule() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    enrichment = workflow.split("      - name: Multicloud AI Enrichment", 1)[1].split("\n  # 🚉 STATION 3", 1)[0]
+    assert "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}" in enrichment
+    assert workflow.count("OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") == 1
+    assert "OPENAI_API_KEY" not in workflow.split("jobs:", 1)[1].split("  phase_2_enrichment:", 1)[0]
+    assert "github.event_name == 'schedule'" in workflow.split("  phase_2_enrichment:", 1)[1].split("\n  phase_", 1)[0]
+    assert "github.event_name == 'workflow_dispatch'" in workflow.split("  phase_2_enrichment:", 1)[1].split("\n  phase_", 1)[0]
+    sync = workflow.split("      - name: Sync to Production Courses", 1)[1].split("\n\n  phase_4_audit", 1)[0]
+    assert "OPENAI_API_KEY" not in sync
 
 
 def test_main_schedule_propagates_a_run_scoped_manifest_to_all_workers() -> None:
@@ -616,6 +650,7 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
         "NEXT_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
         "NEXT_SUPABASE_SECRET_KEY", "CF_API_TOKEN", "CF_ACCOUNT_ID",
         "OPENAI_API_KEY", "OPENCODE_API_KEY", "GEMINI_API_KEY",
+        "FG2_REQUIRE_REAL_PROVIDER",
     ):
         base_env.pop(key, None)
     base_env.update({
@@ -686,16 +721,84 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
         stage_env = {**base_env, "RUNNER_TEMP": str(runner), "FG2_COHORT_MANIFEST_SHA256": outputs["cohort_manifest_sha256"]}
         return restored, stage_env
 
-    def run_worker(stage: str, script: str, *, expected: int = 0) -> None:
+    def run_worker(
+        stage: str,
+        script: str,
+        *,
+        expected: int = 0,
+        extra_env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         manifest, worker_env = restore_runner_manifest(stage)
-        run_entrypoint([
-            sys.executable,
-            str(ROOT / "scripts/core" / script),
+        if extra_env:
+            worker_env.update(extra_env)
+        script_path = ROOT / "scripts/core" / script
+        command = [sys.executable, str(script_path)]
+        if script == "sync_vector_worker.py":
+            # Route the real CLI through the fixture entrypoint adapter so it
+            # can allow only this synthetic provider result in the isolated
+            # process. Production code has no environment-controlled bypass.
+            worker_env["FG2_FIXTURE_PROVIDER_ADAPTER"] = "1"
+            command = [
+                sys.executable,
+                str(ROOT / "tests/fg2_full_pipeline_pg17/run_entrypoint.py"),
+                str(script_path),
+            ]
+        return run_entrypoint([
+            *command,
             "--cohort-manifest", str(manifest),
             "--cohort-manifest-sha256", outputs["cohort_manifest_sha256"],
         ], worker_env, expected=expected)
 
     run_worker("cleansing", "cleansing_worker.py")
+    pre_enrichment = json.loads(state_path.read_text(encoding="utf-8"))
+    for mode, stage, expected_event in (
+        ("all_unhealthy", "provider-health-failure", "stage=provider_health category=all_providers_unhealthy"),
+        ("no_result", "provider-empty-fallback", "stage=provider_fallback category=real_provider_result_missing"),
+        ("dynamic_degraded", "provider-runtime-degraded", "stage=provider_runtime category=all_providers_degraded"),
+    ):
+        failed_provider_run = run_worker(
+            stage,
+            "enrichment_worker.py",
+            expected=1,
+            extra_env={"FG2_E2E_PROVIDER_MODE": mode},
+        )
+        diagnostic = failed_provider_run.stdout + failed_provider_run.stderr
+        assert "FG2_ENRICHMENT_ABORT" in diagnostic
+        assert expected_event in diagnostic
+        assert "synthetic provider response sentinel" not in diagnostic
+        assert json.loads(state_path.read_text(encoding="utf-8")) == pre_enrichment
+
+    # A no-manifest CLI run without the provider flag must fail closed too.
+    # Preserve a pre-existing pending mock row when providers are unavailable.
+    no_manifest_state = json.loads(state_path.read_text(encoding="utf-8"))
+    no_manifest_state["tables"]["enriched_programs"].append({
+        "id": str(uuid.uuid5(uuid.NAMESPACE_URL, "fg2-pending-mock-no-manifest")),
+        "cleansed_id": str(uuid.uuid5(uuid.NAMESPACE_URL, "fg2-pending-mock-cleansed")),
+        "institution_id": institution_id,
+        "url": "https://synthetic.example/pending-mock",
+        "status": "pending",
+        "provider_used": "mock",
+        "is_mock_data": True,
+    })
+    state_path.write_text(json.dumps(no_manifest_state, sort_keys=True), encoding="utf-8")
+    before_unbounded_manual = json.loads(state_path.read_text(encoding="utf-8"))
+    unbounded_manual_env = {
+        **base_env,
+        "FG2_COHORT_SCOPED": "false",
+        "FG2_E2E_PROVIDER_MODE": "all_unhealthy",
+    }
+    assert "FG2_REQUIRE_REAL_PROVIDER" not in unbounded_manual_env
+    unbounded_manual = run_entrypoint(
+        [sys.executable, str(ROOT / "scripts/core/enrichment_worker.py")],
+        unbounded_manual_env,
+        expected=1,
+    )
+    assert "FG2_ENRICHMENT_ABORT stage=provider_health" in (
+        unbounded_manual.stdout + unbounded_manual.stderr
+    )
+    assert json.loads(state_path.read_text(encoding="utf-8")) == before_unbounded_manual
+    state_path.write_text(json.dumps(pre_enrichment, sort_keys=True), encoding="utf-8")
+
     failed_partial_state = json.loads(state_path.read_text(encoding="utf-8"))
     failed_partial_state["fail_next_enrichment_rpc"] = True
     state_path.write_text(json.dumps(failed_partial_state, sort_keys=True), encoding="utf-8")
@@ -758,6 +861,67 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
     }].count("atomic_cleansing_promote") == 1
     assert sum(event == "atomic_enrichment_promote" for event in final["rpc_events"]) == 2
 
+    # Model the ten post-#269 mock rows: staging remains processed, cleansing
+    # remains enriched, and each pending enriched row is explicitly synthetic.
+    # Production Sync must fail without mutating any of those rows or courses.
+    recovery_state = json.loads(state_path.read_text(encoding="utf-8"))
+    recovery_tables = recovery_state["tables"]
+    recovery_tables["enriched_programs"] = [
+        row for row in recovery_tables["enriched_programs"] if row["id"] != outside_enriched_id
+    ]
+    recovery_tables["cleansed_programs"] = [
+        row for row in recovery_tables["cleansed_programs"] if row["id"] != outside_clean_id
+    ]
+    recovery_tables["staging_raw"] = [
+        row for row in recovery_tables["staging_raw"] if row["id"] != outside_staging_id
+    ]
+    for index in range(10):
+        staging_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"fg2-recovery:{index}:staging"))
+        cleansed_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"fg2-recovery:{index}:cleansed"))
+        enriched_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"fg2-recovery:{index}:enriched"))
+        recovery_url = f"https://synthetic.example/recovery/{index}"
+        recovery_tables["staging_raw"].append({
+            "id": staging_id,
+            "institution_id": institution_id,
+            "url": recovery_url,
+            "content_hash": hashlib.sha256(f"body-{index}".encode()).hexdigest(),
+            "status": "processed",
+        })
+        recovery_tables["cleansed_programs"].append({
+            "id": cleansed_id,
+            "staging_id": staging_id,
+            "institution_id": institution_id,
+            "url": recovery_url,
+            "status": "enriched",
+        })
+        recovery_tables["enriched_programs"].append({
+            "id": enriched_id,
+            "cleansed_id": cleansed_id,
+            "institution_id": institution_id,
+            "url": recovery_url,
+            "status": "pending",
+            "provider_used": "mock",
+            "is_mock_data": True,
+        })
+    state_path.write_text(json.dumps(recovery_state, sort_keys=True), encoding="utf-8")
+    before_mock_sync = json.loads(state_path.read_text(encoding="utf-8"))
+    sync_env = {
+        **base_env,
+        "FG2_COHORT_SCOPED": "false",
+    }
+    assert "FG2_REQUIRE_REAL_PROVIDER" not in sync_env
+    failed_mock_sync = run_entrypoint(
+        [sys.executable, str(ROOT / "scripts/core/sync_vector_worker.py")],
+        sync_env,
+        expected=1,
+    )
+    assert "Found 10 pending enriched records." in failed_mock_sync.stdout
+    assert "Failed: 10" in failed_mock_sync.stdout
+    assert "category=mock_enrichment_rejected" in (
+        failed_mock_sync.stdout + failed_mock_sync.stderr
+    )
+    assert json.loads(state_path.read_text(encoding="utf-8")) == before_mock_sync
+
 
 def test_fg2_ci_fixture_records_the_pull_request_source_sha() -> None:
     """The isolated E2E records the candidate commit rather than the PR merge ref."""
@@ -767,3 +931,618 @@ def test_fg2_ci_fixture_records_the_pull_request_source_sha() -> None:
     assert "FG2_FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}" in workflow
     assert 'source_sha="${FG2_FIXTURE_SOURCE_SHA:-95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b}"' in fixture_runner
     assert "invalid_source_sha" in fixture_runner
+
+
+def test_enrichment_provider_diagnostics_redact_exception_and_response_bodies(monkeypatch) -> None:
+    from types import SimpleNamespace
+    from scripts.core import enrichment_worker
+
+    events: list[str] = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    class FakeProviderError(Exception):
+        def __init__(self):
+            self.response = SimpleNamespace(status_code=400)
+            super().__init__("synthetic provider response sentinel")
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-fixture-token")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-fixture-account")
+    monkeypatch.setattr(
+        enrichment_worker.requests,
+        "post",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(FakeProviderError()),
+    )
+    assert worker._call_cloudflare("synthetic prompt sentinel") is None
+
+    diagnostic_text = "\n".join(events)
+    assert "synthetic provider response sentinel" not in diagnostic_text
+    assert "synthetic prompt sentinel" not in diagnostic_text
+    assert "status_code=400" in diagnostic_text
+    assert "provider=Cloudflare category=request_rejected" in diagnostic_text
+
+
+def test_enrichment_runtime_registers_openai_primary_and_cloudflare_fallback(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    registered = []
+
+    class FixtureDB:
+        @staticmethod
+        def select_pipeline_raise(_table):
+            return []
+
+    class FixtureProvider:
+        def __init__(self, name, call_fn, health_fn=None):
+            self.name = name
+            self.call_fn = call_fn
+            self.health_fn = health_fn
+            registered.append(self)
+
+    class FixtureOrchestrator:
+        def __init__(self, providers, logger):
+            self.providers = list(providers)
+            self.logger = logger
+
+    monkeypatch.setenv("OPENCODE_API_KEY", "synthetic-legacy-key")
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key", raising=False)
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-cloudflare-token")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-cloudflare-account")
+    monkeypatch.setattr(enrichment_worker, "get_db_client", FixtureDB)
+    monkeypatch.setattr(enrichment_worker, "LLMProvider", FixtureProvider)
+    monkeypatch.setattr(enrichment_worker, "ProviderOrchestrator", FixtureOrchestrator)
+
+    worker = enrichment_worker.EnrichmentWorker()
+
+    assert [provider.name for provider in registered] == ["OpenAI", "Cloudflare"]
+    assert [provider.name for provider in worker.orchestrator.providers] == ["OpenAI", "Cloudflare"]
+    assert all(callable(provider.health_fn) for provider in registered)
+    assert registered[0].health_fn() is True
+    assert not hasattr(enrichment_worker, "OPENCODE_API_KEY")
+
+
+def test_openai_responses_adapter_uses_bounded_structured_output_without_redirects(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    calls = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self):
+            self.body = json.dumps({
+                "status": "completed",
+                "output": [{
+                    "type": "message",
+                    "content": [{
+                        "type": "output_text",
+                        "text": '{"official_name":"Synthetic course"}',
+                    }],
+                }],
+            }).encode("utf-8")
+            self.headers = {"Content-Length": str(len(self.body))}
+
+        def iter_content(self, chunk_size=None):
+            yield self.body
+
+        def close(self):
+            return None
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return FakeResponse()
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-secret")
+    monkeypatch.setattr(enrichment_worker.requests, "post", fake_post)
+
+    assert worker._call_openai("synthetic extraction prompt") == '{"official_name":"Synthetic course"}'
+    assert len(calls) == 1
+    url, kwargs = calls[0]
+    assert url == "https://api.openai.com/v1/responses"
+    authorization = kwargs["headers"]["Authorization"].partition(" ")
+    assert authorization[0] == "Bear" + "er"
+    assert authorization[2] == "synthetic-openai-secret"
+    assert kwargs["json"]["model"] == "gpt-6-luna"
+    assert kwargs["json"]["instructions"]
+    assert kwargs["json"]["input"] == "synthetic extraction prompt"
+    assert kwargs["json"]["max_output_tokens"] == 2048
+    assert kwargs["json"]["reasoning"] == {"effort": "low"}
+    assert kwargs["json"]["store"] is False
+    fmt = kwargs["json"]["text"]["format"]
+    assert fmt["type"] == "json_schema" and fmt["strict"] is True
+    schema = fmt["schema"]
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(schema["properties"])
+    assert len(schema["required"]) == 18
+    assert kwargs["timeout"] == (5, 5)
+    assert kwargs["allow_redirects"] is False
+    assert kwargs["stream"] is True
+
+
+def test_openai_adapter_rejects_missing_key_oversize_input_and_bad_responses(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    events = []
+    calls = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    class FakeResponse:
+        def __init__(self, status_code=200, payload=None):
+            self.status_code = status_code
+            self.payload = payload
+            self.body = json.dumps(payload).encode("utf-8")
+            self.headers = {"Content-Length": str(len(self.body))}
+
+        def iter_content(self, chunk_size=None):
+            yield self.body
+
+        def close(self):
+            return None
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "")
+    monkeypatch.setattr(enrichment_worker.requests, "post", lambda *a, **k: calls.append((a, k)))
+    assert worker._call_openai("prompt") is None
+    assert calls == []
+    assert "category=missing_configuration" in events[-1]
+
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-secret")
+    assert worker._call_openai("x" * (enrichment_worker.OPENAI_MAX_INPUT_BYTES + 1)) is None
+    assert calls == []
+    assert "category=input_limit_exceeded" in events[-1]
+
+    sentinel = "synthetic-body-and-prompt-sentinel"
+    for status, category in (
+        (401, "auth_or_permission"),
+        (302, "http_error"),
+        (429, "rate_limited"),
+        (503, "transient_http"),
+    ):
+        def fake_status(*args, _status=status, **kwargs):
+            calls.append((args, kwargs))
+            assert kwargs["allow_redirects"] is False
+            return FakeResponse(_status, {"error": sentinel})
+
+        monkeypatch.setattr(enrichment_worker.requests, "post", fake_status)
+        assert worker._call_openai(f"prompt {sentinel}") is None
+        assert category in events[-1]
+    assert len(calls) == 4
+    diagnostic = "\n".join(events)
+    assert sentinel not in diagnostic
+    assert "synthetic-openai-secret" not in diagnostic
+
+
+def test_openai_adapter_parses_responses_and_classifies_timeout_refusal_and_incomplete(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    events = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self.body = json.dumps(payload).encode("utf-8")
+            self.headers = {"Content-Length": str(len(self.body))}
+
+        def iter_content(self, chunk_size=None):
+            yield self.body
+
+        def close(self):
+            return None
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-secret")
+
+    for payload, expected_category in (
+        ({"status": "incomplete", "output": []}, "incomplete_response"),
+        ({"status": "completed", "output": [{"type": "message", "content": [{"type": "refusal", "refusal": "sentinel"}]}]}, "refusal"),
+        ({"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": ""}]}]}, "invalid_provider_response"),
+    ):
+        monkeypatch.setattr(enrichment_worker.requests, "post", lambda *a, _payload=payload, **k: FakeResponse(_payload))
+        assert worker._call_openai("synthetic prompt") is None
+        assert expected_category in events[-1]
+
+    class InvalidJsonResponse:
+        status_code = 200
+        headers = {}
+
+        @staticmethod
+        def iter_content(chunk_size=None):
+            yield b"not-json-synthetic-response-body"
+
+        @staticmethod
+        def close():
+            return None
+
+    monkeypatch.setattr(enrichment_worker.requests, "post", lambda *a, **k: InvalidJsonResponse())
+    assert worker._call_openai("synthetic prompt") is None
+    assert "category=invalid_response_json" in events[-1]
+
+    def timeout(*_args, **_kwargs):
+        raise enrichment_worker.requests.Timeout("synthetic exception body")
+
+    monkeypatch.setattr(enrichment_worker.requests, "post", timeout)
+    assert worker._call_openai("synthetic prompt") is None
+    assert "category=timeout" in events[-1]
+    diagnostics = "\n".join(events)
+    assert "synthetic exception body" not in diagnostics
+    assert "synthetic prompt" not in diagnostics
+    assert "synthetic-openai-secret" not in diagnostics
+
+
+def test_openai_primary_falls_back_to_cloudflare_and_health_checks_do_not_call_api(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    db_calls = []
+
+    class FixtureDB:
+        @staticmethod
+        def select_pipeline_raise(_table):
+            return []
+
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-secret")
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-cloudflare-secret")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-account")
+    monkeypatch.setattr(enrichment_worker, "get_db_client", FixtureDB)
+
+    worker = enrichment_worker.EnrichmentWorker()
+    worker.profiles = []
+    worker._mock_only = False
+    worker.require_real_provider = True
+    valid_payload = {
+        "official_name": "Synthetic course",
+        "duration_text": None,
+        "duration_months": None,
+        "total_cost_est": None,
+        "requirements": [],
+        "graduate_profile": None,
+        "target_audience": None,
+        "objectives": None,
+        "benefits": None,
+        "certification": None,
+        "curriculum_summary": {"pilares": []},
+        "modality": None,
+        "primary_campus": None,
+        "degree_type": None,
+        "start_date": None,
+        "categories": [],
+        "difficulty_level": None,
+        "ai_summary": None,
+    }
+    worker._call_openai = lambda _prompt: json.dumps(dict(valid_payload, official_name="OpenAI course"))
+    worker._call_cloudflare = lambda _prompt: json.dumps(dict(valid_payload, official_name="Fallback course"))
+    worker.orchestrator.providers[0].call_fn = worker._call_openai
+    worker.orchestrator.providers[1].call_fn = worker._call_cloudflare
+    monkeypatch.setattr(enrichment_worker.requests, "post", lambda *a, **k: db_calls.append((a, k)))
+
+    assert worker.orchestrator.run_health_checks() == ["OpenAI", "Cloudflare"]
+    assert db_calls == []
+    result, provider = worker._call_llm_for_pillars("Synthetic", "Synthetic description")
+    assert result["official_name"] == "OpenAI course"
+    assert provider == "OpenAI"
+
+    worker._call_openai = lambda _prompt: None
+    worker.orchestrator.providers[0].call_fn = worker._call_openai
+    result, provider = worker._call_llm_for_pillars("Synthetic", "Synthetic description")
+    assert result["official_name"] == "Fallback course"
+    assert provider == "Cloudflare"
+
+
+def test_provider_fallback_rejects_oversize_prompt_and_invalid_schema(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    events = []
+    requests_seen = []
+
+    class CaptureLogger:
+        def info(self, message, *args):
+            events.append(message % args if args else message)
+
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self.body = json.dumps(payload).encode("utf-8")
+            self.headers = {"Content-Length": str(len(self.body))}
+
+        def iter_content(self, chunk_size=None):
+            yield self.body
+
+        def close(self):
+            return None
+
+    valid = {
+        "official_name": "Synthetic course", "duration_text": None,
+        "duration_months": None, "total_cost_est": None, "requirements": [],
+        "graduate_profile": None, "target_audience": None, "objectives": None,
+        "benefits": None, "certification": None,
+        "curriculum_summary": {"pilares": []}, "modality": None,
+        "primary_campus": None, "degree_type": None, "start_date": None,
+        "categories": [], "difficulty_level": None, "ai_summary": None,
+    }
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-cloudflare-key")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-account")
+    monkeypatch.setattr(
+        enrichment_worker.requests, "post",
+        lambda *args, **kwargs: requests_seen.append((args, kwargs)),
+    )
+
+    providers = [
+        enrichment_worker.LLMProvider("OpenAI", worker._call_openai, lambda: True),
+        enrichment_worker.LLMProvider("Cloudflare", worker._call_cloudflare, lambda: True),
+    ]
+    worker.orchestrator = enrichment_worker.ProviderOrchestrator(
+        providers, enrichment_worker.logger
+    )
+    worker.orchestrator.run_health_checks()
+
+    parsed, provider = worker.orchestrator.call_with_fallback(
+        "x" * (enrichment_worker.OPENAI_MAX_INPUT_BYTES + 1),
+        worker._clean_json_response,
+        validate_fn=enrichment_worker._matches_openai_pillars_schema,
+    )
+    assert parsed is None and provider is None
+    assert requests_seen == []
+    assert sum("category=input_limit_exceeded" in event for event in events) == 2
+
+    for invalid in (
+        {}, [],
+        dict(valid, duration_months="six"),
+        dict(valid, curriculum_summary={"pilares": [], "unexpected": "x"}),
+        dict(valid, unexpected="x"),
+    ):
+        assert not enrichment_worker._matches_openai_pillars_schema(invalid)
+    assert enrichment_worker._matches_openai_pillars_schema(valid)
+
+    # A syntactically valid but schema-invalid primary result is treated as a
+    # provider failure, so the valid Cloudflare fallback may be considered.
+    providers[0].call_fn = lambda _prompt: "{}"
+    providers[1].call_fn = lambda _prompt: json.dumps(valid)
+    worker.orchestrator.run_health_checks()
+    parsed, provider = worker.orchestrator.call_with_fallback(
+        "small prompt", worker._clean_json_response,
+        validate_fn=enrichment_worker._matches_openai_pillars_schema,
+    )
+    assert parsed == valid and provider == "Cloudflare"
+    assert any("provider=OpenAI category=invalid_response_schema" in event for event in events)
+
+
+def test_provider_response_size_limit_bounds_bytes_and_total_read_time(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    events = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+    class StreamResponse:
+        headers = {}
+
+        def __init__(self, chunks):
+            self.chunks = chunks
+            self.closed = False
+
+        def iter_content(self, chunk_size=None):
+            yield from self.chunks
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    oversized = StreamResponse([b"x" * enrichment_worker.PROVIDER_MAX_RESPONSE_BYTES,
+                                b"x"])
+    assert enrichment_worker._read_bounded_provider_json(
+        oversized, "Cloudflare", enrichment_worker.time.monotonic() + 5
+    ) is None
+    assert oversized.closed
+    assert "category=response_limit_exceeded" in events[-1]
+
+    slow = StreamResponse([b"{}"])
+    monkeypatch.setattr(enrichment_worker.time, "monotonic", lambda: 10.0)
+    assert enrichment_worker._read_bounded_provider_json(slow, "OpenAI", 10.0) is None
+    assert slow.closed
+    assert "category=response_timeout" in events[-1]
+
+
+def test_cloudflare_uses_current_direct_model_and_sanitizes_provider_failures(monkeypatch) -> None:
+    from types import SimpleNamespace
+    from scripts.core import enrichment_worker
+
+    events: list[str] = []
+    requests_seen: list[tuple[str, dict]] = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self):
+            self.body = json.dumps({
+                "result": {"response": '{"official_name":"Synthetic"}'}
+            }).encode("utf-8")
+            self.headers = {"Content-Length": str(len(self.body))}
+
+        def iter_content(self, chunk_size=None):
+            yield self.body
+
+        def close(self):
+            return None
+
+    def fake_post(url, **kwargs):
+        requests_seen.append((url, kwargs))
+        return FakeResponse()
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-secret-sentinel")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-account-sentinel")
+    monkeypatch.setattr(enrichment_worker.requests, "post", fake_post)
+
+    assert worker._call_cloudflare("synthetic prompt sentinel") == '{"official_name":"Synthetic"}'
+    assert len(requests_seen) == 1
+    url, kwargs = requests_seen[0]
+    assert url.endswith("/ai/run/@cf/google/gemma-4-26b-a4b-it")
+    assert kwargs["json"]["messages"][1]["content"] == "synthetic prompt sentinel"
+    assert kwargs["headers"]["Authorization"].partition(" ")[2] == "synthetic-secret-sentinel"
+    assert kwargs["timeout"] == (5, 5)
+    assert kwargs["allow_redirects"] is False
+    assert kwargs["stream"] is True
+    assert kwargs["json"]["max_completion_tokens"] == 2_048
+    assert "synthetic-secret-sentinel" not in "\n".join(events)
+    assert "synthetic-account-sentinel" not in "\n".join(events)
+    assert "synthetic prompt sentinel" not in "\n".join(events)
+
+
+def test_cloudflare_missing_bindings_and_invalid_responses_fail_closed(monkeypatch) -> None:
+    from types import SimpleNamespace
+    from scripts.core import enrichment_worker
+
+    events: list[str] = []
+    requests_seen: list[tuple[tuple, dict]] = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "requests", SimpleNamespace(post=lambda *args, **kwargs: requests_seen.append((args, kwargs))))
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "  ")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-account-sentinel")
+    assert worker._call_cloudflare("synthetic prompt sentinel") is None
+    assert not requests_seen
+    assert "category=missing_configuration" in events[-1]
+    assert "missing_bindings=CF_API_TOKEN" in events[-1]
+
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-secret-sentinel")
+
+    class InvalidJsonResponse:
+        status_code = 200
+        headers = {}
+
+        @staticmethod
+        def iter_content(chunk_size=None):
+            yield b"not-json-synthetic-response-body-sentinel"
+
+        @staticmethod
+        def close():
+            return None
+
+    monkeypatch.setattr(enrichment_worker.requests, "post", lambda *_args, **_kwargs: InvalidJsonResponse())
+    assert worker._call_cloudflare("synthetic prompt sentinel") is None
+    assert "category=invalid_response_json" in events[-1]
+
+    class InvalidShapeResponse:
+        status_code = 200
+
+        def __init__(self):
+            self.body = json.dumps({
+                "result": {"response": {"unexpected": "synthetic response body sentinel"}}
+            }).encode("utf-8")
+            self.headers = {"Content-Length": str(len(self.body))}
+
+        def iter_content(self, chunk_size=None):
+            yield self.body
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(enrichment_worker.requests, "post", lambda *_args, **_kwargs: InvalidShapeResponse())
+    assert worker._call_cloudflare("synthetic prompt sentinel") is None
+    assert "category=invalid_provider_response" in events[-1]
+    diagnostic_text = "\n".join(events)
+    for sentinel in (
+        "synthetic-secret-sentinel",
+        "synthetic-account-sentinel",
+        "synthetic response body sentinel",
+        "synthetic prompt sentinel",
+    ):
+        assert sentinel not in diagnostic_text
+
+
+def test_cloudflare_provider_statuses_and_timeouts_are_categorized_without_retry(monkeypatch) -> None:
+    from scripts.core import enrichment_worker
+
+    events: list[str] = []
+    calls: list[int] = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    class StatusResponse:
+        def __init__(self, status_code):
+            self.status_code = status_code
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-secret-sentinel")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-account-sentinel")
+
+    for status_code, category in (
+        (403, "auth_or_permission"),
+        (410, "model_or_endpoint"),
+        (429, "rate_limited"),
+        (503, "transient_http"),
+    ):
+        def fake_post(*_args, _status_code=status_code, **_kwargs):
+            calls.append(_status_code)
+            return StatusResponse(_status_code)
+
+        monkeypatch.setattr(enrichment_worker.requests, "post", fake_post)
+        assert worker._call_cloudflare("synthetic prompt sentinel") is None
+        assert f"category={category}" in events[-1]
+
+    def timeout(*_args, **_kwargs):
+        calls.append(-1)
+        raise enrichment_worker.requests.Timeout("synthetic timeout body sentinel")
+
+    monkeypatch.setattr(enrichment_worker.requests, "post", timeout)
+    assert worker._call_cloudflare("synthetic prompt sentinel") is None
+    assert "category=timeout" in events[-1]
+    assert len(calls) == 5
+    diagnostic_text = "\n".join(events)
+    assert "synthetic timeout body sentinel" not in diagnostic_text
+    assert "synthetic-secret-sentinel" not in diagnostic_text
+    assert "synthetic-account-sentinel" not in diagnostic_text
