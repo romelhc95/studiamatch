@@ -52,7 +52,6 @@ from scripts.core.fg2_bounded_run import (
 )
 from scripts.shared.utils import normalize_url
 
-
 INSTITUTION_ID = "00000000-0000-0000-0000-000000000001"
 CATEGORY_ID = "10000000-0000-0000-0000-000000000001"
 STAGING_ID = "40000000-0000-0000-0000-000000000091"
@@ -62,6 +61,12 @@ CLEANSED_ID = "50000000-0000-0000-0000-000000000091"
 BASE_URL = "https://synthetic.h3.example"
 COURSE_URL = f"{BASE_URL}/programs/analitica-aplicada"
 SYNTHETIC_RESOLVE_ENTRY = "synthetic.h3.example:443:93.184.216.34"
+
+
+def _enable_synthetic_sync_fixture(syncer):
+    # Test-only instance opt-in; production workers keep the real-provider allowlist.
+    syncer._fg2_fixture_provider_allowed = True
+    return syncer
 
 
 def synthetic_public_request_binding(url: str, **_kwargs: Any) -> tuple[str, str]:
@@ -474,7 +479,7 @@ def run_pipeline_walk() -> None:
     assert enriched["total_cost_est"] == 1250.0
 
     with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
-        syncer = SyncVectorWorker()
+        syncer = _enable_synthetic_sync_fixture(SyncVectorWorker())
     assert integrity_ping_module.is_safe_public_ip("127.0.0.1") is False
     with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
         assert syncer.sync_to_production(enriched) is True
@@ -656,7 +661,7 @@ def test_sync_upsert_failure_preserves_pending_row_and_recovers_idempotently() -
     }
     adapter.tables["enriched_programs"].append(enriched)
     with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
-        syncer = SyncVectorWorker()
+        syncer = _enable_synthetic_sync_fixture(SyncVectorWorker())
 
     failed_closed = False
     with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
@@ -896,7 +901,7 @@ def test_controlled_refresh_of_known_course_creates_manifest_entry_and_keeps_edi
     enriched = adapter.tables["enriched_programs"][0]
 
     with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
-        syncer = SyncVectorWorker()
+        syncer = _enable_synthetic_sync_fixture(SyncVectorWorker())
     with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
         assert syncer.sync_to_production(enriched) is True
     quality = next(event for event in adapter.status_events if event["status"] == "quality-updated")
@@ -3124,7 +3129,7 @@ def test_course_sync_fg2_course_id_refresh_handles_url_alias_and_retains_manual_
     }
     adapter.tables["enriched_programs"].append(enriched)
     with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
-        syncer = SyncVectorWorker()
+        syncer = _enable_synthetic_sync_fixture(SyncVectorWorker())
 
     with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
         assert syncer.sync_to_production(enriched) is True
@@ -3288,7 +3293,7 @@ def test_course_sync_stops_if_a_canonical_alias_appears_after_preflight(
     }
     adapter.tables["enriched_programs"].append(enriched)
     with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
-        syncer = SyncVectorWorker()
+        syncer = _enable_synthetic_sync_fixture(SyncVectorWorker())
 
     with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
         with pytest.raises(InvalidControlledRun, match=message):
@@ -3361,7 +3366,7 @@ def test_fg2_new_discovery_does_not_reuse_first_unrelated_course_as_sync_target(
     }
     adapter.tables["enriched_programs"].append(dict(enriched))
     with patch.object(sync_vector_module, "get_db_client", return_value=adapter):
-        syncer = SyncVectorWorker()
+        syncer = _enable_synthetic_sync_fixture(SyncVectorWorker())
 
     with patch.object(integrity_ping_module, "resolve_public_host", return_value=["93.184.216.34"]):
         assert syncer.sync_to_production(enriched) is True

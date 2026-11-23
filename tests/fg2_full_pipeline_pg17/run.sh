@@ -148,6 +148,7 @@ common_docker_args=(
   --env FG2_FIXTURE_JWT_SECRET="$jwt_secret"
   --env FG2_FIXTURE_PUBLISHABLE_API_KEY="$fixture_publishable_key"
   --env FG2_FIXTURE_SECRET_API_KEY="$fixture_secret_key"
+  --env FG2_FIXTURE_PROVIDER_ADAPTER=1
   --env FG2_FIXTURE_RESPONSE_FILE=/workspace/tests/fg2_full_pipeline_pg17/responses_initial.json
   --env FG2_FIXTURE_EVENT_LOG=/run/fg2-http-events.jsonl
   --env GITHUB_EVENT_NAME=schedule --env GITHUB_REF=refs/heads/main
@@ -164,8 +165,8 @@ common_docker_args=(
 approved_docker_args=("${common_docker_args[@]}")
 for index in "${!approved_docker_args[@]}"; do
   case "${approved_docker_args[$index]}" in
-    GITHUB_EVENT_NAME=schedule) approved_docker_args[$index]='GITHUB_EVENT_NAME=workflow_dispatch' ;;
-    AUTOMATION_ENABLED=true) approved_docker_args[$index]='AUTOMATION_ENABLED=false' ;;
+    GITHUB_EVENT_NAME=schedule) approved_docker_args[index]='GITHUB_EVENT_NAME=workflow_dispatch' ;;
+    AUTOMATION_ENABLED=true) approved_docker_args[index]='AUTOMATION_ENABLED=false' ;;
   esac
 done
 
@@ -461,7 +462,7 @@ run_worker run_3_sync sync_vector_worker.py 9000003
 assert_counts 7 6 6 6
 
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
-  "DO \$\$ BEGIN IF (SELECT count(*) FROM public.staging_raw WHERE status='processed') <> 6 THEN RAISE EXCEPTION 'staging_processed_count_assertion'; END IF; IF (SELECT count(*) FROM public.cleansed_programs WHERE status='enriched') <> 6 THEN RAISE EXCEPTION 'cleansed_enriched_count_assertion'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE status='synced') <> 6 THEN RAISE EXCEPTION 'enriched_synced_count_assertion'; END IF; IF (SELECT count(*) FROM public.course_editorial_state WHERE editorial_status='pending_review') <> 5 THEN RAISE EXCEPTION 'pending_editorial_count_assertion'; END IF; IF (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN RAISE EXCEPTION 'public_effective_must_be_empty_assertion'; END IF; IF EXISTS (SELECT 1 FROM public.staging_raw WHERE institution_id='20000000-0000-0000-0000-000000000004') THEN RAISE EXCEPTION 'blocked_source_must_not_create_staging'; END IF; IF NOT EXISTS (SELECT 1 FROM public.institution_site_profiles WHERE institution_id='20000000-0000-0000-0000-000000000005' AND profile_status='pending_review') THEN RAISE EXCEPTION 'ambiguous_profile_must_remain_pending'; END IF; IF NOT EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE rtrim(c.url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND es.editorial_status='published' AND es.manual_overrides->>'name'='Título manual sintético preservado') THEN RAISE EXCEPTION 'editorial_override_was_not_preserved'; END IF; IF EXISTS (SELECT 1 FROM public.courses WHERE is_active OR is_verified OR is_mock_data IS DISTINCT FROM true) THEN RAISE EXCEPTION 'new_mock_courses_public_eligibility_assertion'; END IF; END \$\$" >/dev/null
+  "DO \$\$ BEGIN IF (SELECT count(*) FROM public.staging_raw WHERE status='processed') <> 6 THEN RAISE EXCEPTION 'staging_processed_count_assertion'; END IF; IF (SELECT count(*) FROM public.cleansed_programs WHERE status='enriched') <> 6 THEN RAISE EXCEPTION 'cleansed_enriched_count_assertion'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE status='synced') <> 6 THEN RAISE EXCEPTION 'enriched_synced_count_assertion'; END IF; IF EXISTS (SELECT 1 FROM public.enriched_programs WHERE status='synced' AND (provider_used IS DISTINCT FROM 'fixture-provider' OR is_mock_data IS DISTINCT FROM false)) THEN RAISE EXCEPTION 'synthetic_provider_boundary_contract_assertion'; END IF; IF (SELECT count(*) FROM public.course_editorial_state WHERE editorial_status='pending_review') <> 5 THEN RAISE EXCEPTION 'pending_editorial_count_assertion'; END IF; IF (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN RAISE EXCEPTION 'public_effective_must_be_empty_assertion'; END IF; IF EXISTS (SELECT 1 FROM public.staging_raw WHERE institution_id='20000000-0000-0000-0000-000000000004') THEN RAISE EXCEPTION 'blocked_source_must_not_create_staging'; END IF; IF NOT EXISTS (SELECT 1 FROM public.institution_site_profiles WHERE institution_id='20000000-0000-0000-0000-000000000005' AND profile_status='pending_review') THEN RAISE EXCEPTION 'ambiguous_profile_must_remain_pending'; END IF; IF NOT EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE rtrim(c.url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND es.editorial_status='published' AND es.manual_overrides->>'name'='Título manual sintético preservado') THEN RAISE EXCEPTION 'editorial_override_was_not_preserved'; END IF; IF EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE es.editorial_status='pending_review' AND c.is_active IS TRUE) THEN RAISE EXCEPTION 'pending_new_course_active_assertion'; END IF; END \$\$" >/dev/null
 
 # The same HTTP route and budget serve HTTP, browser navigation and scripts.
 # A 429 response is recorded once per blocked cohort run; no request is retried.
@@ -498,5 +499,5 @@ if not spa_script or not any(event.get("query") == "page=1" for event in catalog
 print(f"phase=synthetic_http_audit|result=PASS|attempts={len(http_events)}|blocked_429={len(blocked)}|blocked_runs={len(blocked_per_run)}|spa_js=observed|ecommerce_pages=2|pinned_config=checked")
 PY
 
-printf 'phase=fg2_full_pipeline_pg17|result=PASS|courses=6|pending_review=5|public_effective=0|providers=local_smart_mock\n'
+printf 'phase=fg2_full_pipeline_pg17|result=PASS|courses=6|pending_review=5|public_effective=0|provider_boundary=synthetic_fixture\n'
 printf 'phase=limits|result=LOCAL_EVIDENCE_ONLY|network=internal_no_egress|db=ephemeral_pg17|production=untouched\n'

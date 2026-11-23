@@ -554,10 +554,20 @@ class ProviderOrchestrator:
             self.logger.info(f"Degraded providers moved to end: {', '.join(degraded_names)}")
         return normal + degraded
 
-    def call_with_fallback(self, prompt, clean_fn):
+    def call_with_fallback(self, prompt, clean_fn, validate_fn=None):
         """Iterate active providers, apply clean_fn, try jsonrepair on failure.
+        Optionally validate parsed payloads before accepting a provider result.
         Returns (parsed_dict, provider_name) on success, or (None, None) if all fail."""
         import json as _json
+
+        def payload_is_valid(payload):
+            if validate_fn is None:
+                return True
+            try:
+                return validate_fn(payload) is True
+            except Exception:
+                return False
+
         active = self.get_active_providers()
         for provider in active:
             try:
@@ -568,12 +578,26 @@ class ProviderOrchestrator:
                 if cleaned:
                     try:
                         result = _json.loads(cleaned)
+                        if not payload_is_valid(result):
+                            provider.record_fail()
+                            self.logger.warning(
+                                "FG2_PROVIDER_FAILURE provider=%s category=invalid_response_schema",
+                                provider.name,
+                            )
+                            continue
                         provider.record_success()
                         self.logger.info(f"Provider {provider.name} success ({elapsed_ms}ms)")
                         return result, provider.name
                     except (_json.JSONDecodeError, ValueError):
                         repaired = self._try_jsonrepair(cleaned)
                         if repaired is not None:
+                            if not payload_is_valid(repaired):
+                                provider.record_fail()
+                                self.logger.warning(
+                                    "FG2_PROVIDER_FAILURE provider=%s category=invalid_response_schema",
+                                    provider.name,
+                                )
+                                continue
                             provider.record_success()
                             provider.record_repair()
                             self.logger.info(f"JSON reparado vía jsonrepair para {provider.name} ({elapsed_ms}ms)")

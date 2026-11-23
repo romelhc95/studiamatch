@@ -160,6 +160,7 @@ scripts/core/profile_onboarding.py
 scripts/core/universal_harvester.py
 scripts/security/protected_path_scope_guard.sh
 scripts/shared/site_diagnostics.py
+scripts/shared/utils.py
 tests/fg2_full_pipeline_pg17/assert_state.sql
 tests/fg2_full_pipeline_pg17/fixture_schema.sql
 tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql
