@@ -232,6 +232,7 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FG2_REQUIRE_REAL_PROVIDER: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
       FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}
@@ -275,7 +276,7 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [[ "$FG2_COHORT_SCOPED" == "true" ]]; then
             python scripts/core/enrichment_worker.py --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --cohort-manifest-sha256 "$FG2_COHORT_MANIFEST_SHA256"
@@ -296,6 +297,7 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FG2_REQUIRE_REAL_PROVIDER: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
       FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}

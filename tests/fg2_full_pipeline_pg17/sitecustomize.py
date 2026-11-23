@@ -1,7 +1,8 @@
 """Boundary adapters for the isolated FG2 PG17/PostgREST fixture.
 
-Only HTTP endpoints and DNS answers for the reserved synthetic test domain are
-substituted. Pipeline code, budgets, URL policy, Playwright, parsers, SQL/RPCs,
+Only HTTP endpoints, DNS answers for the reserved synthetic test domain, and
+the external model-response boundary are substituted. The real provider
+orchestrator, pipeline code, budgets, URL policy, Playwright, parsers, SQL/RPCs,
 and stage entrypoints remain the candidate implementations.
 """
 
@@ -14,12 +15,16 @@ import json
 import os
 import requests
 import socket
+import sys
 import time as _real_time
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit, urlunsplit
 
 os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+_core_script_dir = str(Path(__file__).resolve().parents[2] / "scripts" / "core")
+if _core_script_dir not in sys.path:
+    sys.path.insert(0, _core_script_dir)
 
 
 def _b64url(value: bytes) -> str:
@@ -194,9 +199,60 @@ async def _synthetic_budget_requester(_session, url, prepared, _impersonate, _ti
 
 from scripts.core import fg2_bounded_run as _bounded
 from scripts.shared import db_client as _db_client
+from scripts.shared import utils as _script_utils
 import shared.db_client as _legacy_import_path_db_client
+import shared.utils as _legacy_utils
 from scripts.shared import site_diagnostics as _diagnostics
 from curl_cffi import CurlOpt
+
+
+_SYNTHETIC_PROVIDER_RESULT = {
+    "official_name": "Programa sintético verificado",
+    "duration_text": "6 meses",
+    "duration_months": 6,
+    "total_cost_est": 1250,
+    "requirements": ["Conocimientos iniciales"],
+    "graduate_profile": "Perfil sintético",
+    "target_audience": "Personas en formación",
+    "objectives": "Aprender con evidencia sintética",
+    "benefits": "Ejercicios prácticos",
+    "certification": "Constancia sintética",
+    "curriculum_summary": {"pilares": ["Contenido sintético"]},
+    "modality": "Remoto",
+    "primary_campus": "Virtual",
+    "degree_type": "Curso",
+    "start_date": None,
+    "categories": ["Data"],
+    "difficulty_level": "Básico",
+    "ai_summary": "Resumen de curso sintético.",
+}
+
+
+def _install_synthetic_provider_boundary(orchestrator_class):
+    """Substitute provider output while retaining the candidate orchestrator."""
+    if getattr(orchestrator_class, "_fg2_synthetic_boundary_installed", False):
+        return
+    original_init = orchestrator_class.__init__
+
+    def _fixture_init(orchestrator, providers, logger=None):
+        original_init(orchestrator, providers, logger)
+        providers = orchestrator.providers
+        if len(providers) != 2 or [provider.name for provider in providers] != ["OpenAI", "Cloudflare"]:
+            raise RuntimeError("fixture_provider_order_mismatch")
+        primary = providers[0]
+        primary.name = "fixture-provider"
+        primary.health_fn = lambda: True
+        primary.call_fn = lambda _prompt: json.dumps(
+            _SYNTHETIC_PROVIDER_RESULT, ensure_ascii=False
+        )
+
+    orchestrator_class.__init__ = _fixture_init
+    orchestrator_class._fg2_synthetic_boundary_installed = True
+
+
+if os.environ.get("FG2_FIXTURE_PROVIDER_ADAPTER") == "1":
+    _install_synthetic_provider_boundary(_script_utils.ProviderOrchestrator)
+    _install_synthetic_provider_boundary(_legacy_utils.ProviderOrchestrator)
 
 _original_budget_init = _bounded.FG2RequestBudget.__init__
 

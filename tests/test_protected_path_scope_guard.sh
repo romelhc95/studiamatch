@@ -166,6 +166,7 @@ expected_fg2_full_paths = {
     "scripts/core/universal_harvester.py",
     "scripts/security/protected_path_scope_guard.sh",
     "scripts/shared/site_diagnostics.py",
+    "scripts/shared/utils.py",
     "tests/fg2_full_pipeline_pg17/assert_state.sql",
     "tests/fg2_full_pipeline_pg17/fixture_schema.sql",
     "tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql",
@@ -192,12 +193,13 @@ expected_fg2_full_paths = {
 }
 fg2_full_records = [line.strip() for line in fg2_full_match.group("body").splitlines() if line.strip()]
 fg2_full_paths = set(fg2_full_records)
-if len(fg2_full_records) != 43 or fg2_full_paths != expected_fg2_full_paths:
+if len(fg2_full_records) != 44 or fg2_full_paths != expected_fg2_full_paths:
     raise SystemExit("protected path integration test: full-FG2 allowlist differs from exact candidate inventory")
 if any(any(char in path for char in "*?[]") or path.startswith("/") or ".." in path.split("/") for path in fg2_full_paths):
     raise SystemExit("protected path integration test: full-FG2 allowlist contains a wildcard or unsafe path")
 for neighbor in (
     "scripts/core/profile_onboarding_extra.py",
+    "scripts/shared/utils_extra.py",
     "db/migrations/20261120120000_fg2_profile_onboarding_state_extra.sql",
     "tests/fg2_full_pipeline_pg17/run-extra.sh",
     "tests/fg2_full_pipeline_pg17/prepare_approved_lot_extra.py",
@@ -854,6 +856,14 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
         if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
             raise SystemExit(f"protected path candidate regression: exact H1 path was not admitted: {path}")
 
+    result = create_candidate(root, "fg2-shared-utils", "scripts/shared/utils.py")
+    if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
+        raise SystemExit("protected path candidate regression: exact FG2 shared utility path was not admitted")
+
+    result = create_candidate(root, "fg2-shared-utils-neighbor", "scripts/shared/utils_extra.py")
+    if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+        raise SystemExit("protected path candidate regression: neighboring FG2 shared utility path was admitted")
+
     result = create_combined_candidate(root)
     if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
         raise SystemExit("protected path candidate regression: exact five-path candidate was not admitted")
@@ -890,7 +900,7 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     if result.returncode == 0:
         raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|FG2_DDL_exact_path=admitted|FG2_DDL_neighbors=4_rejected|H1_exact_paths=20|FG2_full_exact_paths=43|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|FG2_DDL_exact_path=admitted|FG2_DDL_neighbors=4_rejected|H1_exact_paths=20|FG2_full_exact_paths=44|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'

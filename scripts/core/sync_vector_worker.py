@@ -43,6 +43,7 @@ CANARY_PROVIDER_MARKERS = (
     ("F10_PRODUCTION_CANARY_RUN_ID", "f10-production-canary"),
     ("F99_CERTIFICATION_CANARY_RUN_ID", "f99-certification-canary"),
 )
+REAL_ENRICHMENT_PROVIDERS = frozenset({"deepseek", "cloudflare", "openai"})
 
 
 def _active_canary_provider_marker():
@@ -408,6 +409,43 @@ class SyncVectorWorker:
 
     def sync_to_production(self, enriched):
         self._verify_fg2_manifest_url_identity(enriched)
+        production_run_requires_real_provider = os.getenv(
+            "FG2_REQUIRE_REAL_PROVIDER", ""
+        ).strip().lower() in {"1", "true", "yes"}
+        controlled_cohort = "_fg2_manifest_staging_id" in enriched
+        provider_used = enriched.get("provider_used")
+        provider_name = provider_used.strip().casefold() if isinstance(provider_used, str) else ""
+        mock_provider = "mock" in provider_name
+        unknown_provider = provider_name not in REAL_ENRICHMENT_PROVIDERS
+        fixture_provider_allowed = (
+            not production_run_requires_real_provider
+            and bool(getattr(self, "_fg2_fixture_provider_allowed", False))
+            and bool(provider_name)
+            and not mock_provider
+        )
+        invalid_provider_result = (
+            enriched.get("is_mock_data") is not False
+            or mock_provider
+            or (unknown_provider and not fixture_provider_allowed)
+        )
+        if invalid_provider_result:
+            if enriched.get("is_mock_data") is not False or mock_provider:
+                if production_run_requires_real_provider:
+                    category = "production_mock_enrichment"
+                elif controlled_cohort:
+                    category = "controlled_mock_enrichment"
+                else:
+                    category = "mock_enrichment_rejected"
+            else:
+                category = (
+                    "production_provider_provenance_invalid"
+                    if production_run_requires_real_provider
+                    else "provider_provenance_invalid"
+                )
+            logger.error(
+                "FG2_SYNC_ABORT stage=sync category=%s", category
+            )
+            return False
         e_id = enriched['id']
         raw_name = enriched.get('official_name')
         url = enriched['url']
@@ -819,7 +857,7 @@ class SyncVectorWorker:
             expected_id=e_id,
         )
 
-if __name__ == "__main__":
+def main():
     import argparse
     parser = argparse.ArgumentParser(description="Run sync vector worker")
     parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
@@ -869,3 +907,7 @@ if __name__ == "__main__":
         guard.tick(every=50)
     logger.info(f"Sync batch complete. Synced: {synced}/{len(pending)} | Failed: {failed} | Time: {guard.elapsed_hours:.2f}h")
     sys.exit(1 if failed or partial else 0)
+
+
+if __name__ == "__main__":
+    main()

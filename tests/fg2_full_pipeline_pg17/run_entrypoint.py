@@ -55,7 +55,25 @@ def main() -> None:
         sys.path.insert(0, str(script_path.parent))
     sys.argv = [script, *args]
     try:
-        runpy.run_path(str(script_path), run_name="__main__")
+        if (
+            script_path.name == "sync_vector_worker.py"
+            and os.environ.get("FG2_FIXTURE_PROVIDER_ADAPTER") == "1"
+        ):
+            # The fixture must exercise the candidate's real CLI and main()
+            # while allowing its explicitly synthetic provider result to pass
+            # the production provenance guard. runpy's __main__ namespace is
+            # distinct from the module patched by sitecustomize, so load the
+            # same entrypoint without auto-running it, set the fixture-only
+            # class attribute in that namespace, then invoke its real main().
+            namespace = runpy.run_path(str(script_path), run_name="fg2_fixture_entrypoint")
+            worker_class = namespace.get("SyncVectorWorker")
+            entrypoint_main = namespace.get("main")
+            if worker_class is None or not callable(entrypoint_main):
+                raise SystemExit("phase=entrypoint|result=FAIL|code=sync_fixture_entrypoint_unavailable")
+            worker_class._fg2_fixture_provider_allowed = True
+            entrypoint_main()
+        else:
+            runpy.run_path(str(script_path), run_name="__main__")
     except SystemExit as exc:
         if exc.code not in (None, 0):
             raise

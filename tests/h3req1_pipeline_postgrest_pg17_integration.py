@@ -332,6 +332,9 @@ def run() -> None:
 
         CURRENT_PHASE = "enrichment-failure-recovery"
         enricher = EnrichmentWorker()
+        # This test owns an isolated PostgreSQL/PostgREST fixture and
+        # deliberately exercises the synthetic smart-mock branch.
+        enricher.require_real_provider = False
         enricher._mock_only = True
         pending_clean = enricher.get_pending_cleansed(limit=5, institution_id=INSTITUTION_ID)
         require(len(pending_clean) == 1, "enrichment-setup", "PENDING_CLEANSED_NOT_FOUND")
