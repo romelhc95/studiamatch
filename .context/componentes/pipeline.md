@@ -345,21 +345,27 @@ explícita revisada no se sustituye: si una de sus URLs queda bloqueada por el
 perfil, el preflight termina antes del contacto. Si ninguna semilla configurada
 es procesable, termina con error y no genera una cohorte vacía.
 
-Las semillas de `sitemap_bfs` y `paginated_catalog` representan páginas de
-discovery: deben conservar origen y pertenecer al lote aprobado, pero no son
-URLs de detalle y no se filtran por exclusiones de cursos, extensiones de
-detalle ni `allowed_url_patterns`. Los enlaces extraídos sí pasan por la regla
-completa de detalle antes de incorporarse a la cohorte. En `scheduled_cohort`,
-`hardcoded_urls` mantiene esta misma selección; `sitemap_bfs` conserva su
-semilla programada `/sitemap.xml`. Los sitemaps `.xml.gz` continúan rechazados
-en la ruta controlada. El parser del lote aprobado rechaza query y fragmento
-tanto en las semillas como en sus URLs de detalle revisadas. En runtime, el
-presupuesto controlado rechaza una query en la solicitud revisada y en sus
-redirects; la canonicalización quita fragmentos antes de emitir HTTP. Una
-fuente `paginated_catalog` cuya página solo exista como `?page=1` se rechaza en
-preflight; usa una ruta de página sin query. La política compartida clasifica la
-fuente sin aplicar reglas de detalle y conserva su query; el parser del lote
-impide aprobar esa semilla con query. Los contratos locales están en
+Las semillas de `sitemap_bfs` y `paginated_catalog` representan fuentes de
+discovery: deben conservar origen y pasar la validación propia del modo, pero
+no son URLs de curso ni forman parte del alcance de detalle. No se les aplican
+exclusiones, extensiones de detalle ni `allowed_url_patterns`. En una corrida
+manual con `approved_lot`, el lote materializa por separado las URLs exactas
+de detalle: `new_discovery` identifica un detalle nuevo y `refresh_existing`
+una identidad existente. El harvester valida ese alcance con la política de
+curso y consume solo sus filas; no interpreta semillas de catálogo o sitemap
+como cursos ni amplía el lote mediante enlaces runtime. Los hashes de semillas
+siguen ligados al perfil y su origen, sin exigir que una página fuente se
+repita como curso en el alcance. Para `scheduled_cohort`, `hardcoded_urls`
+mantiene su selección y `sitemap_bfs` conserva su semilla programada
+`/sitemap.xml`. Los sitemaps `.xml.gz` continúan rechazados en la ruta
+controlada. El parser del lote aprobado rechaza query y fragmento tanto en las
+semillas como en sus URLs de detalle revisadas. En runtime, el presupuesto
+controlado rechaza una query en la solicitud revisada y en sus redirects; la
+canonicalización quita fragmentos antes de emitir HTTP. Una fuente
+`paginated_catalog` cuya página solo exista como `?page=1` se rechaza en
+preflight; usa una ruta de página sin query. La política compartida clasifica
+la fuente sin aplicar reglas de detalle y conserva su query. Los contratos
+locales están en
 `tests/test_fg2_bounded_run.py`, `tests/test_fg2_bounded_orchestration.py` y
 `tests/test_fg2_bounded_workflow.py`; sus fixtures no prueban la selección
 actual de Pro ni una corrida institucional.
@@ -504,15 +510,18 @@ los callers de Actions del mismo ref no procesen en paralelo las filas del
 pipeline. Esta serialización abarca workflows completos; no es una reclamación
 transaccional por fila y depende de que el writer entre por esos workflows.
 
-La primera corrida manual con lote revisado conserva sus URLs exactas: si el
-perfil usa `sitemap_bfs`, cada seed aprobado de página se procesa como
-candidato dentro del lote y no se intenta parsear su HTML como documento XML.
-No se expande la cohorte mediante enlaces fuera del lote. Para clasificar un
-refresh ordinary, el harvester aplica la misma limpieza de sufijos de URL que
-cleansing (`/presentacion`, entre otros) antes de buscar el `course_id` en
-`courses`; así un alias de detalle no se etiqueta como descubrimiento nuevo
-cuando cleansing lo agrupa con un curso existente. El hash de URL solicitada
-se conserva por separado del hash de identidad que consumen los workers.
+La primera corrida manual con lote revisado consume únicamente sus URLs de
+detalle materializadas. Una seed `sitemap_bfs` como `/curso` o `/carrera` no es
+un candidato de curso y, si se incluye por error como `new_discovery`, la
+política de detalle rechaza el lote antes del primer request. Los refresh en
+`processed` se agregan a la cohorte solo después de comprobar identidad,
+institución, hash anterior y snapshots downstream; no se resetea el estado
+productivo. Para clasificar un refresh ordinary, el harvester aplica la misma
+limpieza de sufijos de URL que cleansing (`/presentacion`, entre otros) antes
+de buscar el `course_id` en `courses`; así un alias de detalle no se etiqueta
+como descubrimiento nuevo cuando cleansing lo agrupa con un curso existente.
+El hash de URL solicitada se conserva por separado del hash de identidad que
+consumen los workers.
 
 La misma cota de diez URLs únicas por institución limita las URLs válidas
 examinadas, incluidas las que ya tienen filas `staging_raw` en estados protegidos.

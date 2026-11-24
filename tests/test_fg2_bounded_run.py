@@ -1294,6 +1294,29 @@ def test_preflight_fails_closed_when_all_configured_course_seeds_are_excluded() 
         validate_controlled_profile(institution, profile)
 
 
+def test_fg2_265_approved_ten_seed_lot_is_rejected_when_profile_excludes_all_details() -> None:
+    """Match the #265 failure shape: approved hardcoded seeds all conflict with exclusions."""
+    institution, profile = _eligible_institution_and_profile()
+    selected_seeds = [
+        f"https://institution.example/pregrado/programa-{index}/"
+        for index in range(10)
+    ]
+    profile["seed_urls"] = selected_seeds
+    profile["exclusion_patterns"] = ["/pregrado/"]
+
+    # The selector cannot choose an institution with no runtime-eligible detail.
+    with pytest.raises(InvalidControlledRun, match="no runtime-eligible seed URLs"):
+        validate_controlled_profile(institution, profile)
+
+    # An already reviewed lot cannot override the same profile exclusion.
+    with pytest.raises(InvalidControlledRun, match="runtime-rejected URL"):
+        validate_controlled_profile(
+            institution,
+            profile,
+            selected_seed_urls=selected_seeds,
+        )
+
+
 def test_scheduled_hardcoded_preflight_uses_runtime_normalized_seed_for_policy() -> None:
     institution, profile = _eligible_institution_and_profile()
     raw_seed = "https://institution.example/program/"

@@ -1448,7 +1448,12 @@ _TRACKING_QUERY_KEYS = frozenset({"gclid", "fbclid", "msclkid"})
 
 @dataclass(frozen=True)
 class FG2ApprovedLotManifest:
-    """Human-reviewed, immutable input that bounds a controlled FG2 run."""
+    """Human-reviewed, immutable course-detail scope for a controlled FG2 run.
+
+    Profile seeds remain bound in the institution fingerprint, but discovery
+    source URLs are not course candidates and therefore need not appear in the
+    detail URL scope.
+    """
 
     payload: dict[str, Any]
     sha256: str
@@ -1725,15 +1730,6 @@ class FG2ApprovedLotManifest:
             if url_counts[institution_id.lower()] > FG2_LIMITS["max_urls_per_institution"]:
                 raise InvalidControlledRun("approved FG2 lot exceeds the institution URL limit")
 
-        scope_by_institution: dict[str, set[str]] = {}
-        for item in scope:
-            scope_by_institution.setdefault(item["institution_id"], set()).add(item["url"])
-        for item in institutions:
-            institution_id = item["institution_id"].lower()
-            if not {
-                _approved_scope_url(seed) for seed in item["seed_urls"]
-            }.issubset(scope_by_institution.get(institution_id, set())):
-                raise InvalidControlledRun("approved FG2 lot omits a configured seed URL")
         return payload
 
     @property
