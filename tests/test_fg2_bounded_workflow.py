@@ -11,6 +11,8 @@ import sys
 import uuid
 from urllib.parse import unquote
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/production_pipeline.yml"
@@ -451,7 +453,20 @@ def test_every_downstream_cli_rejects_an_unhashed_manifest_before_startup() -> N
         assert "controlled cohort requires an expected SHA-256" in result.stderr, script
 
 
-def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("discovery_mode", "seed_layout", "approved_discovery_is_source"),
+    [
+        ("hardcoded_urls", "course_details", False),
+        ("sitemap_bfs", "catalog_sources", False),
+        ("sitemap_bfs", "catalog_sources", True),
+    ],
+)
+def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(
+    tmp_path: Path,
+    discovery_mode: str,
+    seed_layout: str,
+    approved_discovery_is_source: bool,
+) -> None:
     """Run the YAML's actual Python entrypoints with isolated fixture boundaries."""
     from scripts.core.fg2_bounded_run import (
         FG2_LIMITS,
@@ -470,6 +485,7 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
     new_url = f"{origin}/programs/new"
     refresh_url = f"{origin}/programs/refresh"
     blocked_seed = f"{origin}/pregrado/excluded"
+    catalog_seed = f"{origin}/curso"
     source_sha = "b306c990087fd9d3a6eeb55c600d0d9595fddf16"
     run_id = "991258001"
     run_attempt = "1"
@@ -485,18 +501,24 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
     profile = {
         "institution_id": institution_id,
         "site_type": "traditional_ssr",
-        "discovery_mode": "hardcoded_urls",
+        "discovery_mode": discovery_mode,
         "discovery_enabled": True,
         "pipeline_enabled": True,
         "pipeline_ready": True,
         "production_enabled": True,
         "circuit_open": False,
-        "seed_urls": [f"{blocked_seed}/", f"{new_url}/", f"{refresh_url}/"],
+        "seed_urls": (
+            [f"{blocked_seed}/", f"{new_url}/", f"{refresh_url}/"]
+            if seed_layout == "course_details"
+            else [catalog_seed]
+        ),
         "exclusion_patterns": ["/pregrado/"],
         "allowed_url_patterns": ["/programs/"],
     }
     preflight = validate_controlled_profile(institution, profile)
-    assert preflight["seed_urls"] == [new_url, refresh_url]
+    assert preflight["seed_urls"] == (
+        [new_url, refresh_url] if seed_layout == "course_details" else [catalog_seed]
+    )
 
     refresh_course = {
         "id": refresh_course_id,
@@ -558,6 +580,7 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
         "slug": institution["slug"],
         "website_url": origin,
     })
+    approved_discovery_url = catalog_seed if approved_discovery_is_source else new_url
     lot = {
         "schema_version": 1,
         "reference": reference,
@@ -579,7 +602,7 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
                 "snapshot": empty_snapshot(course_rows),
             }
             for url, kind, course_rows in (
-                (new_url, "new_discovery", []),
+                (approved_discovery_url, "new_discovery", []),
                 (refresh_url, "refresh_existing", [{
                     "id": refresh_course_id,
                     "institution_id": institution_id,
@@ -694,7 +717,13 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
         "--approved-lot-manifest", str(harvest_runner / "fg2-approved-lot.json"),
         "--approved-lot-reference", reference,
         "--approved-lot-sha256", lot_digest,
-    ], harvest_env)
+    ], harvest_env, expected=1 if approved_discovery_is_source else 0)
+    if approved_discovery_is_source:
+        failed_state = json.loads(state_path.read_text(encoding="utf-8"))
+        assert failed_state["http_requests"] == []
+        assert failed_state["rpc_events"] == []
+        assert failed_state["tables"] == original_state["tables"]
+        return
     harvest_raw = harvest_manifest.read_bytes()
     cohort_digest = hashlib.sha256(harvest_raw).hexdigest()
     workflow_outputs = (
@@ -709,6 +738,7 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(tmp_p
     assert len(cohort["entries"]) == 2
     assert {entry["kind"] for entry in cohort["entries"]} == {"new_discovery", "refresh_existing"}
     assert [request["status"] for request in json.loads(state_path.read_text())["http_requests"]] == [200, 200]
+    assert {request["url"] for request in json.loads(state_path.read_text())["http_requests"]} == {new_url, refresh_url}
     assert all("/pregrado/" not in request["url"] for request in json.loads(state_path.read_text())["http_requests"])
 
     def restore_runner_manifest(stage: str) -> tuple[Path, dict[str, str]]:
