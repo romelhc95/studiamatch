@@ -394,7 +394,11 @@ def test_fg2_schedule_and_production_canary_share_cross_workflow_concurrency() -
 def test_fg2_checks_writer_pause_before_every_mutating_station() -> None:
     workflow = source(".github/workflows/production_pipeline.yml")
 
-    assert workflow.count("Verify production controls before mutating station") == 4
+    assert workflow.count("Verify production controls before mutating station") == 3
+    preflight = workflow.split("  production_control_preflight:", 1)[1].split("  # 🚉 STATION 1:", 1)[0]
+    assert "Resolve production controls" in preflight
+    assert "production_control_preflight.sh FG2-HARVEST" in preflight
+    assert "production_control_preflight.sh FG2-ENRICHMENT" in preflight
     for writer in (
         "FG2-HARVEST",
         "FG2-CLEANSING",

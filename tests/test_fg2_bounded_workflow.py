@@ -1,5 +1,6 @@
 """Repository-level guards for the manual FG2 cohort handoff."""
 
+import ast
 import base64
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -471,6 +472,168 @@ def test_main_schedule_propagates_a_run_scoped_manifest_to_all_workers() -> None
         assert f"python scripts/core/{script}\n" in section
         assert "Restore exact controlled cohort manifest" in section
 
+
+
+def _workflow_job_condition(workflow: str, job: str) -> str:
+    section = workflow.split(f"  {job}:", 1)[1]
+    if job != "phase_4_audit":
+        section = section.split("\n  phase_", 1)[0]
+    multiline = re.search(r"(?m)^    if: >-\n((?:      .*\n?)+)", section)
+    if multiline:
+        return " ".join(line.strip() for line in multiline.group(1).splitlines())
+    single_line = re.search(r"(?m)^    if: (.+)$", section)
+    assert single_line, f"{job} must define a job-level condition"
+    return single_line.group(1).strip()
+
+
+def _evaluate_workflow_job_condition(
+    expression: str,
+    *,
+    resume: bool,
+    statuses: dict[str, str],
+    allow_writer: bool = True,
+    event_name: str = "workflow_dispatch",
+    workflow_cancelled: bool = False,
+) -> bool:
+    bindings = {
+        "needs.production_control_preflight.outputs.allow_writer": "true" if allow_writer else "false",
+        "needs.main_ref_guard.result": statuses.get("main_ref_guard", ""),
+        "needs.production_control_preflight.result": statuses.get("production_control_preflight", ""),
+        "needs.phase_1_harvesting.result": statuses.get("phase_1_harvesting", ""),
+        "needs.phase_1_5_cleansing.result": statuses.get("phase_1_5_cleansing", ""),
+        "needs.phase_2_enrichment.result": statuses.get("phase_2_enrichment", ""),
+        "needs.phase_3_sync.result": statuses.get("phase_3_sync", ""),
+        "inputs.resume_enrichment_from_272": resume,
+        "github.event_name": event_name,
+    }
+    has_status_function = bool(re.search(r"\b(?:always|success|failure|cancelled)\(\)", expression))
+    for token, value in sorted(bindings.items(), key=lambda item: len(item[0]), reverse=True):
+        expression = expression.replace(token, repr(value))
+    expression = expression.replace("always()", "True")
+    expression = expression.replace("!cancelled()", "False" if workflow_cancelled else "True")
+    expression = expression.replace("&&", " and ").replace("||", " or ")
+    expression = re.sub(r"(?<!['\"])\btrue\b(?!['\"])", "True", expression, flags=re.IGNORECASE)
+    expression = re.sub(r"(?<!['\"])\bfalse\b(?!['\"])", "False", expression, flags=re.IGNORECASE)
+
+    tree = ast.parse(expression, mode="eval")
+
+    def visit(node: ast.AST):
+        if isinstance(node, ast.Expression):
+            return visit(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (bool, str)):
+            return node.value
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+            return all(visit(value) for value in node.values)
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+            return any(visit(value) for value in node.values)
+        if isinstance(node, ast.Compare) and len(node.ops) == len(node.comparators) == 1:
+            left, right = visit(node.left), visit(node.comparators[0])
+            if isinstance(node.ops[0], ast.Eq):
+                return left == right
+            if isinstance(node.ops[0], ast.NotEq):
+                return left != right
+        raise AssertionError(f"unsupported workflow condition expression: {ast.dump(node)}")
+
+    condition_result = bool(visit(tree))
+    if not has_status_function:
+        upstream = {
+            "main_ref_guard",
+            "production_control_preflight",
+            "phase_1_harvesting",
+            "phase_1_5_cleansing",
+            "phase_2_enrichment",
+        }
+        if "needs.phase_3_sync.result" in expression:
+            upstream.add("phase_3_sync")
+        condition_result = condition_result and all(statuses.get(job) == "success" for job in upstream)
+    return condition_result
+
+
+@pytest.mark.parametrize(
+    ("resume", "overrides", "allow_writer", "workflow_cancelled", "expected"),
+    [
+        pytest.param(True, {"phase_1_5_cleansing": "skipped"}, True, False, True, id="recovery-cleansing-skipped-enrichment-success"),
+        pytest.param(True, {"phase_2_enrichment": "failure", "phase_3_sync": "skipped"}, True, False, False, id="recovery-enrichment-failed-blocks-writes"),
+        pytest.param(True, {"phase_2_enrichment": "cancelled", "phase_3_sync": "skipped"}, True, False, False, id="recovery-enrichment-cancelled-blocks-writes"),
+        pytest.param(True, {"phase_1_5_cleansing": "failure"}, True, False, False, id="recovery-cleansing-failure-not-accepted-as-skip"),
+        pytest.param(True, {"phase_1_5_cleansing": "success"}, True, False, False, id="recovery-only-allows-planned-cleansing-skip"),
+        pytest.param(False, {"phase_1_5_cleansing": "success"}, True, False, True, id="normal-mode-keeps-cleansing-success-path"),
+        pytest.param(False, {"phase_1_5_cleansing": "skipped"}, True, False, False, id="normal-mode-does-not-allow-skipped-cleansing"),
+        pytest.param(False, {"phase_1_5_cleansing": "failure"}, True, False, False, id="normal-mode-cleansing-failure-blocks-writes"),
+        pytest.param(True, {"production_control_preflight": "failure"}, True, False, False, id="failed-production-preflight-blocks-writes"),
+        pytest.param(True, {"phase_1_harvesting": "cancelled"}, True, False, False, id="cancelled-harvesting-blocks-writes"),
+        pytest.param(True, {}, True, True, False, id="workflow-cancellation-blocks-downstream"),
+        pytest.param(True, {}, False, False, False, id="writer-pause-blocks-downstream"),
+    ],
+)
+def test_sync_and_ca1_allow_only_the_planned_recovery_skip_and_require_successful_predecessors(
+    resume: bool,
+    overrides: dict[str, str],
+    allow_writer: bool,
+    workflow_cancelled: bool,
+    expected: bool,
+) -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    statuses = {
+        "main_ref_guard": "success",
+        "production_control_preflight": "success",
+        "phase_1_harvesting": "success",
+        "phase_1_5_cleansing": "success",
+        "phase_2_enrichment": "success",
+        "phase_3_sync": "success",
+    }
+    statuses.update(overrides)
+
+    for job in ("phase_3_sync", "phase_4_audit"):
+        actual = _evaluate_workflow_job_condition(
+            _workflow_job_condition(workflow, job),
+            resume=resume,
+            statuses=statuses,
+            allow_writer=allow_writer,
+            workflow_cancelled=workflow_cancelled,
+        )
+        assert actual is expected, job
+
+
+@pytest.mark.parametrize(
+    ("resume", "cleansing", "preflight", "harvest", "workflow_cancelled", "expected"),
+    [
+        pytest.param(True, "skipped", "success", "success", False, True, id="recovery-enrichment-runs-after-planned-skip"),
+        pytest.param(True, "failure", "success", "success", False, False, id="recovery-enrichment-blocked-by-cleansing-failure"),
+        pytest.param(True, "cancelled", "success", "success", False, False, id="recovery-enrichment-blocked-by-cleansing-cancellation"),
+        pytest.param(True, "success", "success", "success", False, False, id="recovery-enrichment-requires-exact-planned-skip"),
+        pytest.param(False, "success", "success", "success", False, True, id="normal-enrichment-requires-cleansing-success"),
+        pytest.param(False, "skipped", "success", "success", False, False, id="normal-enrichment-rejects-skipped-cleansing"),
+        pytest.param(False, "failure", "success", "success", False, False, id="normal-enrichment-rejects-cleansing-failure"),
+        pytest.param(True, "skipped", "failure", "success", False, False, id="enrichment-rejects-failed-production-preflight"),
+        pytest.param(True, "skipped", "success", "cancelled", False, False, id="enrichment-rejects-cancelled-harvesting"),
+        pytest.param(True, "skipped", "success", "success", True, False, id="enrichment-rejects-workflow-cancellation"),
+    ],
+)
+def test_enrichment_allows_only_successful_cleansing_or_the_planned_recovery_skip(
+    resume: bool,
+    cleansing: str,
+    preflight: str,
+    harvest: str,
+    workflow_cancelled: bool,
+    expected: bool,
+) -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    statuses = {
+        "main_ref_guard": "success",
+        "production_control_preflight": preflight,
+        "phase_1_harvesting": harvest,
+        "phase_1_5_cleansing": cleansing,
+        "phase_2_enrichment": "success",
+        "phase_3_sync": "success",
+    }
+    actual = _evaluate_workflow_job_condition(
+        _workflow_job_condition(workflow, "phase_2_enrichment"),
+        resume=resume,
+        statuses=statuses,
+        workflow_cancelled=workflow_cancelled,
+    )
+    assert actual is expected
 
 def test_post272_recovery_uses_pinned_artifact_and_runs_only_downstream_stations() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")

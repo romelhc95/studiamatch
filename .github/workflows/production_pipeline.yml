@@ -330,7 +330,14 @@ jobs:
   phase_2_enrichment:
     name: "2. AI Enrichment (14 Pillars)"
     needs: [production_control_preflight, phase_1_harvesting, phase_1_5_cleansing, main_ref_guard]
-    if: always() && needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_1_harvesting.result == 'success' && ((inputs.resume_enrichment_from_272 == true) || (inputs.resume_enrichment_from_272 != true && needs.phase_1_5_cleansing.result == 'success'))
+    if: >-
+      always() && !cancelled() &&
+      needs.main_ref_guard.result == 'success' &&
+      needs.production_control_preflight.result == 'success' &&
+      needs.production_control_preflight.outputs.allow_writer == 'true' &&
+      needs.phase_1_harvesting.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.resume_enrichment_from_272 == true && needs.phase_1_5_cleansing.result == 'skipped') ||
+       (inputs.resume_enrichment_from_272 != true && needs.phase_1_5_cleansing.result == 'success'))
     timeout-minutes: 350
     runs-on: ubuntu-latest
     environment:
@@ -394,8 +401,16 @@ jobs:
   # -------------------------------------------------------------
   phase_3_sync:
     name: "3. Integrity & Sync"
-    needs: [production_control_preflight, phase_1_harvesting, phase_2_enrichment, main_ref_guard]
-    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_2_enrichment.result == 'success'
+    needs: [production_control_preflight, phase_1_harvesting, phase_1_5_cleansing, phase_2_enrichment, main_ref_guard]
+    if: >-
+      always() && !cancelled() &&
+      needs.main_ref_guard.result == 'success' &&
+      needs.production_control_preflight.result == 'success' &&
+      needs.production_control_preflight.outputs.allow_writer == 'true' &&
+      needs.phase_1_harvesting.result == 'success' &&
+      needs.phase_2_enrichment.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.resume_enrichment_from_272 == true && needs.phase_1_5_cleansing.result == 'skipped') ||
+       (inputs.resume_enrichment_from_272 != true && needs.phase_1_5_cleansing.result == 'success'))
     timeout-minutes: 60
     runs-on: ubuntu-latest
     environment:
@@ -454,8 +469,17 @@ jobs:
 
   phase_4_audit:
     name: "4. CA1 Audit Boundary"
-    needs: [production_control_preflight, phase_3_sync, main_ref_guard]
-    if: needs.main_ref_guard.result == 'success' && needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_3_sync.result == 'success'
+    needs: [production_control_preflight, phase_1_harvesting, phase_1_5_cleansing, phase_2_enrichment, phase_3_sync, main_ref_guard]
+    if: >-
+      always() && !cancelled() &&
+      needs.main_ref_guard.result == 'success' &&
+      needs.production_control_preflight.result == 'success' &&
+      needs.production_control_preflight.outputs.allow_writer == 'true' &&
+      needs.phase_1_harvesting.result == 'success' &&
+      needs.phase_2_enrichment.result == 'success' &&
+      needs.phase_3_sync.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.resume_enrichment_from_272 == true && needs.phase_1_5_cleansing.result == 'skipped') ||
+       (inputs.resume_enrichment_from_272 != true && needs.phase_1_5_cleansing.result == 'success'))
     timeout-minutes: 20
     runs-on: ubuntu-latest
     permissions:
