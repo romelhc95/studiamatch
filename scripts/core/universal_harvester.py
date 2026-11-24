@@ -1872,6 +1872,7 @@ class UniversalHarvester:
             self.controlled
             and self.approved_lot is not None
             and not getattr(self, "scheduled_cohort", False)
+            and discovery_mode != "sitemap_bfs"
         ):
             # A reviewed lot materializes exact course-detail URLs. Profile
             # seeds bind the discovery configuration, but catalog/sitemap
@@ -1931,6 +1932,27 @@ class UniversalHarvester:
                                 sitemap_links.append(seed)
                 else:
                     sitemap_links = list(self.controlled_seed_urls)
+
+                approved_detail_urls = []
+                for normalized in self.approved_lot_scope:
+                    if self._is_sitemap_seed_url(normalized):
+                        continue
+                    rejection = profile_url_policy_rejection(
+                        normalized,
+                        str(self.institution.get("website_url") or ""),
+                        self.profile,
+                        approved_lot_scope=self.approved_lot_scope,
+                        role="course_detail",
+                        regex_module=safe_regex,
+                    )
+                    if rejection:
+                        raise HarvesterRunError(
+                            "approved FG2 lot contains a URL that is not an eligible course detail"
+                        )
+                    approved_detail_urls.append(normalized)
+                sitemap_links.extend(
+                    url for url in approved_detail_urls if url not in sitemap_links
+                )
             else:
                 sitemap_links = []
                 async with AsyncSession() as session:
