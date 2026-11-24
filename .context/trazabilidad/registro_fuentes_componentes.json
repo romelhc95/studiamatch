@@ -128,9 +128,9 @@
     "integration_projection": {
       "name": "bootstrap inicial del primer Admin — candidato local 2026-11-05",
       "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap, el path existente del scope guard reclasificado como candidate-only por su cambio y cinco fuentes nuevas exactas del candidato local FG2 H1: scripts/core/fg2_bounded_run.py y sus cuatro pruebas. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.; isolated FG3 atomic follow-up adds exactly five new paths: one migration and four PG17/static test paths. Reconciliación 2026-11-18: base desarrollo 9435bdfd5121e804ef5bfe361cc94db6f5481c6b (tree 12087f431ccdc6c3c89d20e784c0170cd1b81067), igual a main 0037f11d0b058158b244d1bb2e1d8a487e2f62c5; cinco paths FG3 nuevos sobre esa base. Los conteos anteriores 328/774/446 siguen siendo el corte histórico 2026-11-15.",
-      "candidate_only_path_count_at_cut": 344,
-      "note": "Reconciliación local 2026-11-22: 790 fuentes totales, 344 candidate-only y 446 fuentes relevantes para la proyección. El diff actual añade la fuente local `tests/fg2_full_pipeline_pg17/prepare_approved_lot.py`, asignada en las relaciones del pipeline; no cambia el alcance histórico de otras fuentes. Los valores 328/774/446 se conservan como corte histórico 2026-11-15. El resultado integral se compara por separado y no se convierte en PASS.",
-      "refresh": "El corte actual incorpora una ruta local nueva del fixture FG2. Recalcular el inventario si cambia el paquete; conservar el corte histórico 2026-11-15 como evidencia y revisar el total 790/344/446 para esta huella.",
+      "candidate_only_path_count_at_cut": 347,
+      "note": "Corte historico local 2026-11-22: 790 fuentes, 344 candidate-only y 446 relevantes en la proyeccion. Reconciliacion 2026-11-24 del candidato local FG2: el checkout descubre 793 fuentes asignadas tras registrar tres helpers sinteticos de recuperacion post-#272 como candidate-only; el conjunto candidate-only es 347 y la proyeccion relevante permanece en 446. Estos helpers son solo fixture local, no codigo de runtime ni evidencia remota. Los valores 328/774/446 del corte historico 2026-11-15 se conservan como historia. El FAIL integral historico se compara por separado y no se convierte en PASS.",
+      "refresh": "Para esta huella, el corte vigente del inventario es 793 fuentes, 347 candidate-only y 446 fuentes proyectadas. Recalcular solo si cambia el paquete; conservar los cortes 2026-11-15 y 2026-11-22 como evidencia historica.",
       "projected_relevant_source_paths_at_cut": 446
     }
   },
@@ -21259,9 +21259,12 @@
       "id": "tests-fg2-full-pipeline-pg17-postgrest",
       "purpose": "Ensayo end-to-end con entrypoints reales, SQL/RPC PG17 y consulta de la cola Admin.",
       "paths": [
+        "tests/fg2_full_pipeline_pg17/assert_post272_recovery.sql",
         "tests/fg2_full_pipeline_pg17/assert_state.sql",
         "tests/fg2_full_pipeline_pg17/fixture_schema.sql",
         "tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql",
+        "tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py",
+        "tests/fg2_full_pipeline_pg17/prepare_post272_recovery.sql",
         "tests/fg2_full_pipeline_pg17/prepare_refresh.sql",
         "tests/fg2_full_pipeline_pg17/responses_initial.json",
         "tests/fg2_full_pipeline_pg17/responses_refresh.json",
@@ -21273,9 +21276,12 @@
         "tests/fg2_full_pipeline_pg17/verify_admin_queue.py"
       ],
       "candidate_only_paths": [
+        "tests/fg2_full_pipeline_pg17/assert_post272_recovery.sql",
         "tests/fg2_full_pipeline_pg17/assert_state.sql",
         "tests/fg2_full_pipeline_pg17/fixture_schema.sql",
         "tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql",
+        "tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py",
+        "tests/fg2_full_pipeline_pg17/prepare_post272_recovery.sql",
         "tests/fg2_full_pipeline_pg17/prepare_refresh.sql",
         "tests/fg2_full_pipeline_pg17/responses_initial.json",
         "tests/fg2_full_pipeline_pg17/responses_refresh.json",
@@ -21312,13 +21318,17 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "E2E Docker del candidato: cuatro estaciones completadas, refresh con editorial preservada, bloqueado 403/429 sin retry, error RPC no-cero y recuperación idempotente; Admin muestra pendientes y la vista pública queda vacía. El último conteo/hashes se registra en estado_del_proyecto.md. Ningún resultado acredita runtime Pro.",
+        "note": "E2E Docker del candidato, corrida final attempt 8 (2026-11-24), anterior a una correccion final focal de la rama sin-socket del lector de respuestas: entrypoints y RPC/SQL PG17/PostgREST reales en red interna sin egress; el recorrido inicial y la recuperacion posterior a #272 completan las cuatro estaciones con datos sinteticos, seis refresh con contenido cambiado se sincronizan, dos identidades sin cambios se excluyen, Admin conserva el override editorial y courses_public_effective queda en cero. El E2E usa una respuesta HTTP loopback con socket y no recorre la rama corregida de transporte sin socket; esa rama se valida en las 29 pruebas focales PASS de la huella actual. OpenAI es HTTP loopback sintetico: no acredita proveedor real, permisos ni runtime Pro. Los detalles y limites constan en el changelog H1REQ1.",
         "evidence": [
-          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:.context/estado_del_proyecto.md",
+          "path:tests/fg2_full_pipeline_pg17/assert_post272_recovery.sql",
+          "path:tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py",
+          "path:tests/fg2_full_pipeline_pg17/prepare_post272_recovery.sql",
           "path:tests/fg2_full_pipeline_pg17/responses_initial.json",
           "path:tests/fg2_full_pipeline_pg17/responses_refresh.json",
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
           "path:tests/fg2_full_pipeline_pg17/verify_admin_queue.py",
-          "path:.context/estado_del_proyecto.md"
+          "path:tests/test_fg2_bounded_workflow.py"
         ]
       },
       "operations": {

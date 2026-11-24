@@ -162,10 +162,13 @@ scripts/security/protected_path_scope_guard.sh
 scripts/shared/site_diagnostics.py
 scripts/shared/utils.py
 tests/fg2_full_pipeline_pg17/assert_state.sql
+tests/fg2_full_pipeline_pg17/assert_post272_recovery.sql
 tests/fg2_full_pipeline_pg17/fixture_schema.sql
 tests/fg2_full_pipeline_pg17/inject_one_cleansing_failure.sql
 tests/fg2_full_pipeline_pg17/prepare_approved_lot.py
+tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py
 tests/fg2_full_pipeline_pg17/prepare_refresh.sql
+tests/fg2_full_pipeline_pg17/prepare_post272_recovery.sql
 tests/fg2_full_pipeline_pg17/responses_initial.json
 tests/fg2_full_pipeline_pg17/responses_refresh.json
 tests/fg2_full_pipeline_pg17/run.sh
