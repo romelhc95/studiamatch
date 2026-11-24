@@ -6,6 +6,8 @@ import re
 import html
 import time
 import math
+import socket
+import threading
 import requests
 from datetime import datetime
 from urllib.parse import quote, urljoin, urlparse
@@ -79,11 +81,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = "gpt-6-luna"
 OPENAI_MAX_INPUT_BYTES = 24_000
 OPENAI_MAX_OUTPUT_TOKENS = 2_048
-OPENAI_TIMEOUT_SECONDS = 30
+PROVIDER_RESPONSE_BODY_DEADLINE_SECONDS = 30
 PROVIDER_MAX_RESPONSE_BYTES = 256_000
 PROVIDER_RESPONSE_CHUNK_BYTES = 16_384
 PROVIDER_CONNECT_TIMEOUT_SECONDS = 5
-PROVIDER_READ_TIMEOUT_SECONDS = 5
+PROVIDER_READ_TIMEOUT_SECONDS = 30
 
 OPENAI_PILLARS_SCHEMA = {
     "type": "object",
@@ -201,8 +203,81 @@ def _validate_provider_prompt(prompt, provider_name):
     return True
 
 
+def _provider_response_socket(response):
+    raw = getattr(response, "raw", None)
+    if raw is None:
+        return None
+
+    candidates = (
+        getattr(
+            getattr(
+                getattr(getattr(raw, "_fp", None), "fp", None),
+                "raw",
+                None,
+            ),
+            "_sock",
+            None,
+        ),
+        getattr(getattr(raw, "_connection", None), "sock", None),
+    )
+    for candidate in candidates:
+        if not callable(getattr(candidate, "settimeout", None)):
+            continue
+        fileno = getattr(candidate, "fileno", None)
+        if callable(fileno):
+            try:
+                if fileno() < 0:
+                    continue
+            except (OSError, ValueError):
+                continue
+        return candidate
+    return None
+
+
+def _provider_response_is_closed(response):
+    raw = getattr(response, "raw", None)
+    if raw is None:
+        return False
+    isclosed = getattr(raw, "isclosed", False)
+    if callable(isclosed):
+        try:
+            return bool(isclosed())
+        except Exception:
+            return False
+    return isclosed is True
+
+
+def _set_response_socket_read_timeout(response, timeout_seconds):
+    """Apply the remaining inactivity timeout or verify a fully buffered body."""
+    sock = _provider_response_socket(response)
+    if sock is None:
+        # urllib3 can detach/close the socket after buffering the complete
+        # body. A closed response is safe only because no socket read remains.
+        return _provider_response_is_closed(response)
+    try:
+        sock.settimeout(timeout_seconds)
+    except OSError:
+        return False
+    return True
+
+
+def _abort_provider_socket(sock, deadline_expired):
+    """Interrupt a blocking urllib3 read when the absolute body budget expires."""
+    deadline_expired.set()
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except (OSError, ValueError):
+        pass
+    try:
+        sock.close()
+    except (OSError, ValueError):
+        pass
+
+
 def _read_bounded_provider_json(response, provider_name, deadline):
-    """Read and parse a provider response with local byte and wall-time bounds."""
+    """Read and parse the body with a byte cap and remaining wall-time budget."""
+    deadline_expired = threading.Event()
+    watchdog = None
     try:
         headers = getattr(response, "headers", {})
         raw_length = headers.get("Content-Length") if hasattr(headers, "get") else None
@@ -223,13 +298,82 @@ def _read_bounded_provider_json(response, provider_name, deadline):
                 provider_name,
             )
             return None
-        for chunk in iterator(chunk_size=PROVIDER_RESPONSE_CHUNK_BYTES):
-            if time.monotonic() >= deadline:
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            logger.warning(
+                "FG2_PROVIDER_FAILURE provider=%s category=response_timeout",
+                provider_name,
+            )
+            return None
+        if not _set_response_socket_read_timeout(
+            response,
+            min(PROVIDER_READ_TIMEOUT_SECONDS, remaining),
+        ):
+            logger.warning(
+                "FG2_PROVIDER_FAILURE provider=%s category=invalid_response_transport",
+                provider_name,
+            )
+            return None
+        response_socket = _provider_response_socket(response)
+        if response_socket is not None:
+            watchdog_remaining = deadline - time.monotonic()
+            if watchdog_remaining <= 0:
                 logger.warning(
                     "FG2_PROVIDER_FAILURE provider=%s category=response_timeout",
                     provider_name,
                 )
                 return None
+            candidate_watchdog = threading.Timer(
+                watchdog_remaining,
+                _abort_provider_socket,
+                args=(response_socket, deadline_expired),
+            )
+            candidate_watchdog.daemon = False
+            candidate_watchdog.start()
+            watchdog = candidate_watchdog
+
+        chunks_iter = iter(iterator(chunk_size=PROVIDER_RESPONSE_CHUNK_BYTES))
+        while True:
+            remaining = deadline - time.monotonic()
+            if deadline_expired.is_set() or remaining <= 0:
+                logger.warning(
+                    "FG2_PROVIDER_FAILURE provider=%s category=response_timeout",
+                    provider_name,
+                )
+                return None
+            if not _set_response_socket_read_timeout(
+                response,
+                min(PROVIDER_READ_TIMEOUT_SECONDS, remaining),
+            ):
+                logger.warning(
+                    "FG2_PROVIDER_FAILURE provider=%s category=invalid_response_transport",
+                    provider_name,
+                )
+                return None
+            try:
+                chunk = next(chunks_iter)
+            except StopIteration:
+                chunk = None
+                stream_complete = True
+            except Exception:
+                if deadline_expired.is_set() or time.monotonic() >= deadline:
+                    logger.warning(
+                        "FG2_PROVIDER_FAILURE provider=%s category=response_timeout",
+                        provider_name,
+                    )
+                    return None
+                raise
+            else:
+                stream_complete = False
+            if deadline_expired.is_set() or time.monotonic() >= deadline:
+                logger.warning(
+                    "FG2_PROVIDER_FAILURE provider=%s category=response_timeout",
+                    provider_name,
+                )
+                return None
+            if stream_complete:
+                break
             if not chunk:
                 continue
             if not isinstance(chunk, bytes):
@@ -253,14 +397,30 @@ def _read_bounded_provider_json(response, provider_name, deadline):
             )
             return None
         try:
-            return json.loads(b"".join(chunks))
+            payload = json.loads(b"".join(chunks))
         except (UnicodeDecodeError, json.JSONDecodeError):
+            if deadline_expired.is_set() or time.monotonic() >= deadline:
+                logger.warning(
+                    "FG2_PROVIDER_FAILURE provider=%s category=response_timeout",
+                    provider_name,
+                )
+                return None
             logger.warning(
                 "FG2_PROVIDER_FAILURE provider=%s category=invalid_response_json",
                 provider_name,
             )
             return None
+        if deadline_expired.is_set() or time.monotonic() >= deadline:
+            logger.warning(
+                "FG2_PROVIDER_FAILURE provider=%s category=response_timeout",
+                provider_name,
+            )
+            return None
+        return payload
     finally:
+        if watchdog is not None:
+            watchdog.cancel()
+            watchdog.join()
         close = getattr(response, "close", None)
         if callable(close):
             close()
@@ -278,7 +438,7 @@ def _provider_failure_category(status_code="unknown", error=None):
     if isinstance(status_code, bool) or not isinstance(status_code, int) or not 100 <= status_code <= 599:
         status_code = "unknown"
     error_type = type(error).__name__
-    if error_type in {"Timeout", "ReadTimeout", "ConnectTimeout", "APITimeoutError", "TimeoutError"}:
+    if _contains_timeout_exception(error):
         return "timeout"
     elif status_code in {401, 403}:
         return "auth_or_permission"
@@ -297,6 +457,38 @@ def _provider_failure_category(status_code="unknown", error=None):
     elif status_code != "unknown":
         return "http_error"
     return "request_error"
+
+
+def _contains_timeout_exception(error):
+    """Recognize wrapped Requests/urllib3 timeouts without logging exception text."""
+    pending = [error]
+    visited = set()
+    timeout_types = {
+        "APITimeoutError",
+        "ConnectTimeout",
+        "ConnectTimeoutError",
+        "ReadTimeout",
+        "ReadTimeoutError",
+        "Timeout",
+        "TimeoutError",
+    }
+    while pending:
+        current = pending.pop()
+        if not isinstance(current, BaseException) or id(current) in visited:
+            continue
+        visited.add(id(current))
+        if isinstance(current, (requests.Timeout, TimeoutError)) or type(current).__name__ in timeout_types:
+            return True
+        for attribute in ("__cause__", "__context__", "reason", "original_error"):
+            nested = getattr(current, attribute, None)
+            if isinstance(nested, BaseException):
+                pending.append(nested)
+        pending.extend(
+            argument
+            for argument in getattr(current, "args", ())
+            if isinstance(argument, BaseException)
+        )
+    return False
 
 
 def _log_provider_failure(provider_name, error):
@@ -544,7 +736,7 @@ class EnrichmentWorker:
         try:
             model = "@cf/google/gemma-4-26b-a4b-it"
             url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{model}"
-            deadline = time.monotonic() + OPENAI_TIMEOUT_SECONDS
+            deadline = time.monotonic() + PROVIDER_RESPONSE_BODY_DEADLINE_SECONDS
             res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json={
                 "messages": [
                     {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON."},
@@ -588,7 +780,7 @@ class EnrichmentWorker:
             return None
 
         try:
-            deadline = time.monotonic() + OPENAI_TIMEOUT_SECONDS
+            deadline = time.monotonic() + PROVIDER_RESPONSE_BODY_DEADLINE_SECONDS
             response = requests.post(
                 "https://api.openai.com/v1/responses",
                 headers={
@@ -1536,8 +1728,21 @@ if __name__ == "__main__":
     # Fase 89: Pipeline Loop Guard — un intento por ID durante la sesion.
     attempted_ids: set = set()
 
-    cohort_label = args.institution_id or 'all institutions'
-    logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'}, Cohorte: {cohort_label})")
+    if cohort_manifest is not None:
+        manifest_scope_count = len(cohort_manifest.staging_ids)
+        manifest_institution_count = len(cohort_manifest.institution_ids)
+        logger.info(
+            "FG2_ENRICHMENT_SCOPE mode=cohort_manifest institutions=%s manifest_entries=%s",
+            manifest_institution_count,
+            manifest_scope_count,
+        )
+    else:
+        scope_mode = "institution_id" if args.institution_id else "global_queue"
+        logger.info(
+            "FG2_ENRICHMENT_SCOPE mode=%s configured_limit=%s",
+            scope_mode,
+            args.limit if args.limit is not None else "unbounded",
+        )
 
     while not guard.should_exit:
         fetch_limit = batch_size
@@ -1551,6 +1756,14 @@ if __name__ == "__main__":
             institution_id=args.institution_id,
             cohort_manifest=cohort_manifest,
         )
+
+        if cohort_manifest is not None:
+            logger.info(
+                "FG2_ENRICHMENT_BATCH mode=cohort_manifest institutions=%s manifest_entries=%s selected_pending_count=%s",
+                len(cohort_manifest.institution_ids),
+                len(cohort_manifest.staging_ids),
+                len(records),
+            )
 
         if not records or len(records) == 0:
             logger.info("✅ No hay más registros pendientes por enriquecer.")

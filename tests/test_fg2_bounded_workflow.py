@@ -2,13 +2,17 @@
 
 import base64
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
+import threading
+import time
 import uuid
+from types import SimpleNamespace
 from urllib.parse import unquote
 
 import pytest
@@ -16,6 +20,42 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/production_pipeline.yml"
+
+
+def _valid_provider_pillars() -> dict:
+    return {
+        "official_name": "Synthetic course",
+        "duration_text": "6 meses",
+        "duration_months": 6,
+        "total_cost_est": 1250.0,
+        "requirements": ["Synthetic requirement"],
+        "graduate_profile": "Synthetic graduate profile",
+        "target_audience": "Synthetic audience",
+        "objectives": "Synthetic objectives",
+        "benefits": "Synthetic benefits",
+        "certification": "Synthetic certification",
+        "curriculum_summary": {"pilares": ["Synthetic curriculum"]},
+        "modality": "Remoto",
+        "primary_campus": "Virtual",
+        "degree_type": "Curso",
+        "start_date": None,
+        "categories": ["Data"],
+        "difficulty_level": "Básico",
+        "ai_summary": "Synthetic summary",
+    }
+
+
+def _openai_wire_payload(pillars: dict | None = None) -> bytes:
+    return json.dumps({
+        "status": "completed",
+        "output": [{
+            "type": "message",
+            "content": [{
+                "type": "output_text",
+                "text": json.dumps(pillars or _valid_provider_pillars(), ensure_ascii=False),
+            }],
+        }],
+    }, ensure_ascii=False).encode("utf-8")
 
 
 class FileBackedFG2E2EDatabase:
@@ -795,6 +835,11 @@ def test_fg2_workflow_entrypoints_complete_across_runner_manifest_handoffs(
         diagnostic = failed_provider_run.stdout + failed_provider_run.stderr
         assert "FG2_ENRICHMENT_ABORT" in diagnostic
         assert expected_event in diagnostic
+        if mode != "all_unhealthy":
+            assert "FG2_ENRICHMENT_SCOPE mode=cohort_manifest institutions=1 manifest_entries=2" in diagnostic
+            assert "FG2_ENRICHMENT_BATCH mode=cohort_manifest institutions=1 manifest_entries=2 selected_pending_count=2" in diagnostic
+        assert "all institutions" not in diagnostic
+        assert "Sin Límite" not in diagnostic
         assert "synthetic provider response sentinel" not in diagnostic
         assert json.loads(state_path.read_text(encoding="utf-8")) == pre_enrichment
 
@@ -1045,6 +1090,7 @@ def test_openai_responses_adapter_uses_bounded_structured_output_without_redirec
 
     class FakeResponse:
         status_code = 200
+        raw = SimpleNamespace(isclosed=True)
 
         def __init__(self):
             self.body = json.dumps({
@@ -1092,9 +1138,718 @@ def test_openai_responses_adapter_uses_bounded_structured_output_without_redirec
     assert schema["additionalProperties"] is False
     assert set(schema["required"]) == set(schema["properties"])
     assert len(schema["required"]) == 18
-    assert kwargs["timeout"] == (5, 5)
+    assert kwargs["timeout"] == (
+        enrichment_worker.PROVIDER_CONNECT_TIMEOUT_SECONDS,
+        enrichment_worker.PROVIDER_READ_TIMEOUT_SECONDS,
+    )
     assert kwargs["allow_redirects"] is False
     assert kwargs["stream"] is True
+
+
+def test_openai_real_http_headers_after_legacy_five_second_timeout_succeed(monkeypatch) -> None:
+    """The same delayed-header request fails with the old timeout and passes with the new one."""
+    from scripts.core import enrichment_worker
+
+    body = _openai_wire_payload()
+    expected_text = json.dumps(_valid_provider_pillars(), ensure_ascii=False)
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(request_length)
+            time.sleep(5.2)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    calls = []
+    events = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    def local_post(url, **kwargs):
+        assert url == "https://api.openai.com/v1/responses"
+        calls.append(url)
+        return real_post(f"http://127.0.0.1:{server.server_port}/responses", **kwargs)
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(enrichment_worker.requests, "post", local_post)
+    try:
+        # Reproduce the #272 setting against the same local endpoint and prompt.
+        monkeypatch.setattr(enrichment_worker, "PROVIDER_READ_TIMEOUT_SECONDS", 5)
+        legacy_started = time.monotonic()
+        legacy_result = worker._call_openai("synthetic delayed-response prompt")
+        legacy_elapsed = time.monotonic() - legacy_started
+
+        monkeypatch.setattr(enrichment_worker, "PROVIDER_READ_TIMEOUT_SECONDS", 30)
+        current_started = time.monotonic()
+        current_result = worker._call_openai("synthetic delayed-response prompt")
+        current_elapsed = time.monotonic() - current_started
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    assert legacy_result is None
+    assert 4.5 <= legacy_elapsed < 5.2
+    assert current_result == expected_text
+    assert current_elapsed > 5
+    assert current_elapsed < enrichment_worker.PROVIDER_RESPONSE_BODY_DEADLINE_SECONDS
+    assert len(calls) == 2
+    assert sum("category=timeout" in event for event in events) == 1
+    diagnostics = "\n".join(events)
+    assert "synthetic delayed-response prompt" not in diagnostics
+    assert "synthetic-openai-key" not in diagnostics
+    assert "Synthetic course" not in diagnostics
+
+
+def test_openai_real_http_slow_trickle_obeys_body_deadline_and_closes_response(monkeypatch) -> None:
+    """A continuously trickling body cannot extend the bounded response-body deadline."""
+    from scripts.core import enrichment_worker
+
+    body = _openai_wire_payload()
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(request_length)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            try:
+                for byte in body:
+                    self.wfile.write(b"1\r\n" + bytes([byte]) + b"\r\n")
+                    self.wfile.flush()
+                    time.sleep(0.025)
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    calls = []
+    responses = []
+    events = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    def local_post(url, **kwargs):
+        assert url == "https://api.openai.com/v1/responses"
+        calls.append(url)
+        response = real_post(f"http://127.0.0.1:{server.server_port}/responses", **kwargs)
+        responses.append(response)
+        return response
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(enrichment_worker, "PROVIDER_RESPONSE_BODY_DEADLINE_SECONDS", 0.6)
+    monkeypatch.setattr(enrichment_worker, "PROVIDER_READ_TIMEOUT_SECONDS", 2)
+    monkeypatch.setattr(enrichment_worker.requests, "post", local_post)
+    started = time.monotonic()
+    try:
+        result = worker._call_openai("synthetic slow-trickle prompt")
+        elapsed = time.monotonic() - started
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    assert result is None
+    assert elapsed < 1.4
+    assert len(calls) == 1
+    assert len(responses) == 1
+    assert responses[0].raw.closed is True
+    assert any("category=response_timeout" in event for event in events), events
+    assert "synthetic slow-trickle prompt" not in "\n".join(events)
+
+
+def test_openai_realistic_response_uses_one_watchdog_and_joins_before_close(monkeypatch) -> None:
+    """A multi-chunk 18-property response uses one joined watchdog for the whole body."""
+    from scripts.core import enrichment_worker
+
+    pillars = _valid_provider_pillars()
+    for field, value in tuple(pillars.items()):
+        if isinstance(value, str):
+            pillars[field] = f"Synthetic {field}: " + ("course detail " * 130)
+    pillars["requirements"] = [
+        f"Synthetic requirement {index}: " + ("required item " * 24)
+        for index in range(3)
+    ]
+    pillars["curriculum_summary"] = {
+        "pilares": [f"Synthetic module {index}: " + ("curriculum detail " * 18) for index in range(4)]
+    }
+    body = _openai_wire_payload(pillars)
+    assert len(pillars) == 18
+    assert len(body) > enrichment_worker.PROVIDER_RESPONSE_CHUNK_BYTES
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(request_length)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    real_timer = enrichment_worker.threading.Timer
+    timers = []
+    responses = []
+
+    class CountingTimer(real_timer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.cancel_called = False
+            self.join_called = False
+            timers.append(self)
+
+        def cancel(self):
+            self.cancel_called = True
+            return super().cancel()
+
+        def join(self, *args, **kwargs):
+            self.join_called = True
+            return super().join(*args, **kwargs)
+
+    def local_post(url, **kwargs):
+        assert url == "https://api.openai.com/v1/responses"
+        response = real_post(f"http://127.0.0.1:{server.server_port}/responses", **kwargs)
+        original_close = response.close
+
+        def checked_close():
+            assert len(timers) == 1
+            assert timers[0].cancel_called
+            assert timers[0].join_called
+            original_close()
+
+        response.close = checked_close
+        responses.append(response)
+        return response
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(enrichment_worker, "PROVIDER_RESPONSE_BODY_DEADLINE_SECONDS", 5)
+    monkeypatch.setattr(enrichment_worker, "PROVIDER_READ_TIMEOUT_SECONDS", 2)
+    monkeypatch.setattr(enrichment_worker.threading, "Timer", CountingTimer)
+    monkeypatch.setattr(enrichment_worker.requests, "post", local_post)
+    try:
+        result = worker._call_openai("synthetic realistic response prompt")
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    assert result == json.dumps(pillars, ensure_ascii=False)
+    assert len(timers) == 1
+    assert len(responses) == 1
+    assert responses[0].raw.closed is True
+
+
+@pytest.mark.parametrize("wire_case", ["partial_chunk_size", "partial_gzip_body"])
+def test_openai_http_framing_trickle_cannot_outlive_absolute_body_deadline(
+    monkeypatch, wire_case
+) -> None:
+    """Socket activity inside urllib3 framing/decompression cannot reset the total deadline."""
+    import gzip
+
+    from scripts.core import enrichment_worker
+
+    compressed = gzip.compress(_openai_wire_payload())
+    sent_bytes = []
+    events = []
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(request_length)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Transfer-Encoding", "chunked")
+            if wire_case == "partial_gzip_body":
+                self.send_header("Content-Encoding", "gzip")
+            self.end_headers()
+            try:
+                if wire_case == "partial_gzip_body":
+                    self.wfile.write(f"{len(compressed):X}\r\n".encode("ascii"))
+                    self.wfile.flush()
+                    payload = compressed
+                else:
+                    # A valid-looking hexadecimal chunk-size prefix without its
+                    # CRLF leaves urllib3 waiting inside the framing parser.
+                    payload = b"A" * 160
+                for byte in payload:
+                    self.wfile.write(bytes((byte,)))
+                    self.wfile.flush()
+                    sent_bytes.append(byte)
+                    time.sleep(0.1)
+                self.wfile.write(b"\r\n0\r\n\r\n")
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.daemon_threads = True
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    responses = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    def local_post(url, **kwargs):
+        assert url == "https://api.openai.com/v1/responses"
+        response = real_post(
+            f"http://127.0.0.1:{server.server_port}/responses", **kwargs
+        )
+        responses.append(response)
+        return response
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(enrichment_worker, "PROVIDER_RESPONSE_BODY_DEADLINE_SECONDS", 0.55)
+    monkeypatch.setattr(enrichment_worker, "PROVIDER_READ_TIMEOUT_SECONDS", 2)
+    monkeypatch.setattr(enrichment_worker.requests, "post", local_post)
+    started = time.monotonic()
+    try:
+        result = worker._call_openai("synthetic framing deadline prompt")
+        elapsed = time.monotonic() - started
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    assert result is None
+    assert elapsed < 1.5
+    assert sent_bytes, wire_case
+    assert len(responses) == 1
+    assert responses[0].raw.closed is True
+    assert any("category=response_timeout" in event for event in events), events
+    assert "synthetic framing deadline prompt" not in "\n".join(events)
+
+
+def test_openai_real_http_decodes_chunked_gzip_without_content_length(monkeypatch) -> None:
+    """A real Requests response with chunked gzip framing stays under the decoded-byte cap."""
+    import gzip
+
+    from scripts.core import enrichment_worker
+
+    body = gzip.compress(_openai_wire_payload())
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(request_length)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            try:
+                for offset in range(0, len(body), 64):
+                    chunk = body[offset:offset + 64]
+                    self.wfile.write(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(
+        enrichment_worker.requests,
+        "post",
+        lambda url, **kwargs: real_post(
+            f"http://127.0.0.1:{server.server_port}/responses", **kwargs
+        ),
+    )
+    try:
+        result = worker._call_openai("synthetic gzip response prompt")
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    assert result == json.dumps(_valid_provider_pillars(), ensure_ascii=False)
+
+
+def test_openai_real_http_rejects_compressed_body_over_decoded_byte_cap(monkeypatch) -> None:
+    """The response-size cap applies after Requests decompresses gzip content."""
+    import gzip
+
+    from scripts.core import enrichment_worker
+
+    body = gzip.compress(b"x" * (enrichment_worker.PROVIDER_MAX_RESPONSE_BYTES + 1))
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(request_length)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    events = []
+
+    class CaptureLogger:
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    monkeypatch.setattr(enrichment_worker, "logger", CaptureLogger())
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(
+        enrichment_worker.requests,
+        "post",
+        lambda url, **kwargs: real_post(
+            f"http://127.0.0.1:{server.server_port}/responses", **kwargs
+        ),
+    )
+    try:
+        result = worker._call_openai("synthetic compressed oversized prompt")
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    assert result is None
+    assert any("category=response_limit_exceeded" in event for event in events)
+    assert "synthetic compressed oversized prompt" not in "\n".join(events)
+
+
+def test_openai_complete_payload_runs_through_enrichment_record_persistence(tmp_path, monkeypatch) -> None:
+    """A complete real HTTP response passes schema validation and the worker persistence path."""
+    from scripts.core import enrichment_worker
+
+    institution_id = "20000000-0000-0000-0000-000000000031"
+    staging_id = "40000000-0000-0000-0000-000000000031"
+    cleansed_id = "50000000-0000-0000-0000-000000000031"
+    category_id = "10000000-0000-0000-0000-000000000031"
+    course_url = "https://fixture.invalid/courses/synthetic-openai"
+    staging = {
+        "id": staging_id,
+        "institution_id": institution_id,
+        "url": course_url,
+        "content_hash": hashlib.sha256(b"synthetic HTML").hexdigest(),
+        "status": "processed",
+        "metadata": {},
+        "raw_html": "",
+    }
+    cleansed = {
+        "id": cleansed_id,
+        "staging_id": staging_id,
+        "institution_id": institution_id,
+        "url": course_url,
+        "clean_name": "Synthetic course",
+        "clean_description": "Synthetic educational description",
+        "status": "pending",
+        "metadata": {},
+    }
+    state_path = tmp_path / "openai-enrichment-state.json"
+    state_path.write_text(json.dumps({
+        "tables": {
+            "staging_raw": [staging],
+            "cleansed_programs": [cleansed],
+            "enriched_programs": [],
+            "categories": [{"id": category_id, "name": "Data"}],
+            "course_editorial_state": [],
+        },
+        "rpc_events": [],
+        "fail_next_enrichment_rpc": False,
+    }, sort_keys=True), encoding="utf-8")
+    monkeypatch.setenv("FG2_E2E_STATE", str(state_path))
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-cloudflare-key")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-cloudflare-account")
+
+    body = _openai_wire_payload()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            request = json.loads(self.rfile.read(request_length))
+            assert request["model"] == "gpt-6-luna"
+            assert request["store"] is False
+            assert len(request["text"]["format"]["schema"]["properties"]) == 18
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    provider_calls = []
+
+    def local_post(url, **kwargs):
+        assert url == "https://api.openai.com/v1/responses"
+        provider_calls.append(url)
+        return real_post(f"http://127.0.0.1:{server.server_port}/responses", **kwargs)
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    worker.db = FileBackedFG2E2EDatabase()
+    worker.profiles = [{"institution_id": institution_id, "pipeline_enabled": True}]
+    worker.ready_inst_ids = {institution_id}
+    worker._mock_only = False
+    worker.require_real_provider = True
+    worker.orchestrator = enrichment_worker.ProviderOrchestrator(
+        providers=[
+            enrichment_worker.LLMProvider("OpenAI", worker._call_openai, lambda: True),
+            enrichment_worker.LLMProvider("Cloudflare", worker._call_cloudflare, lambda: True),
+        ],
+        logger=enrichment_worker.logger,
+    )
+    monkeypatch.setattr(enrichment_worker.requests, "post", local_post)
+
+    try:
+        assert worker.orchestrator.run_health_checks() == ["OpenAI", "Cloudflare"]
+        assert enrichment_worker.process_enrichment_records(worker, [cleansed], set()) == 1
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    persisted_state = json.loads(state_path.read_text(encoding="utf-8"))
+    persisted_rows = persisted_state["tables"]["enriched_programs"]
+    assert len(provider_calls) == 1
+    assert len(persisted_rows) == 1
+    assert persisted_rows[0]["provider_used"] == "OpenAI"
+    assert persisted_rows[0]["is_mock_data"] is False
+    assert persisted_rows[0]["official_name"] == _valid_provider_pillars()["official_name"]
+    assert persisted_rows[0]["duration_months"] == 6
+    assert persisted_rows[0]["total_cost_est"] == 1250.0
+    assert persisted_state["tables"]["cleansed_programs"][0]["status"] == "enriched"
+    assert persisted_state["rpc_events"] == ["atomic_enrichment_promote"]
+
+
+def test_total_provider_transport_failure_does_not_persist_and_is_sanitized(tmp_path, monkeypatch) -> None:
+    """A real HTTP disconnect plus failed fallback makes one attempt each and writes no row."""
+    import socket
+
+    from scripts.core import enrichment_worker
+
+    institution_id = "20000000-0000-0000-0000-000000000032"
+    staging_id = "40000000-0000-0000-0000-000000000032"
+    cleansed_id = "50000000-0000-0000-0000-000000000032"
+    course_url = "https://fixture.invalid/courses/provider-failure"
+    state = {
+        "tables": {
+            "staging_raw": [{
+                "id": staging_id,
+                "institution_id": institution_id,
+                "url": course_url,
+                "content_hash": hashlib.sha256(b"synthetic HTML").hexdigest(),
+                "status": "processed",
+                "metadata": {},
+                "raw_html": "",
+            }],
+            "cleansed_programs": [{
+                "id": cleansed_id,
+                "staging_id": staging_id,
+                "institution_id": institution_id,
+                "url": course_url,
+                "clean_name": "Synthetic course",
+                "clean_description": "Synthetic failure description",
+                "status": "pending",
+                "metadata": {},
+            }],
+            "enriched_programs": [],
+            "categories": [],
+        },
+        "rpc_events": [],
+        "fail_next_enrichment_rpc": False,
+    }
+    state_path = tmp_path / "provider-failure-state.json"
+    initial_bytes = json.dumps(state, sort_keys=True).encode("utf-8")
+    state_path.write_bytes(initial_bytes)
+    monkeypatch.setenv("FG2_E2E_STATE", str(state_path))
+    monkeypatch.setattr(enrichment_worker, "OPENAI_API_KEY", "synthetic-openai-key")
+    monkeypatch.setattr(enrichment_worker, "CF_API_TOKEN", "synthetic-cloudflare-key")
+    monkeypatch.setattr(enrichment_worker, "CF_ACCOUNT_ID", "synthetic-cloudflare-account")
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(request_length)
+            if self.path == "/openai":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", "80")
+                self.end_headers()
+                self.wfile.write(b'{"status":"completed","output":')
+                self.wfile.flush()
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            failure_body = b"synthetic provider response body sentinel"
+            self.send_response(503)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(failure_body)))
+            self.end_headers()
+            self.wfile.write(failure_body)
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    real_post = enrichment_worker.requests.post
+    attempts = []
+    events = []
+
+    class CaptureLogger:
+        def info(self, message, *args):
+            events.append(message % args if args else message)
+
+        def warning(self, message, *args):
+            events.append(message % args if args else message)
+
+        def error(self, message, *args):
+            events.append(message % args if args else message)
+
+    def local_post(url, **kwargs):
+        if url == "https://api.openai.com/v1/responses":
+            attempts.append("OpenAI")
+            path = "openai"
+        elif "/ai/run/" in url:
+            attempts.append("Cloudflare")
+            path = "cloudflare"
+        else:
+            raise AssertionError("unexpected external POST in provider fixture")
+        return real_post(f"http://127.0.0.1:{server.server_port}/{path}", **kwargs)
+
+    worker = enrichment_worker.EnrichmentWorker.__new__(enrichment_worker.EnrichmentWorker)
+    worker.db = FileBackedFG2E2EDatabase()
+    worker.profiles = [{"institution_id": institution_id, "pipeline_enabled": True}]
+    worker.ready_inst_ids = {institution_id}
+    worker._mock_only = False
+    worker.require_real_provider = True
+    worker.orchestrator = enrichment_worker.ProviderOrchestrator(
+        providers=[
+            enrichment_worker.LLMProvider("OpenAI", worker._call_openai, lambda: True),
+            enrichment_worker.LLMProvider("Cloudflare", worker._call_cloudflare, lambda: True),
+        ],
+        logger=CaptureLogger(),
+    )
+    monkeypatch.setattr(enrichment_worker, "logger", worker.orchestrator.logger)
+    monkeypatch.setattr(enrichment_worker.requests, "post", local_post)
+    try:
+        assert worker.orchestrator.run_health_checks() == ["OpenAI", "Cloudflare"]
+        with pytest.raises(enrichment_worker.ControlledEnrichmentUnavailable):
+            enrichment_worker.process_enrichment_records(
+                worker,
+                state["tables"]["cleansed_programs"],
+                set(),
+            )
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=1)
+
+    assert attempts == ["OpenAI", "Cloudflare"]
+    assert state_path.read_bytes() == initial_bytes
+    diagnostics = "\n".join(events)
+    assert "provider=OpenAI category=request_error" in diagnostics
+    assert "provider=Cloudflare category=transient_http status_code=503" in diagnostics
+    assert "stage=provider_fallback category=real_provider_result_missing" in diagnostics
+    assert "synthetic provider response body sentinel" not in diagnostics
+    assert "synthetic-openai-key" not in diagnostics
+    assert "synthetic-cloudflare-key" not in diagnostics
+    assert "synthetic failure description" not in diagnostics
 
 
 def test_openai_adapter_rejects_missing_key_oversize_input_and_bad_responses(monkeypatch) -> None:
@@ -1113,6 +1868,7 @@ def test_openai_adapter_rejects_missing_key_oversize_input_and_bad_responses(mon
     class FakeResponse:
         def __init__(self, status_code=200, payload=None):
             self.status_code = status_code
+            self.raw = SimpleNamespace(isclosed=True)
             self.payload = payload
             self.body = json.dumps(payload).encode("utf-8")
             self.headers = {"Content-Length": str(len(self.body))}
@@ -1171,6 +1927,7 @@ def test_openai_adapter_parses_responses_and_classifies_timeout_refusal_and_inco
 
     class FakeResponse:
         status_code = 200
+        raw = SimpleNamespace(isclosed=True)
 
         def __init__(self, payload):
             self.body = json.dumps(payload).encode("utf-8")
@@ -1198,6 +1955,7 @@ def test_openai_adapter_parses_responses_and_classifies_timeout_refusal_and_inco
     class InvalidJsonResponse:
         status_code = 200
         headers = {}
+        raw = SimpleNamespace(isclosed=True)
 
         @staticmethod
         def iter_content(chunk_size=None):
@@ -1296,6 +2054,7 @@ def test_provider_fallback_rejects_oversize_prompt_and_invalid_schema(monkeypatc
 
     class FakeResponse:
         status_code = 200
+        raw = SimpleNamespace(isclosed=True)
 
         def __init__(self, payload):
             self.body = json.dumps(payload).encode("utf-8")
@@ -1377,6 +2136,7 @@ def test_provider_response_size_limit_bounds_bytes_and_total_read_time(monkeypat
 
     class StreamResponse:
         headers = {}
+        raw = SimpleNamespace(isclosed=True)
 
         def __init__(self, chunks):
             self.chunks = chunks
@@ -1404,6 +2164,35 @@ def test_provider_response_size_limit_bounds_bytes_and_total_read_time(monkeypat
     assert "category=response_timeout" in events[-1]
 
 
+def test_provider_transport_without_socket_requires_confirmed_closed_response() -> None:
+    from scripts.core import enrichment_worker
+
+    class RawResponse:
+        def __init__(self, closed):
+            self.closed = closed
+
+        def isclosed(self):
+            return self.closed
+
+    assert not enrichment_worker._set_response_socket_read_timeout(
+        SimpleNamespace(raw=RawResponse(False)), 1.0
+    )
+    assert enrichment_worker._set_response_socket_read_timeout(
+        SimpleNamespace(raw=RawResponse(True)), 1.0
+    )
+
+    class UnverifiableRawResponse:
+        def isclosed(self):
+            raise RuntimeError("synthetic transport sentinel")
+
+    assert not enrichment_worker._set_response_socket_read_timeout(
+        SimpleNamespace(raw=UnverifiableRawResponse()), 1.0
+    )
+    assert not enrichment_worker._set_response_socket_read_timeout(
+        SimpleNamespace(raw=SimpleNamespace(isclosed=object())), 1.0
+    )
+
+
 def test_cloudflare_uses_current_direct_model_and_sanitizes_provider_failures(monkeypatch) -> None:
     from types import SimpleNamespace
     from scripts.core import enrichment_worker
@@ -1420,6 +2209,7 @@ def test_cloudflare_uses_current_direct_model_and_sanitizes_provider_failures(mo
 
     class FakeResponse:
         status_code = 200
+        raw = SimpleNamespace(isclosed=True)
 
         def __init__(self):
             self.body = json.dumps({
@@ -1449,7 +2239,10 @@ def test_cloudflare_uses_current_direct_model_and_sanitizes_provider_failures(mo
     assert url.endswith("/ai/run/@cf/google/gemma-4-26b-a4b-it")
     assert kwargs["json"]["messages"][1]["content"] == "synthetic prompt sentinel"
     assert kwargs["headers"]["Authorization"].partition(" ")[2] == "synthetic-secret-sentinel"
-    assert kwargs["timeout"] == (5, 5)
+    assert kwargs["timeout"] == (
+        enrichment_worker.PROVIDER_CONNECT_TIMEOUT_SECONDS,
+        enrichment_worker.PROVIDER_READ_TIMEOUT_SECONDS,
+    )
     assert kwargs["allow_redirects"] is False
     assert kwargs["stream"] is True
     assert kwargs["json"]["max_completion_tokens"] == 2_048
@@ -1487,6 +2280,7 @@ def test_cloudflare_missing_bindings_and_invalid_responses_fail_closed(monkeypat
     class InvalidJsonResponse:
         status_code = 200
         headers = {}
+        raw = SimpleNamespace(isclosed=True)
 
         @staticmethod
         def iter_content(chunk_size=None):
@@ -1504,6 +2298,7 @@ def test_cloudflare_missing_bindings_and_invalid_responses_fail_closed(monkeypat
         status_code = 200
 
         def __init__(self):
+            self.raw = SimpleNamespace(isclosed=True)
             self.body = json.dumps({
                 "result": {"response": {"unexpected": "synthetic response body sentinel"}}
             }).encode("utf-8")

@@ -99,6 +99,8 @@ pg_id="$(docker run --pull=never --detach --name "$pg" --network "$net" --networ
   --mount "type=bind,src=$FIXTURE/seed_admin.sql,dst=/fixture/seed_admin.sql,readonly" \
   --mount "type=bind,src=$FIXTURE/assert_state.sql,dst=/fixture/assert_state.sql,readonly" \
   --mount "type=bind,src=$FIXTURE/prepare_refresh.sql,dst=/fixture/prepare_refresh.sql,readonly" \
+  --mount "type=bind,src=$FIXTURE/prepare_post272_recovery.sql,dst=/fixture/prepare_post272_recovery.sql,readonly" \
+  --mount "type=bind,src=$FIXTURE/assert_post272_recovery.sql,dst=/fixture/assert_post272_recovery.sql,readonly" \
   --mount "type=bind,src=$FIXTURE/inject_one_cleansing_failure.sql,dst=/fixture/inject_one_cleansing_failure.sql,readonly" \
   --mount "type=bind,src=$ROOT/db/migrations/20260531_fase121_auto_generated.sql,dst=/fixture/20260531_fase121_auto_generated.sql,readonly" \
   --mount "type=bind,src=$ROOT/db/migrations/20261120120000_fg2_profile_onboarding_state.sql,dst=/fixture/20261120120000_fg2_profile_onboarding_state.sql,readonly" \
@@ -343,6 +345,36 @@ run_worker() {
   grep -E '^phase=manifest_restore\|' "$log" || true
 }
 
+run_worker_with_openai_http_fixture() {
+  local phase="$1" script="$2" run_id="$3"
+  local manifest_sha manifest_b64 log
+  local provider_http_args=("${approved_docker_args[@]}")
+  manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
+  manifest_b64="$(base64 -w0 "$manifest")"
+  log="$out/${phase}.log"
+  for index in "${!provider_http_args[@]}"; do
+    if [[ "${provider_http_args[index]}" == "FG2_FIXTURE_PROVIDER_ADAPTER=1" ]]; then
+      provider_http_args[index]='FG2_FIXTURE_PROVIDER_ADAPTER=0'
+    fi
+  done
+  if ! docker run "${provider_http_args[@]}" \
+      --env GITHUB_RUN_ID="$run_id" \
+      --env FG2_FIXTURE_PROVIDER_HTTP=1 \
+      --env FG2_REQUIRE_REAL_PROVIDER=true \
+      --env OPENAI_API_KEY=synthetic-openai-key \
+      --env FG2_FIXTURE_MANIFEST_B64="$manifest_b64" \
+      --env FG2_FIXTURE_MANIFEST_SHA256="$manifest_sha" \
+      "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+      "/workspace/scripts/core/$script" --cohort-manifest /tmp/fg2-cohort-manifest.json \
+      --cohort-manifest-sha256 "$manifest_sha" >"$log" 2>&1; then
+    printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
+    tail -n 100 "$log"
+    exit 2
+  fi
+  printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
+  grep -E '^phase=manifest_restore\|' "$log" || true
+}
+
 assert_counts() {
   local staging="$1" cleansed="$2" enriched="$3" courses="$4"
   docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
@@ -456,13 +488,67 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
   "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND status='pending') THEN RAISE EXCEPTION 'refresh_pending_rollback_assertion'; END IF; IF NOT EXISTS (SELECT 1 FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/outside-approved-cohort' AND status='pending') THEN RAISE EXCEPTION 'out_of_cohort_sentinel_changed_after_failure'; END IF; IF (SELECT count(*) FROM public.cleansed_programs) <> 6 THEN RAISE EXCEPTION 'refresh_no_partial_cleansing_assertion'; END IF; END \$\$" >/dev/null
 run_worker run_3_cleansing_recovery cleansing_worker.py 9000003
 assert_counts 7 6 6 6
-run_worker run_3_enrichment enrichment_worker.py 9000003
+run_worker_with_openai_http_fixture run_3_enrichment enrichment_worker.py 9000003
 assert_counts 7 6 6 6
 run_worker run_3_sync sync_vector_worker.py 9000003
 assert_counts 7 6 6 6
 
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
-  "DO \$\$ BEGIN IF (SELECT count(*) FROM public.staging_raw WHERE status='processed') <> 6 THEN RAISE EXCEPTION 'staging_processed_count_assertion'; END IF; IF (SELECT count(*) FROM public.cleansed_programs WHERE status='enriched') <> 6 THEN RAISE EXCEPTION 'cleansed_enriched_count_assertion'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE status='synced') <> 6 THEN RAISE EXCEPTION 'enriched_synced_count_assertion'; END IF; IF EXISTS (SELECT 1 FROM public.enriched_programs WHERE status='synced' AND (provider_used IS DISTINCT FROM 'fixture-provider' OR is_mock_data IS DISTINCT FROM false)) THEN RAISE EXCEPTION 'synthetic_provider_boundary_contract_assertion'; END IF; IF (SELECT count(*) FROM public.course_editorial_state WHERE editorial_status='pending_review') <> 5 THEN RAISE EXCEPTION 'pending_editorial_count_assertion'; END IF; IF (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN RAISE EXCEPTION 'public_effective_must_be_empty_assertion'; END IF; IF EXISTS (SELECT 1 FROM public.staging_raw WHERE institution_id='20000000-0000-0000-0000-000000000004') THEN RAISE EXCEPTION 'blocked_source_must_not_create_staging'; END IF; IF NOT EXISTS (SELECT 1 FROM public.institution_site_profiles WHERE institution_id='20000000-0000-0000-0000-000000000005' AND profile_status='pending_review') THEN RAISE EXCEPTION 'ambiguous_profile_must_remain_pending'; END IF; IF NOT EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE rtrim(c.url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND es.editorial_status='published' AND es.manual_overrides->>'name'='Título manual sintético preservado') THEN RAISE EXCEPTION 'editorial_override_was_not_preserved'; END IF; IF EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE es.editorial_status='pending_review' AND c.is_active IS TRUE) THEN RAISE EXCEPTION 'pending_new_course_active_assertion'; END IF; END \$\$" >/dev/null
+  "DO \$\$ BEGIN IF (SELECT count(*) FROM public.staging_raw WHERE status='processed') <> 6 THEN RAISE EXCEPTION 'staging_processed_count_assertion'; END IF; IF (SELECT count(*) FROM public.cleansed_programs WHERE status='enriched') <> 6 THEN RAISE EXCEPTION 'cleansed_enriched_count_assertion'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE status='synced') <> 6 THEN RAISE EXCEPTION 'enriched_synced_count_assertion'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE status='synced' AND is_mock_data IS FALSE) <> 6 THEN RAISE EXCEPTION 'synthetic_provider_boundary_contract_assertion'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND provider_used='OpenAI') <> 1 THEN RAISE EXCEPTION 'openai_http_provider_not_persisted'; END IF; IF (SELECT count(*) FROM public.enriched_programs WHERE rtrim(url, '/')<>'https://ssr.fg2.example/programas/analitica-aplicada' AND provider_used='fixture-provider') <> 5 THEN RAISE EXCEPTION 'synthetic_provider_fixture_rows_changed'; END IF; IF (SELECT count(*) FROM public.course_editorial_state WHERE editorial_status='pending_review') <> 5 THEN RAISE EXCEPTION 'pending_editorial_count_assertion'; END IF; IF (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN RAISE EXCEPTION 'public_effective_must_be_empty_assertion'; END IF; IF EXISTS (SELECT 1 FROM public.staging_raw WHERE institution_id='20000000-0000-0000-0000-000000000004') THEN RAISE EXCEPTION 'blocked_source_must_not_create_staging'; END IF; IF NOT EXISTS (SELECT 1 FROM public.institution_site_profiles WHERE institution_id='20000000-0000-0000-0000-000000000005' AND profile_status='pending_review') THEN RAISE EXCEPTION 'ambiguous_profile_must_remain_pending'; END IF; IF NOT EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE rtrim(c.url, '/')='https://ssr.fg2.example/programas/analitica-aplicada' AND es.editorial_status='published' AND es.manual_overrides->>'name'='Título manual sintético preservado') THEN RAISE EXCEPTION 'editorial_override_was_not_preserved'; END IF; IF EXISTS (SELECT 1 FROM public.course_editorial_state es JOIN public.courses c ON c.id=es.course_id WHERE es.editorial_status='pending_review' AND c.is_active IS TRUE) THEN RAISE EXCEPTION 'pending_new_course_active_assertion'; END IF; END \$\$" >/dev/null
+
+# The refresh above used the real Requests/OpenAI caller through a synthetic
+# loopback endpoint; PostgREST and the persistence RPC remained real.
+assert_openai_http_boundary() {
+  local phase="$1" event_file="$2" expected="$3" run_id="${4:-9000003}" expected_count="${5:-1}" log="$out/${1}.log"
+  local result=0
+  docker run --pull=never --rm --interactive --network none --read-only \
+  --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \
+  --mount "type=bind,src=$event_file,dst=/run/fg2-provider-events.jsonl,readonly" \
+  --env FG2_PROVIDER_RUN_ID="$run_id" \
+  --env FG2_PROVIDER_EXPECTED_COUNT="$expected_count" \
+  --env FG2_PROVIDER_EXPECTATION="$expected" \
+  "$APP_IMAGE" /opt/venv/bin/python - /run/fg2-provider-events.jsonl >"$log" 2>&1 <<'PY' || result=$?
+import json, os, pathlib, sys
+events = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line]
+run_id = os.environ["FG2_PROVIDER_RUN_ID"]
+provider_events = [event for event in events if event.get("boundary") == "provider_loopback" and event.get("run_id") == run_id]
+expected = os.environ["FG2_PROVIDER_EXPECTATION"]
+expected_count = int(os.environ["FG2_PROVIDER_EXPECTED_COUNT"])
+valid = len(provider_events) == expected_count and all(
+    event.get("provider") == "OpenAI"
+    and event.get("status") == 200
+    and event.get("valid_schema_request") is True
+    for event in provider_events
+)
+if expected == "accept" and (len(provider_events) != expected_count or not valid):
+    raise SystemExit("phase=pg17_openai_http_boundary|result=FAIL|code=provider_caller_contract_mismatch")
+if expected == "reject" and valid:
+    raise SystemExit("phase=pg17_openai_http_boundary|result=FAIL|code=invalid_fixture_was_accepted")
+print("phase=pg17_openai_http_boundary|result=PASS|expectation=" + expected + "|requests=" + str(len(provider_events)) + "|assertions_executed=true")
+PY
+
+  if [[ "$expected" == "accept" ]]; then
+    if ((result != 0)) || ! grep -q "^phase=pg17_openai_http_boundary|result=PASS|expectation=accept|requests=${expected_count}|assertions_executed=true$" "$log"; then
+      cat "$log"
+      fail "$phase" OPENAI_HTTP_BOUNDARY_ASSERTION_NOT_EXECUTED_OR_FAILED
+    fi
+    printf 'phase=%s|result=PASS|assertions=executed\n' "$phase"
+  else
+    if ((result != 0)) || ! grep -Eq '^phase=pg17_openai_http_boundary\|result=PASS\|expectation=reject\|requests=[01]\|assertions_executed=true$' "$log"; then
+      cat "$log"
+      fail "$phase" OPENAI_HTTP_BOUNDARY_NEGATIVE_FIXTURE_NOT_REJECTED
+    fi
+    printf 'phase=%s|result=PASS|negative_fixture=rejected|assertions=executed\n' "$phase"
+  fi
+}
+
+openai_missing_events="$run_dir/provider-events-missing.jsonl"
+openai_invalid_events="$run_dir/provider-events-invalid.jsonl"
+: >"$openai_missing_events"
+printf '%s\n' '{"boundary":"provider_loopback","run_id":"9000003","provider":"OpenAI","status":200,"valid_schema_request":false}' >"$openai_invalid_events"
+assert_openai_http_boundary pg17_openai_http_boundary "$events" accept
+assert_openai_http_boundary pg17_openai_http_boundary_missing "$openai_missing_events" reject
+assert_openai_http_boundary pg17_openai_http_boundary_invalid "$openai_invalid_events" reject
 
 # The same HTTP route and budget serve HTTP, browser navigation and scripts.
 # A 429 response is recorded once per blocked cohort run; no request is retried.
@@ -471,10 +557,11 @@ docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000003 \
   >"$out/admin.log" 2>&1 || { cat "$out/admin.log"; fail admin_queue ADMIN_RPC_OR_PUBLIC_VIEW_ASSERTION; }
 grep -E '^phase=(fg2_profile_schema_contract|admin_queue_rpc)\|' "$out/admin.log"
 
-docker run --pull=never --rm --network none --read-only \
+http_audit_log="$out/synthetic_http_audit.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only \
   --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \
   --mount "type=bind,src=$events,dst=/run/fg2-http-events.jsonl,readonly" \
-  "$APP_IMAGE" /opt/venv/bin/python - /run/fg2-http-events.jsonl <<'PY'
+  "$APP_IMAGE" /opt/venv/bin/python - /run/fg2-http-events.jsonl >"$http_audit_log" 2>&1 <<'PY'
 import json, pathlib, sys
 from collections import Counter
 events=[json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line]
@@ -498,6 +585,37 @@ if not spa_script or not any(event.get("query") == "page=1" for event in catalog
     raise SystemExit("phase=synthetic_http_audit|result=FAIL|code=browser_or_pagination_missing")
 print(f"phase=synthetic_http_audit|result=PASS|attempts={len(http_events)}|blocked_429={len(blocked)}|blocked_runs={len(blocked_per_run)}|spa_js=observed|ecommerce_pages=2|pinned_config=checked")
 PY
+then
+  cat "$http_audit_log"
+  fail synthetic_http_audit HTTP_AUDIT_ASSERTION_FAILED
+fi
+grep -q '^phase=synthetic_http_audit|result=PASS|' "$http_audit_log" \
+  || { cat "$http_audit_log"; fail synthetic_http_audit HTTP_AUDIT_ASSERTION_NOT_EXECUTED; }
+cat "$http_audit_log"
 
-printf 'phase=fg2_full_pipeline_pg17|result=PASS|courses=6|pending_review=5|public_effective=0|provider_boundary=synthetic_fixture\n'
+# Recovery case mirrors the post-harvest/post-cleansing state of run #272:
+# six approved processed refreshes remain pending for enrichment; two other
+# processed identities are excluded and must remain byte-for-byte untouched.
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
+  -f /fixture/prepare_post272_recovery.sql >"$out/post272_fixture.log"
+cat "$out/post272_fixture.log"
+recovery_manifest_log="$out/post272_manifest.log"
+if ! docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000005 \
+    --env FG2_FIXTURE_EXPORT_MANIFEST=/run/fg2-cohort-manifest.json \
+    "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py \
+    >"$recovery_manifest_log" 2>&1; then
+  cat "$recovery_manifest_log"
+  fail post272_recovery_manifest MANIFEST_BUILD_OR_POSTHARVEST_STATE_MISMATCH
+fi
+grep -q '^phase=post272_recovery_manifest|result=PASS|refresh_pending=6|unchanged_excluded=2|digest_checked=true$' "$recovery_manifest_log" \
+  || { cat "$recovery_manifest_log"; fail post272_recovery_manifest ASSERTION_NOT_EXECUTED; }
+cat "$recovery_manifest_log"
+run_worker_with_openai_http_fixture run_5_post272_enrichment enrichment_worker.py 9000005
+assert_openai_http_boundary pg17_post272_openai_http_boundary "$events" accept 9000005 6
+run_worker run_5_post272_sync sync_vector_worker.py 9000005
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
+  -f /fixture/assert_post272_recovery.sql >"$out/post272_postflight.log"
+cat "$out/post272_postflight.log"
+
+printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_refresh_synced=6|post272_unchanged=2|public_effective=0|provider_boundary=synthetic_http_openai_plus_fixture_fallback\n'
 printf 'phase=limits|result=LOCAL_EVIDENCE_ONLY|network=internal_no_egress|db=ephemeral_pg17|production=untouched\n'

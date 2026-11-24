@@ -8,14 +8,18 @@ and stage entrypoints remain the candidate implementations.
 
 from __future__ import annotations
 
+import atexit
 import base64
 import hashlib
 import hmac
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+import re
 import requests
 import socket
 import sys
+import threading
 import time as _real_time
 from pathlib import Path
 from types import SimpleNamespace
@@ -250,7 +254,144 @@ def _install_synthetic_provider_boundary(orchestrator_class):
     orchestrator_class._fg2_synthetic_boundary_installed = True
 
 
-if os.environ.get("FG2_FIXTURE_PROVIDER_ADAPTER") == "1":
+def _install_loopback_http_provider_boundary():
+    """Route the actual Requests provider callers to a local synthetic HTTP server."""
+    pillars = {
+        "official_name": "Fixture OpenAI course",
+        "duration_text": "6 meses",
+        "duration_months": 6,
+        "total_cost_est": 1250,
+        "requirements": ["Synthetic requirement"],
+        "graduate_profile": "Synthetic graduate profile",
+        "target_audience": "Synthetic audience",
+        "objectives": "Synthetic objectives",
+        "benefits": "Synthetic benefits",
+        "certification": "Synthetic certification",
+        "curriculum_summary": {"pilares": ["Synthetic curriculum"]},
+        "modality": "Remoto",
+        "primary_campus": "Virtual",
+        "degree_type": "Curso",
+        "start_date": None,
+        "categories": ["Data"],
+        "difficulty_level": "Básico",
+        "ai_summary": "Synthetic provider summary",
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            request_length = int(self.headers.get("Content-Length", "0"))
+            try:
+                request = json.loads(self.rfile.read(request_length))
+                if self.path == "/openai":
+                    fmt = request.get("text", {}).get("format", {})
+                    valid = (
+                        request.get("model") == "gpt-6-luna"
+                        and request.get("store") is False
+                        and fmt.get("type") == "json_schema"
+                        and fmt.get("strict") is True
+                        and len(fmt.get("schema", {}).get("properties", {})) == 18
+                    )
+                    response_pillars = pillars
+                    prompt = request.get("input")
+                    recovery_match = (
+                        re.search(
+                            r"^\[SYS\] Nombre: Post-272 recovered course ([0-9]{2})$",
+                            prompt,
+                            flags=re.MULTILINE,
+                        )
+                        if isinstance(prompt, str)
+                        else None
+                    )
+                    if recovery_match:
+                        response_pillars = dict(pillars)
+                        response_pillars["official_name"] = (
+                            f"Synthetic recovered course {recovery_match.group(1)}"
+                        )
+                    response = {
+                        "status": "completed",
+                        "output": [{
+                            "type": "message",
+                            "content": [{
+                                "type": "output_text",
+                                "text": json.dumps(response_pillars, ensure_ascii=False),
+                            }],
+                        }],
+                    }
+                    provider_name = "OpenAI"
+                elif self.path == "/cloudflare":
+                    valid = True
+                    response = {
+                        "result": {"response": json.dumps(pillars, ensure_ascii=False)}
+                    }
+                    provider_name = "Cloudflare"
+                else:
+                    valid = False
+                    response = {"error": "fixture_route_rejected"}
+                    provider_name = "unknown"
+            except (UnicodeDecodeError, json.JSONDecodeError, AttributeError, TypeError):
+                valid = False
+                response = {"error": "fixture_request_rejected"}
+                provider_name = "unknown"
+
+            status = 200 if valid else 400
+            payload = json.dumps(response, ensure_ascii=False).encode("utf-8")
+            _record_provider_response(provider_name, status, valid)
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    original_post = requests.post
+
+    def route_provider_request(url, *args, **kwargs):
+        parsed = urlsplit(str(url))
+        if parsed.hostname == "api.openai.com" and parsed.path == "/v1/responses":
+            return original_post(f"http://127.0.0.1:{server.server_port}/openai", *args, **kwargs)
+        if parsed.hostname == "api.cloudflare.com" and parsed.path.startswith("/client/v4/accounts/"):
+            return original_post(f"http://127.0.0.1:{server.server_port}/cloudflare", *args, **kwargs)
+        return original_post(url, *args, **kwargs)
+
+    requests.post = route_provider_request
+
+    def close_server():
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=1)
+
+    atexit.register(close_server)
+
+
+def _record_provider_response(provider: str, status: int, valid: bool) -> None:
+    event = {
+        "boundary": "provider_loopback",
+        "run_id": os.environ.get("GITHUB_RUN_ID", "unknown"),
+        "provider": provider,
+        "status": int(status),
+        "valid_schema_request": bool(valid),
+    }
+    line = (json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    descriptor = os.open(_event_path, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
+    try:
+        os.write(descriptor, line)
+    finally:
+        os.close(descriptor)
+
+
+if os.environ.get("FG2_FIXTURE_PROVIDER_HTTP") == "1":
+    if os.environ.get("FG2_FIXTURE_PROVIDER_ADAPTER") == "1":
+        raise RuntimeError("fixture_provider_boundary_conflict")
+    _install_loopback_http_provider_boundary()
+elif os.environ.get("FG2_FIXTURE_PROVIDER_ADAPTER") == "1":
     _install_synthetic_provider_boundary(_script_utils.ProviderOrchestrator)
     _install_synthetic_provider_boundary(_legacy_utils.ProviderOrchestrator)
 

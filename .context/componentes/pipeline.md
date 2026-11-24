@@ -731,9 +731,27 @@ Referencias: [modelo GPT-6 Luna](https://developers.openai.com/api/docs/models/g
 
 El contrato local común para ambos proveedores fija un prompt de hasta 24.000
 bytes UTF-8, salida solicitada de hasta 2.048 tokens, cuerpo HTTP de respuesta
-de hasta 256.000 bytes, timeout de conexión/lectura de 5 segundos por socket,
-deadline local de lectura de 30 segundos, cero reintentos y redirects
-rechazados. El fallback Cloudflare vuelve a validar el tipo y tamaño del prompt
+de hasta 256.000 bytes, timeout de conexión de 5 segundos, timeout de lectura
+por inactividad de 30 segundos y un presupuesto de 30 segundos para consumir el
+cuerpo streaming, cero reintentos y redirects rechazados. El presupuesto del
+cuerpo se inicia antes del POST. Una vez que Requests entrega la respuesta, el
+worker aplica el tiempo restante como timeout de inactividad en cada lectura y,
+si el transporte expone un socket verificable, crea un único watchdog para esa
+respuesta. Este interrumpe y cierra el socket si `iter_content` sigue bloqueado
+en framing HTTP o descompresión sin entregar bytes decodificados. El watchdog se
+cancela y espera antes de cerrar la respuesta; no deja un hilo o lectura de fondo.
+El acceso al socket se comprueba contra Requests 2.34.2 y urllib3 2.7.0, fijados
+en `requirements-pipeline.txt`; si la respuesta real no expone un transporte
+utilizable y abierto, se falla cerrado. Responses completos ya bufferizados se
+consumen sin una lectura de socket pendiente. El timeout de lectura de Requests
+mide la espera entre bytes, no el tiempo total de la solicitud: DNS, TLS,
+conexiones a varias direcciones y adquisición lenta de headers no tienen
+cancelación wall-clock estricta y pueden prolongar el tiempo observado hasta el
+siguiente timeout de inactividad. Por tanto, los 30 segundos acotan el consumo
+del cuerpo después de recibir la respuesta, no garantizan la duración total del
+POST. El límite de bytes se aplica también a contenido descomprimido y la lectura
+falla cerrada al agotarse cualquiera de los dos presupuestos.
+El fallback Cloudflare vuelve a validar el tipo y tamaño del prompt
 y no puede eludir ese límite. Las respuestas de ambos proveedores se validan
 contra el mismo JSON Schema local de 18 propiedades; un JSON sintácticamente
 válido pero incompleto o con tipos/campos inesperados se trata como fallo del
@@ -817,6 +835,13 @@ rate limit, HTTP transitorio, timeout y respuesta inválida. Ninguno reintenta n
 sigue redirects. Las pruebas E2E sustituyen explícitamente la frontera del
 proveedor por una respuesta sintética dentro de Docker sin egress; no habilitan
 el fallback smart-mock ni acreditan proveedores reales.
+
+Cuando el worker recibe un manifiesto, sus eventos `FG2_ENRICHMENT_SCOPE` y
+`FG2_ENRICHMENT_BATCH` informan `mode=cohort_manifest`, cantidad de instituciones,
+entradas del manifiesto y filas `pending` seleccionadas. No imprimen URLs. Sin
+manifiesto el modo registra si la selección es por institución o cola global y
+el límite configurado. Esos conteos describen el alcance consultado; no prueban
+por sí solos que las filas hayan sido enriquecidas o sincronizadas.
 
 Sync añade una última barrera independiente para toda fila, incluso en una
 llamada directa sin manifiesto ni flag:

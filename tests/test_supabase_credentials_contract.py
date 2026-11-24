@@ -258,6 +258,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "tests/fg2_full_pipeline_pg17/sitecustomize.py": "supabase-data-api-test",
     "tests/fg2_full_pipeline_pg17/verify_admin_queue.py": "supabase-data-api-test",
     "tests/fg2_full_pipeline_pg17/prepare_approved_lot.py": "supabase-data-api-test",
+    "tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py": "supabase-data-api-test",
     "tests/test_fg2_bounded_orchestration.py": "supabase-data-api-test",
     "tests/test_fg2_bounded_workflow.py": "supabase-data-api-test",
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
