@@ -693,7 +693,8 @@ cat "$out/post272_fixture.log"
 recovery_manifest_log="$out/post272_manifest.log"
 if ! docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000005 \
     --env FG2_FIXTURE_EXPORT_MANIFEST=/run/fg2-cohort-manifest.json \
-    "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py \
+    "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+    /workspace/tests/fg2_full_pipeline_pg17/prepare_post272_recovery.py \
     >"$recovery_manifest_log" 2>&1; then
   cat "$recovery_manifest_log"
   fail post272_recovery_manifest MANIFEST_BUILD_OR_POSTHARVEST_STATE_MISMATCH
