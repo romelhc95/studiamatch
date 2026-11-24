@@ -209,6 +209,34 @@ import shared.utils as _legacy_utils
 from scripts.shared import site_diagnostics as _diagnostics
 from curl_cffi import CurlOpt
 
+if os.environ.get("FG2_FIXTURE_RECOVERY_SOURCE") == "1":
+    # Keep the worker's normal pinned-provenance validation active, but bind
+    # this isolated fixture to its synthetic immutable source artifact. The
+    # production pins remain untouched outside this test-only process.
+    _source_path = Path("/run/post272-source-manifest.json")
+    _source_raw = _source_path.read_bytes()
+    _source = json.loads(_source_raw)
+    _bounded.FG2_POST272_RECOVERY_SOURCE = {
+        "run_id": str(_source["run_id"]),
+        "run_attempt": int(_source["run_attempt"]),
+        "source_sha": str(_source["source_sha"]),
+        "workflow_id": 261386590,
+        "artifact_id": "9000004001",
+        "artifact_sha256": "b" * 64,
+        "manifest_sha256": hashlib.sha256(_source_raw).hexdigest(),
+        "approved_lot_reference": str(_source["approved_lot_reference"]),
+        "approved_lot_sha256": str(_source["approved_lot_sha256"]),
+    }
+    _bounded.FG2_POST272_RECOVERY_INSTITUTION_ID = "20000000-0000-0000-0000-000000000001"
+    _bounded.FG2_POST272_RECOVERY_COURSE_STAGING_IDS = {
+        f"53000000-0000-0000-0000-{ordinal:012d}": f"52000000-0000-0000-0000-{ordinal:012d}"
+        for ordinal in range(1, 7)
+    }
+    _bounded.FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID = "53000000-0000-0000-0000-000000000006"
+    _bounded.FG2_POST272_RECOVERY_EXCLUDED_URL = (
+        "https://ssr.fg2.example/programas/post272-refresh-06"
+    )
+
 
 _SYNTHETIC_PROVIDER_RESULT = {
     "official_name": "Programa sintético verificado",
@@ -335,7 +363,12 @@ def _install_loopback_http_provider_boundary():
                 response = {"error": "fixture_request_rejected"}
                 provider_name = "unknown"
 
-            status = 200 if valid else 400
+            failure_mode = os.environ.get("FG2_FIXTURE_PROVIDER_MODE", "success")
+            if failure_mode == "fail_all":
+                status = 503
+                response = {"error": {"type": "synthetic_provider_unavailable"}}
+            else:
+                status = 200 if valid else 400
             payload = json.dumps(response, ensure_ascii=False).encode("utf-8")
             _record_provider_response(provider_name, status, valid)
             self.send_response(status)

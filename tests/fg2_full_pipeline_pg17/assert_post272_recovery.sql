@@ -8,7 +8,7 @@ DECLARE
   _enriched_id uuid;
   _editorial_status text;
 BEGIN
-  FOR _n IN 1..6 LOOP
+  FOR _n IN 1..5 LOOP
     _staging_id := ('52000000-0000-0000-0000-' || lpad(_n::text, 12, '0'))::uuid;
     _course_id := ('53000000-0000-0000-0000-' || lpad(_n::text, 12, '0'))::uuid;
     _cleansed_id := ('54000000-0000-0000-0000-' || lpad(_n::text, 12, '0'))::uuid;
@@ -44,6 +44,36 @@ BEGIN
     RAISE EXCEPTION 'post272_course_missing_from_admin_queue';
   END IF;
 
+  -- The sixth proposed identity and its trailing-slash alias remain untouched.
+  IF NOT EXISTS (
+       SELECT 1 FROM public.staging_raw
+       WHERE id='52000000-0000-0000-0000-000000000006'::uuid AND status='processed'
+     )
+     OR NOT EXISTS (
+       SELECT 1 FROM public.staging_raw
+       WHERE id='52000000-0000-0000-0000-000000000066'::uuid AND status='processed'
+     )
+     OR NOT EXISTS (
+       SELECT 1 FROM public.cleansed_programs
+       WHERE id='54000000-0000-0000-0000-000000000006'::uuid AND status='pending'
+     )
+     OR NOT EXISTS (
+       SELECT 1 FROM public.cleansed_programs
+       WHERE id='54000000-0000-0000-0000-000000000066'::uuid AND status='pending'
+     )
+     OR NOT EXISTS (
+       SELECT 1 FROM public.enriched_programs
+       WHERE id='55000000-0000-0000-0000-000000000006'::uuid
+         AND status='synced' AND provider_used='prior-fixture'
+     )
+     OR NOT EXISTS (
+       SELECT 1 FROM public.enriched_programs
+       WHERE id='55000000-0000-0000-0000-000000000066'::uuid
+         AND status='synced' AND provider_used='prior-fixture'
+     ) THEN
+    RAISE EXCEPTION 'post272_ambiguous_identity_was_mutated';
+  END IF;
+
   FOR _n IN 7..8 LOOP
     _staging_id := ('52000000-0000-0000-0000-' || lpad(_n::text, 12, '0'))::uuid;
     _course_id := ('53000000-0000-0000-0000-' || lpad(_n::text, 12, '0'))::uuid;
@@ -62,8 +92,8 @@ BEGIN
     SELECT count(DISTINCT slug)
     FROM public.courses
     WHERE split_part(id::text, '-', 1) = '53000000'
-      AND split_part(id::text, '-', 5)::bigint BETWEEN 1 AND 6
-  ) <> 6 THEN
+      AND split_part(id::text, '-', 5)::bigint BETWEEN 1 AND 5
+  ) <> 5 THEN
     RAISE EXCEPTION 'post272_course_slugs_not_unique';
   END IF;
 
@@ -71,4 +101,4 @@ BEGIN
     RAISE EXCEPTION 'post272_recovery_unintended_publication';
   END IF;
 END $$;
-SELECT 'phase=post272_recovery_postflight|result=PASS|changed_synced=6|unchanged=2|editorial_preserved=true|public_effective=0';
+SELECT 'phase=post272_recovery_postflight|result=PASS|changed_synced=5|ambiguous_excluded=1|unchanged=2|editorial_preserved=true|public_effective=0|admin_queue=verified';

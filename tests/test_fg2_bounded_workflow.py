@@ -457,7 +457,7 @@ def test_main_schedule_propagates_a_run_scoped_manifest_to_all_workers() -> None
     assert "FG2_SCHEDULED_COHORT: ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/main' }}" in workflow
     assert "--scheduled-cohort --cohort-manifest \"$RUNNER_TEMP/fg2-cohort-manifest.json\"" in workflow
     assert "FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main')" in workflow
-    assert "if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run))" in workflow
+    assert "if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.bounded_first_run || inputs.resume_enrichment_from_272)))" in workflow
     assert workflow.count("if: env.FG2_COHORT_SCOPED == 'true'") == 3
 
     for job, script in (
@@ -470,6 +470,38 @@ def test_main_schedule_propagates_a_run_scoped_manifest_to_all_workers() -> None
         assert f"python scripts/core/{script} --cohort-manifest" in section
         assert f"python scripts/core/{script}\n" in section
         assert "Restore exact controlled cohort manifest" in section
+
+
+def test_post272_recovery_uses_pinned_artifact_and_runs_only_downstream_stations() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    header = workflow.split("concurrency:", 1)[0]
+    recovery_input = header.split("resume_enrichment_from_272:", 1)[1].split("approved_lot_reference:", 1)[0]
+    assert "type: boolean" in recovery_input
+    assert "default: false" in recovery_input
+    assert "FG2_RECOVERY_SOURCE_VERIFIED run=45342980592 attempt=1" in workflow
+    assert "artifact-ids: 14896234555" in workflow
+    assert "run-id: 45342980592" in workflow
+    assert "sha256:a313fbcbcece66f61e66a91d174126051a26e4d8461327514912243b16ee4864" in workflow
+    assert "5bb5f594b3e49c1369cd50d233db72b852e1ca3d48d8451a4a523ca7c50c0450" in workflow
+    assert "--prepare-post272-enrichment-recovery" in workflow
+    assert "--source-cohort-manifest" in workflow
+    assert "if: env.FG2_RECOVERY_ENRICHMENT != 'true'\n        run: playwright install chromium" in workflow
+    preflight = workflow.split("  production_control_preflight:", 1)[1].split("  # 🚉 STATION 1:", 1)[0]
+    assert "FG2_RECOVERY_ENRICHMENT" in preflight
+    assert "production_control_preflight.sh FG2-ENRICHMENT" in preflight
+    assert "production_control_preflight.sh FG2-HARVEST" in preflight
+    cleansing = workflow.split("  phase_1_5_cleansing:", 1)[1].split("  phase_2_enrichment:", 1)[0]
+    assert "inputs.resume_enrichment_from_272 != true" in cleansing
+    enrichment = workflow.split("  phase_2_enrichment:", 1)[1].split("  phase_3_sync:", 1)[0]
+    assert "inputs.resume_enrichment_from_272 == true" in enrichment
+    sync = workflow.split("  phase_3_sync:", 1)[1].split("  phase_4_audit:", 1)[0]
+    assert "needs.phase_2_enrichment.result == 'success'" in sync
+    audit = workflow.split("  phase_4_audit:", 1)[1]
+    assert "needs.phase_3_sync.result == 'success'" in audit
+    assert "CA1 Audit Boundary" in audit
+    assert "FG2_BOUNDED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}" in workflow
+    assert "FG2_RESUME_ENRICHMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_enrichment_from_272 }}" in workflow
+    assert '"$FG2_BOUNDED_FIRST_RUN" == "true" && "$FG2_RESUME_ENRICHMENT" == "true"' in workflow
 
 
 def test_every_downstream_cli_rejects_an_unhashed_manifest_before_startup() -> None:
@@ -1004,7 +1036,7 @@ def test_fg2_ci_fixture_records_the_pull_request_source_sha() -> None:
     fixture_runner = (ROOT / "tests/fg2_full_pipeline_pg17/run.sh").read_text()
 
     assert "FG2_FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}" in workflow
-    assert 'source_sha="${FG2_FIXTURE_SOURCE_SHA:-95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b}"' in fixture_runner
+    assert 'source_sha="${FG2_FIXTURE_SOURCE_SHA:-b800a82225496be9b098024c7f30020da70e8584}"' in fixture_runner
     assert "invalid_source_sha" in fixture_runner
 
 

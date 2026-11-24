@@ -25,7 +25,7 @@ jwt_secret="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 pg_password="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 fixture_publishable_key="sb_publishable_$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
 fixture_secret_key="sb_secret_$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
-source_sha="${FG2_FIXTURE_SOURCE_SHA:-95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b}"
+source_sha="${FG2_FIXTURE_SOURCE_SHA:-b800a82225496be9b098024c7f30020da70e8584}"
 if [[ ! "$source_sha" =~ ^[0-9a-f]{40}$ ]]; then
   printf 'phase=fixture_configuration|result=FAIL|code=invalid_source_sha\n' >&2
   exit 2
@@ -325,30 +325,49 @@ run_approved_master() {
 }
 
 run_worker() {
-  local phase="$1" script="$2" run_id="$3"
+  local phase="$1" script="$2" run_id="$3" expected_result="${4:-success}" recovery_source="${5:-false}"
   local manifest_sha manifest_b64 log
+  local recovery_args=()
+  if [[ "$recovery_source" == "true" ]]; then
+    recovery_args+=(--env FG2_FIXTURE_RECOVERY_SOURCE=1)
+  fi
   manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
   manifest_b64="$(base64 -w0 "$manifest")"
   log="$out/${phase}.log"
-  if ! docker run "${common_docker_args[@]}" \
+  if docker run "${common_docker_args[@]}" \
+      "${recovery_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
       --env FG2_FIXTURE_MANIFEST_B64="$manifest_b64" \
       --env FG2_FIXTURE_MANIFEST_SHA256="$manifest_sha" \
       "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
       "/workspace/scripts/core/$script" --cohort-manifest /tmp/fg2-cohort-manifest.json \
       --cohort-manifest-sha256 "$manifest_sha" >"$log" 2>&1; then
-    printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
-    tail -n 100 "$log"
-    exit 2
+    if [[ "$expected_result" == "failure" ]]; then
+      fail "$phase" EXPECTED_FAILURE_RETURNED_SUCCESS
+    fi
+  else
+    if [[ "$expected_result" != "failure" ]]; then
+      printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
+      tail -n 100 "$log"
+      exit 2
+    fi
+    printf 'phase=%s|result=PASS|expected=controlled_failure\n' "$phase"
+    return 0
+  fi
+  if [[ "$expected_result" != "success" ]]; then
+    fail "$phase" EXPECTED_FAILURE_DID_NOT_OCCUR
   fi
   printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
   grep -E '^phase=manifest_restore\|' "$log" || true
 }
 
 run_worker_with_openai_http_fixture() {
-  local phase="$1" script="$2" run_id="$3"
+  local phase="$1" script="$2" run_id="$3" provider_mode="${4:-success}" expected_result="${5:-success}" recovery_source="${6:-false}"
   local manifest_sha manifest_b64 log
   local provider_http_args=("${approved_docker_args[@]}")
+  if [[ "$recovery_source" == "true" ]]; then
+    provider_http_args+=(--env FG2_FIXTURE_RECOVERY_SOURCE=1)
+  fi
   manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
   manifest_b64="$(base64 -w0 "$manifest")"
   log="$out/${phase}.log"
@@ -357,19 +376,36 @@ run_worker_with_openai_http_fixture() {
       provider_http_args[index]='FG2_FIXTURE_PROVIDER_ADAPTER=0'
     fi
   done
-  if ! docker run "${provider_http_args[@]}" \
+  if docker run "${provider_http_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
       --env FG2_FIXTURE_PROVIDER_HTTP=1 \
+      --env FG2_FIXTURE_PROVIDER_MODE="$provider_mode" \
       --env FG2_REQUIRE_REAL_PROVIDER=true \
       --env OPENAI_API_KEY=synthetic-openai-key \
+      --env CF_API_TOKEN=fixture-cf \
+      --env CF_ACCOUNT_ID=synthetic-cloudflare-account \
       --env FG2_FIXTURE_MANIFEST_B64="$manifest_b64" \
       --env FG2_FIXTURE_MANIFEST_SHA256="$manifest_sha" \
       "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
       "/workspace/scripts/core/$script" --cohort-manifest /tmp/fg2-cohort-manifest.json \
       --cohort-manifest-sha256 "$manifest_sha" >"$log" 2>&1; then
-    printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
-    tail -n 100 "$log"
-    exit 2
+    if [[ "$expected_result" == "failure" ]]; then
+      fail "$phase" EXPECTED_FAILURE_RETURNED_SUCCESS
+    fi
+  else
+    if [[ "$expected_result" != "failure" ]]; then
+      printf 'phase=%s|result=FAIL|diagnostic_log=%s\n' "$phase" "$log"
+      tail -n 100 "$log"
+      exit 2
+    fi
+    printf 'phase=%s|result=PASS|expected=controlled_failure\n' "$phase"
+    if grep -Eq 'synthetic-openai-key|fixture-cf|synthetic-cloudflare-account' "$log"; then
+      fail "$phase" SYNTHETIC_PROVIDER_CREDENTIAL_LEAKED
+    fi
+    return 0
+  fi
+  if [[ "$expected_result" != "success" ]]; then
+    fail "$phase" EXPECTED_FAILURE_DID_NOT_OCCUR
   fi
   printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
   grep -E '^phase=manifest_restore\|' "$log" || true
@@ -499,17 +535,19 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
 # The refresh above used the real Requests/OpenAI caller through a synthetic
 # loopback endpoint; PostgREST and the persistence RPC remained real.
 assert_openai_http_boundary() {
-  local phase="$1" event_file="$2" expected="$3" run_id="${4:-9000003}" expected_count="${5:-1}" log="$out/${1}.log"
+  local phase="$1" event_file="$2" expected="$3" run_id="${4:-9000003}" expected_count="${5:-1}" event_offset="${6:-0}" log="$out/${1}.log"
   local result=0
   docker run --pull=never --rm --interactive --network none --read-only \
   --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \
   --mount "type=bind,src=$event_file,dst=/run/fg2-provider-events.jsonl,readonly" \
   --env FG2_PROVIDER_RUN_ID="$run_id" \
+  --env FG2_PROVIDER_EVENT_OFFSET="$event_offset" \
   --env FG2_PROVIDER_EXPECTED_COUNT="$expected_count" \
   --env FG2_PROVIDER_EXPECTATION="$expected" \
   "$APP_IMAGE" /opt/venv/bin/python - /run/fg2-provider-events.jsonl >"$log" 2>&1 <<'PY' || result=$?
 import json, os, pathlib, sys
 events = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line]
+events = events[int(os.environ["FG2_PROVIDER_EVENT_OFFSET"]):]
 run_id = os.environ["FG2_PROVIDER_RUN_ID"]
 provider_events = [event for event in events if event.get("boundary") == "provider_loopback" and event.get("run_id") == run_id]
 expected = os.environ["FG2_PROVIDER_EXPECTATION"]
@@ -540,6 +578,59 @@ PY
     fi
     printf 'phase=%s|result=PASS|negative_fixture=rejected|assertions=executed\n' "$phase"
   fi
+}
+
+assert_recovery_provider_failure() {
+  local phase="$1" run_id="$2" log="$out/${1}.log"
+  if ! docker run --pull=never --rm --interactive --network none --read-only \
+    --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \
+    --mount "type=bind,src=$events,dst=/run/fg2-provider-events.jsonl,readonly" \
+    --env FG2_PROVIDER_RUN_ID="$run_id" "$APP_IMAGE" /opt/venv/bin/python - \
+    /run/fg2-provider-events.jsonl >"$log" 2>&1 <<'PY'
+import json, os, pathlib, sys
+events = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line]
+run_id = os.environ["FG2_PROVIDER_RUN_ID"]
+requests = [event for event in events if event.get("boundary") == "provider_loopback" and event.get("run_id") == run_id]
+providers = {event.get("provider") for event in requests}
+if providers != {"OpenAI", "Cloudflare"} or not requests:
+    raise SystemExit("phase=post272_provider_failure|result=FAIL|code=fallback_path_not_exercised")
+if any(event.get("status") != 503 or event.get("valid_schema_request") is not True for event in requests):
+    raise SystemExit("phase=post272_provider_failure|result=FAIL|code=provider_failure_fixture_mismatch")
+print(f"phase=post272_provider_failure|result=PASS|providers=OpenAI,Cloudflare|requests={len(requests)}|mock_rejected=true")
+PY
+  then
+    cat "$log"
+    fail "$phase" PROVIDER_FAILURE_ASSERTION_FAILED
+  fi
+  cat "$log"
+}
+
+assert_no_successful_db_writes_since() {
+  local phase="$1" offset="$2" expected="${3:-none}" log="$out/${1}.log"
+  if ! docker run --pull=never --rm --interactive --network none --read-only \
+    --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \
+    --mount "type=bind,src=$events,dst=/run/fg2-http-events.jsonl,readonly" \
+    --env FG2_EVENT_OFFSET="$offset" --env FG2_EXPECTED_WRITE_REQUESTS="$expected" "$APP_IMAGE" /opt/venv/bin/python - \
+    /run/fg2-http-events.jsonl >"$log" 2>&1 <<'PY'
+import json, os, pathlib, sys
+events = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line]
+events = events[int(os.environ["FG2_EVENT_OFFSET"]):]
+writes = [event for event in events if event.get("boundary") == "postgrest_api" and event.get("method") in {"POST", "PATCH", "DELETE"}]
+successful = [event for event in writes if 200 <= int(event.get("status", 0)) < 300]
+if successful:
+    raise SystemExit("phase=post272_write_audit|result=FAIL|code=successful_db_write_observed")
+expected = os.environ["FG2_EXPECTED_WRITE_REQUESTS"]
+if expected == "none" and writes:
+    raise SystemExit("phase=post272_write_audit|result=FAIL|code=unexpected_write_request")
+if expected == "failed" and (not writes or any(200 <= int(event.get("status", 0)) < 300 for event in writes)):
+    raise SystemExit("phase=post272_write_audit|result=FAIL|code=failed_write_not_observed")
+print(f"phase=post272_write_audit|result=PASS|write_requests={len(writes)}|successful_writes=0")
+PY
+  then
+    cat "$log"
+    fail "$phase" DB_WRITE_AUDIT_FAILED
+  fi
+  cat "$log"
 }
 
 openai_missing_events="$run_dir/provider-events-missing.jsonl"
@@ -593,9 +684,9 @@ grep -q '^phase=synthetic_http_audit|result=PASS|' "$http_audit_log" \
   || { cat "$http_audit_log"; fail synthetic_http_audit HTTP_AUDIT_ASSERTION_NOT_EXECUTED; }
 cat "$http_audit_log"
 
-# Recovery case mirrors the post-harvest/post-cleansing state of run #272:
-# six approved processed refreshes remain pending for enrichment; two other
-# processed identities are excluded and must remain byte-for-byte untouched.
+# Recovery case uses the immutable #272 artifact only as source evidence.
+# The new run manifest binds five exact identities; the ambiguous sixth and
+# two unchanged rows remain outside scope. No harvesting or cleansing runs.
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
   -f /fixture/prepare_post272_recovery.sql >"$out/post272_fixture.log"
 cat "$out/post272_fixture.log"
@@ -607,15 +698,114 @@ if ! docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000005 \
   cat "$recovery_manifest_log"
   fail post272_recovery_manifest MANIFEST_BUILD_OR_POSTHARVEST_STATE_MISMATCH
 fi
-grep -q '^phase=post272_recovery_manifest|result=PASS|refresh_pending=6|unchanged_excluded=2|digest_checked=true$' "$recovery_manifest_log" \
+grep -Eq '^phase=post272_recovery_manifest\|result=PASS\|mode=enrichment_sync_only\|entries=5\|ambiguous_excluded=1\|unchanged_excluded=2\|source_run=9000004\|current_run=9000005\|current_sha=[0-9a-f]{40}\|artifact_digest_checked=true\|lot_digest_checked=true\|manifest_sha256=[0-9a-f]{64}\|excluded_alias_rows=2\|invalid_bindings_rejected=6\|historical_hash_semantics=approved_preharvest_vs_processed_discovery$' "$recovery_manifest_log" \
   || { cat "$recovery_manifest_log"; fail post272_recovery_manifest ASSERTION_NOT_EXECUTED; }
 cat "$recovery_manifest_log"
-run_worker_with_openai_http_fixture run_5_post272_enrichment enrichment_worker.py 9000005
-assert_openai_http_boundary pg17_post272_openai_http_boundary "$events" accept 9000005 6
-run_worker run_5_post272_sync sync_vector_worker.py 9000005
+
+assert_post272_failure_state() {
+  local phase="$1"
+  docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+    "DO \$\$ BEGIN
+      IF (SELECT count(*) FROM public.staging_raw WHERE id::text LIKE '52000000-0000-0000-0000-%' AND status='processed') <> 9
+         OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='pending') <> 7
+         OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='synced') <> 2
+         OR (SELECT count(*) FROM public.enriched_programs WHERE id::text LIKE '55000000-0000-0000-0000-%' AND status='synced' AND provider_used='prior-fixture') <> 9
+         OR (SELECT count(*) FROM public.courses WHERE split_part(id::text, '-', 1)='53000000' AND provider_used='prior-fixture') <> 8
+         OR (SELECT count(*) FROM public.course_editorial_state WHERE course_id::text LIKE '53000000-0000-0000-0000-%' AND editorial_status='pending_review') <> 8
+         OR (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN
+        RAISE EXCEPTION 'post272_failed_recovery_state_mutated';
+      END IF;
+      IF (SELECT manual_overrides->>'name' FROM public.course_editorial_state WHERE course_id='53000000-0000-0000-0000-000000000001') <> 'Manual recovery title preserved' THEN
+        RAISE EXCEPTION 'post272_failed_recovery_editorial_override_changed';
+      END IF;
+    END \$\$" >/dev/null
+  printf 'phase=%s|result=PASS|persisted_effects=0|editorial_preserved=true|public_effective=0\n' "$phase"
+}
+
+provider_failure_offset="$(wc -l <"$events")"
+run_worker_with_openai_http_fixture run_5_provider_failure enrichment_worker.py 9000005 fail_all failure true
+grep -q 'FG2_ENRICHMENT_ABORT stage=provider_fallback category=real_provider_result_missing' "$out/run_5_provider_failure.log" \
+  || fail post272_provider_failure SANITIZED_ABORT_CATEGORY_MISSING
+assert_recovery_provider_failure post272_provider_failure 9000005
+assert_no_successful_db_writes_since post272_provider_failure "$provider_failure_offset"
+assert_post272_failure_state post272_provider_failure
+
+# The fixture transaction fails at the real atomic enrichment RPC boundary.
+# Postgres rolls the entire call back; the test inspects that state before a
+# separately controlled local retry.
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "UPDATE public.fg2_recovery_fault_switch SET fail_next_enrichment=true WHERE singleton=true" >/dev/null
+write_failure_offset="$(wc -l <"$events")"
+run_worker_with_openai_http_fixture run_5_write_failure enrichment_worker.py 9000005 success failure true
+grep -q 'synthetic_recovery_enrichment_write_failure' "$out/run_5_write_failure.log" \
+  || fail post272_write_failure INJECTED_WRITE_FAILURE_NOT_OBSERVED
+assert_openai_http_boundary pg17_post272_write_failure "$events" accept 9000005 1 "$write_failure_offset"
+assert_no_successful_db_writes_since post272_write_failure "$write_failure_offset" failed
+assert_post272_failure_state post272_write_failure
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "UPDATE public.fg2_recovery_fault_switch SET fail_next_enrichment=false WHERE singleton=true" >/dev/null
+
+success_enrichment_offset="$(wc -l <"$events")"
+run_worker_with_openai_http_fixture run_5_post272_enrichment enrichment_worker.py 9000005 success success true
+assert_openai_http_boundary pg17_post272_openai_http_boundary "$events" accept 9000005 5 "$success_enrichment_offset"
+
+# All-mock enrichment output is rejected by the real Sync worker before any
+# course write. The fixture restores only its synthetic rows, then tests Sync
+# with the successful OpenAI-boundary results.
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "UPDATE public.enriched_programs SET provider_used='mock', is_mock_data=true WHERE cleansed_id IN (SELECT id FROM public.cleansed_programs WHERE staging_id IN ('52000000-0000-0000-0000-000000000001'::uuid,'52000000-0000-0000-0000-000000000002'::uuid,'52000000-0000-0000-0000-000000000003'::uuid,'52000000-0000-0000-0000-000000000004'::uuid,'52000000-0000-0000-0000-000000000005'::uuid))" >/dev/null
+mock_sync_offset="$(wc -l <"$events")"
+run_worker run_5_mock_sync_rejected sync_vector_worker.py 9000005 failure true
+grep -q 'FG2_SYNC_ABORT stage=sync category=controlled_mock_enrichment' "$out/run_5_mock_sync_rejected.log" \
+  || fail post272_mock_rejection MOCK_RESULT_WAS_NOT_REJECTED
+assert_no_successful_db_writes_since post272_mock_rejection "$mock_sync_offset"
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "DO \$\$
+  BEGIN
+    IF (SELECT count(*) FROM public.courses
+        WHERE id IN (
+          '53000000-0000-0000-0000-000000000001'::uuid,
+          '53000000-0000-0000-0000-000000000002'::uuid,
+          '53000000-0000-0000-0000-000000000003'::uuid,
+          '53000000-0000-0000-0000-000000000004'::uuid,
+          '53000000-0000-0000-0000-000000000005'::uuid
+        ) AND provider_used='prior-fixture') <> 5
+       OR (SELECT count(*) FROM public.enriched_programs
+           WHERE cleansed_id IN (
+             SELECT id FROM public.cleansed_programs
+             WHERE staging_id IN (
+               '52000000-0000-0000-0000-000000000001'::uuid,
+               '52000000-0000-0000-0000-000000000002'::uuid,
+               '52000000-0000-0000-0000-000000000003'::uuid,
+               '52000000-0000-0000-0000-000000000004'::uuid,
+               '52000000-0000-0000-0000-000000000005'::uuid
+             ) AND status='enriched'
+           ) AND is_mock_data=true) <> 5 THEN
+      RAISE EXCEPTION 'post272_mock_sync_mutated_course_state';
+    END IF;
+  END;
+  \$\$" >/dev/null
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "UPDATE public.enriched_programs SET provider_used='OpenAI', is_mock_data=false WHERE cleansed_id IN (SELECT id FROM public.cleansed_programs WHERE staging_id IN ('52000000-0000-0000-0000-000000000001'::uuid,'52000000-0000-0000-0000-000000000002'::uuid,'52000000-0000-0000-0000-000000000003'::uuid,'52000000-0000-0000-0000-000000000004'::uuid,'52000000-0000-0000-0000-000000000005'::uuid))" >/dev/null
+
+run_worker run_5_post272_sync sync_vector_worker.py 9000005 success true
+
+# Replaying the same manifest after both stages finish fails closed before a
+# provider call or successful write; no scraping or cleansing is repeated.
+enrichment_replay_offset="$(wc -l <"$events")"
+run_worker run_5_enrichment_replay_rejected enrichment_worker.py 9000005 failure true
+grep -q 'FG2_ENRICHMENT_ABORT stage=recovery_scope category=cohort_state_drift' "$out/run_5_enrichment_replay_rejected.log" \
+  || fail post272_replay_enrichment IDEMPOTENCY_GUARD_MISSING
+sync_replay_offset="$(wc -l <"$events")"
+run_worker run_5_sync_replay_rejected sync_vector_worker.py 9000005 failure true
+grep -q 'FG2_SYNC_ABORT stage=recovery_scope category=cohort_state_drift' "$out/run_5_sync_replay_rejected.log" \
+  || fail post272_replay_sync IDEMPOTENCY_GUARD_MISSING
+assert_no_successful_db_writes_since post272_replay "$enrichment_replay_offset"
+assert_no_successful_db_writes_since post272_replay "$sync_replay_offset"
+
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
   -f /fixture/assert_post272_recovery.sql >"$out/post272_postflight.log"
 cat "$out/post272_postflight.log"
 
-printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_refresh_synced=6|post272_unchanged=2|public_effective=0|provider_boundary=synthetic_http_openai_plus_fixture_fallback\n'
+printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_recovery_stations=Enrichment+Sync|post272_refresh_synced=5|ambiguous_excluded=1|unchanged_excluded=2|public_effective=0|provider_boundary=synthetic_loopback_openai|harvest_cleansing_replayed=false\n'
 printf 'phase=limits|result=LOCAL_EVIDENCE_ONLY|network=internal_no_egress|db=ephemeral_pg17|production=untouched\n'

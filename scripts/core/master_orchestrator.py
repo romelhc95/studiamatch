@@ -18,10 +18,13 @@ from scripts.core.fg2_bounded_run import (
     FG2ApprovedLotManifest,
     FG2_LIMITS,
     FG2CohortManifest,
+    FG2_POST272_RECOVERY_INSTITUTION_ID,
     InvalidControlledRun,
+    build_post272_enrichment_recovery_manifest,
     initialize_manifest,
     stable_json_sha256,
     validate_controlled_profile,
+    verify_post272_recovery_excluded_identity,
     verify_approved_lot_scope,
 )
 from scripts.core.profile_onboarding import (
@@ -171,6 +174,122 @@ def _get_db():
     if db is None:
         db = get_db_client()
     return db
+
+
+# StudIAMatch-Docs: .context/componentes/pipeline.md#recuperacion-fg2-acotada-enrichment-y-sync-2026-11-24
+def _prepare_post272_enrichment_recovery(args) -> int:
+    """Revalidate a pinned #272 artifact and emit a new run-scoped manifest.
+
+    This path performs reads only. It deliberately does not select a general
+    institution rotation, start harvesting, or run the cleansing worker.
+    """
+    run_id = os.getenv("GITHUB_RUN_ID", "")
+    run_attempt = os.getenv("GITHUB_RUN_ATTEMPT", "")
+    source_sha = os.getenv("GITHUB_SHA", "").lower()
+    if (
+        os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch"
+        or os.getenv("GITHUB_REF") != "refs/heads/main"
+        or not run_id.isdigit()
+        or not run_attempt.isdigit()
+        or not source_sha
+    ):
+        logger.error("FG2 recovery requires a new manual run on main with exact run metadata.")
+        return 1
+    if not args.source_cohort_manifest or not args.cohort_manifest or not args.approved_lot_manifest:
+        logger.error("FG2 recovery requires source, approved-lot, and new cohort manifest paths.")
+        return 1
+    if not args.approved_lot_reference or not args.approved_lot_sha256:
+        logger.error("FG2 recovery requires a fresh reviewed-lot binding.")
+        return 1
+    try:
+        approved_lot_b64 = os.environ.pop("FG2_APPROVED_LOT_MANIFEST_B64", "")
+        approved_lot = FG2ApprovedLotManifest.from_base64(
+            approved_lot_b64,
+            path=args.approved_lot_manifest,
+            expected_sha256=args.approved_lot_sha256,
+            expected_reference=args.approved_lot_reference,
+            expected_source_sha=source_sha,
+        )
+        institution_rows = _get_db().select_service_raise(
+            "institutions",
+            filters=f"id=eq.{quote(FG2_POST272_RECOVERY_INSTITUTION_ID, safe='')}",
+            columns="id,slug,website_url",
+            limit=2,
+        )
+        profile_rows = _get_db().select_pipeline_raise(
+            "institution_site_profiles",
+            filters=f"institution_id=eq.{quote(FG2_POST272_RECOVERY_INSTITUTION_ID, safe='')}",
+            columns="*",
+            limit=2,
+        )
+        if (
+            not isinstance(institution_rows, list)
+            or len(institution_rows) != 1
+            or not isinstance(profile_rows, list)
+            or len(profile_rows) != 1
+        ):
+            raise InvalidControlledRun("recovery institution or profile is missing or ambiguous")
+        institution = institution_rows[0]
+        profile = profile_rows[0]
+        lot_institution = approved_lot.institution(FG2_POST272_RECOVERY_INSTITUTION_ID)
+        profile_check = validate_controlled_profile(
+            institution,
+            profile,
+            selected_seed_urls=lot_institution["seed_urls"],
+        )
+        approved_lot.assert_institution_origin(
+            FG2_POST272_RECOVERY_INSTITUTION_ID,
+            str(institution.get("website_url") or ""),
+        )
+        current_institution_sha = stable_json_sha256({
+            "id": FG2_POST272_RECOVERY_INSTITUTION_ID,
+            "slug": institution.get("slug"),
+            "website_url": institution.get("website_url"),
+        })
+        if (
+            current_institution_sha != lot_institution["institution_sha256"]
+            or profile_check["profile_sha256"] != lot_institution["profile_sha256"]
+            or profile_check["seed_sha256"] != lot_institution["seed_sha256"]
+            or profile_check["seed_urls"] != lot_institution["seed_urls"]
+        ):
+            raise InvalidControlledRun("recovery institution, profile, or seeds drifted")
+
+        # Snapshot verification is read-only. It checks URL aliases, exact row
+        # IDs, hashes, statuses, and staging→cleansed→enriched relationships.
+        verify_approved_lot_scope(_get_db(), approved_lot)
+        excluded_alias_count = verify_post272_recovery_excluded_identity(_get_db())
+        digest = build_post272_enrichment_recovery_manifest(
+            args.cohort_manifest,
+            source_manifest_path=args.source_cohort_manifest,
+            approved_lot=approved_lot,
+            run_id=run_id,
+            run_attempt=int(run_attempt),
+            source_sha=source_sha,
+            profile_sha256=profile_check["profile_sha256"],
+            seed_sha256=profile_check["seed_sha256"],
+        )
+        FG2CohortManifest.load(
+            args.cohort_manifest,
+            expected_sha256=digest,
+            expected_run_id=run_id,
+            expected_run_attempt=int(run_attempt),
+            expected_source_sha=source_sha,
+            expected_approved_lot_reference=approved_lot.reference,
+            expected_approved_lot_sha256=approved_lot.sha256,
+        )
+    except (InvalidControlledRun, DatabaseAPIError, OSError, TypeError, ValueError) as exc:
+        logger.error("FG2 recovery manifest rejected before enrichment: %s", _approved_lot_preflight_error_label(exc))
+        return 1
+    logger.info(
+        "FG2_RECOVERY_MANIFEST result=PASS mode=enrichment_sync_only entries=5 "
+        "excluded_ambiguous=1 excluded_alias_rows=%s "
+        "source_run=45342980592 current_run=%s current_source_sha=%s manifest_sha256=%s",
+        excluded_alias_count,
+        run_id,
+        source_sha,
+        digest,
+    )
+    return 0
 
 
 def run_profile_onboarding(*, source_sha=None):
@@ -610,8 +729,33 @@ def main(argv=None):
     parser.add_argument("--approved-lot-manifest", help="Private path for the reviewed FG2 lot payload")
     parser.add_argument("--approved-lot-reference", help="Human review reference bound to the approved lot")
     parser.add_argument("--approved-lot-sha256", help="SHA-256 of the exact approved FG2 lot bytes")
+    parser.add_argument(
+        "--prepare-post272-enrichment-recovery",
+        action="store_true",
+        help="Verify the pinned #272 artifact and current lot, then emit a new-run Enrichment/Sync manifest",
+    )
+    parser.add_argument("--source-cohort-manifest", help="Immutable source artifact manifest for the pinned recovery")
     parser.add_argument("--skip-cleansing", action="store_true", help="Skip the cleansing phase (Station 1.5)")
     args = parser.parse_args(argv)
+
+    if args.prepare_post272_enrichment_recovery:
+        if (
+            args.controlled_first_run
+            or args.scheduled_cohort
+            or not args.skip_cleansing
+            or args.limit != 5
+            or args.max_urls is not None
+            or args.institution_slug
+            or args.exclude
+        ):
+            logger.error("FG2 recovery only prepares the approved downstream handoff; it cannot harvest or cleanse.")
+            return 1
+        return _prepare_post272_enrichment_recovery(args)
+
+    if args.source_cohort_manifest:
+        logger.error("Source recovery artifacts are accepted only by the pinned recovery mode.")
+        return 1
+
     approved_lot = None
     cohort_scoped = args.controlled_first_run or args.scheduled_cohort
 

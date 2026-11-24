@@ -134,6 +134,54 @@ JIT separada; `contract` queda después de un piloto funcional autorizado.
 Rollback local es descartar el diff aislado. Después de integrar, reversión por
 PR; no borrar observaciones ni ejecutar DDL rollback destructivo sin aprobación.
 
+## Recuperación FG2 acotada: Enrichment y Sync (2026-11-24)
+
+El modo manual `resume_enrichment_from_272` es una recuperación puntual y
+opt-in, predeterminada a `false`; no crea un selector de cola ni un retry
+genérico. En el job inicial del workflow se comprueba el run fallido #272,
+su workflow/ref/SHA/intento, las conclusiones de las estaciones y el ID/digest
+del artefacto. También se valida el SHA del manifiesto dentro del ZIP. La
+procedencia #272 queda como evidencia: el manifiesto que viaja a las estaciones
+se genera con el run, intento y SHA nuevos, y con un lote actual revisado.
+
+Antes de generar ese manifiesto, `master_orchestrator.py` vuelve a validar el
+origen institucional, perfil y semillas por digest y toma snapshots read-only
+de `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses`. Se
+requieren identidad única de curso/institución/URL, staging `processed`, hash
+actual igual al de la fila post-harvest del artefacto, cleansing pendiente,
+relaciones downstream completas y coincidencia exacta con las cinco
+identidades propuestas. Los aliases/duplicados ambiguos del sexto curso se
+verifican por sus filas y claves foráneas y quedan excluidos; no se borran ni se
+resetean. Cualquier diferencia cancela el preflight sin escribir.
+
+El modo no hace HTTP institucional ni vuelve a ejecutar cleansing. Un job
+produce el nuevo manifiesto; Enrichment y Sync, en runners separados, lo
+restauran desde outputs base64 y comprueban su digest, run, intento, SHA e IDs
+antes de usar los workers existentes. Un cambio de estado o de conjunto de IDs
+falla antes de una llamada de proveedor o escritura. El proveedor debe ser real
+en Production; ante fallo total no se persisten mocks. Sync conserva su guard
+de provenance, overrides editoriales y estado de publicación. CA1 sigue siendo
+solo el límite de auditoría del workflow: no acredita por sí solo las filas,
+la cola Admin ni la exposición pública.
+
+El lote de cinco IDs continúa siendo propuesta. Después de promover el código,
+una autorización JIT nueva debe vincular el SHA efectivo de `main`, lote,
+hashes y snapshots frescos, coste variable de OpenAI/fallback Cloudflare,
+efectos permitidos y recuperación. El flujo no usa la autorización de #272 ni
+la del run anterior. El E2E local usa sitios, providers y datos sintéticos;
+no acredita acceso, disponibilidad, billing ni writes de Pro, ni interacción
+visual de Admin. Una recuperación parcial requiere postflight por ID y decisión
+propia; no cuenta como una ejecución nueva de las cuatro estaciones.
+
+Transición: `expand` agrega únicamente el input manual opt-in y manifiesto
+compatible, sin migración; `compatibilidad` deja el recorrido ordinario
+intacto cuando el input vale `false`; `deploy` sigue Desarrollo → Certificación
+→ main y requiere aprobación de publicación separada; `contract` retira el
+modo puntual por la ruta protegida después de cerrar la recuperación. Para
+rollback, detener nuevos dispatches mediante autorización, mantener pausados
+los writers, revertir código por PR y conciliar por ID cualquier efecto ya
+confirmado; no borrar filas ni invertir escrituras automáticamente.
+
 ## Mapa de módulos mantenidos
 
 | Archivo/símbolo | Responsabilidad e interfaz local | Consumidor/dependencia demostrada | Datos y permiso |
