@@ -1199,7 +1199,7 @@ def test_fg2_ci_fixture_records_the_pull_request_source_sha() -> None:
     fixture_runner = (ROOT / "tests/fg2_full_pipeline_pg17/run.sh").read_text()
 
     assert "FG2_FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}" in workflow
-    assert 'source_sha="${FG2_FIXTURE_SOURCE_SHA:-b800a82225496be9b098024c7f30020da70e8584}"' in fixture_runner
+    assert 'source_sha="${FG2_FIXTURE_SOURCE_SHA:-467406edcb1ea70ada36036c73d024110ed4a5a5}"' in fixture_runner
     assert "invalid_source_sha" in fixture_runner
 
 

@@ -25,7 +25,7 @@ jwt_secret="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 pg_password="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 fixture_publishable_key="sb_publishable_$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
 fixture_secret_key="sb_secret_$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
-source_sha="${FG2_FIXTURE_SOURCE_SHA:-b800a82225496be9b098024c7f30020da70e8584}"
+source_sha="${FG2_FIXTURE_SOURCE_SHA:-467406edcb1ea70ada36036c73d024110ed4a5a5}"
 if [[ ! "$source_sha" =~ ^[0-9a-f]{40}$ ]]; then
   printf 'phase=fixture_configuration|result=FAIL|code=invalid_source_sha\n' >&2
   exit 2
@@ -699,7 +699,7 @@ if ! docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000005 \
   cat "$recovery_manifest_log"
   fail post272_recovery_manifest MANIFEST_BUILD_OR_POSTHARVEST_STATE_MISMATCH
 fi
-grep -Eq '^phase=post272_recovery_manifest\|result=PASS\|mode=enrichment_sync_only\|entries=5\|ambiguous_excluded=1\|unchanged_excluded=2\|source_run=9000004\|current_run=9000005\|current_sha=[0-9a-f]{40}\|artifact_digest_checked=true\|lot_digest_checked=true\|manifest_sha256=[0-9a-f]{64}\|excluded_alias_rows=2\|invalid_bindings_rejected=6\|historical_hash_semantics=approved_preharvest_vs_processed_discovery$' "$recovery_manifest_log" \
+  grep -Eq '^phase=post272_recovery_manifest\|result=PASS\|mode=enrichment_sync_only\|entries=5\|out_of_scope_excluded=1\|discovery_only_excluded=2\|source_run=9000004\|current_run=9000005\|current_sha=[0-9a-f]{40}\|artifact_digest_checked=true\|lot_digest_checked=true\|manifest_sha256=[0-9a-f]{64}\|source_result=deferred\|source_http_requests=7\|source_unique_urls=7\|source_entries=6\|source_discovery_rows=8\|prior_hashes_distinct=6\|url_alias_hashes_differ=6\|new_run_discovery_rows=0\|invalid_bindings_rejected=12\|hash_semantics=source_discovery_prior_vs_entry_stored_vs_current_snapshot$' "$recovery_manifest_log" \
   || { cat "$recovery_manifest_log"; fail post272_recovery_manifest ASSERTION_NOT_EXECUTED; }
 cat "$recovery_manifest_log"
 
@@ -707,10 +707,10 @@ assert_post272_failure_state() {
   local phase="$1"
   docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
     "DO \$\$ BEGIN
-      IF (SELECT count(*) FROM public.staging_raw WHERE id::text LIKE '52000000-0000-0000-0000-%' AND status='processed') <> 9
-         OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='pending') <> 7
+      IF (SELECT count(*) FROM public.staging_raw WHERE id::text LIKE '52000000-0000-0000-0000-%' AND status='processed') <> 8
+         OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='pending') <> 6
          OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='synced') <> 2
-         OR (SELECT count(*) FROM public.enriched_programs WHERE id::text LIKE '55000000-0000-0000-0000-%' AND status='synced' AND provider_used='prior-fixture') <> 9
+         OR (SELECT count(*) FROM public.enriched_programs WHERE id::text LIKE '55000000-0000-0000-0000-%' AND status='synced' AND provider_used='prior-fixture') <> 8
          OR (SELECT count(*) FROM public.courses WHERE split_part(id::text, '-', 1)='53000000' AND provider_used='prior-fixture') <> 8
          OR (SELECT count(*) FROM public.course_editorial_state WHERE course_id::text LIKE '53000000-0000-0000-0000-%' AND editorial_status='pending_review') <> 8
          OR (SELECT count(*) FROM public.courses_public_effective) <> 0 THEN
@@ -808,5 +808,5 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
   -f /fixture/assert_post272_recovery.sql >"$out/post272_postflight.log"
 cat "$out/post272_postflight.log"
 
-printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_recovery_stations=Enrichment+Sync|post272_refresh_synced=5|ambiguous_excluded=1|unchanged_excluded=2|public_effective=0|provider_boundary=synthetic_loopback_openai|harvest_cleansing_replayed=false\n'
+printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_recovery_stations=Enrichment+Sync|post272_refresh_synced=5|out_of_scope_excluded=1|discovery_only_unchanged=2|public_effective=0|provider_boundary=synthetic_loopback_openai|harvest_cleansing_replayed=false\n'
 printf 'phase=limits|result=LOCAL_EVIDENCE_ONLY|network=internal_no_egress|db=ephemeral_pg17|production=untouched\n'
