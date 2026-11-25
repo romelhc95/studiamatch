@@ -20,6 +20,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from shared.utils import (
     infer_course_type,
     standardize_mode,
+    normalize_course_modality,
+    course_modality_sha256,
     standardize_category,
     setup_lima_logging,
     TimeGuard,
@@ -30,6 +32,7 @@ from shared.db_client import get_db_client
 from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
     InvalidControlledRun,
+    course_identity_url,
     require_manifest_sha256,
     url_sha256,
     uuid_in_filter,
@@ -631,6 +634,11 @@ class EnrichmentWorker:
                     entry["staging_id"].lower(): entry
                     for entry in cohort_manifest.payload["entries"]
                 }
+                recovery_source = cohort_manifest.payload.get("recovery_source")
+                recovery_evidence_by_raw_id = (
+                    {item["staging_id"].lower(): item for item in recovery_source.get("row_evidence", [])}
+                    if isinstance(recovery_source, dict) else {}
+                )
                 for row in records:
                     raw_id = row["staging_id"].lower()
                     if str(row.get("institution_id", "")).lower() != institution_by_raw_id[raw_id]:
@@ -649,6 +657,24 @@ class EnrichmentWorker:
                     row["_fg2_expected_raw_url_sha256"] = entry["url_sha256"]
                     row["_fg2_manifest_staging_id"] = entry["staging_id"]
                     row["_fg2_manifest_content_sha256"] = entry["content_sha256"]
+                    if recovery_source is not None:
+                        recovery_evidence = recovery_evidence_by_raw_id.get(raw_id)
+                        if not recovery_evidence:
+                            raise InvalidControlledRun("recovery modality snapshot binding is missing")
+                        row["_fg2_expected_cleansed_modality_sha256"] = recovery_evidence[
+                            "cleansed_modality_sha256"
+                        ]
+                        row["_fg2_manifest_course_id"] = entry["course_id"]
+                        row["_fg2_expected_approved_lot_reference"] = cohort_manifest.payload.get(
+                            "approved_lot_reference"
+                        )
+                        row["_fg2_expected_approved_lot_sha256"] = cohort_manifest.payload.get(
+                            "approved_lot_sha256"
+                        )
+                        if recovery_evidence["cleansed_modality_snapshot"] is not None:
+                            row["_fg2_authorized_modality_snapshot"] = recovery_evidence[
+                                "cleansed_modality_snapshot"
+                            ]
                 return records[:limit] if limit is not None else records
             filters = "status=eq.pending"
             if institution_id:
@@ -672,10 +698,21 @@ class EnrichmentWorker:
         logger.info("No hay registros pendientes en cleansed_programs.")
         return []
 
-    def _verify_fg2_manifest_url_identity(self, cleansed):
+    def _verify_fg2_manifest_url_identity(
+        self, cleansed, expected_modality=None, expected_course_id=None
+    ):
         """Recheck staging→cleansed URL identity immediately around enrichment writes."""
+        manifest_course_id = cleansed.get("_fg2_manifest_course_id")
+        if manifest_course_id is not None:
+            if expected_course_id is not None and str(expected_course_id).lower() != str(
+                manifest_course_id
+            ).lower():
+                raise InvalidControlledRun("enrichment course identity binding changed")
+            expected_course_id = manifest_course_id
         expected_url_sha = cleansed.get("_fg2_expected_url_sha256")
         if expected_url_sha is None:
+            if expected_course_id is not None:
+                raise InvalidControlledRun("enrichment course identity lacks URL binding")
             return
         cleansed_id = str(cleansed.get("id") or "")
         staging_id = str(cleansed.get("_fg2_manifest_staging_id") or cleansed.get("staging_id") or "")
@@ -684,7 +721,175 @@ class EnrichmentWorker:
             current_cleansed = self.db.select_pipeline_raise(
                 "cleansed_programs",
                 filters=f"id=eq.{quote(cleansed_id, safe='')}",
-                columns="id,staging_id,institution_id,url,status",
+                columns="id,staging_id,institution_id,url,status,modality",
+                limit=2,
+            )
+            current_raw = self.db.select_pipeline_raise(
+                "staging_raw",
+                filters=f"id=eq.{quote(staging_id, safe='')}",
+                columns="id,institution_id,url,status,content_hash",
+                limit=2,
+            )
+            current_courses = None
+            if expected_course_id is not None:
+                current_courses = self.db.select_service_raise(
+                    "courses",
+                    filters=f"id=eq.{quote(str(expected_course_id), safe='')}",
+                    columns="id,institution_id,url",
+                    limit=2,
+                )
+        except Exception as exc:
+            raise InvalidControlledRun("failed to revalidate enrichment URL identity") from exc
+        if not isinstance(current_cleansed, list) or len(current_cleansed) != 1:
+            raise InvalidControlledRun("enrichment URL identity is missing or duplicated")
+        if not isinstance(current_raw, list) or len(current_raw) != 1:
+            raise InvalidControlledRun("enrichment staging URL identity is missing or duplicated")
+        if expected_course_id is not None and (
+            not isinstance(current_courses, list) or len(current_courses) != 1
+        ):
+            raise InvalidControlledRun("enrichment course identity is missing or duplicated")
+        cleansed_row = current_cleansed[0]
+        raw_row = current_raw[0]
+        course_row = current_courses[0] if current_courses is not None else None
+        if (
+            str(cleansed_row.get("id")) != cleansed_id
+            or str(cleansed_row.get("staging_id")) != staging_id
+            or str(cleansed_row.get("institution_id", "")).lower() != institution_id
+            or cleansed_row.get("status") != "pending"
+            or url_sha256(cleansed_row.get("url", "")) != expected_url_sha
+            or (
+                expected_modality is not None
+                and normalize_course_modality(cleansed_row.get("modality")) != expected_modality
+            )
+            or str(raw_row.get("id")) != staging_id
+            or str(raw_row.get("institution_id", "")).lower() != institution_id
+            or raw_row.get("status") != "processed"
+            or url_sha256(raw_row.get("url", "")) != cleansed.get(
+                "_fg2_expected_raw_url_sha256", expected_url_sha
+            )
+            or raw_row.get("content_hash") != cleansed.get("_fg2_manifest_content_sha256")
+            or (
+                course_row is not None
+                and (
+                    str(course_row.get("id", "")).lower() != str(expected_course_id).lower()
+                    or str(course_row.get("institution_id", "")).lower() != institution_id
+                    or course_identity_url(str(course_row.get("url") or ""))
+                    != course_identity_url(str(cleansed_row.get("url") or ""))
+                )
+            )
+            or (
+                cleansed.get("_fg2_expected_cleansed_modality_sha256") is not None
+                and course_modality_sha256(cleansed_row.get("modality"))
+                != cleansed["_fg2_expected_cleansed_modality_sha256"]
+            )
+        ):
+            raise InvalidControlledRun("enrichment cohort URL identity changed before write")
+
+    def _verify_cleansed_modality_evidence(self, cleansed, expected_modality):
+        """Validate the cleansing value against the current row and its staging source."""
+        metadata = _metadata_dict(cleansed.get("metadata"))
+        evidence = metadata.get("modality_evidence")
+        if evidence is not None and not isinstance(evidence, dict):
+            raise InvalidControlledRun("cleansing modality evidence is malformed")
+        if evidence is None:
+            snapshot = cleansed.get("_fg2_authorized_modality_snapshot")
+            if snapshot is None:
+                return None
+            required_snapshot_fields = {
+                "version", "authorization_basis", "approved_lot_reference",
+                "approved_lot_sha256", "course_id", "staging_id", "cleansed_id",
+                "institution_id", "cleansed_url_sha256", "value", "value_sha256",
+            }
+            snapshot_value = (
+                normalize_course_modality(snapshot.get("value"))
+                if isinstance(snapshot, dict) else None
+            )
+            expected_course_id = str(cleansed.get("_fg2_manifest_course_id") or "").lower()
+            expected_staging_id = str(
+                cleansed.get("_fg2_manifest_staging_id") or cleansed.get("staging_id") or ""
+            ).lower()
+            expected_institution_id = str(cleansed.get("institution_id") or "").lower()
+            expected_cleansed_id = str(cleansed.get("id") or "").lower()
+            expected_lot_digest = str(
+                cleansed.get("_fg2_expected_approved_lot_sha256") or ""
+            ).lower()
+            expected_lot_reference = cleansed.get("_fg2_expected_approved_lot_reference")
+            snapshot_digest = (
+                course_modality_sha256(snapshot.get("value"))
+                if isinstance(snapshot, dict) else None
+            )
+            if (
+                not isinstance(snapshot, dict)
+                or set(snapshot) != required_snapshot_fields
+                or isinstance(snapshot.get("version"), bool)
+                or snapshot.get("version") != 1
+                or snapshot.get("authorization_basis") != "approved_lot_exact_digest"
+                or not expected_course_id
+                or str(snapshot.get("course_id") or "").lower() != expected_course_id
+                or str(snapshot.get("staging_id") or "").lower() != expected_staging_id
+                or str(snapshot.get("cleansed_id") or "").lower() != expected_cleansed_id
+                or str(snapshot.get("institution_id") or "").lower() != expected_institution_id
+                or snapshot.get("approved_lot_reference") != expected_lot_reference
+                or snapshot.get("approved_lot_sha256") != expected_lot_digest
+                or snapshot.get("cleansed_url_sha256")
+                != url_sha256(str(cleansed.get("url") or ""))
+                or not isinstance(snapshot.get("value"), str)
+                or len(snapshot["value"]) > 80
+                or snapshot_value != expected_modality
+                or not re.fullmatch(r"[0-9a-f]{64}", str(snapshot.get("value_sha256") or ""))
+                or snapshot.get("value_sha256") != snapshot_digest
+                or snapshot.get("value_sha256")
+                != cleansed.get("_fg2_expected_cleansed_modality_sha256")
+            ):
+                raise InvalidControlledRun("authorized modality snapshot does not match recovery identity")
+            self._verify_fg2_manifest_url_identity(
+                cleansed,
+                expected_modality=expected_modality,
+                expected_course_id=expected_course_id,
+            )
+            return {
+                "version": 1,
+                "source": "approved_lot_snapshot",
+                "authorization_basis": snapshot["authorization_basis"],
+                "approved_lot_reference": snapshot["approved_lot_reference"],
+                "approved_lot_sha256": snapshot["approved_lot_sha256"],
+                "course_id": expected_course_id,
+                "staging_id": expected_staging_id,
+                "cleansed_id": expected_cleansed_id,
+                "institution_id": expected_institution_id,
+                "cleansed_url_sha256": snapshot["cleansed_url_sha256"],
+                "source_content_sha256": cleansed.get("_fg2_manifest_content_sha256"),
+                "cleansed_modality_sha256": snapshot["value_sha256"],
+            }
+
+        cleansed_id = str(cleansed.get("id") or "")
+        staging_id = str(cleansed.get("staging_id") or "")
+        institution_id = str(cleansed.get("institution_id") or "").lower()
+        cleansed_url = cleansed.get("url")
+        if (
+            evidence.get("version") != 1
+            or evidence.get("source") != "cleansing_text"
+            or normalize_course_modality(evidence.get("value")) != expected_modality
+            or str(evidence.get("staging_id") or "") != staging_id
+            or str(evidence.get("institution_id") or "").lower() != institution_id
+            or evidence.get("cleansed_url_sha256") != url_sha256(str(cleansed_url or ""))
+        ):
+            raise InvalidControlledRun("enrichment modality provenance does not match identity")
+
+        source_content_sha = str(evidence.get("source_content_sha256") or "").lower()
+        source_url_sha = evidence.get("source_url_sha256")
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", source_content_sha)
+            or not isinstance(source_url_sha, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", source_url_sha)
+        ):
+            raise InvalidControlledRun("enrichment modality provenance digest is invalid")
+
+        try:
+            current_cleansed = self.db.select_pipeline_raise(
+                "cleansed_programs",
+                filters=f"id=eq.{quote(cleansed_id, safe='')}",
+                columns="id,staging_id,institution_id,url,status,modality,metadata",
                 limit=2,
             )
             current_raw = self.db.select_pipeline_raise(
@@ -694,28 +899,48 @@ class EnrichmentWorker:
                 limit=2,
             )
         except Exception as exc:
-            raise InvalidControlledRun("failed to revalidate enrichment URL identity") from exc
+            raise InvalidControlledRun("failed to revalidate cleansing modality provenance") from exc
         if not isinstance(current_cleansed, list) or len(current_cleansed) != 1:
-            raise InvalidControlledRun("enrichment URL identity is missing or duplicated")
+            raise InvalidControlledRun("cleansed modality identity is missing or duplicated")
         if not isinstance(current_raw, list) or len(current_raw) != 1:
-            raise InvalidControlledRun("enrichment staging URL identity is missing or duplicated")
-        cleansed_row = current_cleansed[0]
-        raw_row = current_raw[0]
+            raise InvalidControlledRun("staging modality identity is missing or duplicated")
+
+        current_clean = current_cleansed[0]
+        current_source = current_raw[0]
+        current_evidence = _metadata_dict(current_clean.get("metadata")).get("modality_evidence")
         if (
-            str(cleansed_row.get("id")) != cleansed_id
-            or str(cleansed_row.get("staging_id")) != staging_id
-            or str(cleansed_row.get("institution_id", "")).lower() != institution_id
-            or cleansed_row.get("status") != "pending"
-            or url_sha256(cleansed_row.get("url", "")) != expected_url_sha
-            or str(raw_row.get("id")) != staging_id
-            or str(raw_row.get("institution_id", "")).lower() != institution_id
-            or raw_row.get("status") != "processed"
-            or url_sha256(raw_row.get("url", "")) != cleansed.get(
-                "_fg2_expected_raw_url_sha256", expected_url_sha
-            )
-            or raw_row.get("content_hash") != cleansed.get("_fg2_manifest_content_sha256")
+            str(current_clean.get("id") or "") != cleansed_id
+            or str(current_clean.get("staging_id") or "") != staging_id
+            or str(current_clean.get("institution_id") or "").lower() != institution_id
+            or current_clean.get("status") != "pending"
+            or url_sha256(str(current_clean.get("url") or "")) != url_sha256(str(cleansed_url or ""))
+            or normalize_course_modality(current_clean.get("modality")) != expected_modality
+            or current_evidence != evidence
+            or str(current_source.get("id") or "") != staging_id
+            or str(current_source.get("institution_id") or "").lower() != institution_id
+            or current_source.get("status") != "processed"
+            or course_identity_url(str(current_source.get("url") or ""))
+            != course_identity_url(str(cleansed_url or ""))
+            or str(current_source.get("content_hash") or "").lower() != source_content_sha
+            or source_url_sha != url_sha256(str(current_source.get("url") or ""))
         ):
-            raise InvalidControlledRun("enrichment cohort URL identity changed before write")
+            raise InvalidControlledRun("enrichment modality provenance changed before write")
+        return evidence
+
+    def _resolve_modality(self, cleansed, provider_value):
+        """Prefer a valid provider value; otherwise use identity-bound cleansing evidence."""
+        provider_modality = normalize_course_modality(provider_value)
+        if provider_modality:
+            return provider_modality, "provider", None
+
+        cleansed_modality = normalize_course_modality(cleansed.get("modality"))
+        if not cleansed_modality:
+            return None, "unavailable", None
+
+        evidence = self._verify_cleansed_modality_evidence(cleansed, cleansed_modality)
+        if evidence is None:
+            return None, "unverified_cleansing_source", None
+        return cleansed_modality, "cleansed_programs", evidence
 
     def _call_cloudflare(self, prompt):
         missing_bindings = [
@@ -958,16 +1183,21 @@ class EnrichmentWorker:
         profile = profile or {}
         rules = self._safe_json_list(profile.get('url_type_rules'))
         rule = self._match_url_rule(url, rules)
+        profile_defaults = dict(self._safe_json_obj(profile.get('field_defaults')))
+        profile_defaults.pop('mode', None)
+        profile_defaults.pop('modality', None)
         config = {
             'field_selectors': self._safe_json_obj(profile.get('field_selectors')),
             'label_selectors': self._safe_json_obj(profile.get('label_selectors')),
-            'field_defaults': dict(self._safe_json_obj(profile.get('field_defaults'))),
+            'field_defaults': profile_defaults,
             'extraction_transforms': self._safe_json_obj(profile.get('extraction_transforms')),
             'extraction_confidence': self._safe_json_obj(profile.get('extraction_confidence')),
             'program_family': rule.get('program_family') if isinstance(rule, dict) else None,
         }
         if isinstance(rule, dict) and rule:
             defaults = self._safe_json_obj(rule.get('defaults'))
+            defaults.pop('mode', None)
+            defaults.pop('modality', None)
             config['field_defaults'].update(defaults)
             for field, spec in self._safe_json_obj(rule.get('field_overrides')).items():
                 if spec is None:
@@ -1190,7 +1420,9 @@ class EnrichmentWorker:
 
         profile = self._get_profile(inst_id) if inst_id else {}
         section_keywords = profile.get('section_keywords', {})
-        field_defaults = profile.get('field_defaults', {})
+        field_defaults = dict(self._safe_json_obj(profile.get('field_defaults')))
+        field_defaults.pop('mode', None)
+        field_defaults.pop('modality', None)
 
         # Append extracted section content for richer context
         extra_context = ""
@@ -1372,6 +1604,14 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         inst_id = cleansed.get('institution_id')
         staging_id = cleansed.get('staging_id')
         sections, woo_data, pre_extracted = self._fetch_sr_enrichment_data(staging_id, inst_id, cleansed.get('url')) if staging_id else ({}, {}, {})
+        # Profile defaults are not evidence for the strict modality contract.
+        # Do not pass extracted/default mode values to the provider as hints or
+        # merge them back over the provider result; cleansing is the only fallback.
+        modality_safe_pre_extracted = (
+            dict(pre_extracted) if isinstance(pre_extracted, dict) else {}
+        )
+        modality_safe_pre_extracted.pop("mode", None)
+        modality_safe_pre_extracted.pop("modality", None)
         # Fase 117: Extract regex data from cleansing metadata for hints + fallback
         cleansing_meta = cleansed.get('metadata', {}) or {}
         regex_data = {}
@@ -1384,11 +1624,11 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             regex_data['start_date'] = str(cleansing_meta['regex_start_date'])
         logger.info(f"--- Procesando: {name} ---")
         try:
-            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id, extracted_sections=sections, woocommerce_data=woo_data, regex_data=regex_data, pre_extracted=pre_extracted)
+            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id, extracted_sections=sections, woocommerce_data=woo_data, regex_data=regex_data, pre_extracted=modality_safe_pre_extracted)
             if provider_name is None:
                 self._abort_controlled_enrichment("provider_result", "real_provider_result_missing")
             is_mock = provider_name is None
-            enriched = self._merge_pre_extracted(enriched, pre_extracted)
+            enriched = self._merge_pre_extracted(enriched, modality_safe_pre_extracted)
 
             # Validate official_name: fallback to clean_name if LLM returned None, "None", or empty
             official_name = enriched.get("official_name")
@@ -1396,19 +1636,12 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 logger.warning(f"LLM returned invalid official_name '{official_name}', falling back to clean_name '{name}'")
                 enriched["official_name"] = name
 
-            # Validate modality: normalize to allowed values
-            modality_raw = enriched.get("modality")
-            modality_norm = str(modality_raw).strip() if modality_raw else ""
-            modality_map = {"presencial": "Presencial", "remoto": "Remoto", "virtual": "Remoto",
-                            "online": "Remoto", "hibrido": "Híbrido", "híbrido": "Híbrido",
-                            "semipresencial": "Híbrido", "blend": "Híbrido"}
-            if modality_norm.lower() in modality_map:
-                enriched["modality"] = modality_map[modality_norm.lower()]
-            elif modality_norm and modality_norm not in ("Presencial", "Remoto", "Híbrido"):
-                logger.warning(f"Unknown modality '{modality_norm}', leaving modality unset")
-                enriched["modality"] = None
-            elif not modality_norm or modality_norm.lower() in ('none', 'null', 'nan', ''):
-                enriched["modality"] = None
+            modality_value, modality_source, modality_evidence = self._resolve_modality(
+                cleansed, enriched.get("modality")
+            )
+            if enriched.get("modality") and modality_value is None:
+                logger.warning("FG2 modality value is unsupported; keeping it unset")
+            enriched["modality"] = modality_value
 
             # Fase 94: Fallback a WooCommerce structured data si LLM no pudo extraer
             if woo_data.get('price') and (enriched.get("total_cost_est") is None or str(enriched.get("total_cost_est")).strip().lower() in ('none', 'null', 'nan', '')):
@@ -1498,6 +1731,18 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 metadata['extraction_trace'] = woo_data['extraction_trace']
             if pre_extracted.get('program_family'):
                 metadata['program_family'] = pre_extracted.get('program_family')
+            metadata['field_provenance'] = {
+                "modality": {
+                    "source": modality_source,
+                    "value": modality_value,
+                    "cleansed_id": str(c_id),
+                    "staging_id": str(staging_id or ""),
+                    "institution_id": str(inst_id or ""),
+                    "url_sha256": url_sha256(str(cleansed.get("url") or "")),
+                    "evidence": modality_evidence,
+                    "provider": provider_name if modality_source == "provider" else None,
+                }
+            }
             for field_name in ('target_audience', 'objectives', 'benefits', 'certification'):
                 value = enriched.get(field_name) or enriched.get(f'{field_name}s')
                 if value not in (None, ''):
@@ -1563,12 +1808,16 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             }]
             # RPC errors fail closed. Only a falsey normal response permits the
             # idempotent upsert fallback.
+            if modality_source == "cleansed_programs":
+                self._verify_cleansed_modality_evidence(cleansed, modality_value)
             self._verify_fg2_manifest_url_identity(cleansed)
             rpc_result = self.db.rpc_raise('atomic_enrichment_promote', {
                 "p_enriched_data": rpc_data,
                 "p_cleansed_id": str(c_id)
             })
             if not rpc_result:
+                if modality_source == "cleansed_programs":
+                    self._verify_cleansed_modality_evidence(cleansed, modality_value)
                 self._verify_fg2_manifest_url_identity(cleansed)
                 upsert_result = self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
                 if not upsert_result:

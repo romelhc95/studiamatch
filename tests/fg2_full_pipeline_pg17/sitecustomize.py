@@ -21,6 +21,7 @@ import socket
 import sys
 import threading
 import time as _real_time
+import unicodedata
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit, urlunsplit
@@ -271,9 +272,25 @@ def _install_synthetic_provider_boundary(orchestrator_class):
         primary = providers[0]
         primary.name = "fixture-provider"
         primary.health_fn = lambda: True
-        primary.call_fn = lambda _prompt: json.dumps(
-            _SYNTHETIC_PROVIDER_RESULT, ensure_ascii=False
-        )
+
+        def _synthetic_response(prompt):
+            result = dict(_SYNTHETIC_PROVIDER_RESULT)
+            # Exercise all modality branches through the real enrichment and
+            # sync entrypoints. The prompt contains the synthetic course name.
+            folded_prompt = "".join(
+                char
+                for char in unicodedata.normalize("NFKD", prompt.casefold())
+                if not unicodedata.combining(char)
+            )
+            if "gestion de datos" in folded_prompt:
+                result["modality"] = "Remoto"  # valid provider beats cleansing's Presencial
+            elif "diseno digital" in folded_prompt or "marketing digital" in folded_prompt:
+                result["modality"] = None  # use same-identity cleansing evidence
+            elif "gestion de productos" in folded_prompt:
+                result["modality"] = None  # no source value: remains unset/pending
+            return json.dumps(result, ensure_ascii=False)
+
+        primary.call_fn = _synthetic_response
 
     orchestrator_class.__init__ = _fixture_init
     orchestrator_class._fg2_synthetic_boundary_installed = True
@@ -334,6 +351,8 @@ def _install_loopback_http_provider_boundary():
                         response_pillars["official_name"] = (
                             f"Synthetic recovered course {recovery_match.group(1)}"
                         )
+                        if os.environ.get("FG2_FIXTURE_PROVIDER_MODALITY_MODE") == "null":
+                            response_pillars["modality"] = None
                     response = {
                         "status": "completed",
                         "output": [{

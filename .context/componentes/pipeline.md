@@ -12,6 +12,60 @@
 | FG2-3 sync | enriched_programs → courses + editorial quality | sync_vector_worker.py es writer normal de datos finales, conserva overrides y aplica guards de mock/canary/quality. El nombre no acredita embeddings activos. |
 | FG3 integrity | courses_public_effective → RPC atómica limitada de courses | integrity_ping.py valida con HEAD/GET y decisión conservadora; el RPC revalida elegibilidad y snapshot en la transacción y solo cambia last_404_at o is_active. |
 
+## FG2 modalidad cleansing → enrichment → Sync — candidato local 2026-11-25
+
+`normalize_course_modality()` normaliza solo valores explícitos a `Presencial`,
+`Remoto` o `Híbrido`; alias ambiguos o desconocidos quedan sin valor. Cleansing
+detecta una modalidad solo si el texto combinado contiene una categoría clara y
+no contradictoria. No aplica el antiguo default `Presencial`. La observación
+queda en `cleansed_programs.modality` con `metadata.modality_evidence` ligado a
+staging ID, institución, hashes de URL y `staging_raw.content_hash`.
+
+Enrichment conserva primero una modalidad válida normalizada por el proveedor.
+Si falta o es inválida, `cleansed_programs.modality` solo es fallback cuando
+existe evidencia `metadata.modality_evidence` creada por cleansing y las filas
+actuales de staging/cleansing coinciden en IDs, institución, URL, estados,
+contenido y modalidad. Para recuperar una fila legacy sin esa evidencia, solo
+se acepta un snapshot de modalidad incluido en el approved lot de digest exacto
+y ligado a `course_id`, `staging_id`, `cleansed_id`, institución, URL y hash del
+valor; el worker vuelve a leer y validar las identidades actuales antes de
+escribir. `_fg2_expected_url_sha256` por sí solo no acredita procedencia. Si no
+hay evidencia cleansing ni snapshot aprobado válido, la modalidad permanece
+NULL y la calidad pendiente. Identidad ajena, hash inválido o drift abortan
+antes de escribir. Defaults de `field_defaults` y reglas URL no son evidencia.
+
+La fuente se persiste en `enriched_programs.metadata.field_provenance.modality`
+con valor y origen `provider`, `cleansed_programs`, `unavailable` o
+`unverified_cleansing_source`; el respaldo de legacy se identifica en la
+evidencia como `approved_lot_snapshot`. Una modalidad legacy sin respaldo no
+se registra como verificada. El RPC existente `atomic_enrichment_promote`
+insertaba los campos pero descartaba `metadata`; la migration candidata
+`20261125152449_fg2_enrichment_modality_provenance.sql` extiende el payload
+para guardar provenance y conservar metadata ajena, sin agregar tablas o
+columnas. Se registra en el manifest cerrado `fg2-modality-provenance`,
+separado del onboarding y su JIT consumido. El flujo controlado `Report →
+Apply → Verify` debe ejecutarse con un JIT nuevo antes de desplegar un caller
+que dependa de ese contrato; no se ejecutó en Free, Certificación ni Pro.
+
+Sync usa el mismo normalizador y mapea `Híbrido` a la grafía de la constraint
+DB (`Hibrido`). Si existe cualquier clave `field_provenance.modality`, Sync
+no completa `courses.mode` desde defaults de perfil o sección; esto incluye
+fuentes desconocidas o metadata malformada. El valor desconocido permanece
+NULL para que el contrato de calidad lo mantenga pendiente. Solo filas legacy
+sin esa clave conservan el fallback previo. El cambio no modifica overrides,
+publicación, `course_id` ni campos no relacionados.
+
+Transición: `expand` instala la versión aditiva de RPC manteniendo la firma y
+aceptando payloads anteriores; `compatibilidad` promueve el caller y valida el
+flujo con provenance, conservando filas legacy sin provenance; `deploy` sigue
+promociones protegidas y aplicación DDL JIT previa en cada ambiente requerido;
+`contract` solo tras validar la compatibilidad y la propagación en producción.
+Rollback de código por PR, manteniendo la función aditiva compatible; revertir
+su DDL o modificar datos requiere autorización JIT aparte. El fixture PG17
+comprueba el RPC, persistencia y cola Admin con datos/proveedor sintéticos sin
+egress. No acredita proveedor real, permisos/runtime Pro ni la interacción
+visual del Admin.
+
 ## FG2 multiformato y onboarding de perfiles — candidato local 2026-11-20
 
 `run_profile_onboarding()` precede al selector dentro del entrypoint del

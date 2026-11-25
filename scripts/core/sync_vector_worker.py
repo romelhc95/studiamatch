@@ -17,7 +17,14 @@ except ImportError:
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date, normalize_url
+from shared.utils import (
+    slugify,
+    setup_lima_logging,
+    TimeGuard,
+    parse_start_date,
+    normalize_url,
+    normalize_course_modality,
+)
 from shared.db_client import get_db_client
 from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
@@ -571,26 +578,31 @@ class SyncVectorWorker:
             logger.info(f"🚧 [NOT PUBLIC] {name} — mock enrichment, syncing inactive")
         defaults = profile.get('field_defaults', {}) if profile else {}
         section_mode_map = profile.get('section_mode_map', {}) if profile else {}
+        enrichment_metadata = enriched.get('metadata') if isinstance(enriched.get('metadata'), dict) else {}
+        field_provenance = enrichment_metadata.get('field_provenance')
+        modality_resolution_recorded = (
+            isinstance(field_provenance, dict)
+            and 'modality' in field_provenance
+        )
 
         # Apply section_mode_map: derive mode from URL path
-        resolved_mode = enriched.get('modality') or defaults.get('mode')
-        if not enriched.get('modality') and section_mode_map:
+        resolved_mode = normalize_course_modality(enriched.get('modality'))
+        if not resolved_mode and not modality_resolution_recorded:
+            resolved_mode = normalize_course_modality(defaults.get('mode'))
+        if not resolved_mode and not modality_resolution_recorded and section_mode_map:
             course_url = validated_url
             for path_key, mode_val in section_mode_map.items():
                 if path_key in course_url:
-                    resolved_mode = mode_val
+                    resolved_mode = normalize_course_modality(mode_val)
                     break
 
         # Normalize mode to match DB check constraint (e.g. Híbrido → Hibrido)
-        if resolved_mode:
-            mode_normalized = resolved_mode.lower().replace("í", "i").replace("ó", "o").replace("é", "e").replace("á", "a").replace("ú", "u")
-            if mode_normalized == "hibrido":
-                resolved_mode = "Hibrido"
+        if resolved_mode == "Híbrido":
+            resolved_mode = "Hibrido"
 
         duration_hours = enriched.get('duration_hours') or duration_months_to_hours(enriched.get('duration_months'))
         seniority_level = infer_seniority(enriched.get('degree_type'), duration_hours)
 
-        enrichment_metadata = enriched.get('metadata') if isinstance(enriched.get('metadata'), dict) else {}
         def enriched_field(*keys):
             for key in keys:
                 value = enriched.get(key)

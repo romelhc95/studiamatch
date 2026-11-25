@@ -85,6 +85,7 @@ pg_id="$(docker run --pull=never --detach --name "$pg" --network "$net" --networ
   --mount "type=bind,src=$ROOT/db/migrations/20260505_add_provider_tracking.sql,dst=/fixture/20260505_add_provider_tracking.sql,readonly" \
   --mount "type=bind,src=$ROOT/db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql,dst=/fixture/20260808_fase10_8_atomic_cleansing_provenance.sql,readonly" \
   --mount "type=bind,src=$ROOT/db/migrations/20260525_fase113_pro_rls_and_rpc_sync.sql,dst=/fixture/20260525_fase113_pro_rls_and_rpc_sync.sql,readonly" \
+  --mount "type=bind,src=$ROOT/db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql,dst=/fixture/20261125152449_fg2_enrichment_modality_provenance.sql,readonly" \
   --mount "type=bind,src=$ROOT/db/migrations/20260825_h2_editorial_layer.sql,dst=/fixture/20260825_h2_editorial_layer.sql,readonly" \
   --mount "type=bind,src=$ROOT/db/migrations/20260825_h2_editorial_layer_grants_fix.sql,dst=/fixture/20260825_h2_editorial_layer_grants_fix.sql,readonly" \
   --mount "type=bind,src=$ROOT/db/migrations/20260825_h2_editorial_layer_start_date_view_fix.sql,dst=/fixture/20260825_h2_editorial_layer_start_date_view_fix.sql,readonly" \
@@ -120,6 +121,7 @@ for _ in $(seq 1 45); do
 done
 (( ready == 1 )) || fail pg17 PG17_READINESS_TIMEOUT
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixture/setup.sql >/dev/null
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixture/20261125152449_fg2_enrichment_modality_provenance.sql >/dev/null
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixture/fixture_schema.sql >/dev/null
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixture/20260531_fase121_auto_generated.sql >/dev/null
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixture/20261120120000_fg2_profile_onboarding_state.sql >/dev/null
@@ -362,7 +364,7 @@ run_worker() {
 }
 
 run_worker_with_openai_http_fixture() {
-  local phase="$1" script="$2" run_id="$3" provider_mode="${4:-success}" expected_result="${5:-success}" recovery_source="${6:-false}"
+  local phase="$1" script="$2" run_id="$3" provider_mode="${4:-success}" expected_result="${5:-success}" recovery_source="${6:-false}" provider_modality_mode="${7:-valid}"
   local manifest_sha manifest_b64 log
   local provider_http_args=("${approved_docker_args[@]}")
   if [[ "$recovery_source" == "true" ]]; then
@@ -380,6 +382,7 @@ run_worker_with_openai_http_fixture() {
       --env GITHUB_RUN_ID="$run_id" \
       --env FG2_FIXTURE_PROVIDER_HTTP=1 \
       --env FG2_FIXTURE_PROVIDER_MODE="$provider_mode" \
+      --env FG2_FIXTURE_PROVIDER_MODALITY_MODE="$provider_modality_mode" \
       --env FG2_REQUIRE_REAL_PROVIDER=true \
       --env OPENAI_API_KEY=synthetic-openai-key \
       --env CF_API_TOKEN=fixture-cf \
@@ -699,7 +702,7 @@ if ! docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000005 \
   cat "$recovery_manifest_log"
   fail post272_recovery_manifest MANIFEST_BUILD_OR_POSTHARVEST_STATE_MISMATCH
 fi
-  grep -Eq '^phase=post272_recovery_manifest\|result=PASS\|mode=enrichment_sync_only\|entries=5\|out_of_scope_excluded=1\|discovery_only_excluded=2\|source_run=9000004\|current_run=9000005\|current_sha=[0-9a-f]{40}\|artifact_digest_checked=true\|lot_digest_checked=true\|manifest_sha256=[0-9a-f]{64}\|source_result=deferred\|source_http_requests=7\|source_unique_urls=7\|source_entries=6\|source_discovery_rows=8\|prior_hashes_distinct=6\|url_alias_hashes_differ=6\|new_run_discovery_rows=0\|invalid_bindings_rejected=12\|hash_semantics=source_discovery_prior_vs_entry_stored_vs_current_snapshot$' "$recovery_manifest_log" \
+  grep -Eq '^phase=post272_recovery_manifest\|result=PASS\|mode=enrichment_sync_only\|entries=5\|authorized_modality_snapshots=5\|out_of_scope_excluded=1\|discovery_only_excluded=2\|source_run=9000004\|current_run=9000005\|current_sha=[0-9a-f]{40}\|artifact_digest_checked=true\|lot_digest_checked=true\|manifest_sha256=[0-9a-f]{64}\|source_result=deferred\|source_http_requests=7\|source_unique_urls=7\|source_entries=6\|source_discovery_rows=8\|prior_hashes_distinct=6\|url_alias_hashes_differ=6\|new_run_discovery_rows=0\|invalid_bindings_rejected=12\|hash_semantics=source_discovery_prior_vs_entry_stored_vs_current_snapshot$' "$recovery_manifest_log" \
   || { cat "$recovery_manifest_log"; fail post272_recovery_manifest ASSERTION_NOT_EXECUTED; }
 cat "$recovery_manifest_log"
 
@@ -747,7 +750,7 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
   "UPDATE public.fg2_recovery_fault_switch SET fail_next_enrichment=false WHERE singleton=true" >/dev/null
 
 success_enrichment_offset="$(wc -l <"$events")"
-run_worker_with_openai_http_fixture run_5_post272_enrichment enrichment_worker.py 9000005 success success true
+run_worker_with_openai_http_fixture run_5_post272_enrichment enrichment_worker.py 9000005 success success true null
 assert_openai_http_boundary pg17_post272_openai_http_boundary "$events" accept 9000005 5 "$success_enrichment_offset"
 
 # All-mock enrichment output is rejected by the real Sync worker before any

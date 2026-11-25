@@ -10,11 +10,16 @@ import pytest
 
 from scripts.maintenance import check_db_parity, db_migrate
 from scripts.maintenance.pro_h3_migration_manifest import (
+    FG2_MODALITY_PROVENANCE_MANIFEST_NAME,
+    FG2_MODALITY_PROVENANCE_MIGRATION,
+    FG2_MODALITY_PROVENANCE_MIGRATION_SHA256,
+    FG2_MODALITY_PROVENANCE_MIGRATIONS,
     FG2_PROFILE_ONBOARDING_MANIFEST_NAME,
     FG2_PROFILE_ONBOARDING_MIGRATION,
     FG2_PROFILE_ONBOARDING_MIGRATION_SHA256,
     FG2_PROFILE_ONBOARDING_MIGRATIONS,
     H3_PRO_MIGRATIONS,
+    validate_fg2_modality_provenance_manifest_tree,
     validate_fg2_profile_onboarding_manifest_tree,
 )
 
@@ -43,6 +48,12 @@ def test_db_migrate_requires_closed_manifest_for_pro() -> None:
         FG2_PROFILE_ONBOARDING_MIGRATION,
     )
     assert validate_fg2_profile_onboarding_manifest_tree(ROOT / "db/migrations") == FG2_PROFILE_ONBOARDING_MIGRATION_SHA256
+    assert db_migrate.PRO_MIGRATION_MANIFESTS[FG2_MODALITY_PROVENANCE_MANIFEST_NAME] == (
+        FG2_MODALITY_PROVENANCE_MIGRATION,
+    )
+    assert validate_fg2_modality_provenance_manifest_tree(ROOT / "db/migrations") == (
+        FG2_MODALITY_PROVENANCE_MIGRATION_SHA256
+    )
     assert 'parser.error("--manifest es obligatorio para Pro")' in text
     assert "--only no esta permitido con --env pro" in text
     assert "resolve_migration_files(requested_migrations)" in text
@@ -70,6 +81,92 @@ def test_fg2_onboarding_migration_is_atomic_runner_compatible_and_report_dry_run
     assert "REVOKE ALL ON FUNCTION public.fg2_profile_onboarding_schema_contract() FROM PUBLIC" in migration
     assert "GRANT EXECUTE ON FUNCTION public.fg2_profile_onboarding_schema_contract() TO service_role" in migration
     assert db_migrate.apply_migration(object(), str(migration_path), dry_run=True) is True
+
+
+def test_fg2_modality_migration_has_closed_manifest_and_read_only_service_verifier() -> None:
+    migration_path = ROOT / "db/migrations" / f"{FG2_MODALITY_PROVENANCE_MIGRATION}.sql"
+    migration = migration_path.read_text(encoding="utf-8")
+    top_level_commands = [line.strip().upper() for line in migration.splitlines()]
+
+    assert "BEGIN;" not in top_level_commands
+    assert "COMMIT;" not in top_level_commands
+    assert "SECURITY DEFINER" in migration
+    assert "SET search_path = pg_catalog, public" in migration
+    assert "metadata =" in migration
+    assert "'field_provenance'" in migration
+    assert "public.fg2_modality_provenance_schema_contract()" in migration
+    assert "SECURITY INVOKER" in migration
+    assert migration.count(
+        "REVOKE ALL ON FUNCTION public.fg2_modality_provenance_schema_contract()"
+    ) == 1
+    assert migration.count(
+        "GRANT EXECUTE ON FUNCTION public.fg2_modality_provenance_schema_contract()"
+    ) == 1
+    assert validate_fg2_modality_provenance_manifest_tree(ROOT / "db/migrations") == (
+        FG2_MODALITY_PROVENANCE_MIGRATION_SHA256
+    )
+    assert db_migrate.apply_migration(object(), str(migration_path), dry_run=True) is True
+
+
+def test_fg2_modality_target_verification_checks_definition_and_acl(monkeypatch) -> None:
+    expected_source = check_db_parity._expected_fg2_modality_function_source()
+    function_contract = {
+        "identity_arguments": "p_enriched_data jsonb, p_cleansed_id uuid",
+        "return_type": "SETOF enriched_programs",
+        "returns_set": True,
+        "language": "plpgsql",
+        "volatility": "v",
+        "security_definer": True,
+        "search_path": ["search_path=pg_catalog, public"],
+        "source": expected_source,
+        "anon_can_execute": False,
+        "authenticated_can_execute": False,
+        "service_role_can_execute": True,
+    }
+    contract = {
+        "schema_version": 1,
+        "function_count": 1,
+        "function": function_contract,
+        "contract_anon_can_execute": False,
+        "contract_authenticated_can_execute": False,
+        "contract_service_role_can_execute": True,
+    }
+
+    class Response:
+        def __init__(self, status_code: int, body: dict | None = None) -> None:
+            self.status_code = status_code
+            self.body = body
+
+        def json(self):
+            return self.body
+
+    monkeypatch.setattr(
+        check_db_parity,
+        "service_select",
+        lambda *_args, **_kwargs: [{"name": FG2_MODALITY_PROVENANCE_MIGRATION}],
+    )
+    monkeypatch.setattr(
+        check_db_parity,
+        "service_get",
+        lambda *_args, **_kwargs: Response(200, contract),
+    )
+    monkeypatch.setattr(
+        check_db_parity,
+        "public_get",
+        lambda *_args, **_kwargs: Response(403),
+    )
+
+    status, errors = check_db_parity.check_fg2_modality_provenance_manifest_contract(
+        object(), FG2_MODALITY_PROVENANCE_MANIFEST_NAME
+    )
+    assert status == "OK", errors
+
+    contract["function"]["source"] = "changed definition"
+    status, errors = check_db_parity.check_fg2_modality_provenance_manifest_contract(
+        object(), FG2_MODALITY_PROVENANCE_MANIFEST_NAME
+    )
+    assert status == "ERROR"
+    assert any("cuerpo desplegado" in error for error in errors)
 
 
 def test_h3_pro_manifest_is_closed_pinned_and_has_h2_compat_preflight() -> None:
@@ -104,6 +201,7 @@ def test_db_sync_workflow_uses_manifest_and_authorization_gate() -> None:
     assert "h2-rollback-public-reader-contract" in text
     assert "h3-editorial-expand" in text
     assert "fg2-profile-onboarding" in text
+    assert "fg2-modality-provenance" in text
     assert "h3-editorial-expand" in manifest_allowlist
     assert 'test "${GITHUB_REF_NAME}" = "main"' in text
     assert 'case "$MIGRATION_MANIFEST" in' in text
@@ -150,8 +248,13 @@ def test_db_sync_workflow_uses_manifest_and_authorization_gate() -> None:
     assert 'test "${GITHUB_REF_NAME}" = "main"' in text.split(
         "            fg2-profile-onboarding)", 1
     )[1].split(";;", 1)[0]
+    assert 'test "${GITHUB_REF_NAME}" = "main"' in text.split(
+        "            fg2-modality-provenance)", 1
+    )[1].split(";;", 1)[0]
     assert 'check_db_parity.py --env pro --target-only --fg2-manifest "$MIGRATION_MANIFEST"' in text
+    assert 'check_db_parity.py --env pro --target-only --fg2-modality-manifest "$MIGRATION_MANIFEST"' in text
     assert 'Authorized FG2 migration SHA256: ${fg2_migration_sha}' in authorization_gate_run
+    assert 'Authorized FG2 modality migration SHA256: ${fg2_modality_migration_sha}' in authorization_gate_run
 
 
 def test_fg2_report_and_verify_are_read_only_and_apply_requires_jit() -> None:
@@ -170,6 +273,7 @@ def test_fg2_report_and_verify_are_read_only_and_apply_requires_jit() -> None:
     assert 'if: inputs.operation == \'apply\'' in apply
     assert "Authorized FG2 migration SHA256:" in apply
     assert "check_db_parity.py --env pro --target-only --fg2-manifest" in verify
+    assert "check_db_parity.py --env pro --target-only --fg2-modality-manifest" in verify
     assert "db_migrate.py --env pro --manifest" not in verify
 
     auth_step = workflow.split("      - name: Verify explicit DDL authorization\n", 1)[1].split(
@@ -258,7 +362,7 @@ def test_shared_manifest_registry_needs_only_standard_library() -> None:
     code = (
         "import sys; sys.path.insert(0, 'scripts'); "
         "from maintenance.pro_h3_migration_manifest import PRO_MIGRATION_MANIFESTS; "
-        "assert len(PRO_MIGRATION_MANIFESTS) == 7; "
+            "assert len(PRO_MIGRATION_MANIFESTS) == 8; "
         "assert not {'requests', 'dotenv', 'shared.db_client'} & sys.modules.keys()"
     )
     result = subprocess.run(

@@ -127,7 +127,7 @@
   "https://ecommerce.fg2.example/programas/gestion-productos": {
     "status": 200,
     "content_type": "text/html; charset=utf-8",
-    "body": "<!doctype html><html><head><title>Programa Gestión de Productos Ecommerce</title><meta name=\"description\" content=\"Programa sintético para gestión de productos, duración 5 meses.\"><link rel=\"canonical\" href=\"https://ecommerce.fg2.example/programas/gestion-productos\"></head><body><main><h1>Programa Gestión de Productos</h1><p>Duración: 5 meses. Modalidad online. Precio S/ 990.</p><h2>Requisitos</h2><p>Experiencia básica en comercio.</p></main></body></html>"
+    "body": "<!doctype html><html><head><title>Programa Gestión de Productos Ecommerce</title><meta name=\"description\" content=\"Programa sintético para gestión de productos, duración 5 meses.\"><link rel=\"canonical\" href=\"https://ecommerce.fg2.example/programas/gestion-productos\"></head><body><main><h1>Programa Gestión de Productos</h1><p>Duración: 5 meses. Precio S/ 990.</p><h2>Requisitos</h2><p>Experiencia básica en comercio.</p></main></body></html>"
   },
   "https://ecommerce.fg2.example/programas/marketing-digital": {
     "status": 200,

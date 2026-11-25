@@ -50,11 +50,19 @@ def _report_profile_regex_issue(category: str, pattern: str, *, level: int) -> N
     )
 
 try:
-    from scripts.shared.utils import normalize_url as _normalize_url
+    from scripts.shared.utils import (
+        course_modality_sha256 as _course_modality_sha256,
+        normalize_course_modality as _normalize_course_modality,
+        normalize_url as _normalize_url,
+    )
 except ModuleNotFoundError as exc:
     if exc.name != "scripts":
         raise
-    from shared.utils import normalize_url as _normalize_url
+    from shared.utils import (
+        course_modality_sha256 as _course_modality_sha256,
+        normalize_course_modality as _normalize_course_modality,
+        normalize_url as _normalize_url,
+    )
 
 
 FG2_LIMITS = {
@@ -1372,7 +1380,8 @@ class FG2CohortManifest:
                 "source_entry_url_sha256", "source_discovery_content_sha256",
                 "source_discovery_initial_status", "source_discovery_kind",
                 "source_entry_content_sha256", "current_content_sha256", "staging_status",
-                "cleansed_id", "cleansed_url_sha256", "cleansing_status",
+                "cleansed_id", "cleansed_url_sha256", "cleansed_modality_sha256",
+                "cleansed_modality_snapshot", "cleansing_status",
             }
             for evidence in row_evidence:
                 if (
@@ -1392,6 +1401,7 @@ class FG2CohortManifest:
                             "source_entry_content_sha256",
                             "current_content_sha256",
                             "cleansed_url_sha256",
+                            "cleansed_modality_sha256",
                         )
                     )
                     or evidence.get("staging_status") != "processed"
@@ -1422,6 +1432,41 @@ class FG2CohortManifest:
                     == evidence["source_entry_content_sha256"]
                 ):
                     raise InvalidControlledRun("recovery per-row hashes or stage references do not reconcile")
+
+                modality_snapshot = evidence["cleansed_modality_snapshot"]
+                if modality_snapshot is not None:
+                    required_modality_snapshot_fields = {
+                        "version", "authorization_basis", "approved_lot_reference",
+                        "approved_lot_sha256", "course_id", "staging_id", "cleansed_id",
+                        "institution_id", "cleansed_url_sha256", "value", "value_sha256",
+                    }
+                    snapshot_value = (
+                        _normalize_course_modality(modality_snapshot.get("value"))
+                        if isinstance(modality_snapshot, dict) else None
+                    )
+                    if (
+                        not isinstance(modality_snapshot, dict)
+                        or set(modality_snapshot) != required_modality_snapshot_fields
+                        or isinstance(modality_snapshot.get("version"), bool)
+                        or modality_snapshot.get("version") != 1
+                        or modality_snapshot.get("authorization_basis") != "approved_lot_exact_digest"
+                        or modality_snapshot.get("approved_lot_reference") != lot_reference
+                        or modality_snapshot.get("approved_lot_sha256") != lot_digest
+                        or str(modality_snapshot.get("course_id", "")).lower() != course_id
+                        or str(modality_snapshot.get("staging_id", "")).lower() != staging_id
+                        or str(modality_snapshot.get("cleansed_id", "")).lower() != cleanse_id
+                        or str(modality_snapshot.get("institution_id", "")).lower()
+                        != str(entry.get("institution_id", "")).lower()
+                        or modality_snapshot.get("cleansed_url_sha256") != evidence["cleansed_url_sha256"]
+                        or not isinstance(modality_snapshot.get("value"), str)
+                        or len(modality_snapshot["value"]) > 80
+                        or snapshot_value is None
+                        or not _valid_sha256(modality_snapshot.get("value_sha256"))
+                        or modality_snapshot["value_sha256"]
+                        != _course_modality_sha256(modality_snapshot["value"])
+                        or modality_snapshot["value_sha256"] != evidence["cleansed_modality_sha256"]
+                    ):
+                        raise InvalidControlledRun("recovery modality snapshot is invalid or not authorized")
                 evidence_course_ids.add(course_id)
                 evidence_cleanse_ids.add(cleanse_id)
                 evidence_by_staging[staging_id] = evidence
@@ -2349,6 +2394,7 @@ def verify_approved_lot_scope(
     for item in scope_rows:
         urls_by_institution.setdefault(item["institution_id"].lower(), []).append(item["url"])
     course_scope_by_identity: dict[str, str] = {}
+    scope_item_by_url = {item["url"]: item for item in scope_rows}
     for item in scope_rows:
         identity = course_identity_url(item["url"])
         if identity in course_scope_by_identity:
@@ -2372,7 +2418,7 @@ def verify_approved_lot_scope(
         ]
         max_rows_per_url_query = len(institution_scope_rows)
         staging_columns = "id,institution_id,url,status,content_hash"
-        cleansed_columns = "id,staging_id,institution_id,url,status"
+        cleansed_columns = "id,staging_id,institution_id,url,status,modality"
         enriched_columns = "id,cleansed_id,institution_id,url,status"
         staging_url_filters = _bounded_url_alias_filters(
             urls,
@@ -2410,7 +2456,7 @@ def verify_approved_lot_scope(
             queries.append((
                 "cleansed_programs",
                 "cleansed_rows",
-                "id,staging_id,institution_id,url,status",
+                "id,staging_id,institution_id,url,status,modality",
                 True,
                 uuid_in_filter("staging_id", staging_ids),
                 len(staging_ids),
@@ -2508,6 +2554,12 @@ def verify_approved_lot_scope(
                 "cleansed_rows": ("id", "staging_id", "institution_id", "url", "status"),
                 "enriched_rows": ("id", "cleansed_id", "institution_id", "url", "status"),
             }[key]
+            if (
+                key == "cleansed_rows"
+                and len(scope_item_by_url[scope_url]["snapshot"]["cleansed_rows"]) == 1
+                and "modality" in scope_item_by_url[scope_url]["snapshot"]["cleansed_rows"][0]
+            ):
+                fields = (*fields, "modality")
             projected = {field: record.get(field) for field in fields}
             for field in ("id", "institution_id", "staging_id", "cleansed_id"):
                 if field in projected and isinstance(projected[field], str):
@@ -3031,6 +3083,22 @@ def build_post272_enrichment_recovery_manifest(
         ):
             raise InvalidControlledRun("recovery downstream identity, hash, or status drifted")
         entries_by_course[course_id] = (item, old_entry, old_discovery, cleansed_rows[0])
+        cleaned_modality_snapshot = None
+        raw_snapshot_modality = cleansed_rows[0].get("modality")
+        if _normalize_course_modality(raw_snapshot_modality) is not None:
+            cleaned_modality_snapshot = {
+                "version": 1,
+                "authorization_basis": "approved_lot_exact_digest",
+                "approved_lot_reference": approved_lot.reference,
+                "approved_lot_sha256": approved_lot.sha256,
+                "course_id": str(course_id).lower(),
+                "staging_id": str(staging_rows[0]["id"]).lower(),
+                "cleansed_id": str(cleansed_rows[0]["id"]).lower(),
+                "institution_id": str(cleansed_rows[0]["institution_id"]).lower(),
+                "cleansed_url_sha256": url_sha256(cleansed_rows[0]["url"]),
+                "value": raw_snapshot_modality,
+                "value_sha256": _course_modality_sha256(raw_snapshot_modality),
+            }
         row_evidence.append({
             "course_id": course_id,
             "staging_id": str(staging_rows[0]["id"]).lower(),
@@ -3044,6 +3112,8 @@ def build_post272_enrichment_recovery_manifest(
             "staging_status": staging_rows[0]["status"],
             "cleansed_id": str(cleansed_rows[0]["id"]).lower(),
             "cleansed_url_sha256": old_entry["cleansed_url_sha256"],
+            "cleansed_modality_sha256": _course_modality_sha256(cleansed_rows[0].get("modality")),
+            "cleansed_modality_snapshot": cleaned_modality_snapshot,
             "cleansing_status": cleansed_rows[0]["status"],
         })
 

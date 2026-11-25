@@ -19,6 +19,7 @@ import re
 import sys
 from typing import Any
 from urllib.parse import urlparse
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
@@ -31,6 +32,8 @@ from shared.supabase_credentials import (
     require_distinct_environments,
 )
 from maintenance.pro_h3_migration_manifest import (
+    FG2_MODALITY_PROVENANCE_MANIFEST_NAME,
+    FG2_MODALITY_PROVENANCE_MIGRATIONS,
     FG2_PROFILE_ONBOARDING_MANIFEST_NAME,
     FG2_PROFILE_ONBOARDING_MIGRATIONS,
     H3_PRO_MANIFEST_NAME,
@@ -788,6 +791,107 @@ def check_fg2_profile_onboarding_manifest_contract(db_target: DatabaseClient, ma
     return "OK", []
 
 
+def _expected_fg2_modality_function_source() -> str:
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "db"
+        / "migrations"
+        / f"{FG2_MODALITY_PROVENANCE_MIGRATIONS[0]}.sql"
+    ).read_text(encoding="utf-8")
+    match = re.search(
+        r"CREATE OR REPLACE FUNCTION public\.atomic_enrichment_promote\(.*?\)"
+        r"\s+RETURNS.*?\bAS\s+\$\$(.*?)\$\$;",
+        migration,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        raise ValueError("No se pudo localizar el cuerpo fijado de atomic_enrichment_promote")
+    return match.group(1).strip()
+
+
+def check_fg2_modality_provenance_manifest_contract(db_target: DatabaseClient, manifest: str | None):
+    if manifest is None:
+        return "OK", []
+    if manifest != FG2_MODALITY_PROVENANCE_MANIFEST_NAME:
+        return "ERROR", [f"Manifest FG2 de modalidad no permitido: {manifest}"]
+
+    print(f"\n[CHECK FG2] Modality provenance manifest contract: {manifest}")
+    errors: list[str] = []
+    migration_name = FG2_MODALITY_PROVENANCE_MIGRATIONS[0]
+    try:
+        target_migrations = service_select(db_target, "supabase_migrations", "name") or []
+        applied = {row.get("name") for row in target_migrations if row.get("name")}
+        if migration_name not in applied:
+            errors.append(f"Migración FG2 de modalidad faltante: {migration_name}")
+    except Exception as exc:
+        errors.append(f"No se pudo verificar supabase_migrations para modalidad FG2: {exc}")
+
+    schema_res = service_get(db_target, "rpc/fg2_modality_provenance_schema_contract")
+    if schema_res.status_code != 200:
+        errors.append(
+            "fg2_modality_provenance_schema_contract no está disponible al service role: "
+            f"HTTP {schema_res.status_code}"
+        )
+        contract = None
+    else:
+        try:
+            contract = schema_res.json()
+        except (TypeError, ValueError):
+            contract = None
+            errors.append("El contrato de modalidad FG2 no devolvió JSON válido")
+
+    if isinstance(contract, dict):
+        if contract.get("schema_version") != 1 or contract.get("function_count") != 1:
+            errors.append("La versión o firma de atomic_enrichment_promote no coincide")
+        function_contract = contract.get("function")
+        if not isinstance(function_contract, dict):
+            errors.append("El contrato FG2 no devolvió metadata de atomic_enrichment_promote")
+        else:
+            expected_function = {
+                "identity_arguments": "p_enriched_data jsonb, p_cleansed_id uuid",
+                "language": "plpgsql",
+                "volatility": "v",
+                "returns_set": True,
+                "security_definer": True,
+                "search_path": ["search_path=pg_catalog, public"],
+                "anon_can_execute": False,
+                "authenticated_can_execute": False,
+                "service_role_can_execute": True,
+            }
+            if any(function_contract.get(key) != value for key, value in expected_function.items()):
+                errors.append("La firma, seguridad, search_path o ACL de atomic_enrichment_promote difiere")
+            return_type = str(function_contract.get("return_type", "")).rsplit(" ", 1)[-1].split(".")[-1]
+            if return_type != "enriched_programs":
+                errors.append("atomic_enrichment_promote no retorna enriched_programs")
+            try:
+                expected_source = _expected_fg2_modality_function_source()
+            except (OSError, ValueError) as exc:
+                expected_source = None
+                errors.append(f"No se pudo validar el cuerpo esperado de la migración FG2: {exc}")
+            if expected_source is not None and function_contract.get("source", "").strip() != expected_source:
+                errors.append("El cuerpo desplegado de atomic_enrichment_promote difiere de la migración fijada")
+
+        expected_contract_acl = {
+            "contract_anon_can_execute": False,
+            "contract_authenticated_can_execute": False,
+            "contract_service_role_can_execute": True,
+        }
+        if any(contract.get(key) != value for key, value in expected_contract_acl.items()):
+            errors.append("El RPC de verificación de modalidad no conserva ACL exclusiva de service_role")
+
+    public_res = public_get(db_target, "rpc/fg2_modality_provenance_schema_contract")
+    if public_res.status_code not in (401, 403, 404):
+        errors.append(
+            "El contrato de modalidad FG2 no está restringido a service_role: "
+            f"HTTP {public_res.status_code}"
+        )
+
+    if errors:
+        return "ERROR", errors
+    print("  OK: migration, RPC de promoción, definición y ACL de verificación FG2")
+    return "OK", []
+
+
 def compare_institutions(db_free: DatabaseClient, db_target: DatabaseClient):
     print("\n[CHECK 3] Catalogo institutions por slug")
     free_rows = _select_all(db_free, "institutions", "slug,name,website_url")
@@ -976,11 +1080,16 @@ def main() -> None:
         choices=[FG2_PROFILE_ONBOARDING_MANIFEST_NAME],
         help="Valida solo el contrato de onboarding FG2; no implica prerrequisitos H2/H3.",
     )
+    parser.add_argument(
+        "--fg2-modality-manifest",
+        choices=[FG2_MODALITY_PROVENANCE_MANIFEST_NAME],
+        help="Valida la RPC de procedencia de modalidad FG2 y sus ACL; no implica prerrequisitos H2/H3.",
+    )
     args = parser.parse_args()
 
-    selected_manifests = [args.h2_manifest, args.h3_manifest, args.fg2_manifest]
+    selected_manifests = [args.h2_manifest, args.h3_manifest, args.fg2_manifest, args.fg2_modality_manifest]
     if sum(value is not None for value in selected_manifests) > 1:
-        parser.error("--h2-manifest, --h3-manifest y --fg2-manifest son mutuamente excluyentes")
+        parser.error("Los manifests H2, H3 y FG2 son mutuamente excluyentes")
 
     if args.target_only:
         load_environment(args.env)
@@ -988,7 +1097,7 @@ def main() -> None:
         db_target = DatabaseClient()
         legacy_public_required = (
             False
-            if args.fg2_manifest
+            if args.fg2_manifest or args.fg2_modality_manifest
             else args.h2_manifest in (None, "f10-8-atomic-cleansing-provenance", "h2-expand-compat")
         )
         results = [
@@ -999,6 +1108,10 @@ def main() -> None:
             (
                 "fg2_profile_onboarding_manifest_contract",
                 check_fg2_profile_onboarding_manifest_contract(db_target, args.fg2_manifest),
+            ),
+            (
+                "fg2_modality_provenance_manifest_contract",
+                check_fg2_modality_provenance_manifest_contract(db_target, args.fg2_modality_manifest),
             ),
         ]
         has_error = any(status == "ERROR" for _, (status, _) in results)

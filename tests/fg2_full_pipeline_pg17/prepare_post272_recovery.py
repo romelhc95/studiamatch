@@ -196,7 +196,7 @@ def main() -> None:
             )],
             "cleansed_rows": [select(
                 client, "cleansed_programs", f"id=eq.{CLEANSED_IDS[ordinal]}",
-                "id,staging_id,institution_id,url,status", pipeline=True,
+                "id,staging_id,institution_id,url,status,modality", pipeline=True,
             )],
             "enriched_rows": [select(
                 client, "enriched_programs", f"id=eq.{ENRICHED_IDS[ordinal]}",
@@ -472,12 +472,18 @@ def main() -> None:
             "entry_count": 6, "discovery_row_count": 8,
         }
         or len(manifest.payload["recovery_source"]["row_evidence"]) != 5
+        or any(
+            item["cleansed_modality_snapshot"] is None
+            or item["cleansed_modality_snapshot"]["authorization_basis"] != "approved_lot_exact_digest"
+            or item["cleansed_modality_snapshot"]["approved_lot_sha256"] != approved_lot.sha256
+            for item in manifest.payload["recovery_source"]["row_evidence"]
+        )
     ):
         raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=new_run_binding_or_scope_mismatch")
 
     print(
         "phase=post272_recovery_manifest|result=PASS|mode=enrichment_sync_only|"
-        "entries=5|out_of_scope_excluded=1|discovery_only_excluded=2|"
+        "entries=5|authorized_modality_snapshots=5|out_of_scope_excluded=1|discovery_only_excluded=2|"
         f"source_run={OLD_RUN_ID}|current_run={RUN_ID}|current_sha={SOURCE_SHA}|"
         f"artifact_digest_checked=true|lot_digest_checked=true|manifest_sha256={digest}|"
         "source_result=deferred|source_http_requests=7|source_unique_urls=7|"

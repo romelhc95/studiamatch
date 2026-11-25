@@ -75,6 +75,74 @@ La migration agrega `fg2_profile_onboarding_schema_contract()`, SQL `STABLE SECU
 
 **Transición y recuperación:** `expand` agrega columnas/checks y permite perfil inicial pendiente; `compatibilidad` conserva los perfiles efectivos existentes y el flujo previo; `deploy` por promoción protegida, con verificación de schema en cada ambiente y escritores cerrados; `contract` solo tras observación del runtime y decisión. Revertir el código por PR si no se adopta; no ejecutar DROP ni backfill/reparación sin JIT separado.
 
+### migration-20261125152449-fg2-enrichment-modality-provenance
+
+**Path:** [`20261125152449_fg2_enrichment_modality_provenance.sql`](../../db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql)
+
+**Propósito:** preservar la provenance de modalidad en el JSONB existente de
+`enriched_programs` cuando `atomic_enrichment_promote(jsonb, uuid)` inserta o
+actualiza la fila. El defecto confirmado era `cleansed.modality` válido con
+`enriched.modality` y `courses.mode` nulos; el RPC omitía `metadata` aunque el
+worker la enviaba.
+
+**Contrato y alcance:** `CREATE OR REPLACE` mantiene la firma y el retorno del
+RPC, SECURITY DEFINER, `search_path=pg_catalog, public` y ejecución exclusiva
+de `service_role`. El payload guarda metadata y fusiona `field_provenance`
+por clave conservando los campos de metadata ajenos. No agrega tabla/columna,
+no modifica filas existentes y no hace backfill. La migration es candidata
+local; no se aplicó ni verificó en Free, Certificación o Pro.
+
+**Compatibilidad, gates y recuperación:** aplicar como `expand` y verificar
+firma, definición, `search_path`, SECURITY DEFINER y ACL con aprobación JIT
+DDL antes de desplegar un caller que dependa de provenance persistida. El
+caller nuevo conserva filas/metadata legacy; los callers anteriores siguen
+siendo compatibles con la misma firma. Promover por la ruta protegida y
+revalidar los efectos antes de `contract`. Rollback de código por PR. No
+reemplazar ni eliminar la función en DB sin aprobación JIT; ante fallo parcial,
+leer estado y no reintentar a ciegas.
+
+**Ruta de este hotfix:** Romel autorizó preparar la promoción protegida directa
+a `main` para corregir la modalidad de FG2. Tras el merge, la aplicación y
+verificación de esta migration siguen requiriendo un JIT DDL independiente
+antes de depender del nuevo provenance en producción. Esa verificación
+productiva no queda bloqueada por una sincronización posterior hacia
+Desarrollo/Certificación; esas ramas se sincronizan después mediante su propio
+flujo protegido. La autorización de ruta no equivale a publicación, merge ni
+JIT de aplicación.
+
+**Validación:** PG17/PostgREST efímero aplicó esta migration y probó inserción,
+actualización/merge de metadata y lectura de provenance desde los workers.
+Todos los datos/proveedores fueron sintéticos y la red estuvo sin egress; esto
+no acredita permisos, schema ni runtime Pro.
+
+### fg2-modality-provenance-manifest
+
+La ruta `DB Sync to Production` reconoce un manifest nuevo, separado de
+`fg2-profile-onboarding`: `fg2-modality-provenance`. Acepta solo `main`, fija
+esta migration por SHA-256 y mantiene la selección cerrada. No modifica ni
+reutiliza el registro JIT de onboarding ya consumido. `Report` es dry-run;
+`Apply` requiere un registro DDL nuevo ligado al payload/candidato finales,
+backup/PITR vigente, `apply_authorized=true` y aprobación humana de Production.
+No existe una alternativa manual de SQL en este paquete.
+
+`Verify` llama al contrato de solo lectura
+`fg2_modality_provenance_schema_contract()` como service_role y coteja el
+ledger, firma/retorno, cuerpo exacto del RPC, `SECURITY DEFINER`,
+`search_path=pg_catalog, public`, volatilidad y ACL exclusiva de
+`service_role`. El contrato no retorna datos de cursos; `anon` y
+`authenticated` no pueden ejecutarlo. La regresión usa respuestas sintéticas
+y el E2E valida el contrato contra PG17/PostgREST local; Pro permanece sin
+verificar.
+
+Transición: aplicar la expansión aditiva y completar Verify antes de desplegar
+el caller que depende de provenance persistida; durante compatibilidad la
+firma del RPC no cambia y callers anteriores siguen funcionando. Promover el
+código protegido con writers cerrados. Retirar el camino anterior solo tras
+una ejecución funcional y postflight por ID. Ante fallo parcial, leer ledger y
+contrato, mantener la pausa, no reintentar Apply ni hacer DROP; el rollback
+inmediato es volver el código por PR y cualquier DDL compensatorio requiere
+otro JIT. No se ejecutó Report/Apply/Verify remoto en este ciclo.
+
 ## h3-pro-promotion-manifest
 
 ### Preflight offline del registro compartido — corrección P1 de PR 514

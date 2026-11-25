@@ -116,7 +116,11 @@ SELECT
   'synced',
   'prior-fixture',
   false,
-  jsonb_build_object('fixture_case', 'post272_recovery', 'ordinal', n)
+  jsonb_build_object(
+    'fixture_case', 'post272_recovery',
+    'ordinal', n,
+    'field_provenance', jsonb_build_object('existing_marker', 'keep-' || n::text)
+  )
 FROM items;
 
 INSERT INTO public.course_editorial_state (

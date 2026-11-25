@@ -10,7 +10,10 @@ BEGIN
   UPDATE public.course_editorial_state
   SET editorial_status = 'published',
       quality_status = 'complete',
-      manual_overrides = jsonb_build_object('name', 'Título manual sintético preservado'),
+      manual_overrides = jsonb_build_object(
+        'name', 'Título manual sintético preservado',
+        'mode', 'Híbrido'
+      ),
       field_sources = COALESCE(field_sources, '{}'::jsonb) || jsonb_build_object('name', 'manual_override'),
       field_timestamps = COALESCE(field_timestamps, '{}'::jsonb) || jsonb_build_object('name', now()),
       manual_updated_at = now(),

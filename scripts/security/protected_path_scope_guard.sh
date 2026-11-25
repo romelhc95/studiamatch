@@ -151,13 +151,18 @@ H1_LOCAL_PATHS
 .context/evidencias_cliente/sprint_1/paquete_hito_001.md
 .context/trazabilidad/registro_fuentes_componentes.json
 .context/trazabilidad/registro_fuentes_componentes.md
+.github/workflows/db-sync-to-pro.yml
 .github/workflows/production_pipeline.yml
 .github/workflows/security-audit.yml
 db/migrations/20261120120000_fg2_profile_onboarding_state.sql
+db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql
 scripts/core/fg2_bounded_run.py
 scripts/core/master_orchestrator.py
 scripts/core/profile_onboarding.py
 scripts/core/universal_harvester.py
+scripts/maintenance/check_db_parity.py
+scripts/maintenance/db_migrate.py
+scripts/maintenance/pro_h3_migration_manifest.py
 scripts/security/protected_path_scope_guard.sh
 scripts/shared/site_diagnostics.py
 scripts/shared/utils.py
@@ -182,6 +187,7 @@ tests/test_fg2_bounded_orchestration.py
 tests/test_fg2_bounded_run.py
 tests/test_fg2_bounded_workflow.py
 tests/test_fg2_profile_onboarding.py
+tests/test_h2_pro_migration_controls.py
 tests/test_h3_admin_queue_ux_contract.py
 tests/test_h3req1_local_pipeline_walk.py
 tests/test_site_diagnostics_security.py

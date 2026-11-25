@@ -1,3 +1,4 @@
+import hashlib
 import re
 import unicodedata
 import random
@@ -135,6 +136,68 @@ def standardize_mode(mode_str):
         return "Híbrido"
     else:
         return "Presencial"
+
+
+def _fold_modality_text(value):
+    """Return a conservative, accent-free token string for modality matching."""
+    if not isinstance(value, str):
+        return ""
+    folded = unicodedata.normalize("NFKD", value.casefold())
+    without_marks = "".join(char for char in folded if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]+", " ", without_marks).strip()
+
+
+def normalize_course_modality(value):
+    """Normalize one explicit modality value; unknown or ambiguous values stay unset."""
+    normalized = _fold_modality_text(value)
+    if not normalized or normalized in {"none", "null", "nan", "no especificado", "n a"}:
+        return None
+
+    aliases = {
+        "presencial": "Presencial",
+        "presencialmente": "Presencial",
+        "in person": "Presencial",
+        "on site": "Presencial",
+        "onsite": "Presencial",
+        "remoto": "Remoto",
+        "remota": "Remoto",
+        "remote": "Remoto",
+        "virtual": "Remoto",
+        "online": "Remoto",
+        "en linea": "Remoto",
+        "a distancia": "Remoto",
+        "hibrido": "Híbrido",
+        "hibrida": "Híbrido",
+        "hybrid": "Híbrido",
+        "semipresencial": "Híbrido",
+        "blended": "Híbrido",
+    }
+    return aliases.get(normalized)
+
+
+def course_modality_sha256(value):
+    """Hash the canonical modality token; absent or invalid values hash as empty."""
+    normalized = normalize_course_modality(value)
+    return hashlib.sha256((normalized or "").encode("utf-8")).hexdigest()
+
+
+def detect_course_modality(text):
+    """Detect a single explicit, unambiguous modality from cleansing text."""
+    normalized = _fold_modality_text(text)
+    if not normalized:
+        return None
+
+    patterns = {
+        "Presencial": (r"\bpresencial(?:es|mente|idad)?\b", r"\bin person\b", r"\bon site\b"),
+        "Remoto": (r"\bremot[oa]s?\b", r"\bvirtual(?:es|idad)?\b", r"\bonline\b", r"\ben linea\b", r"\ba distancia\b"),
+        "Híbrido": (r"\bhibrid[oa]s?\b", r"\bsemipresencial(?:es)?\b", r"\bhybrid\b", r"\bblended\b"),
+    }
+    detected = {
+        modality
+        for modality, modality_patterns in patterns.items()
+        if any(re.search(pattern, normalized) for pattern in modality_patterns)
+    }
+    return next(iter(detected)) if len(detected) == 1 else None
 
 import requests
 import tempfile
