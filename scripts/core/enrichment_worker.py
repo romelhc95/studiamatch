@@ -1705,6 +1705,12 @@ if __name__ == "__main__":
             allow_empty=True,
         )
 
+    # StudIAMatch-Docs: .context/componentes/pipeline.md#recuperacion-fg2-acotada-enrichment-y-sync-2026-11-24
+    recovery_mode = bool(
+        cohort_manifest is not None
+        and cohort_manifest.payload.get("recovery_source", {}).get("mode") == "enrichment_sync_only"
+    )
+
     worker = EnrichmentWorker()
     production_run_requires_real_provider = os.getenv(
         "FG2_REQUIRE_REAL_PROVIDER", ""
@@ -1746,6 +1752,10 @@ if __name__ == "__main__":
 
     while not guard.should_exit:
         fetch_limit = batch_size
+        if recovery_mode and total_processed == 0:
+            # Recovery manifests are capped at ten entries. Read the whole
+            # scope once so a status drift cannot silently become partial work.
+            fetch_limit = None
         if args.limit:
             remaining = args.limit - total_processed
             if remaining <= 0: break
@@ -1756,6 +1766,19 @@ if __name__ == "__main__":
             institution_id=args.institution_id,
             cohort_manifest=cohort_manifest,
         )
+
+        if recovery_mode and total_processed == 0:
+            expected_ids = set(cohort_manifest.staging_ids)
+            actual_id_list = [
+                str(row.get("staging_id", "")).lower()
+                for row in records if isinstance(row, dict)
+            ]
+            actual_ids = set(actual_id_list)
+            if len(records) != len(expected_ids) or len(actual_id_list) != len(actual_ids) or actual_ids != expected_ids:
+                logger.error(
+                    "FG2_ENRICHMENT_ABORT stage=recovery_scope category=cohort_state_drift"
+                )
+                sys.exit(1)
 
         if cohort_manifest is not None:
             logger.info(
@@ -1812,7 +1835,7 @@ if __name__ == "__main__":
                     guard.tick(every=50)
                     time.sleep(1.5)
 
-        if len(records) < fetch_limit:
+        if fetch_limit is not None and len(records) < fetch_limit:
             logger.info("✅ Cola de enriquecimiento vaciada exitosamente.")
             break
 

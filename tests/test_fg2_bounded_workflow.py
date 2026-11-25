@@ -1,5 +1,6 @@
 """Repository-level guards for the manual FG2 cohort handoff."""
 
+import ast
 import base64
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -457,7 +458,7 @@ def test_main_schedule_propagates_a_run_scoped_manifest_to_all_workers() -> None
     assert "FG2_SCHEDULED_COHORT: ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/main' }}" in workflow
     assert "--scheduled-cohort --cohort-manifest \"$RUNNER_TEMP/fg2-cohort-manifest.json\"" in workflow
     assert "FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main')" in workflow
-    assert "if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.bounded_first_run))" in workflow
+    assert "if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.bounded_first_run || inputs.resume_enrichment_from_272)))" in workflow
     assert workflow.count("if: env.FG2_COHORT_SCOPED == 'true'") == 3
 
     for job, script in (
@@ -470,6 +471,200 @@ def test_main_schedule_propagates_a_run_scoped_manifest_to_all_workers() -> None
         assert f"python scripts/core/{script} --cohort-manifest" in section
         assert f"python scripts/core/{script}\n" in section
         assert "Restore exact controlled cohort manifest" in section
+
+
+
+def _workflow_job_condition(workflow: str, job: str) -> str:
+    section = workflow.split(f"  {job}:", 1)[1]
+    if job != "phase_4_audit":
+        section = section.split("\n  phase_", 1)[0]
+    multiline = re.search(r"(?m)^    if: >-\n((?:      .*\n?)+)", section)
+    if multiline:
+        return " ".join(line.strip() for line in multiline.group(1).splitlines())
+    single_line = re.search(r"(?m)^    if: (.+)$", section)
+    assert single_line, f"{job} must define a job-level condition"
+    return single_line.group(1).strip()
+
+
+def _evaluate_workflow_job_condition(
+    expression: str,
+    *,
+    resume: bool,
+    statuses: dict[str, str],
+    allow_writer: bool = True,
+    event_name: str = "workflow_dispatch",
+    workflow_cancelled: bool = False,
+) -> bool:
+    bindings = {
+        "needs.production_control_preflight.outputs.allow_writer": "true" if allow_writer else "false",
+        "needs.main_ref_guard.result": statuses.get("main_ref_guard", ""),
+        "needs.production_control_preflight.result": statuses.get("production_control_preflight", ""),
+        "needs.phase_1_harvesting.result": statuses.get("phase_1_harvesting", ""),
+        "needs.phase_1_5_cleansing.result": statuses.get("phase_1_5_cleansing", ""),
+        "needs.phase_2_enrichment.result": statuses.get("phase_2_enrichment", ""),
+        "needs.phase_3_sync.result": statuses.get("phase_3_sync", ""),
+        "inputs.resume_enrichment_from_272": resume,
+        "github.event_name": event_name,
+    }
+    has_status_function = bool(re.search(r"\b(?:always|success|failure|cancelled)\(\)", expression))
+    for token, value in sorted(bindings.items(), key=lambda item: len(item[0]), reverse=True):
+        expression = expression.replace(token, repr(value))
+    expression = expression.replace("always()", "True")
+    expression = expression.replace("!cancelled()", "False" if workflow_cancelled else "True")
+    expression = expression.replace("&&", " and ").replace("||", " or ")
+    expression = re.sub(r"(?<!['\"])\btrue\b(?!['\"])", "True", expression, flags=re.IGNORECASE)
+    expression = re.sub(r"(?<!['\"])\bfalse\b(?!['\"])", "False", expression, flags=re.IGNORECASE)
+
+    tree = ast.parse(expression, mode="eval")
+
+    def visit(node: ast.AST):
+        if isinstance(node, ast.Expression):
+            return visit(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (bool, str)):
+            return node.value
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+            return all(visit(value) for value in node.values)
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+            return any(visit(value) for value in node.values)
+        if isinstance(node, ast.Compare) and len(node.ops) == len(node.comparators) == 1:
+            left, right = visit(node.left), visit(node.comparators[0])
+            if isinstance(node.ops[0], ast.Eq):
+                return left == right
+            if isinstance(node.ops[0], ast.NotEq):
+                return left != right
+        raise AssertionError(f"unsupported workflow condition expression: {ast.dump(node)}")
+
+    condition_result = bool(visit(tree))
+    if not has_status_function:
+        upstream = {
+            "main_ref_guard",
+            "production_control_preflight",
+            "phase_1_harvesting",
+            "phase_1_5_cleansing",
+            "phase_2_enrichment",
+        }
+        if "needs.phase_3_sync.result" in expression:
+            upstream.add("phase_3_sync")
+        condition_result = condition_result and all(statuses.get(job) == "success" for job in upstream)
+    return condition_result
+
+
+@pytest.mark.parametrize(
+    ("resume", "overrides", "allow_writer", "workflow_cancelled", "expected"),
+    [
+        pytest.param(True, {"phase_1_5_cleansing": "skipped"}, True, False, True, id="recovery-cleansing-skipped-enrichment-success"),
+        pytest.param(True, {"phase_2_enrichment": "failure", "phase_3_sync": "skipped"}, True, False, False, id="recovery-enrichment-failed-blocks-writes"),
+        pytest.param(True, {"phase_2_enrichment": "cancelled", "phase_3_sync": "skipped"}, True, False, False, id="recovery-enrichment-cancelled-blocks-writes"),
+        pytest.param(True, {"phase_1_5_cleansing": "failure"}, True, False, False, id="recovery-cleansing-failure-not-accepted-as-skip"),
+        pytest.param(True, {"phase_1_5_cleansing": "success"}, True, False, False, id="recovery-only-allows-planned-cleansing-skip"),
+        pytest.param(False, {"phase_1_5_cleansing": "success"}, True, False, True, id="normal-mode-keeps-cleansing-success-path"),
+        pytest.param(False, {"phase_1_5_cleansing": "skipped"}, True, False, False, id="normal-mode-does-not-allow-skipped-cleansing"),
+        pytest.param(False, {"phase_1_5_cleansing": "failure"}, True, False, False, id="normal-mode-cleansing-failure-blocks-writes"),
+        pytest.param(True, {"production_control_preflight": "failure"}, True, False, False, id="failed-production-preflight-blocks-writes"),
+        pytest.param(True, {"phase_1_harvesting": "cancelled"}, True, False, False, id="cancelled-harvesting-blocks-writes"),
+        pytest.param(True, {}, True, True, False, id="workflow-cancellation-blocks-downstream"),
+        pytest.param(True, {}, False, False, False, id="writer-pause-blocks-downstream"),
+    ],
+)
+def test_sync_and_ca1_allow_only_the_planned_recovery_skip_and_require_successful_predecessors(
+    resume: bool,
+    overrides: dict[str, str],
+    allow_writer: bool,
+    workflow_cancelled: bool,
+    expected: bool,
+) -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    statuses = {
+        "main_ref_guard": "success",
+        "production_control_preflight": "success",
+        "phase_1_harvesting": "success",
+        "phase_1_5_cleansing": "success",
+        "phase_2_enrichment": "success",
+        "phase_3_sync": "success",
+    }
+    statuses.update(overrides)
+
+    for job in ("phase_3_sync", "phase_4_audit"):
+        actual = _evaluate_workflow_job_condition(
+            _workflow_job_condition(workflow, job),
+            resume=resume,
+            statuses=statuses,
+            allow_writer=allow_writer,
+            workflow_cancelled=workflow_cancelled,
+        )
+        assert actual is expected, job
+
+
+@pytest.mark.parametrize(
+    ("resume", "cleansing", "preflight", "harvest", "workflow_cancelled", "expected"),
+    [
+        pytest.param(True, "skipped", "success", "success", False, True, id="recovery-enrichment-runs-after-planned-skip"),
+        pytest.param(True, "failure", "success", "success", False, False, id="recovery-enrichment-blocked-by-cleansing-failure"),
+        pytest.param(True, "cancelled", "success", "success", False, False, id="recovery-enrichment-blocked-by-cleansing-cancellation"),
+        pytest.param(True, "success", "success", "success", False, False, id="recovery-enrichment-requires-exact-planned-skip"),
+        pytest.param(False, "success", "success", "success", False, True, id="normal-enrichment-requires-cleansing-success"),
+        pytest.param(False, "skipped", "success", "success", False, False, id="normal-enrichment-rejects-skipped-cleansing"),
+        pytest.param(False, "failure", "success", "success", False, False, id="normal-enrichment-rejects-cleansing-failure"),
+        pytest.param(True, "skipped", "failure", "success", False, False, id="enrichment-rejects-failed-production-preflight"),
+        pytest.param(True, "skipped", "success", "cancelled", False, False, id="enrichment-rejects-cancelled-harvesting"),
+        pytest.param(True, "skipped", "success", "success", True, False, id="enrichment-rejects-workflow-cancellation"),
+    ],
+)
+def test_enrichment_allows_only_successful_cleansing_or_the_planned_recovery_skip(
+    resume: bool,
+    cleansing: str,
+    preflight: str,
+    harvest: str,
+    workflow_cancelled: bool,
+    expected: bool,
+) -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    statuses = {
+        "main_ref_guard": "success",
+        "production_control_preflight": preflight,
+        "phase_1_harvesting": harvest,
+        "phase_1_5_cleansing": cleansing,
+        "phase_2_enrichment": "success",
+        "phase_3_sync": "success",
+    }
+    actual = _evaluate_workflow_job_condition(
+        _workflow_job_condition(workflow, "phase_2_enrichment"),
+        resume=resume,
+        statuses=statuses,
+        workflow_cancelled=workflow_cancelled,
+    )
+    assert actual is expected
+
+def test_post272_recovery_uses_pinned_artifact_and_runs_only_downstream_stations() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    header = workflow.split("concurrency:", 1)[0]
+    recovery_input = header.split("resume_enrichment_from_272:", 1)[1].split("approved_lot_reference:", 1)[0]
+    assert "type: boolean" in recovery_input
+    assert "default: false" in recovery_input
+    assert "FG2_RECOVERY_SOURCE_VERIFIED run=45342980592 attempt=1" in workflow
+    assert "artifact-ids: 14896234555" in workflow
+    assert "run-id: 45342980592" in workflow
+    assert "sha256:a313fbcbcece66f61e66a91d174126051a26e4d8461327514912243b16ee4864" in workflow
+    assert "5bb5f594b3e49c1369cd50d233db72b852e1ca3d48d8451a4a523ca7c50c0450" in workflow
+    assert "--prepare-post272-enrichment-recovery" in workflow
+    assert "--source-cohort-manifest" in workflow
+    assert "if: env.FG2_RECOVERY_ENRICHMENT != 'true'\n        run: playwright install chromium" in workflow
+    preflight = workflow.split("  production_control_preflight:", 1)[1].split("  # 🚉 STATION 1:", 1)[0]
+    assert "FG2_RECOVERY_ENRICHMENT" in preflight
+    assert "production_control_preflight.sh FG2-ENRICHMENT" in preflight
+    assert "production_control_preflight.sh FG2-HARVEST" in preflight
+    cleansing = workflow.split("  phase_1_5_cleansing:", 1)[1].split("  phase_2_enrichment:", 1)[0]
+    assert "inputs.resume_enrichment_from_272 != true" in cleansing
+    enrichment = workflow.split("  phase_2_enrichment:", 1)[1].split("  phase_3_sync:", 1)[0]
+    assert "inputs.resume_enrichment_from_272 == true" in enrichment
+    sync = workflow.split("  phase_3_sync:", 1)[1].split("  phase_4_audit:", 1)[0]
+    assert "needs.phase_2_enrichment.result == 'success'" in sync
+    audit = workflow.split("  phase_4_audit:", 1)[1]
+    assert "needs.phase_3_sync.result == 'success'" in audit
+    assert "CA1 Audit Boundary" in audit
+    assert "FG2_BOUNDED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}" in workflow
+    assert "FG2_RESUME_ENRICHMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_enrichment_from_272 }}" in workflow
+    assert '"$FG2_BOUNDED_FIRST_RUN" == "true" && "$FG2_RESUME_ENRICHMENT" == "true"' in workflow
 
 
 def test_every_downstream_cli_rejects_an_unhashed_manifest_before_startup() -> None:
@@ -1004,7 +1199,7 @@ def test_fg2_ci_fixture_records_the_pull_request_source_sha() -> None:
     fixture_runner = (ROOT / "tests/fg2_full_pipeline_pg17/run.sh").read_text()
 
     assert "FG2_FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}" in workflow
-    assert 'source_sha="${FG2_FIXTURE_SOURCE_SHA:-95d0e7d52e5c2c67eb473a2f12fc7df4d89fc40b}"' in fixture_runner
+    assert 'source_sha="${FG2_FIXTURE_SOURCE_SHA:-b800a82225496be9b098024c7f30020da70e8584}"' in fixture_runner
     assert "invalid_source_sha" in fixture_runner
 
 

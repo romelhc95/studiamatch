@@ -90,6 +90,34 @@ _NON_HTML_EXTENSIONS = (
 )
 FG2_NON_HTML_EXTENSIONS = _NON_HTML_EXTENSIONS
 
+# StudIAMatch-Docs: .context/componentes/pipeline.md#recuperacion-fg2-acotada-enrichment-y-sync-2026-11-24
+# One-time recovery contract for #272. The source artifact is evidence from
+# an older run; these values are never copied into the new run identity.
+FG2_POST272_RECOVERY_SOURCE = {
+    "run_id": "45342980592",
+    "run_attempt": 1,
+    "source_sha": "9dd7962ae50822d5bc1bbf56b375fa199209f3ff",
+    "workflow_id": 261386590,
+    "artifact_id": "14896234555",
+    "artifact_sha256": "a313fbcbcece66f61e66a91d174126051a26e4d8461327514912243b16ee4864",
+    "manifest_sha256": "5bb5f594b3e49c1369cd50d233db72b852e1ca3d48d8451a4a523ca7c50c0450",
+    "approved_lot_reference": "fg2-e9-main-9dd7962-20261124-certus-refresh-v2",
+    "approved_lot_sha256": "fbc280cb303962b877d8690cf87628726e64cc721688dcabc9a87351f8e22444",
+}
+FG2_POST272_RECOVERY_INSTITUTION_ID = "030f920b-5832-4771-9b89-3d683cd0d2ff"
+FG2_POST272_RECOVERY_COURSE_STAGING_IDS = {
+    "083fbada-6935-4f53-96d5-0799f6eee708": "52c5c77d-8919-4f8a-ba07-e954f0d4c2b5",
+    "f055f332-eb40-4bcf-81a5-7b0b42c1efab": "3407d816-79bb-4612-a903-d79d9cda427c",
+    "52864cfe-179c-42da-82e0-a2910a32d197": "56d0c1a7-7f67-445c-bda0-445e603339a2",
+    "e5ae061f-c89b-4c84-a74d-0fefc6877436": "45650d8e-0d78-493e-8578-951be0531e18",
+    "be316efe-2256-4040-a45e-b1728bccbccb": "2df3bd02-75f3-4fa3-8265-8b2726365920",
+    "04f8b1bc-6a8a-4cf5-ab1f-ebc4b6b4fc44": "11cfef23-106c-4c90-8e9c-dc0e2647da0e",
+}
+FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID = "04f8b1bc-6a8a-4cf5-ab1f-ebc4b6b4fc44"
+FG2_POST272_RECOVERY_EXCLUDED_URL = (
+    "https://www.certus.edu.pe/curso/certificacion-cajero-financiero-y-comercial"
+)
+
 
 class InvalidControlledRun(ValueError):
     """Invalid or mismatched controlled-run input; callers must fail closed."""
@@ -1096,6 +1124,78 @@ class FG2CohortManifest:
             raise InvalidControlledRun("cohort manifest approved-lot digest mismatch")
         if payload.get("limits") != FG2_LIMITS:
             raise InvalidControlledRun("cohort manifest limits differ from the approved candidate")
+        recovery_source = payload.get("recovery_source")
+        if recovery_source is not None:
+            required_recovery_fields = {
+                "run_id", "run_attempt", "source_sha", "workflow_id", "artifact_id",
+                "artifact_sha256", "manifest_sha256", "approved_lot_reference",
+                "approved_lot_sha256", "mode", "excluded_courses",
+            }
+            if not isinstance(recovery_source, dict) or set(recovery_source) != required_recovery_fields:
+                raise InvalidControlledRun("recovery manifest provenance is malformed")
+            source_run_id = recovery_source.get("run_id")
+            source_attempt = recovery_source.get("run_attempt")
+            source_sha = recovery_source.get("source_sha")
+            if (
+                not isinstance(source_run_id, str)
+                or not source_run_id.isdigit()
+                or source_run_id == payload.get("run_id")
+                or isinstance(source_attempt, bool)
+                or not isinstance(source_attempt, int)
+                or source_attempt < 1
+                or not isinstance(source_sha, str)
+                or not _SOURCE_SHA.fullmatch(source_sha)
+                or source_sha == payload.get("source_sha")
+            ):
+                raise InvalidControlledRun("recovery source identity is invalid or aliases the current run")
+            if (
+                isinstance(recovery_source.get("workflow_id"), bool)
+                or not isinstance(recovery_source.get("workflow_id"), int)
+                or recovery_source["workflow_id"] <= 0
+                or not isinstance(recovery_source.get("artifact_id"), str)
+                or not recovery_source["artifact_id"].isdigit()
+                or any(
+                    not _valid_sha256(recovery_source.get(field))
+                    for field in ("artifact_sha256", "manifest_sha256", "approved_lot_sha256")
+                )
+                or not isinstance(recovery_source.get("approved_lot_reference"), str)
+                or not _APPROVED_REFERENCE.fullmatch(recovery_source["approved_lot_reference"])
+                or recovery_source.get("mode") != "enrichment_sync_only"
+            ):
+                raise InvalidControlledRun("recovery source artifact binding is invalid")
+            excluded_courses = recovery_source.get("excluded_courses")
+            if not isinstance(excluded_courses, list):
+                raise InvalidControlledRun("recovery exclusions are malformed")
+            excluded_course_ids: set[str] = set()
+            excluded_staging_ids: set[str] = set()
+            for excluded in excluded_courses:
+                if (
+                    not isinstance(excluded, dict)
+                    or set(excluded) != {"course_id", "staging_id", "reason"}
+                    or not _valid_uuid(excluded.get("course_id"))
+                    or not _valid_uuid(excluded.get("staging_id"))
+                    or excluded.get("reason") != "identity_ambiguous_pending_review"
+                ):
+                    raise InvalidControlledRun("recovery exclusion is invalid")
+                course_id = excluded["course_id"].lower()
+                staging_id = excluded["staging_id"].lower()
+                if course_id in excluded_course_ids or staging_id in excluded_staging_ids:
+                    raise InvalidControlledRun("recovery exclusion contains duplicate identities")
+                excluded_course_ids.add(course_id)
+                excluded_staging_ids.add(staging_id)
+            if (
+                excluded_course_ids != {FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID}
+                or excluded_staging_ids != {
+                    FG2_POST272_RECOVERY_COURSE_STAGING_IDS[
+                        FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID
+                    ]
+                }
+                or any(
+                    recovery_source.get(field) != expected
+                    for field, expected in FG2_POST272_RECOVERY_SOURCE.items()
+                )
+            ):
+                raise InvalidControlledRun("recovery provenance or exclusion differs from the pinned #272 source")
         lot_reference = payload.get("approved_lot_reference")
         lot_digest = payload.get("approved_lot_sha256")
         if lot_reference is not None or lot_digest is not None:
@@ -1125,7 +1225,7 @@ class FG2CohortManifest:
                 raise InvalidControlledRun("institution HTTP count is outside its budget")
             if not isinstance(item.get("unique_urls"), int) or not 0 <= item["unique_urls"] <= FG2_LIMITS["max_urls_per_institution"]:
                 raise InvalidControlledRun("institution URL count is outside its budget")
-            if item.get("result") not in {"preflight_passed", "complete", "partial", "no_op", "blocked", "deferred", "failed"}:
+            if item.get("result") not in {"preflight_passed", "complete", "partial", "no_op", "blocked", "deferred", "failed", "resumed"}:
                 raise InvalidControlledRun("invalid institution result")
 
         origin_state = payload.get("origin_state", {})
@@ -1203,7 +1303,7 @@ class FG2CohortManifest:
                 raise InvalidControlledRun("cohort classification does not match its course reference")
             entry_ids.add(staging_id.lower())
             key = institution_id.lower()
-            if not allow_empty and institution_results.get(key) not in {"complete", "partial", "blocked", "deferred"}:
+            if not allow_empty and institution_results.get(key) not in {"complete", "partial", "blocked", "deferred", "resumed"}:
                 raise InvalidControlledRun("institution result is not eligible for downstream work")
             urls_by_institution.setdefault(key, set()).add(entry["url_sha256"])
             counts_by_institution[key] = counts_by_institution.get(key, 0) + 1
@@ -1235,6 +1335,29 @@ class FG2CohortManifest:
             if blocker.get("reason") != "historical_staging_state_protected":
                 raise InvalidControlledRun("historical blocker reason is not recognized")
             blocker_ids.add(staging_id.lower())
+        if recovery_source is not None:
+            expected_recovery_courses = set(FG2_POST272_RECOVERY_COURSE_STAGING_IDS) - {
+                FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID
+            }
+            expected_recovery_staging = {
+                FG2_POST272_RECOVERY_COURSE_STAGING_IDS[course_id]
+                for course_id in expected_recovery_courses
+            }
+            if (
+                len(entries) != 5
+                or institution_ids != {FG2_POST272_RECOVERY_INSTITUTION_ID}
+                or {str(entry.get("course_id", "")).lower() for entry in entries} != expected_recovery_courses
+                or entry_ids != expected_recovery_staging
+                or len(discovery_rows) != 5
+                or discovery_ids != expected_recovery_staging
+                or len(blockers) != 1
+                or blocker_ids != {
+                    FG2_POST272_RECOVERY_COURSE_STAGING_IDS[
+                        FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID
+                    ]
+                }
+            ):
+                raise InvalidControlledRun("recovery cohort differs from the exact five-course approved scope")
         return cls(payload)
 
     @property
@@ -2597,6 +2720,7 @@ def initialize_manifest(
     institutions: list[dict[str, Any]],
     approved_lot_reference: str | None = None,
     approved_lot_sha256: str | None = None,
+    recovery_source: dict[str, Any] | None = None,
 ) -> str:
     payload = {
         "schema_version": 1,
@@ -2612,7 +2736,361 @@ def initialize_manifest(
         "discovery_rows": [],
         "blocked_staging_rows": [],
     }
+    if recovery_source is not None:
+        payload["recovery_source"] = recovery_source
     FG2CohortManifest.from_payload(payload, allow_empty=True)
+    write_manifest_atomic(path, payload)
+    return manifest_file_sha256(path)
+
+
+# StudIAMatch-Docs: .context/componentes/pipeline.md#recuperacion-fg2-acotada-enrichment-y-sync-2026-11-24
+def verify_post272_recovery_excluded_identity(client: Any) -> int:
+    """Prove the pinned sixth course remains ambiguous across downstream IDs.
+
+    The identity is checked read-only by canonical URL aliases and exact
+    foreign keys. It is never added to the recovery cohort or repaired here.
+    """
+    institution_id = FG2_POST272_RECOVERY_INSTITUTION_ID
+    course_id = FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID
+    staging_id = FG2_POST272_RECOVERY_COURSE_STAGING_IDS[course_id]
+    url = FG2_POST272_RECOVERY_EXCLUDED_URL
+    identity = course_identity_url(url)
+
+    course_rows = client.select_service_raise(
+        "courses",
+        filters=uuid_in_filter("id", [course_id]),
+        columns=_COURSE_LOOKUP_COLUMNS,
+        limit=2,
+        order="id.asc",
+    )
+    if (
+        not isinstance(course_rows, list)
+        or len(course_rows) != 1
+        or str(course_rows[0].get("id", "")).lower() != course_id
+        or str(course_rows[0].get("institution_id", "")).lower() != institution_id
+        or course_identity_url(str(course_rows[0].get("url", ""))) != identity
+    ):
+        raise InvalidControlledRun("excluded recovery course identity drifted")
+    course_aliases: dict[str, dict[str, Any]] = {}
+    for filters in course_url_alias_filters([url], client=client, limit=2):
+        rows = client.select_service_raise(
+            "courses", filters=filters, columns=_COURSE_LOOKUP_COLUMNS,
+            limit=2, order="id.asc",
+        )
+        if not isinstance(rows, list):
+            raise InvalidControlledRun("excluded recovery course aliases are malformed")
+        for row in rows:
+            row_id = str(row.get("id", "")).lower()
+            if not _valid_uuid(row_id):
+                raise InvalidControlledRun("excluded recovery course alias has an invalid id")
+            course_aliases[row_id] = row
+    if set(course_aliases) != {course_id}:
+        raise InvalidControlledRun("excluded recovery course URL alias is ambiguous")
+
+    staging_filters = _bounded_url_alias_filters(
+        [url], client=client, table="staging_raw",
+        columns="id,institution_id,url,status,content_hash", limit=4,
+    )
+    staging_by_id: dict[str, dict[str, Any]] = {}
+    for filters in staging_filters:
+        rows = client.select_pipeline_raise(
+            "staging_raw", filters=filters,
+            columns="id,institution_id,url,status,content_hash",
+            limit=4, order="id.asc",
+        )
+        if not isinstance(rows, list):
+            raise InvalidControlledRun("excluded recovery staging identity is malformed")
+        for row in rows:
+            row_id = str(row.get("id", "")).lower()
+            if not _valid_uuid(row_id) or row_id in staging_by_id:
+                if row_id in staging_by_id and staging_by_id[row_id] == row:
+                    continue
+                raise InvalidControlledRun("excluded recovery staging identity is duplicated")
+            if (
+                str(row.get("institution_id", "")).lower() != institution_id
+                or course_identity_url(str(row.get("url", ""))) != identity
+                or row.get("status") != "processed"
+                or not _valid_sha256(row.get("content_hash"))
+            ):
+                raise InvalidControlledRun("excluded recovery staging alias has drifted")
+            staging_by_id[row_id] = row
+    if len(staging_by_id) < 2 or staging_id not in staging_by_id:
+        raise InvalidControlledRun("excluded recovery course is no longer demonstrably ambiguous")
+
+    staging_ids = sorted(staging_by_id)
+    cleansed_rows = client.select_pipeline_raise(
+        "cleansed_programs",
+        filters=uuid_in_filter("staging_id", staging_ids),
+        columns="id,staging_id,institution_id,url,status",
+        limit=len(staging_ids) + 1,
+        order="id.asc",
+    )
+    if not isinstance(cleansed_rows, list) or len(cleansed_rows) != len(staging_ids):
+        raise InvalidControlledRun("excluded recovery cleansing relationships are incomplete")
+    cleansed_by_staging: dict[str, dict[str, Any]] = {}
+    for row in cleansed_rows:
+        parent_id = str(row.get("staging_id", "")).lower()
+        if (
+            parent_id not in staging_by_id
+            or parent_id in cleansed_by_staging
+            or str(row.get("institution_id", "")).lower() != institution_id
+            or course_identity_url(str(row.get("url", ""))) != identity
+        ):
+            raise InvalidControlledRun("excluded recovery cleansing relationship drifted")
+        cleansed_by_staging[parent_id] = row
+
+    cleansed_ids = sorted(str(row["id"]).lower() for row in cleansed_rows)
+    enriched_rows = client.select_pipeline_raise(
+        "enriched_programs",
+        filters=uuid_in_filter("cleansed_id", cleansed_ids),
+        columns="id,cleansed_id,institution_id,url,status",
+        limit=len(cleansed_ids) + 1,
+        order="id.asc",
+    )
+    if not isinstance(enriched_rows, list) or len(enriched_rows) != len(cleansed_ids):
+        raise InvalidControlledRun("excluded recovery enrichment relationships are incomplete")
+    expected_clean_ids = set(cleansed_ids)
+    seen_clean_ids: set[str] = set()
+    for row in enriched_rows:
+        parent_id = str(row.get("cleansed_id", "")).lower()
+        if (
+            parent_id not in expected_clean_ids
+            or parent_id in seen_clean_ids
+            or str(row.get("institution_id", "")).lower() != institution_id
+            or course_identity_url(str(row.get("url", ""))) != identity
+        ):
+            raise InvalidControlledRun("excluded recovery enrichment relationship drifted")
+        seen_clean_ids.add(parent_id)
+    return len(staging_by_id)
+
+
+# StudIAMatch-Docs: .context/componentes/pipeline.md#recuperacion-fg2-acotada-enrichment-y-sync-2026-11-24
+def build_post272_enrichment_recovery_manifest(
+    path: str | Path,
+    *,
+    source_manifest_path: str | Path,
+    approved_lot: FG2ApprovedLotManifest,
+    run_id: str,
+    run_attempt: int,
+    source_sha: str,
+    profile_sha256: str,
+    seed_sha256: str,
+) -> str:
+    """Build a new-run enrichment-only manifest from the immutable #272 artifact.
+
+    Database/profile revalidation is performed by the caller immediately
+    before this pure binding step. No source HTTP or state transition occurs.
+    """
+    source_contract = FG2_POST272_RECOVERY_SOURCE
+    source_manifest = FG2CohortManifest.load(
+        source_manifest_path,
+        expected_sha256=source_contract["manifest_sha256"],
+        expected_run_id=source_contract["run_id"],
+        expected_run_attempt=source_contract["run_attempt"],
+        expected_source_sha=source_contract["source_sha"],
+        expected_approved_lot_reference=source_contract["approved_lot_reference"],
+        expected_approved_lot_sha256=source_contract["approved_lot_sha256"],
+    )
+    if (
+        source_manifest.payload.get("run_id") != source_contract["run_id"]
+        or source_manifest.payload.get("run_attempt") != source_contract["run_attempt"]
+        or source_manifest.payload.get("source_sha") != source_contract["source_sha"]
+        or source_manifest.payload.get("approved_lot_reference") != source_contract["approved_lot_reference"]
+        or source_manifest.payload.get("approved_lot_sha256") != source_contract["approved_lot_sha256"]
+    ):
+        raise InvalidControlledRun("historical recovery run binding mismatch")
+    if (
+        source_manifest.payload.get("run_id") == str(run_id)
+        or source_sha == source_contract["source_sha"]
+        or not _SOURCE_SHA.fullmatch(source_sha)
+        or not _valid_sha256(profile_sha256)
+        or not _valid_sha256(seed_sha256)
+    ):
+        raise InvalidControlledRun("new recovery run identity or profile binding is invalid")
+    FG2CohortManifest.from_payload(
+        source_manifest.payload,
+        expected_run_id=source_contract["run_id"],
+        expected_run_attempt=source_contract["run_attempt"],
+        expected_source_sha=source_contract["source_sha"],
+        expected_approved_lot_reference=source_contract["approved_lot_reference"],
+        expected_approved_lot_sha256=source_contract["approved_lot_sha256"],
+    )
+    if (
+        len(source_manifest.payload["entries"]) != 6
+        or len(source_manifest.payload["discovery_rows"]) != 8
+        or source_manifest.institution_ids != (FG2_POST272_RECOVERY_INSTITUTION_ID,)
+        or source_manifest.payload["institutions"][0].get("http_requests") != 8
+        or source_manifest.payload["institutions"][0].get("unique_urls") != 8
+        or source_manifest.payload["institutions"][0].get("result") != "complete"
+    ):
+        raise InvalidControlledRun("historical recovery artifact has an unexpected cohort shape")
+
+    source_entries: dict[str, dict[str, Any]] = {}
+    for entry in source_manifest.payload["entries"]:
+        course_id = str(entry.get("course_id", "")).lower()
+        expected_staging = FG2_POST272_RECOVERY_COURSE_STAGING_IDS.get(course_id)
+        if (
+            course_id in source_entries
+            or expected_staging is None
+            or str(entry.get("staging_id", "")).lower() != expected_staging
+            or str(entry.get("institution_id", "")).lower() != FG2_POST272_RECOVERY_INSTITUTION_ID
+            or entry.get("kind") != "refresh_existing"
+        ):
+            raise InvalidControlledRun("historical recovery entry identity mismatch")
+        source_entries[course_id] = entry
+    if set(source_entries) != set(FG2_POST272_RECOVERY_COURSE_STAGING_IDS):
+        raise InvalidControlledRun("historical recovery artifact entry set changed")
+    source_discoveries = {
+        str(row.get("staging_id", "")).lower(): row
+        for row in source_manifest.payload["discovery_rows"]
+    }
+    if len(source_discoveries) != 8:
+        raise InvalidControlledRun("historical recovery discovery identities are duplicated")
+    for course_id, entry in source_entries.items():
+        discovery = source_discoveries.get(str(entry["staging_id"]).lower())
+        # The immutable run artifact records two moments: `entries` bind the
+        # approved lot before harvesting, while `discovery_rows` bind the
+        # processed staging row after harvesting. Their URL/content digests
+        # can therefore differ. The new approved lot below revalidates current
+        # database hashes and the recovery manifest binds those current bytes.
+        if (
+            discovery is None
+            or str(discovery.get("institution_id", "")).lower() != FG2_POST272_RECOVERY_INSTITUTION_ID
+            or str(discovery.get("course_id", "")).lower() != course_id
+            or not _valid_sha256(discovery.get("url_sha256"))
+            or not _valid_sha256(discovery.get("content_sha256"))
+            or discovery.get("initial_status") != "processed"
+            or discovery.get("kind") != "refresh_existing"
+        ):
+            raise InvalidControlledRun("historical recovery entry-to-discovery relation changed")
+
+    approved_institutions = approved_lot.institution_ids
+    if approved_institutions != (FG2_POST272_RECOVERY_INSTITUTION_ID,):
+        raise InvalidControlledRun("recovery approved-lot institution drifted")
+    lot_institution = approved_lot.institution(FG2_POST272_RECOVERY_INSTITUTION_ID)
+    if (
+        lot_institution["profile_sha256"] != profile_sha256
+        or lot_institution["seed_sha256"] != seed_sha256
+    ):
+        raise InvalidControlledRun("recovery profile or seed digest drifted")
+    scopes = approved_lot.scope_for_institution(FG2_POST272_RECOVERY_INSTITUTION_ID)
+    expected_courses = set(FG2_POST272_RECOVERY_COURSE_STAGING_IDS) - {
+        FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID
+    }
+    scope_course_ids = {
+        str(item["snapshot"]["course_rows"][0]["id"]).lower()
+        for item in scopes
+        if isinstance(item.get("snapshot"), dict)
+        and isinstance(item["snapshot"].get("course_rows"), list)
+        and len(item["snapshot"]["course_rows"]) == 1
+    }
+    if scope_course_ids != expected_courses or len(scopes) != 5:
+        raise InvalidControlledRun("recovery scope must contain exactly the five reviewed identities")
+
+    entries_by_course: dict[str, tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = {}
+    for item in scopes:
+        snapshot = item["snapshot"]
+        course_rows = snapshot["course_rows"]
+        staging_rows = snapshot["staging_rows"]
+        cleansed_rows = snapshot["cleansed_rows"]
+        enriched_rows = snapshot["enriched_rows"]
+        course_id = course_rows[0]["id"] if len(course_rows) == 1 else ""
+        old_entry = source_entries.get(course_id)
+        old_discovery = source_discoveries.get(str(old_entry["staging_id"]).lower()) if old_entry else None
+        if old_entry is None or course_id == FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID:
+            raise InvalidControlledRun("recovery lot contains an unapproved or ambiguous course identity")
+        if (
+            len(staging_rows) != 1
+            or len(cleansed_rows) != 1
+            or len(enriched_rows) != 1
+            or staging_rows[0]["id"] != FG2_POST272_RECOVERY_COURSE_STAGING_IDS[course_id]
+            or staging_rows[0]["id"] != old_entry["staging_id"]
+            or staging_rows[0]["status"] != "processed"
+            or old_discovery is None
+            or staging_rows[0]["content_hash"] != old_discovery["content_sha256"]
+            or url_sha256(item["url"]) != old_entry["url_sha256"]
+            or cleansed_rows[0]["status"] != "pending"
+            or cleansed_rows[0]["staging_id"] != staging_rows[0]["id"]
+            or cleansed_rows[0]["id"] != enriched_rows[0]["cleansed_id"]
+            or enriched_rows[0]["status"] not in {"pending", "synced"}
+            or item["kind"] != "refresh_existing"
+        ):
+            raise InvalidControlledRun("recovery downstream identity, hash, or status drifted")
+        entries_by_course[course_id] = (item, old_entry, old_discovery)
+
+    excluded_source = source_entries[FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID]
+    recovery_source = {
+        **source_contract,
+        "mode": "enrichment_sync_only",
+        "excluded_courses": [{
+            "course_id": FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID,
+            "staging_id": excluded_source["staging_id"],
+            "reason": "identity_ambiguous_pending_review",
+        }],
+    }
+    institution_binding = {
+        "institution_id": FG2_POST272_RECOVERY_INSTITUTION_ID,
+        "profile_sha256": profile_sha256,
+        "seed_sha256": seed_sha256,
+        "http_requests": 0,
+        "unique_urls": 0,
+        "result": "resumed",
+    }
+    payload = {
+        "schema_version": 1,
+        "run_id": str(run_id),
+        "run_attempt": int(run_attempt),
+        "source_sha": source_sha.lower(),
+        "limits": dict(FG2_LIMITS),
+        "institutions": [institution_binding],
+        "origin_state": {},
+        "approved_lot_reference": approved_lot.reference,
+        "approved_lot_sha256": approved_lot.sha256,
+        "entries": [],
+        "discovery_rows": [],
+        "blocked_staging_rows": [],
+        "recovery_source": recovery_source,
+    }
+    for item in scopes:
+        course_id = item["snapshot"]["course_rows"][0]["id"]
+        _, old_entry, _old_discovery = entries_by_course[course_id]
+        raw_row = item["snapshot"]["staging_rows"][0]
+        clean_row = item["snapshot"]["cleansed_rows"][0]
+        discovery = {
+            "institution_id": FG2_POST272_RECOVERY_INSTITUTION_ID,
+            "staging_id": raw_row["id"],
+            "course_id": course_id,
+            "url_sha256": old_entry["url_sha256"],
+            "initial_status": "processed",
+            "kind": "refresh_existing",
+            "content_sha256": raw_row["content_hash"],
+        }
+        payload["discovery_rows"].append(discovery)
+        payload["entries"].append({
+            "institution_id": FG2_POST272_RECOVERY_INSTITUTION_ID,
+            "staging_id": raw_row["id"],
+            "course_id": course_id,
+            "url_sha256": old_entry["url_sha256"],
+            "cleansed_url_sha256": url_sha256(clean_row["url"]),
+            "content_sha256": raw_row["content_hash"],
+            "kind": "refresh_existing",
+        })
+    payload["blocked_staging_rows"].append({
+        "institution_id": FG2_POST272_RECOVERY_INSTITUTION_ID,
+        "staging_id": excluded_source["staging_id"],
+        "url_sha256": excluded_source["url_sha256"],
+        "content_sha256": source_discoveries[excluded_source["staging_id"]]["content_sha256"],
+        "status": "processed",
+        "reason": "historical_staging_state_protected",
+    })
+    FG2CohortManifest.from_payload(
+        payload,
+        expected_run_id=run_id,
+        expected_run_attempt=run_attempt,
+        expected_source_sha=source_sha,
+        expected_approved_lot_reference=approved_lot.reference,
+        expected_approved_lot_sha256=approved_lot.sha256,
+    )
     write_manifest_atomic(path, payload)
     return manifest_file_sha256(path)
 

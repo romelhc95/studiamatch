@@ -55,6 +55,27 @@ Fuente: `.github/workflows/production_pipeline.yml`. Declara ventana diaria (`0 
 
 `tests/test_fase09_10_pre_main_controls.py`, `tests/test_fase10_main_boundary.py` y `tests/test_supabase_credentials_contract.py` leen estos pasos para validar controles, ramas y origen de credenciales. La secuencia local no demuestra schedule activo, secrets provisionados, datos procesados o que una estación haya terminado correctamente en un run remoto.
 
+La recuperación puntual agrega `resume_enrichment_from_272` solo al
+`workflow_dispatch`, default `false`; no se activa en `schedule`. Exige `main`,
+rechaza combinarse con `bounded_first_run`, vuelve a validar pausa/automation y
+conserva la revisión del Environment `Production` en cada job escritor. El
+primer job consulta metadatos de #272 y descarga el artefacto fijado por run e
+ID; comprueba tanto el digest del artefacto como el del manifiesto interno.
+Después emite un manifiesto nuevo ligado al run actual. En esta ruta la
+estación de harvest solo valida y prepara esa identidad, Cleansing queda
+omitida y se ejecutan los entrypoints existentes de Enrichment, Sync y CA1 en
+sus jobs separados; cada runner revalida el digest del manifiesto. No se copia
+la identidad de run anterior ni se hace scraping para reponer filas.
+
+No hay cambio de schema ni instalación DDL en este delta. La ejecución
+productiva requiere un lote y snapshots nuevos, aprobación JIT del dispatch,
+proveedores y efectos, además de la pausa temporal y sus gates humanos; el JIT
+de #272 no es reutilizable. El E2E de Docker/PostgreSQL 17/PostgREST solo
+verifica código y RPC con fixtures sintéticos y red interna sin egress. No
+demuestra integración en GitHub, acceso/billing de providers, permisos de Pro,
+Admin visual ni estado de un Environment. La recuperación mantiene a los
+writers pausados hasta una decisión operativa explícita.
+
 #### Onboarding y ensayo completo — candidato local 2026-11-20
 
 El job de harvest ejecuta en `master_orchestrator.py` el diagnóstico opcional

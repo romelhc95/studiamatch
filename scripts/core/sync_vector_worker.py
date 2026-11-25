@@ -884,6 +884,12 @@ def main():
             allow_empty=True,
         )
 
+    # StudIAMatch-Docs: .context/componentes/pipeline.md#recuperacion-fg2-acotada-enrichment-y-sync-2026-11-24
+    recovery_mode = bool(
+        cohort_manifest is not None
+        and cohort_manifest.payload.get("recovery_source", {}).get("mode") == "enrichment_sync_only"
+    )
+
     worker = SyncVectorWorker()
     guard = TimeGuard(max_seconds=1800, logger=logger)
     pending = worker.get_pending_enriched(
@@ -891,6 +897,16 @@ def main():
         institution_id=args.institution_id,
         cohort_manifest=cohort_manifest,
     )
+    if recovery_mode:
+        expected_ids = set(cohort_manifest.staging_ids)
+        actual_id_list = [
+            str(record.get("_fg2_manifest_staging_id", "")).lower()
+            for record in pending if isinstance(record, dict)
+        ]
+        actual_ids = set(actual_id_list)
+        if len(pending) != len(expected_ids) or len(actual_id_list) != len(actual_ids) or actual_ids != expected_ids:
+            logger.error("FG2_SYNC_ABORT stage=recovery_scope category=cohort_state_drift")
+            sys.exit(1)
     logger.info(f"Found {len(pending)} pending enriched records.")
     synced = 0
     failed = 0
