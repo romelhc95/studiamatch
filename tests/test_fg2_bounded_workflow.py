@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import threading
+import textwrap
 import time
 import uuid
 from types import SimpleNamespace
@@ -644,8 +645,20 @@ def test_post272_recovery_uses_pinned_artifact_and_runs_only_downstream_stations
     assert "FG2_RECOVERY_SOURCE_VERIFIED run=45342980592 attempt=1" in workflow
     assert "artifact-ids: 14896234555" in workflow
     assert "run-id: 45342980592" in workflow
+    download_step = workflow.split('      - name: "Download exact #272 cohort artifact"', 1)[1].split(
+        '      - name: "Verify downloaded #272 manifest bytes"', 1
+    )[0]
+    assert "merge-multiple: true" in download_step
     assert "sha256:a313fbcbcece66f61e66a91d174126051a26e4d8461327514912243b16ee4864" in workflow
     assert "5bb5f594b3e49c1369cd50d233db72b852e1ca3d48d8451a4a523ca7c50c0450" in workflow
+    manifest_path = "$RUNNER_TEMP/fg2-recovery-source/fg2-cohort-manifest.json"
+    verify_step = workflow.split('      - name: "Verify downloaded #272 manifest bytes"', 1)[1].split(
+        "      - name: Setup Python", 1
+    )[0]
+    assert f'python3 - "{manifest_path}" <<\'PY\'' in verify_step
+    assert f'--source-cohort-manifest "{manifest_path}"' in workflow
+    assert "reason=manifest_file_missing" in verify_step
+    assert "reason=manifest_digest_mismatch" in verify_step
     assert "--prepare-post272-enrichment-recovery" in workflow
     assert "--source-cohort-manifest" in workflow
     assert "if: env.FG2_RECOVERY_ENRICHMENT != 'true'\n        run: playwright install chromium" in workflow
@@ -665,6 +678,72 @@ def test_post272_recovery_uses_pinned_artifact_and_runs_only_downstream_stations
     assert "FG2_BOUNDED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}" in workflow
     assert "FG2_RESUME_ENRICHMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_enrichment_from_272 }}" in workflow
     assert '"$FG2_BOUNDED_FIRST_RUN" == "true" && "$FG2_RESUME_ENRICHMENT" == "true"' in workflow
+
+
+def test_post272_artifact_layout_is_flattened_verified_and_passed_to_orchestrator(tmp_path: Path) -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    download_step = workflow.split('      - name: "Download exact #272 cohort artifact"', 1)[1].split(
+        '      - name: "Verify downloaded #272 manifest bytes"', 1
+    )[0]
+    assert "artifact-ids: 14896234555" in download_step
+    assert "merge-multiple: true" in download_step
+    assert "path: ${{ runner.temp }}/fg2-recovery-source" in download_step
+
+    verify_step = workflow.split('      - name: "Verify downloaded #272 manifest bytes"', 1)[1].split(
+        "      - name: Setup Python", 1
+    )[0]
+    script_match = re.search(r"        run: \|\n(?P<run>.*)", verify_step, re.DOTALL)
+    assert script_match is not None
+    heredoc_match = re.search(r"<<'PY'\n(?P<script>.*?)\n          PY", script_match.group("run"), re.DOTALL)
+    assert heredoc_match is not None
+    verifier_script = textwrap.dedent(heredoc_match.group("script"))
+
+    pinned_digest = "5bb5f594b3e49c1369cd50d233db72b852e1ca3d48d8451a4a523ca7c50c0450"
+    synthetic_manifest = b'{"fixture":"deferred","entries":[]}'
+    expected_digest = hashlib.sha256(synthetic_manifest).hexdigest()
+    assert verifier_script.count(pinned_digest) == 2
+    verifier_script = verifier_script.replace(pinned_digest, expected_digest)
+
+    runner_temp = tmp_path / "runner-temp"
+    artifact_name = "fg2-bounded-cohort-45342980592-1"
+    nested_manifest = runner_temp / "fg2-recovery-source" / artifact_name / "fg2-cohort-manifest.json"
+    nested_manifest.parent.mkdir(parents=True)
+    nested_manifest.write_bytes(synthetic_manifest)
+
+    # Model the pinned action's merge-multiple output: one selected artifact's
+    # contents are placed directly under the configured destination directory.
+    flattened_manifest = runner_temp / "fg2-recovery-source" / "fg2-cohort-manifest.json"
+    flattened_manifest.write_bytes(nested_manifest.read_bytes())
+    assert flattened_manifest.read_bytes() == synthetic_manifest
+
+    def verify(path: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, "-", str(path)],
+            input=verifier_script,
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+
+    valid = verify(flattened_manifest)
+    assert valid.returncode == 0, valid.stderr
+    assert f"sha256={expected_digest}" in valid.stdout
+
+    missing = verify(runner_temp / "fg2-recovery-source" / "missing.json")
+    assert missing.returncode != 0
+    assert "reason=manifest_file_missing" in missing.stderr
+    assert "reason=manifest_digest_mismatch" not in missing.stderr
+
+    flattened_manifest.write_bytes(synthetic_manifest + b" ")
+    altered = verify(flattened_manifest)
+    assert altered.returncode != 0
+    assert "reason=manifest_digest_mismatch" in altered.stderr
+    assert "reason=manifest_file_missing" not in altered.stderr
+
+    orchestrator_call = (
+        '--source-cohort-manifest "$RUNNER_TEMP/fg2-recovery-source/fg2-cohort-manifest.json"'
+    )
+    assert orchestrator_call in workflow
 
 
 def test_every_downstream_cli_rejects_an_unhashed_manifest_before_startup() -> None:

@@ -221,6 +221,25 @@ rollback, detener nuevos dispatches mediante autorización, mantener pausados
 los writers, revertir código por PR y conciliar por ID cualquier efecto ya
 confirmado; no borrar filas ni invertir escrituras automáticamente.
 
+### Incidente de ruta del artefacto #274 (2026-11-25)
+
+El run #274 verificó la procedencia de #272, descargó el único artefacto fijado
+y confirmó el digest del ZIP, pero `actions/download-artifact` colocó el archivo
+bajo `fg2-bounded-cohort-45342980592-1/` dentro del destino. El verificador y
+el orquestador buscaron el manifiesto en la raíz y Enrichment, Sync y CA1 no
+ejecutaron. El hotfix local fija `merge-multiple: true` para ese único
+artifact ID: tanto el verificador como `--source-cohort-manifest` consumen
+`$RUNNER_TEMP/fg2-recovery-source/fg2-cohort-manifest.json`. El verificador
+distingue archivo ausente de digest incorrecto; no cambia artefacto,
+procedencia, ID, hash, perfil ni lote. La pausa de Production quedó verificada
+en `true` y `AUTOMATION_ENABLED=false`. Este hotfix requiere revisión,
+publicación e integración protegidas antes de una nueva solicitud JIT; no
+reintenta #274 ni constituye una ejecución funcional. La regresión focal
+Docker reproduce el subdirectorio de extracción, comprueba el path aplanado,
+el digest válido, archivo ausente y contenido alterado, y confirma el mismo
+path en la invocación del orquestador. No invoca el action remoto ni acredita
+un nuevo runtime productivo.
+
 ## Mapa de módulos mantenidos
 
 | Archivo/símbolo | Responsabilidad e interfaz local | Consumidor/dependencia demostrada | Datos y permiso |
