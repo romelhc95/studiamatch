@@ -233,9 +233,6 @@ if os.environ.get("FG2_FIXTURE_RECOVERY_SOURCE") == "1":
         for ordinal in range(1, 7)
     }
     _bounded.FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID = "53000000-0000-0000-0000-000000000006"
-    _bounded.FG2_POST272_RECOVERY_EXCLUDED_URL = (
-        "https://ssr.fg2.example/programas/post272-refresh-06"
-    )
 
 
 _SYNTHETIC_PROVIDER_RESULT = {

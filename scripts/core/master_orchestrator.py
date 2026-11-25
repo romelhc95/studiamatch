@@ -24,7 +24,6 @@ from scripts.core.fg2_bounded_run import (
     initialize_manifest,
     stable_json_sha256,
     validate_controlled_profile,
-    verify_post272_recovery_excluded_identity,
     verify_approved_lot_scope,
 )
 from scripts.core.profile_onboarding import (
@@ -257,7 +256,6 @@ def _prepare_post272_enrichment_recovery(args) -> int:
         # Snapshot verification is read-only. It checks URL aliases, exact row
         # IDs, hashes, statuses, and staging→cleansed→enriched relationships.
         verify_approved_lot_scope(_get_db(), approved_lot)
-        excluded_alias_count = verify_post272_recovery_excluded_identity(_get_db())
         digest = build_post272_enrichment_recovery_manifest(
             args.cohort_manifest,
             source_manifest_path=args.source_cohort_manifest,
@@ -282,9 +280,8 @@ def _prepare_post272_enrichment_recovery(args) -> int:
         return 1
     logger.info(
         "FG2_RECOVERY_MANIFEST result=PASS mode=enrichment_sync_only entries=5 "
-        "excluded_ambiguous=1 excluded_alias_rows=%s "
+        "excluded_out_of_scope=1 discovery_only_not_recovered=2 "
         "source_run=45342980592 current_run=%s current_source_sha=%s manifest_sha256=%s",
-        excluded_alias_count,
         run_id,
         source_sha,
         digest,

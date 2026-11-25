@@ -39,11 +39,6 @@ CLEANSED_IDS = {
 ENRICHED_IDS = {
     n: f"55000000-0000-0000-0000-{n:012d}" for n in range(1, 9)
 }
-AMBIGUOUS_ALIAS_IDS = {
-    "staging": "52000000-0000-0000-0000-000000000066",
-    "cleansed": "54000000-0000-0000-0000-000000000066",
-    "enriched": "55000000-0000-0000-0000-000000000066",
-}
 
 
 def select(client, table: str, filters: str, columns: str, *, pipeline: bool):
@@ -99,9 +94,9 @@ def main() -> None:
         "institution_id": INSTITUTION_ID,
         "profile_sha256": preflight["profile_sha256"],
         "seed_sha256": preflight["seed_sha256"],
-        "http_requests": 8,
-        "unique_urls": 8,
-        "result": "complete",
+        "http_requests": 7,
+        "unique_urls": 7,
+        "result": "deferred",
     }
     fg2.initialize_manifest(
         SOURCE_TARGET,
@@ -113,6 +108,7 @@ def main() -> None:
         approved_lot_sha256=OLD_LOT_SHA256,
     )
 
+    url_alias_hash_differences = 0
     for ordinal in range(1, 9):
         url = f"{BASE_URL}{ordinal:02d}"
         staging_id = STAGING_IDS[ordinal] if ordinal <= 6 else f"52000000-0000-0000-0000-{ordinal:012d}"
@@ -121,11 +117,14 @@ def main() -> None:
             "id,institution_id,url,status,content_hash", pipeline=True,
         )
         course_id = COURSE_IDS[ordinal]
-        # The source artifact's approved-lot entry is pre-harvest evidence;
-        # its discovery row is the post-harvest staging evidence. Keep the
-        # stable identity equal while making their hashes independently
-        # representative of the real #272 artifact.
-        discovery_url = f"{url}?page=1"
+        # A processed refresh discovery row records the previous content hash;
+        # the later manifest entry binds the stored post-harvest content. The
+        # requested discovery URL and stored raw URL can also hash differently
+        # when their slash aliases differ, while resolving to one course identity.
+        discovery_url = url
+        previous_hash = hashlib.sha256(
+            f"pre-harvest-approved-content-{ordinal}".encode("utf-8")
+        ).hexdigest()
         discovery = {
             "institution_id": INSTITUTION_ID,
             "staging_id": staging_id,
@@ -133,7 +132,7 @@ def main() -> None:
             "url_sha256": fg2.url_sha256(discovery_url),
             "initial_status": "processed",
             "kind": "refresh_existing",
-            "content_sha256": staging["content_hash"],
+            "content_sha256": previous_hash if ordinal <= 6 else staging["content_hash"],
         }
         fg2.append_manifest_discovery_row(SOURCE_TARGET, discovery)
         if ordinal <= 6:
@@ -145,14 +144,18 @@ def main() -> None:
                 "institution_id": INSTITUTION_ID,
                 "staging_id": staging_id,
                 "course_id": course_id,
-                "url_sha256": fg2.url_sha256(url),
+                "url_sha256": fg2.url_sha256(staging["url"]),
                 "cleansed_url_sha256": fg2.url_sha256(cleansed["url"]),
-                "content_sha256": hashlib.sha256(
-                    f"pre-harvest-approved-content-{ordinal}".encode("utf-8")
-                ).hexdigest(),
+                "content_sha256": staging["content_hash"],
                 "kind": "refresh_existing",
             }
+            if discovery["url_sha256"] != entry["url_sha256"]:
+                url_alias_hash_differences += 1
             fg2.append_manifest_entry(SOURCE_TARGET, entry)
+    if url_alias_hash_differences != 6:
+        raise SystemExit(
+            "phase=post272_recovery_manifest|result=FAIL|code=url_alias_digest_semantics_not_exercised"
+        )
     source_digest = fg2.manifest_file_sha256(SOURCE_TARGET)
 
     source_contract = {
@@ -172,14 +175,12 @@ def main() -> None:
     original_institution_id = fg2.FG2_POST272_RECOVERY_INSTITUTION_ID
     original_course_staging = fg2.FG2_POST272_RECOVERY_COURSE_STAGING_IDS
     original_excluded_course = fg2.FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID
-    original_excluded_url = fg2.FG2_POST272_RECOVERY_EXCLUDED_URL
     fg2.FG2_POST272_RECOVERY_SOURCE = source_contract
     fg2.FG2_POST272_RECOVERY_INSTITUTION_ID = INSTITUTION_ID
     fg2.FG2_POST272_RECOVERY_COURSE_STAGING_IDS = {
         COURSE_IDS[n]: STAGING_IDS[n] for n in range(1, 7)
     }
     fg2.FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID = COURSE_IDS[6]
-    fg2.FG2_POST272_RECOVERY_EXCLUDED_URL = f"{BASE_URL}06"
 
     scope = []
     for ordinal in range(1, 6):
@@ -223,9 +224,53 @@ def main() -> None:
         expected_reference=NEW_REFERENCE, expected_source_sha=SOURCE_SHA,
     )
     fg2.verify_approved_lot_scope(client, approved_lot)
-    ambiguous_aliases = fg2.verify_post272_recovery_excluded_identity(client)
-    if ambiguous_aliases < 2:
-        raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=sixth_identity_not_ambiguous")
+
+    def assert_source_rejected(source_payload: dict, label: str) -> None:
+        mutated_source = Path(f"/run/post272-source-{label}.json")
+        raw, source_digest = encode_payload(source_payload)
+        mutated_source.write_bytes(raw)
+        pinned_source = fg2.FG2_POST272_RECOVERY_SOURCE
+        fg2.FG2_POST272_RECOVERY_SOURCE = {
+            **pinned_source,
+            "manifest_sha256": source_digest,
+        }
+        try:
+            fg2.build_post272_enrichment_recovery_manifest(
+                TARGET, source_manifest_path=mutated_source, approved_lot=approved_lot,
+                run_id=RUN_ID, run_attempt=RUN_ATTEMPT, source_sha=SOURCE_SHA,
+                profile_sha256=preflight["profile_sha256"], seed_sha256=preflight["seed_sha256"],
+            )
+        except fg2.InvalidControlledRun:
+            pass
+        else:
+            raise SystemExit(
+                f"phase=post272_recovery_manifest|result=FAIL|code={label}_source_accepted"
+            )
+        finally:
+            fg2.FG2_POST272_RECOVERY_SOURCE = pinned_source
+            mutated_source.unlink(missing_ok=True)
+
+    # A deferred institution is a valid partial outcome only when the rows
+    # selected for recovery have their own linked entry/discovery/snapshot and
+    # current cleansing evidence. The old cohort may not be relabeled complete.
+    complete_source = json.loads(SOURCE_TARGET.read_text(encoding="utf-8"))
+    complete_source["institutions"][0].update({
+        "result": "complete", "http_requests": 8, "unique_urls": 8,
+    })
+    assert_source_rejected(complete_source, "complete_8_of_8")
+
+    unchanged_content_source = json.loads(SOURCE_TARGET.read_text(encoding="utf-8"))
+    first_entry = unchanged_content_source["entries"][0]
+    first_discovery = next(
+        row for row in unchanged_content_source["discovery_rows"]
+        if row["staging_id"] == first_entry["staging_id"]
+    )
+    first_discovery["content_sha256"] = first_entry["content_sha256"]
+    assert_source_rejected(unchanged_content_source, "missing_harvest_delta")
+
+    wrong_source_identity = json.loads(SOURCE_TARGET.read_text(encoding="utf-8"))
+    wrong_source_identity["discovery_rows"][0]["institution_id"] = COURSE_IDS[1]
+    assert_source_rejected(wrong_source_identity, "wrong_discovery_identity")
 
     # Wrong byte digest, wrong course ID and changed prior content hash must
     # all fail before worker selection or writes.
@@ -274,6 +319,63 @@ def main() -> None:
         pass
     else:
         raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=wrong_prior_hash_accepted")
+
+    wrong_cleanse_status = copy.deepcopy(lot_payload)
+    wrong_cleanse_status["scope"][0]["snapshot"]["cleansed_rows"][0]["status"] = "synced"
+    wrong_cleanse_status_raw, wrong_cleanse_status_digest = encode_payload(wrong_cleanse_status)
+    wrong_cleanse_status_lot = fg2.FG2ApprovedLotManifest.from_bytes(
+        wrong_cleanse_status_raw, wrong_cleanse_status,
+        expected_sha256=wrong_cleanse_status_digest,
+        expected_reference=NEW_REFERENCE, expected_source_sha=SOURCE_SHA,
+    )
+    try:
+        fg2.build_post272_enrichment_recovery_manifest(
+            TARGET, source_manifest_path=SOURCE_TARGET, approved_lot=wrong_cleanse_status_lot,
+            run_id=RUN_ID, run_attempt=RUN_ATTEMPT, source_sha=SOURCE_SHA,
+            profile_sha256=preflight["profile_sha256"], seed_sha256=preflight["seed_sha256"],
+        )
+    except fg2.InvalidControlledRun:
+        pass
+    else:
+        raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=cleansing_status_drift_accepted")
+
+    wrong_raw_status = copy.deepcopy(lot_payload)
+    wrong_raw_status["scope"][0]["snapshot"]["staging_rows"][0]["status"] = "pending"
+    wrong_raw_status_bytes, wrong_raw_status_digest = encode_payload(wrong_raw_status)
+    try:
+        wrong_raw_status_lot = fg2.FG2ApprovedLotManifest.from_bytes(
+            wrong_raw_status_bytes, wrong_raw_status,
+            expected_sha256=wrong_raw_status_digest,
+            expected_reference=NEW_REFERENCE, expected_source_sha=SOURCE_SHA,
+        )
+        fg2.build_post272_enrichment_recovery_manifest(
+            TARGET, source_manifest_path=SOURCE_TARGET, approved_lot=wrong_raw_status_lot,
+            run_id=RUN_ID, run_attempt=RUN_ATTEMPT, source_sha=SOURCE_SHA,
+            profile_sha256=preflight["profile_sha256"], seed_sha256=preflight["seed_sha256"],
+        )
+    except fg2.InvalidControlledRun:
+        pass
+    else:
+        raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=raw_status_drift_accepted")
+
+    wrong_downstream_reference = copy.deepcopy(lot_payload)
+    wrong_downstream_reference["scope"][0]["snapshot"]["cleansed_rows"][0]["staging_id"] = STAGING_IDS[6]
+    wrong_reference_bytes, wrong_reference_digest = encode_payload(wrong_downstream_reference)
+    try:
+        wrong_reference_lot = fg2.FG2ApprovedLotManifest.from_bytes(
+            wrong_reference_bytes, wrong_downstream_reference,
+            expected_sha256=wrong_reference_digest,
+            expected_reference=NEW_REFERENCE, expected_source_sha=SOURCE_SHA,
+        )
+        fg2.build_post272_enrichment_recovery_manifest(
+            TARGET, source_manifest_path=SOURCE_TARGET, approved_lot=wrong_reference_lot,
+            run_id=RUN_ID, run_attempt=RUN_ATTEMPT, source_sha=SOURCE_SHA,
+            profile_sha256=preflight["profile_sha256"], seed_sha256=preflight["seed_sha256"],
+        )
+    except fg2.InvalidControlledRun:
+        pass
+    else:
+        raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=downstream_reference_drift_accepted")
 
     wrong_staging = copy.deepcopy(lot_payload)
     wrong_staging["scope"][0]["snapshot"]["staging_rows"][0]["id"] = STAGING_IDS[6]
@@ -335,32 +437,60 @@ def main() -> None:
         pass
     else:
         raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=wrong_source_artifact_hash_accepted")
+
+    fabricated_discovery = copy.deepcopy(manifest.payload)
+    first_evidence = fabricated_discovery["recovery_source"]["row_evidence"][0]
+    fabricated_discovery["discovery_rows"] = [{
+        "institution_id": INSTITUTION_ID,
+        "staging_id": first_evidence["staging_id"],
+        "course_id": first_evidence["course_id"],
+        "url_sha256": first_evidence["source_discovery_url_sha256"],
+        "initial_status": "processed",
+        "kind": "refresh_existing",
+        # This is the post-harvest hash, not a new run's pre-harvest value.
+        "content_sha256": first_evidence["current_content_sha256"],
+    }]
+    try:
+        fg2.FG2CohortManifest.from_payload(fabricated_discovery)
+    except fg2.InvalidControlledRun:
+        pass
+    else:
+        raise SystemExit(
+            "phase=post272_recovery_manifest|result=FAIL|code=synthetic_new_run_discovery_accepted"
+        )
     if (
         len(manifest.payload["entries"]) != 5
-        or len(manifest.payload["discovery_rows"]) != 5
+        or manifest.payload["discovery_rows"]
         or manifest.payload["institutions"][0]["result"] != "resumed"
         or manifest.payload["recovery_source"]["run_id"] != OLD_RUN_ID
         or manifest.payload["recovery_source"]["source_sha"] != OLD_SOURCE_SHA
         or manifest.payload["run_id"] == OLD_RUN_ID
         or manifest.payload["source_sha"] == OLD_SOURCE_SHA
-        or len(manifest.payload["blocked_staging_rows"]) != 1
+        or manifest.payload["blocked_staging_rows"]
+        or manifest.payload["recovery_source"]["source_summary"] != {
+            "result": "deferred", "http_requests": 7, "unique_urls": 7,
+            "entry_count": 6, "discovery_row_count": 8,
+        }
+        or len(manifest.payload["recovery_source"]["row_evidence"]) != 5
     ):
         raise SystemExit("phase=post272_recovery_manifest|result=FAIL|code=new_run_binding_or_scope_mismatch")
 
     print(
         "phase=post272_recovery_manifest|result=PASS|mode=enrichment_sync_only|"
-        "entries=5|ambiguous_excluded=1|unchanged_excluded=2|"
+        "entries=5|out_of_scope_excluded=1|discovery_only_excluded=2|"
         f"source_run={OLD_RUN_ID}|current_run={RUN_ID}|current_sha={SOURCE_SHA}|"
         f"artifact_digest_checked=true|lot_digest_checked=true|manifest_sha256={digest}|"
-        f"excluded_alias_rows={ambiguous_aliases}|invalid_bindings_rejected=6|"
-        "historical_hash_semantics=approved_preharvest_vs_processed_discovery"
+        "source_result=deferred|source_http_requests=7|source_unique_urls=7|"
+        "source_entries=6|source_discovery_rows=8|prior_hashes_distinct=6|"
+        f"url_alias_hashes_differ={url_alias_hash_differences}|new_run_discovery_rows=0|"
+        "invalid_bindings_rejected=12|"
+        "hash_semantics=source_discovery_prior_vs_entry_stored_vs_current_snapshot"
     )
     for name, value in (
         ("FG2_POST272_RECOVERY_SOURCE", original_source),
         ("FG2_POST272_RECOVERY_INSTITUTION_ID", original_institution_id),
         ("FG2_POST272_RECOVERY_COURSE_STAGING_IDS", original_course_staging),
         ("FG2_POST272_RECOVERY_EXCLUDED_COURSE_ID", original_excluded_course),
-        ("FG2_POST272_RECOVERY_EXCLUDED_URL", original_excluded_url),
     ):
         setattr(fg2, name, value)
 

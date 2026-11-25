@@ -1,8 +1,8 @@
 \set ON_ERROR_STOP on
 
 -- Synthetic post-#272 state: five proposed refreshes are pending at
--- enrichment, the sixth course has an ambiguous staging alias, and two rows
--- are unchanged. No real institution URL or database is used.
+-- enrichment, a sixth source entry is outside the approved recovery scope,
+-- and two discovery-only rows are unchanged. No real institution URL or DB.
 WITH items AS (
   SELECT
     n,
@@ -20,7 +20,7 @@ INSERT INTO public.staging_raw (
 SELECT
   ('52000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid,
   '20000000-0000-0000-0000-000000000001'::uuid,
-  url,
+  url || '/',
   'Post-272 recovered course ' || lpad(n::text, 2, '0'),
   'Synthetic recovered source description',
   raw_html,
@@ -30,26 +30,6 @@ SELECT
   url,
   jsonb_build_object('fixture_case', 'post272_recovery', 'ordinal', n)
 FROM items;
-
--- The sixth identity has a second stored trailing-slash alias. Its distinct
--- staging ID and exact downstream foreign keys are intentionally retained so
--- the recovery preflight proves ambiguity and excludes it without deletion.
-INSERT INTO public.staging_raw (
-  id, institution_id, url, raw_name, raw_description, raw_html, status,
-  content_hash, effective_url, canonical_url, metadata
-)
-VALUES (
-  '52000000-0000-0000-0000-000000000066'::uuid,
-  '20000000-0000-0000-0000-000000000001'::uuid,
-  'https://ssr.fg2.example/programas/post272-refresh-06/',
-  'Post-272 recovered course 06', 'Synthetic alias row',
-  '<!doctype html><html><body><h1>Ambiguous alias</h1></body></html>',
-  'processed',
-  encode(digest('<!doctype html><html><body><h1>Ambiguous alias</h1></body></html>', 'sha256'), 'hex'),
-  'https://ssr.fg2.example/programas/post272-refresh-06/',
-  'https://ssr.fg2.example/programas/post272-refresh-06/',
-  jsonb_build_object('fixture_case', 'post272_ambiguous_alias')
-);
 
 WITH items AS (
   SELECT
@@ -78,21 +58,6 @@ SELECT
   '2026-11-22T00:00:00Z'::timestamptz
 FROM items;
 
-INSERT INTO public.cleansed_programs (
-  id, staging_id, institution_id, url, effective_url, canonical_url,
-  clean_name, clean_description, modality, status, metadata
-)
-VALUES (
-  '54000000-0000-0000-0000-000000000066'::uuid,
-  '52000000-0000-0000-0000-000000000066'::uuid,
-  '20000000-0000-0000-0000-000000000001'::uuid,
-  'https://ssr.fg2.example/programas/post272-refresh-06/',
-  'https://ssr.fg2.example/programas/post272-refresh-06/',
-  'https://ssr.fg2.example/programas/post272-refresh-06/',
-  'Ambiguous alias row', 'Synthetic duplicate identity', 'Online', 'pending',
-  jsonb_build_object('fixture_case', 'post272_ambiguous_alias')
-);
-
 WITH items AS (
   SELECT
     n,
@@ -117,19 +82,6 @@ SELECT
   CASE WHEN n <= 6 THEN 'pending' ELSE 'synced' END,
   jsonb_build_object('fixture_case', 'post272_recovery', 'ordinal', n)
 FROM items;
-
-INSERT INTO public.enriched_programs (
-  id, cleansed_id, institution_id, url, official_name, status,
-  provider_used, is_mock_data, metadata
-)
-VALUES (
-  '55000000-0000-0000-0000-000000000066'::uuid,
-  '54000000-0000-0000-0000-000000000066'::uuid,
-  '20000000-0000-0000-0000-000000000001'::uuid,
-  'https://ssr.fg2.example/programas/post272-refresh-06/',
-  'Ambiguous alias row', 'synced', 'prior-fixture', false,
-  jsonb_build_object('fixture_case', 'post272_ambiguous_alias')
-);
 
 WITH items AS (
   SELECT
@@ -216,11 +168,11 @@ CREATE TRIGGER fg2_fixture_recovery_enrichment_fault
 
 DO $$
 BEGIN
-  IF (SELECT count(*) FROM public.staging_raw WHERE id::text LIKE '52000000-0000-0000-0000-%') <> 9
-     OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='pending') <> 7
+  IF (SELECT count(*) FROM public.staging_raw WHERE id::text LIKE '52000000-0000-0000-0000-%') <> 8
+     OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='pending') <> 6
      OR (SELECT count(*) FROM public.cleansed_programs WHERE id::text LIKE '54000000-0000-0000-0000-%' AND status='synced') <> 2
-     OR (SELECT count(*) FROM public.enriched_programs WHERE id::text LIKE '55000000-0000-0000-0000-%' AND status='synced') <> 9 THEN
+     OR (SELECT count(*) FROM public.enriched_programs WHERE id::text LIKE '55000000-0000-0000-0000-%' AND status='synced') <> 8 THEN
     RAISE EXCEPTION 'post272_fixture_state_mismatch';
   END IF;
 END $$;
-SELECT 'phase=post272_recovery_fixture|result=PASS|refresh_pending=5|ambiguous_excluded=1|unchanged_excluded=2|synthetic_only=true';
+SELECT 'phase=post272_recovery_fixture|result=PASS|refresh_pending=5|out_of_scope_entry=1|discovery_only_unchanged=2|synthetic_only=true';

@@ -136,42 +136,81 @@ PR; no borrar observaciones ni ejecutar DDL rollback destructivo sin aprobación
 
 ## Recuperación FG2 acotada: Enrichment y Sync (2026-11-24)
 
-El modo manual `resume_enrichment_from_272` es una recuperación puntual y
-opt-in, predeterminada a `false`; no crea un selector de cola ni un retry
-genérico. En el job inicial del workflow se comprueba el run fallido #272,
-su workflow/ref/SHA/intento, las conclusiones de las estaciones y el ID/digest
-del artefacto. También se valida el SHA del manifiesto dentro del ZIP. La
-procedencia #272 queda como evidencia: el manifiesto que viaja a las estaciones
-se genera con el run, intento y SHA nuevos, y con un lote actual revisado.
+El modo manual `resume_enrichment_from_272` es una recuperación puntual,
+opt-in y predeterminada a `false`; no crea un selector de cola ni un retry
+genérico. El job inicial fija el workflow, ref, SHA, intento, conclusiones,
+artifact ID/digest y digest del manifiesto histórico. El artefacto #272 se
+conserva inmutable y solo prueba la procedencia de un intento anterior. El
+manifiesto de recuperación siempre recibe la identidad del run, intento y SHA
+nuevos, y se liga a un approved lot fresco.
 
-Antes de generar ese manifiesto, `master_orchestrator.py` vuelve a validar el
-origen institucional, perfil y semillas por digest y toma snapshots read-only
-de `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses`. Se
-requieren identidad única de curso/institución/URL, staging `processed`, hash
-actual igual al de la fila post-harvest del artefacto, cleansing pendiente,
-relaciones downstream completas y coincidencia exacta con las cinco
-identidades propuestas. Los aliases/duplicados ambiguos del sexto curso se
-verifican por sus filas y claves foráneas y quedan excluidos; no se borran ni se
-resetean. Cualquier diferencia cancela el preflight sin escribir.
+La estructura verificada del artefacto auténtico #272 es **deferred, 7
+solicitudes, 7 URLs únicas, 6 entries y 8 discovery rows**. `deferred` describe
+el resultado de la institución; no invalida por sí solo las filas con cadena
+de evidencia completa, ni autoriza a relabelar el run como `complete/8/8`. Los
+dos discovery rows sin entry y el entry que no forma parte del nuevo lote no
+se recuperan. La selección local de cinco identidades es la propuesta vigente,
+no una autorización de ejecución ni una afirmación de que esos cinco snapshots
+sigan actuales.
 
-El modo no hace HTTP institucional ni vuelve a ejecutar cleansing. Un job
-produce el nuevo manifiesto; Enrichment y Sync, en runners separados, lo
-restauran desde outputs base64 y comprueban su digest, run, intento, SHA e IDs
-antes de usar los workers existentes. Un cambio de estado o de conjunto de IDs
-falla antes de una llamada de proveedor o escritura. El proveedor debe ser real
-en Production; ante fallo total no se persisten mocks. Sync conserva su guard
-de provenance, overrides editoriales y estado de publicación. CA1 sigue siendo
-solo el límite de auditoría del workflow: no acredita por sí solo las filas,
-la cola Admin ni la exposición pública.
+Los digests tienen funciones distintas. En un refresh procesado,
+`discovery_rows.content_sha256` procede de `previous_content_hash`: el contenido
+anterior al harvesting. `entries.content_sha256` se añade después de la
+extracción y refleja el contenido crudo persistido en `staging_raw`. El lote
+nuevo debe confirmar que el hash actual del staging sigue igual a ese entry;
+no se compara con el hash anterior de discovery. `discovery_rows.url_sha256`
+representa la URL solicitada; `entries.url_sha256`, la URL almacenada en la
+fila cruda. Pueden diferir por aliases como la barra final y se enlazan mediante
+la identidad canónica de curso. `entries.cleansed_url_sha256` es un digest de
+identidad URL del resultado de cleansing, no un hash del contenido limpiado.
+El contrato de este manifiesto no contiene un digest de contenido de
+`cleansed_programs`; la continuidad se verifica con ID, `staging_id`,
+institución, estado, URL canónica y relación a `enriched_programs`.
 
-El lote de cinco IDs continúa siendo propuesta. Después de promover el código,
-una autorización JIT nueva debe vincular el SHA efectivo de `main`, lote,
-hashes y snapshots frescos, coste variable de OpenAI/fallback Cloudflare,
-efectos permitidos y recuperación. El flujo no usa la autorización de #272 ni
-la del run anterior. El E2E local usa sitios, providers y datos sintéticos;
-no acredita acceso, disponibilidad, billing ni writes de Pro, ni interacción
-visual de Admin. Una recuperación parcial requiere postflight por ID y decisión
-propia; no cuenta como una ejecución nueva de las cuatro estaciones.
+Cada una de las cinco filas debe tener evidencia individual: entry y discovery
+históricos del mismo staging/curso/institución, discovery anterior `processed`,
+contenido previo distinto del contenido crudo finalmente almacenado, staging
+actual `processed` con hash igual al entry, curso con identidad URL concordante,
+cleansing actual `pending` con `staging_id` y URL enlazados, y enriched con
+`cleansed_id`, institución, URL y estado permitidos. El workflow verifica que
+la estación 1.5 de #272 concluyó `success`; el worker de esa revisión consume
+`require_exact` sobre los entries históricos y valida estado, institución,
+URL y hash de cada fila. El preflight nuevo exige las transiciones actuales y
+relaciones por ID correspondientes. La tabla `cleansed_programs` no tiene un
+hash de contenido limpio ni el manifiesto #272 lo conserva: esto demuestra la
+continuidad de estación, identidad y estado, no igualdad byte a byte del texto
+limpio histórico. No se inventa ese digest.
+
+El manifiesto nuevo de recuperación no publica `discovery_rows`: el run actual
+no ejecuta harvesting/discovery. Los ocho discovery rows históricos y sus
+hashes quedan solo en `recovery_source.row_evidence` ligados al digest original;
+los cinco `entries` nuevos representan el scope procesable y el hash crudo
+actual, ligado también al hash del entry histórico. Así un hash anterior no se
+reinterpreta como dato producido por el run nuevo. `verify_approved_lot_scope`
+contrasta snapshots actuales antes de construir el manifiesto. Cualquier ID,
+hash, estado o referencia divergente cancela el preflight. No se aceptan
+snapshots actuales en bloque ni se resetean estados. El entry que queda fuera
+se registra como fuera del scope aprobado; su estado o ambigüedad no se declara
+resuelto ni se consulta con una búsqueda de aliases ajena al lote.
+
+La recuperación no vuelve a ejecutar HTTP ni cleansing. Enrichment y Sync
+usan los workers existentes desde un manifiesto nuevo transferido entre jobs,
+con digest, run, intento, SHA e IDs verificados. Las condiciones de Sync y CA1
+admiten únicamente el skip planificado de Cleansing si Enrichment termina
+`success`; un fallo o cancelación de Enrichment bloquea ambas etapas y sus
+escrituras. El modo normal conserva sus dependencias. El proveedor debe ser
+real en Production; un fallo total no persiste mocks. Sync conserva sus
+guardas editoriales. CA1 es un límite de auditoría del workflow, no prueba por
+sí solo las filas, la cola Admin ni la exposición pública.
+
+El lote de cinco identidades continúa como propuesta. Una ejecución futura
+requiere un JIT nuevo con SHA real de `main`, profile/seed digests y snapshots
+frescos, manifiesto, límites, coste variable de OpenAI/fallback Cloudflare,
+efectos, parada, postflight por ID y restauración de pausa. No se reutiliza la
+autorización de #272. El ensayo PG17/PostgREST emplea datos y proveedor
+sintéticos en red interna sin egress: prueba el contrato local de recuperación,
+workers y SQL, no acceso, coste o permisos Pro, scraping institucional, API
+real ni interfaz visual de Admin.
 
 Transición: `expand` agrega únicamente el input manual opt-in y manifiesto
 compatible, sin migración; `compatibilidad` deja el recorrido ordinario
