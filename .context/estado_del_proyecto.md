@@ -6,9 +6,35 @@
 
 ## Corte vigente
 
+### H1REQ1 — FG2 modalidad: preflight post-merge y ruta JIT local — 2026-11-26
+
+PR #595 fue integrado por `romelhc95`; main quedó en
+`f5b5deb6a49b84fab8e40c4dd9c026963f5a4f0d`, con el HEAD revisado
+`6543dbc6146fe7c9c671070b862902a4f233f41c`. En ese HEAD, CI terminó con
+17 PASS, 2 SKIPPED y 0 FAIL. No se repitieron esas pruebas cerradas.
+
+El preflight post-merge del TL fue de solo lectura sobre metadatos del proyecto
+Pro `xwhtiqmboljkshrtviyw`: la migration de modalidad aún no aparece en el
+ledger, el verificador no está instalado, el RPC de enrichment existe sin el
+mapping de provenance y no se leyeron filas de cursos ni secretos. Backup/PITR,
+flags y concurrencia quedaron sin comprobar. No se ejecutaron Report, Apply,
+Verify, pipeline ni escritores.
+
+Preparación local en `codex/fg2-modality-ddl-route-20261126`, base
+`f5b5deb6a49b84fab8e40c4dd9c026963f5a4f0d`: el scope guard admite una sola
+ruta nueva de registro, `.context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md`, y su regresión conserva el registro de onboarding, rechaza vecino/fecha distinta/`.bak`, y comprueba la admisión exacta. La ficha de seguridad, la ficha de migration y este estado documentan que la ruta solo abre las validaciones del workflow. En Docker sin red, `tests/test_protected_path_scope_guard.sh`, ShellCheck 0.11.0 y `bash -n` pasaron. El subtest documental emitió `DOC_SELF_TEST_PASS`, pero el comando integral terminó en FAIL por las rutas históricas ausentes; se conserva FAIL348 y no se afirma que este delta haya cambiado o resuelto ese conjunto.
+
+El SQL `db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql`
+permanece en SHA-256 `66061202f44ecb429caf93b41303215adb02ded0c04e7bbcae2c4a27fb0d1db2`;
+el manifest sigue siendo `fg2-modality-provenance`. Ambos están sin cambios.
+El registro DDL de modalidad todavía no existe ni está aprobado. Publicación,
+commit/push, aprobación DDL, workflow Report→Apply→Verify, comprobación
+productiva y cualquier activación siguen siendo gates separados. FAIL348 se
+conserva como FAIL y Codex Security formal como NO EJECUTADO.
+
 ### H1REQ1 — FG2 PR 595: desbloqueo local de canonical/effective y contrato H2 — 2026-11-25
 
-El PR 595 permanece abierto y bloqueado en `7e0761d493641e0fef0db003ab31f8f7a27f768f`, base main `25d013778e89fd2cb4df4fd249100ecfd804476c`. Su CI remoto conserva 15 PASS, 2 FAIL y 2 SKIPPED. La dispensa documental aprobada cubre solo esa huella. El desarrollador autorizadamente intentó corregir, pero una concesión filesystem de sesión sobre `docker.sock` precedió el fallo bwrap al tratar el socket como directorio. Desde la sesión TL se verificaron escritura del mismo checkout y Docker con permiso de conexión, sin conceder escritura del socket ni cambiar configuración global. Esto acredita una alternativa funcional, no reparación de la sesión del desarrollador.
+**Corte histórico supersedido, previo al merge:** en ese momento el PR 595 permanecía abierto y bloqueado en `7e0761d493641e0fef0db003ab31f8f7a27f768f`, con base `25d013778e89fd2cb4df4fd249100ecfd804476c` y 15 PASS, 2 FAIL y 2 SKIPPED. La dispensa de entonces cubría solo esa huella. El bloqueo local bwrap se documenta como incidente histórico; no describe el estado operativo actual.
 
 En el mismo checkout se corrige localmente la revalidación de procedencia: lee `canonical_url` y `effective_url`, aplica la precedencia y normalización de Cleansing, conserva aliases de detalle y comprueba por separado URL original, contenido, institución y estado. Dieciocho casos nuevos cubren las tres precedencias y drift; con el runtime anterior reprodujeron cinco fallos y trece PASS. El contrato H2 reemplaza dos aserciones textuales retiradas por cuatro casos conductuales de modalidad ausente/ambigua, conservando sus prohibiciones de inventar duración o modalidad. No hay cambio SQL ni workflow.
 
@@ -16,7 +42,7 @@ Docker sin red: focal 197 PASS; conjunto pytest offline del job CI 674 PASS y 8 
 
 La edición autorizada del contrato H2 requiere admitir su ruta exacta `tests/test_h2_pipeline_contract.py` en el guard FG2. Se agrega solo esa ruta, sin comodines ni desactivar controles, y se amplían las regresiones para admitirla y rechazar `tests/test_h2_pipeline_contract_extra.py`. Esas regresiones reprodujeron FAIL antes de la admisión y terminaron PASS después; ShellCheck 0.11.0 y `bash -n` de ambos scripts también PASS en Docker. Logs `/tmp/fg2-tl-unblock-scope-final-20261125.log` y `/tmp/fg2-tl-unblock-shellcheck-20261125.log`. El guard sigue pendiente de CI remoto para la nueva huella.
 
-Los cambios permanecen sin commit/push. Antes de actualizar el mismo PR se debe fijar la nueva huella y solicitar publicación y disposición documental aplicables a ella. El FAIL348 anterior no se convierte en PASS; Codex Security formal sigue NO EJECUTADO. No hubo SQL Pro, dispatch, gasto de proveedor, flags ni schedule. Migración Pro con JIT, comprobación productiva, activación autorizada y primera corrida natural siguen pendientes.
+En ese corte, las correcciones permanecían sin commit/push y el FAIL348 seguía FAIL; Codex Security formal seguía NO EJECUTADO. No hubo SQL Pro, dispatch, gasto de proveedor, flags ni schedule. Ese estado fue supersedido por la integración descrita arriba; la migration Pro, su JIT, la comprobación productiva y las activaciones posteriores continúan pendientes.
 
 ### H1REQ1 — FG2 modalidad: procedencia y revalidación de identidad — 2026-11-25 15:31 America/Lima
 
