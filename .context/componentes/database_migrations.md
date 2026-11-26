@@ -126,7 +126,7 @@ backup/PITR vigente, `apply_authorized=true` y aprobación humana de Production.
 No existe una alternativa manual de SQL en este paquete.
 
 La ruta versionada prevista para esa decisión es
-`.context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md`.
+[registro JIT de modalidad](../operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md).
 El scope guard local admite solo esa ruta exacta para que llegue a las
 validaciones de contenido del workflow; su regresión rechaza vecinos, otras
 fechas y `.bak`. La admisión no constituye una aprobación ni una ejecución.
