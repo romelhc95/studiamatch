@@ -37,7 +37,7 @@ VALUES
     '["re:^/programas/"]'::jsonb, '[]'::jsonb, '[]'::jsonb,
     '["https://ecommerce.fg2.example/catalogo/?page={page}"]'::jsonb,
     2, 0, '.product-card a',
-    '{"price_status":"publicado"}'::jsonb,
+    '{"price_status":"publicado","mode":"Presencial"}'::jsonb,
     '{"Requisitos":"requirements","Objetivos":"objectives"}'::jsonb,
     'active', 'verified', false, false, false, 0
   ),

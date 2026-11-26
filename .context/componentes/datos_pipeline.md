@@ -125,6 +125,36 @@ manifest manual revisado descrito arriba; no lo activa el cron. El cambio es
 solo de aplicación: no agrega tablas, columnas, RPC ni migration. Se conserva el
 esquema desplegado y no se necesita reinstalación para esta corrección.
 
+## Modalidad y procedencia — candidato local FG2 2026-11-25
+
+La transición de modalidad no requiere columnas nuevas. Cleansing guarda el
+valor normalizado (o NULL si está ausente/ambiguo) y `metadata.modality_evidence`
+con `staging_id`, institución, hashes de URL y el hash de contenido crudo. El
+worker conserva una modalidad válida del proveedor. En su defecto solo reutiliza
+`cleansed_programs.modality` si la evidencia fue emitida por cleansing y las
+filas actuales de staging/cleansing coinciden en identidad, estados, contenido,
+URL y valor. Para una fila legacy sin `metadata.modality_evidence`, la única
+alternativa es un snapshot de modalidad explícito, revisado dentro del approved
+lot fijado por digest y ligado a curso, staging, cleansing, institución, URL y
+hash del valor; el worker revalida las filas actuales antes de escribir. Un hash
+de URL aislado no prueba el origen. Sin respaldo válido la modalidad queda NULL
+y la calidad pendiente; drift se rechaza.
+
+En `enriched_programs`, `metadata.field_provenance.modality` registra origen,
+valor, IDs y hash de URL. La migration candidata
+`20261125152449_fg2_enrichment_modality_provenance.sql` modifica únicamente el
+RPC existente para conservar esa metadata; no crea tabla ni columna. No se
+aplicó fuera del PostgreSQL 17 efímero. Hasta que se aplique y verifique con JIT,
+la propagación del nuevo contrato no está habilitada remotamente. Sync preserva
+el provenance, escribe `courses.mode` solo con una modalidad reconocida y no
+publica cursos ni cambia overrides/editorial state.
+
+La ausencia o ambigüedad se conserva como NULL y deja `quality_status=pending`;
+no se fabrica un default. El dato faltante de duración del programa de
+Administración permanece como pendiente separado: el artefacto local de #275
+contiene logs de jobs, no un postflight por campos que permita acreditar su
+duración. No se consultó de nuevo la fuente ni se inventó un valor.
+
 ## FG3: cohorte pública y transición atómica — candidato local 2026-11-15
 
 El candidato selecciona IDs y valores efectivos desde `courses_public_effective`.

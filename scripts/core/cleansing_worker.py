@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from shared.utils import (
     clean_course_name,
     slugify,
-    standardize_mode,
+    detect_course_modality,
     setup_lima_logging,
     normalize_url,
     TimeGuard,
@@ -87,6 +87,34 @@ def _verify_canary_cleansed_row(db, item):
     )
     if len(rows) != 1 or _metadata_dict(rows[0].get('metadata')).get(metadata_key) != run_id:
         raise RuntimeError("canary provenance marker missing from cleansed_programs")
+
+
+def _modality_evidence(raw_row, cleansed_url, modality):
+    """Bind detected modality to the exact staging identity and content hash."""
+    staging_id = str(raw_row.get("id") or "")
+    institution_id = str(raw_row.get("institution_id") or "")
+    raw_url = raw_row.get("url")
+    content_sha = str(raw_row.get("content_hash") or "").lower()
+    if (
+        not staging_id
+        or not institution_id
+        or not isinstance(raw_url, str)
+        or not raw_url.strip()
+        or not isinstance(cleansed_url, str)
+        or not cleansed_url.strip()
+        or not re.fullmatch(r"[0-9a-f]{64}", content_sha)
+    ):
+        return None
+    return {
+        "version": 1,
+        "source": "cleansing_text",
+        "value": modality,
+        "staging_id": staging_id,
+        "institution_id": institution_id,
+        "source_url_sha256": url_sha256(raw_url),
+        "cleansed_url_sha256": url_sha256(cleansed_url),
+        "source_content_sha256": content_sha,
+    }
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -616,7 +644,7 @@ class CleansingWorker:
             profile = self._get_profile_for_inst(inst_id)
             clean_name = self._apply_title_cleansing(clean_name, profile)
             combined_full_text = f"{clean_name}\n{combined_desc}\n{clean_text_context}"
-            mode, locations = standardize_mode(combined_full_text), detect_locations(combined_full_text)
+            mode, locations = detect_course_modality(combined_full_text), detect_locations(combined_full_text)
             # Fase 62C: Perfil-driven price extraction with profile regex
             price, p_status = self._extract_price_with_regex(combined_full_text, profile)
 
@@ -626,7 +654,8 @@ class CleansingWorker:
                 "clean_name": clean_name, "clean_description": combined_full_text[:15000],
                 "modality": mode, "location": ", ".join(locations), "base_price": price, "currency": "PEN", "status": "pending",
                 "metadata": _mark_canary_metadata({"raw_name": final_raw_name, "price_status": p_status, "cleansed_at": datetime.now().isoformat(), "locations_list": locations, "sibling_urls": [m['url'] for m in members],
-                                                   "regex_price": price, "regex_start_date": regex_start_date})
+                                                   "regex_price": price, "regex_start_date": regex_start_date,
+                                                   "modality_evidence": _modality_evidence(main_raw, base_url, mode)})
             })
             for m in members: staging_updates.append({"id": m['id'], "status": "processed"})
             processed_count += len(members)

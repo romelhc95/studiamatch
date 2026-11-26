@@ -111,13 +111,23 @@ H3_PRO_EXTERNAL_PREREQUISITE = (
     "H2 migrations are intentionally not included in this manifest."
 )
 
-# FG2 onboarding is a separate, single-migration Pro manifest. It is not part
-# of the pinned H3 inventory and has no H2 cohort/digest prerequisite.
+# FG2 onboarding and modality provenance are separate, single-migration Pro
+# manifests. Neither is part of the pinned H3 inventory or needs an H2 cohort.
 FG2_PROFILE_ONBOARDING_MANIFEST_NAME = "fg2-profile-onboarding"
 FG2_PROFILE_ONBOARDING_MIGRATION = "20261120120000_fg2_profile_onboarding_state"
 FG2_PROFILE_ONBOARDING_MIGRATIONS = (FG2_PROFILE_ONBOARDING_MIGRATION,)
 FG2_PROFILE_ONBOARDING_MIGRATION_SHA256 = (
     "12de04d082169043f21500ec907940b125ab0821cbd98296a7ef5a506f90ecad"
+)
+
+# Modality provenance is deployed independently from the already-installed
+# profile-onboarding schema. A separate closed manifest gives its DDL a fresh
+# authorization and avoids reusing the consumed onboarding authorization.
+FG2_MODALITY_PROVENANCE_MANIFEST_NAME = "fg2-modality-provenance"
+FG2_MODALITY_PROVENANCE_MIGRATION = "20261125152449_fg2_enrichment_modality_provenance"
+FG2_MODALITY_PROVENANCE_MIGRATIONS = (FG2_MODALITY_PROVENANCE_MIGRATION,)
+FG2_MODALITY_PROVENANCE_MIGRATION_SHA256 = (
+    "66061202f44ecb429caf93b41303215adb02ded0c04e7bbcae2c4a27fb0d1db2"
 )
 
 
@@ -145,6 +155,7 @@ PRO_MIGRATION_MANIFESTS = {
     ),
     H3_PRO_MANIFEST_NAME: H3_PRO_MIGRATIONS,
     FG2_PROFILE_ONBOARDING_MANIFEST_NAME: FG2_PROFILE_ONBOARDING_MIGRATIONS,
+    FG2_MODALITY_PROVENANCE_MANIFEST_NAME: FG2_MODALITY_PROVENANCE_MIGRATIONS,
 }
 
 
@@ -157,6 +168,18 @@ def validate_fg2_profile_onboarding_manifest_tree(migrations_dir: str | Path) ->
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     if digest != FG2_PROFILE_ONBOARDING_MIGRATION_SHA256:
         raise ValueError("FG2 onboarding migration hash differs from its pinned manifest")
+    return digest
+
+
+def validate_fg2_modality_provenance_manifest_tree(migrations_dir: str | Path) -> str:
+    """Fail closed unless the FG2 modality RPC migration is byte-identical."""
+    root = Path(migrations_dir)
+    path = root / f"{FG2_MODALITY_PROVENANCE_MIGRATION}.sql"
+    if not path.is_file():
+        raise ValueError("FG2 modality provenance migration is missing from its pinned manifest")
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest != FG2_MODALITY_PROVENANCE_MIGRATION_SHA256:
+        raise ValueError("FG2 modality provenance migration hash differs from its pinned manifest")
     return digest
 
 

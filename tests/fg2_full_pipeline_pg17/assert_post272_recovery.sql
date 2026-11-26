@@ -17,9 +17,23 @@ BEGIN
       RAISE EXCEPTION 'post272_staging_state_mismatch_%', _n;
     ELSIF NOT EXISTS (SELECT 1 FROM public.cleansed_programs WHERE id=_cleansed_id AND staging_id=_staging_id AND status='enriched') THEN
       RAISE EXCEPTION 'post272_cleansed_state_mismatch_%', _n;
-    ELSIF NOT EXISTS (SELECT 1 FROM public.enriched_programs WHERE id=_enriched_id AND cleansed_id=_cleansed_id AND status='synced' AND provider_used='OpenAI' AND is_mock_data IS FALSE) THEN
+    ELSIF NOT EXISTS (
+      SELECT 1 FROM public.enriched_programs
+      WHERE id=_enriched_id
+        AND cleansed_id=_cleansed_id
+        AND status='synced'
+        AND provider_used='OpenAI'
+        AND is_mock_data IS FALSE
+        AND modality='Remoto'
+        AND metadata #>> '{field_provenance,modality,source}' = 'cleansed_programs'
+        AND metadata #>> '{field_provenance,modality,evidence,source}' = 'approved_lot_snapshot'
+        AND metadata #>> '{field_provenance,modality,evidence,authorization_basis}' = 'approved_lot_exact_digest'
+        AND metadata #>> '{field_provenance,modality,evidence,cleansed_modality_sha256}' =
+          encode(digest('Remoto', 'sha256'), 'hex')
+        AND metadata #>> '{field_provenance,existing_marker}' = 'keep-' || _n::text
+    ) THEN
       RAISE EXCEPTION 'post272_enriched_state_mismatch_%', _n;
-    ELSIF NOT EXISTS (SELECT 1 FROM public.courses WHERE id=_course_id AND institution_id='20000000-0000-0000-0000-000000000001' AND is_active IS FALSE AND is_verified IS TRUE) THEN
+    ELSIF NOT EXISTS (SELECT 1 FROM public.courses WHERE id=_course_id AND institution_id='20000000-0000-0000-0000-000000000001' AND mode='Remoto' AND is_active IS FALSE AND is_verified IS TRUE) THEN
       RAISE EXCEPTION 'post272_course_state_mismatch_%', _n;
     ELSIF NOT EXISTS (SELECT 1 FROM public.course_editorial_state WHERE course_id=_course_id AND editorial_status='pending_review') THEN
       RAISE EXCEPTION 'post272_editorial_state_mismatch_%', _n;

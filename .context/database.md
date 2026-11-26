@@ -59,6 +59,28 @@ aplicó ni se cotejó contra Free/Pro. Ver [migration candidata](componentes/dat
 
 En `institution_site_profiles`, `max_consecutive_errors` define el umbral de 403/429 para abrir el circuit breaker, `circuit_open` hace que el pipeline salte el perfil y `circuit_opened_at` guarda cuándo se abrió. Fase 121 documenta `field_selectors` como selectores CSS por pilar sobre HTML crudo; `label_selectors` como reglas label→valor; `url_type_rules` como reglas por URL con defaults/overrides; `extraction_transforms` como transformaciones declarativas permitidas; y `extraction_confidence` como política de confianza por pilar. La migration crea los cinco campos JSONB NOT NULL con `{}` para objetos y `[]` para `url_type_rules`, y agrega los CHECK de forma JSON indicados en la fila. Fuentes: comentarios y DDL en `20260505_fase79bd_circuitbreaker_guardrails.sql:6-12` y `20260602_fase121_profile_pillar_extractors.sql:5-62`. Se documenta la definición local acumulada; no verifica los valores de perfiles ni que estas migrations estén aplicadas en Pro.
 
+### Modalidad y procedencia FG2 — candidato local 2026-11-25
+
+No se agregan columnas ni tablas. El valor del proveedor o, cuando este no es
+válido, el valor de cleansing se persiste en `enriched_programs.modality`; su
+origen se escribe en el JSONB existente `enriched_programs.metadata`. La RPC
+actual `atomic_enrichment_promote(jsonb, uuid)` no incluía esa metadata en su
+INSERT/UPDATE. La migration candidata
+[`20261125152449_fg2_enrichment_modality_provenance.sql`](componentes/database_migrations.md#migration-20261125152449-fg2-enrichment-modality-provenance)
+amplía esa misma función y conserva su firma, SECURITY DEFINER,
+`search_path` y ACL `service_role`; no se aplicó a Free/Certificación/Pro.
+Requiere cotejo de baseline y aprobación JIT DDL, aplicación y verificación
+antes de activar en un ambiente el caller que depende de `metadata`. Se instala
+por el manifest main-only `fg2-modality-provenance`, separado del manifest
+`fg2-profile-onboarding` y de su autorización consumida. El Verify protegido
+compara el cuerpo exacto, firma, `search_path`, `SECURITY DEFINER` y ACL del
+RPC; esta ruta solo se validó localmente.
+
+La modalidad faltante/ambigua permanece NULL y la calidad queda pendiente;
+no se crea un default ni se modifica `course_editorial_state`. Un proveedor
+válido tiene prioridad, y el fallback de cleansing está atado a identidad,
+procedencia y revalidación descritas en [pipeline](componentes/pipeline.md#fg2-modalidad-cleansing--enrichment--sync--candidato-local-2026-11-25).
+
 ## Vistas, funciones, RLS e índices
 
 | Objeto | Contrato/consumidores | Fuente |

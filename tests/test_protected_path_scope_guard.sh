@@ -157,13 +157,18 @@ expected_fg2_full_paths = {
     ".context/evidencias_cliente/sprint_1/paquete_hito_001.md",
     ".context/trazabilidad/registro_fuentes_componentes.json",
     ".context/trazabilidad/registro_fuentes_componentes.md",
+    ".github/workflows/db-sync-to-pro.yml",
     ".github/workflows/production_pipeline.yml",
     ".github/workflows/security-audit.yml",
     "db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+    "db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql",
     "scripts/core/fg2_bounded_run.py",
     "scripts/core/master_orchestrator.py",
     "scripts/core/profile_onboarding.py",
     "scripts/core/universal_harvester.py",
+    "scripts/maintenance/check_db_parity.py",
+    "scripts/maintenance/db_migrate.py",
+    "scripts/maintenance/pro_h3_migration_manifest.py",
     "scripts/security/protected_path_scope_guard.sh",
     "scripts/shared/site_diagnostics.py",
     "scripts/shared/utils.py",
@@ -188,6 +193,8 @@ expected_fg2_full_paths = {
     "tests/test_fg2_bounded_run.py",
     "tests/test_fg2_bounded_workflow.py",
     "tests/test_fg2_profile_onboarding.py",
+    "tests/test_h2_pipeline_contract.py",
+    "tests/test_h2_pro_migration_controls.py",
     "tests/test_h3_admin_queue_ux_contract.py",
     "tests/test_h3req1_local_pipeline_walk.py",
     "tests/test_site_diagnostics_security.py",
@@ -196,13 +203,16 @@ expected_fg2_full_paths = {
 }
 fg2_full_records = [line.strip() for line in fg2_full_match.group("body").splitlines() if line.strip()]
 fg2_full_paths = set(fg2_full_records)
-if len(fg2_full_records) != 47 or fg2_full_paths != expected_fg2_full_paths:
+if len(fg2_full_records) != 54 or fg2_full_paths != expected_fg2_full_paths:
     raise SystemExit("protected path integration test: full-FG2 allowlist differs from exact candidate inventory")
 if any(any(char in path for char in "*?[]") or path.startswith("/") or ".." in path.split("/") for path in fg2_full_paths):
     raise SystemExit("protected path integration test: full-FG2 allowlist contains a wildcard or unsafe path")
 for neighbor in (
     "scripts/core/profile_onboarding_extra.py",
     "scripts/shared/utils_extra.py",
+    "scripts/maintenance/pro_h3_migration_manifest_extra.py",
+    ".github/workflows/db-sync-to-pro-extra.yml",
+    "db/migrations/20261125152449_fg2_enrichment_modality_provenance_extra.sql",
     "db/migrations/20261120120000_fg2_profile_onboarding_state_extra.sql",
     "tests/fg2_full_pipeline_pg17/run-extra.sh",
     "tests/fg2_full_pipeline_pg17/prepare_approved_lot_extra.py",
@@ -866,6 +876,14 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
         raise SystemExit("protected path candidate regression: exact FG2 shared utility path was not admitted")
 
+    result = create_candidate(root, "fg2-h2-pipeline-contract", "tests/test_h2_pipeline_contract.py")
+    if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
+        raise SystemExit("protected path candidate regression: exact FG2 H2 contract test was not admitted")
+
+    result = create_candidate(root, "fg2-h2-pipeline-contract-neighbor", "tests/test_h2_pipeline_contract_extra.py")
+    if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+        raise SystemExit("protected path candidate regression: neighboring FG2 H2 contract test was admitted")
+
     result = create_candidate(root, "fg2-shared-utils-neighbor", "scripts/shared/utils_extra.py")
     if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
         raise SystemExit("protected path candidate regression: neighboring FG2 shared utility path was admitted")
@@ -906,7 +924,7 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     if result.returncode == 0:
         raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|FG2_DDL_exact_path=admitted|FG2_DDL_neighbors=4_rejected|H1_exact_paths=20|FG2_full_exact_paths=47|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|FG2_DDL_exact_path=admitted|FG2_DDL_neighbors=4_rejected|H1_exact_paths=20|FG2_full_exact_paths=54|FG2_H2_contract_exact=admitted|FG2_H2_contract_neighbor=rejected|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'

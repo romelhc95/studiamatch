@@ -128,7 +128,7 @@
     "integration_projection": {
       "name": "bootstrap inicial del primer Admin — candidato local 2026-11-05",
       "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap, el path existente del scope guard reclasificado como candidate-only por su cambio y cinco fuentes nuevas exactas del candidato local FG2 H1: scripts/core/fg2_bounded_run.py y sus cuatro pruebas. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.; isolated FG3 atomic follow-up adds exactly five new paths: one migration and four PG17/static test paths. Reconciliación 2026-11-18: base desarrollo 9435bdfd5121e804ef5bfe361cc94db6f5481c6b (tree 12087f431ccdc6c3c89d20e784c0170cd1b81067), igual a main 0037f11d0b058158b244d1bb2e1d8a487e2f62c5; cinco paths FG3 nuevos sobre esa base. Los conteos anteriores 328/774/446 siguen siendo el corte histórico 2026-11-15.",
-      "candidate_only_path_count_at_cut": 347,
+      "candidate_only_path_count_at_cut": 348,
       "note": "Corte historico local 2026-11-22: 790 fuentes, 344 candidate-only y 446 relevantes en la proyeccion. Reconciliacion 2026-11-24 del candidato local FG2: el checkout descubre 793 fuentes asignadas tras registrar tres helpers sinteticos de recuperacion post-#272 como candidate-only; el conjunto candidate-only es 347 y la proyeccion relevante permanece en 446. Estos helpers son solo fixture local, no codigo de runtime ni evidencia remota. Los valores 328/774/446 del corte historico 2026-11-15 se conservan como historia. El FAIL integral historico se compara por separado y no se convierte en PASS.",
       "refresh": "Para esta huella, el corte vigente del inventario es 793 fuentes, 347 candidate-only y 446 fuentes proyectadas. Recalcular solo si cambia el paquete; conservar los cortes 2026-11-15 y 2026-11-22 como evidencia historica.",
       "projected_relevant_source_paths_at_cut": 446
@@ -9452,7 +9452,7 @@
       "comment_target": null,
       "contracts": {
         "state": "verified",
-        "note": "The existing protected DB Sync path now accepts a closed H3 Pro manifest in addition to prior manifests: exact filenames/SHA pins, dependency order, H2 expand/compatibility preflight, report -> protected authorization -> apply -> verify. This is a local candidate only; it does not authorize or prove a workflow run or SQL application.",
+        "note": "Protected DB Sync accepts closed H3, FG2 onboarding, and FG2 modality-provenance manifests. Each FG2 migration is a separate main-only, byte-pinned manifest; the modality verifier checks the deployed atomic_enrichment_promote definition, SECURITY DEFINER, search_path, signature, and service_role-only ACL. Report is dry-run; Apply needs a fresh exact DDL authorization and Production gate; this candidate has not run against Pro.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
           "path:tests/test_h2_pro_migration_controls.py",
@@ -9464,7 +9464,7 @@
       },
       "consumers": {
         "state": "verified",
-        "note": "The protected workflow selects the closed manifest and invokes db_migrate.py/check_db_parity.py. The H3 manifest validates exact tracked migration names, hashes, precedence, and H2 prerequisite inputs; it has no standalone apply path.",
+        "note": "The workflow selects a closed manifest and invokes db_migrate.py/check_db_parity.py. H3 keeps its pinned inventory and H2 prerequisite. FG2 onboarding and modality are separate one-migration manifests with independent hash validation and target verification; neither has a standalone apply path.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
           "path:scripts/maintenance/h2_pro_preflight_report.py",
@@ -9486,7 +9486,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "Focused Docker tests cover exact inventory/order/hash pins, rejection of invalid selections, existing resolver behavior, H2 preconditions, workflow contract, and F10 main boundary. See the current H3REQ1 checkpoint for the final rerun result; no GitHub workflow or remote SQL execution is claimed.",
+        "note": "Docker tests execute the real YAML preflight for every registered manifest and reject invalid selection/hash drift. FG2 modality tests verify the migration pin, target function body, signature, search_path, SECURITY DEFINER, and ACL through a synthetic contract response; PG17 exercises the actual SQL contract locally. No Pro report/apply/verify is claimed.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
           "path:tests/test_h2_pro_migration_controls.py",
@@ -9497,7 +9497,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "A local manifest/workflow candidate only. Pro apply still requires a pinned candidate, required report/verify, Production environment approval, JIT for SQL/workflow, and rollback; no dispatch or remote write was performed.",
+        "note": "Local route only. Pro Apply still requires a fresh JIT bound to the exact post-main payload, Report, recovery point, Production approval, Apply, and Verify. No dispatch or remote SQL was run.",
         "evidence": [
           "path:.github/workflows/db-sync-to-pro.yml",
           "path:tests/test_h2_pro_migration_controls.py",
@@ -10334,7 +10334,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Cleansing reclama y promueve staging atómicamente; enrichment normaliza/persiste respuesta por RPC; sync valida calidad/ownership y upsert a courses. Cada etapa deja su estado reintentable ante falla y no hace promoción parcial.",
+        "note": "Cleansing promueve staging y fija modalidad solo con detección explícita no ambigua; su evidence queda ligada a staging/institución/URL/content_hash. Enrichment conserva modalidad válida del proveedor o reutiliza la de cleansing tras revalidar identidad y procedencia; falta o ambigüedad queda NULL. Sync conserva provenance para no aplicar defaults cuando el campo quedó sin resolver. Migration RPC aditiva y validación remota JIT pendientes.",
         "evidence": [
           "path:scripts/core/cleansing_worker.py",
           "path:scripts/core/enrichment_worker.py",
@@ -11536,7 +11536,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Contrato estático de `scripts/maintenance/check_db_parity.py`: símbolos check_db_parity.py - Configuration-oriented parity check Free vs target. Exit codes: 0 = OK 1 = non-blocking warnings 2 = blocking parity error Fase 1; migration_is_applied, load_environment, assert_environment, try_rpc, service_select, public_get, service_get, rest_select_all, ordered_ids_digest, service_post_rpc; flags `--env, --h2-manifest, --strict, --target-only`; efectos DB/red en la ficha. No demuestra ejecución. New local `--h3-manifest` mode validates the exact H3 tree, complete ledger selection and H2 expand/compatibility verifier contract; it does not apply SQL.",
+        "note": "The target-only mode supports --h2-manifest, --h3-manifest, --fg2-manifest, and --fg2-modality-manifest. The new modality contract reads the migration ledger and a service_role-only RPC exposing the atomic_enrichment_promote definition/ACL metadata; it compares the exact deployed source to the candidate migration. Static checks and fixtures do not constitute Pro verification.",
         "evidence": [
           "path:scripts/maintenance/check_db_parity.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
@@ -11564,7 +11564,7 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "No se encontró suite de comportamiento específica en el alcance. `test_supabase_credentials_contract.py` solo inventaría identidades/path y no prueba la funcionalidad. Impacto: si se cambia el contrato, agregar una prueba local apropiada y documentar su input/result.",
+        "note": "tests/test_h2_pro_migration_controls.py covers the exact YAML selector, pinned FG2 migration, and good/bad target-contract responses; the PG17/PostgREST E2E runs the SQL verifier locally. No remote target was queried for this change.",
         "evidence": [
           "path:scripts/maintenance/check_db_parity.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
@@ -11675,7 +11675,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Contrato estático de `scripts/maintenance/db_migrate.py`: símbolos db_migrate.py — Aplicador universal de migrations SQL para StudIAMatch. Uso: python3 scripts/maintenance/db_migrate.py --env free [--dry-run] python3 ; load_environment, assert_environment, get_applied_migrations, extract_name, resolve_requested_migrations, _exec_sql_with_retry, _ensure_migration_table, _try_register_migration, _sql_literal, render_migration_sql; flags `--dry-run, --env, --manifest, --only`; efectos DB/red en la ficha. No demuestra ejecución. New local candidate: `PRO_MIGRATION_MANIFESTS` includes the closed H3 manifest; Pro requests validate the whole exact tree and reject partial `--only` selections. This is source behavior, not execution evidence.",
+        "note": "The Pro migrator uses a closed registry containing the existing H2/H3 contracts and separate single-migration FG2 onboarding and modality manifests. The modality manifest validates one exact SQL hash before resolution; Pro still rejects --only and requires its selected manifest.",
         "evidence": [
           "path:scripts/maintenance/db_migrate.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
@@ -11711,7 +11711,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "DDL/RPC SQL capability; separate JIT DDL, closed manifest, Pro baseline and rollback are required. The H3 route is main-only and remains protected by report/approval/apply/verify gates; this candidate has not run against Pro.",
+        "note": "DDL/RPC capability requires a fresh exact JIT, main candidate, recovery point, protected Production gate, report/apply/verify sequence, and rollback decision. The modality manifest is prepared locally only; nothing was applied remotely.",
         "evidence": [
           "path:scripts/maintenance/db_migrate.py",
           "path:.context/evidencia/h3req1_maintenance_static_inventory_2026-10-12.md",
@@ -14384,7 +14384,7 @@
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Incluye TimeGuard, Lima logging, normalización URL/nombre/modo/categoría/fecha, PDF y ProviderOrchestrator/LLMProvider; enrichment usa fallback/degraded providers; error total devuelve (None,None).",
+        "note": "Incluye TimeGuard, Lima logging, normalización URL/nombre/modo/categoría/fecha, PDF y ProviderOrchestrator/LLMProvider. Candidato local agrega normalización explícita y detección no ambigua de modalidad; standardize_mode conserva contrato legacy. No hace persistencia ni requests por esa normalización.",
         "evidence": [
           "path:scripts/shared/utils.py",
           "path:scripts/core/enrichment_worker.py",
@@ -14405,7 +14405,7 @@
       },
       "data": {
         "state": "verified",
-        "note": "Transforma nombres, HTML/texto, modalidad, fechas, URL y respuesta JSON; PDF descarga contenido; callbacks/provider transportan prompt/respuesta. No persiste DB por sí misma.",
+        "note": "Transforma nombres, HTML/texto, modalidad, fechas, URL y respuesta JSON; la modalidad estricta reconoce tres categorías sin default para valores ausentes o ambiguos. PDF descarga contenido; callbacks/provider transportan prompt/respuesta. No persiste DB por sí misma.",
         "evidence": [
           "path:scripts/shared/utils.py",
           "path:scripts/core/enrichment_worker.py"
@@ -21414,6 +21414,76 @@
         "note": "Migration preparada para el onboarding FG2 del candidato; additive/expand, sin eliminación de configuración preexistente.",
         "evidence": [
           "path:db/migrations/20261120120000_fg2_profile_onboarding_state.sql",
+          "path:.context/componentes/pipeline.md"
+        ]
+      }
+    },
+    {
+      "component": "database",
+      "status": "current",
+      "inline_comment": "none",
+      "comment_target": null,
+      "id": "database-migration-20261125152449-fg2-enrichment-modality-provenance",
+      "purpose": "Preservar la procedencia de modalidad en enriched_programs.metadata mediante la RPC atómica existente, sin tablas ni columnas nuevas.",
+      "paths": [
+        "db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql"
+      ],
+      "source_document": {
+        "path": ".context/componentes/database_migrations.md",
+        "anchor": "migration-20261125152449-fg2-enrichment-modality-provenance"
+      },
+      "candidate_only_paths": [
+        "db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql"
+      ],
+      "contracts": {
+        "state": "verified",
+        "note": "The migration replaces the existing RPC without changing its signature, SECURITY DEFINER, search_path, or service_role-only writer ACL. It inserts/merges metadata and field_provenance without overwriting unrelated metadata. A read-only verifier exposes only function definition and ACL metadata to service_role. No columns, tables, or operational rows are changed.",
+        "evidence": [
+          "path:db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql",
+          "path:.context/componentes/database_migrations.md",
+          "path:.context/database.md"
+        ]
+      },
+      "consumers": {
+        "state": "verified",
+        "note": "enrichment_worker.py envía metadata.field_provenance a atomic_enrichment_promote; Sync lee ese contrato para impedir que defaults oculten una modalidad faltante. La firma RPC no cambia.",
+        "evidence": [
+          "path:scripts/core/enrichment_worker.py",
+          "path:scripts/core/sync_vector_worker.py",
+          "path:db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql"
+        ]
+      },
+      "data": {
+        "state": "verified",
+        "note": "DDL sobre una función existente; INSERT/UPDATE solo afectan la fila de enriched_programs vinculada al cleansed_id recibido cuando el caller opere. La migration no ejecuta ni backfillea filas.",
+        "evidence": [
+          "path:db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql",
+          "path:.context/database.md"
+        ]
+      },
+      "tests_evidence": {
+        "state": "verified",
+        "note": "PG17/PostgREST applies the migration and checks the actual verifier RPC for function signature, body, volatility, SECURITY DEFINER, search_path, ACL, and metadata persistence; synthetic pipeline tests cover modality selection and editorial preservation. This does not prove Pro installation or provider behavior.",
+        "evidence": [
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:tests/fg2_full_pipeline_pg17/assert_state.sql",
+          "path:tests/test_fg2_bounded_workers.py"
+        ]
+      },
+      "operations": {
+        "state": "verified",
+        "note": "The candidate adds a closed main-only manifest fg2-modality-provenance with its own pinned SQL hash and exact target verification. Pro installation requires a new JIT ID and workflow report/apply/verify after the code reaches main; the previously consumed FG2 profile-onboarding authorization is not reused.",
+        "evidence": [
+          "path:AGENTS.md",
+          "path:.context/componentes/database_migrations.md",
+          "path:.context/estado_del_proyecto.md"
+        ]
+      },
+      "provenance": {
+        "state": "verified",
+        "note": "Candidato local del ciclo 2026-11-25; migration no desplegada. Un rollback de código es compatible con la firma previa; reemplazo/reversión destructiva del RPC requiere JIT DDL separado.",
+        "evidence": [
+          "path:db/migrations/20261125152449_fg2_enrichment_modality_provenance.sql",
           "path:.context/componentes/pipeline.md"
         ]
       }
