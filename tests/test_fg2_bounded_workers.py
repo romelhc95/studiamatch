@@ -936,6 +936,70 @@ def test_recovery_rejects_course_identity_drift_even_with_valid_provider_modalit
     assert worker.db.writes == []
 
 
+@pytest.mark.parametrize("selected_source", ["canonical_url", "effective_url", "url"])
+@pytest.mark.parametrize(
+    "drift_field", [None, "canonical_url", "effective_url", "url", "content_hash", "institution_id"]
+)
+def test_enrichment_modality_revalidates_current_cleansing_identity(selected_source, drift_field):
+    from scripts.shared.utils import normalize_url
+
+    raw = {
+        **raw_row(),
+        "status": "processed",
+        "canonical_url": "https://canonical.synthetic.example/program/final/"
+        if selected_source == "canonical_url" else None,
+        "effective_url": "https://redirect.synthetic.example/program/effective/"
+        if selected_source != "url" else None,
+    }
+    selected_url = normalize_url(raw.get("canonical_url") or raw.get("effective_url") or raw["url"])
+    evidence = {
+        "version": 1,
+        "source": "cleansing_text",
+        "value": "Presencial",
+        "staging_id": RAW_ID,
+        "institution_id": INSTITUTION_ID,
+        "source_url_sha256": url_sha256(raw["url"]),
+        "cleansed_url_sha256": url_sha256(selected_url),
+        "source_content_sha256": CONTENT_SHA,
+    }
+    cleansed = {
+        "id": CLEANSED_ID,
+        "staging_id": RAW_ID,
+        "institution_id": INSTITUTION_ID,
+        "url": selected_url,
+        "status": "pending",
+        "modality": "Presencial",
+        "metadata": {"modality_evidence": evidence},
+    }
+    if drift_field:
+        raw[drift_field] = {
+            "canonical_url": "https://foreign.synthetic.example/program/changed",
+            "effective_url": "https://redirect.synthetic.example/program/changed",
+            "url": "https://synthetic.example/program/changed-original",
+            "content_hash": "d" * 64,
+            "institution_id": "00000000-0000-0000-0000-000000000099",
+        }[drift_field]
+
+    class FixtureDB:
+        def select_pipeline_raise(self, table, **kwargs):
+            row = cleansed if table == "cleansed_programs" else raw
+            return [{key: row.get(key) for key in kwargs["columns"].split(",")}]
+
+    worker = EnrichmentWorker.__new__(EnrichmentWorker)
+    worker.db = FixtureDB()
+    # A changed effective URL is irrelevant when a canonical URL still wins.
+    should_reject = drift_field is not None and not (
+        drift_field == "effective_url" and selected_source == "canonical_url"
+    )
+    if should_reject:
+        with pytest.raises(InvalidControlledRun, match="provenance changed before write"):
+            worker._resolve_modality(cleansed, None)
+    else:
+        assert worker._resolve_modality(cleansed, None) == (
+            "Presencial", "cleansed_programs", evidence
+        )
+
+
 def test_enrichment_uses_reviewed_approved_lot_modality_snapshot_for_legacy_row(monkeypatch) -> None:
     from scripts.core import enrichment_worker
     from scripts.shared.utils import course_modality_sha256

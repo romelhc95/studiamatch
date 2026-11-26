@@ -187,6 +187,7 @@ tests/test_fg2_bounded_orchestration.py
 tests/test_fg2_bounded_run.py
 tests/test_fg2_bounded_workflow.py
 tests/test_fg2_profile_onboarding.py
+tests/test_h2_pipeline_contract.py
 tests/test_h2_pro_migration_controls.py
 tests/test_h3_admin_queue_ux_contract.py
 tests/test_h3req1_local_pipeline_walk.py

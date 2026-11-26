@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_PUBLIC_SURFACE_FIELDS = {
@@ -28,11 +30,16 @@ def test_cleansing_preserves_short_descriptions_for_editorial_review() -> None:
     assert 'return "name_too_short"' in text
 
 
-def test_enrichment_does_not_fabricate_modality_or_duration() -> None:
+@pytest.mark.parametrize("provider_modality", [None, "Campus", "No especificado", "Presencial o remoto"])
+def test_enrichment_does_not_fabricate_modality_or_duration(provider_modality) -> None:
+    from scripts.core.enrichment_worker import EnrichmentWorker
+
+    worker = EnrichmentWorker.__new__(EnrichmentWorker)
+    assert worker._resolve_modality({"modality": None}, provider_modality) == (
+        None, "unavailable", None
+    )
     text = read("scripts/core/enrichment_worker.py")
 
-    assert 'logger.warning(f"Unknown modality' in text
-    assert 'enriched["modality"] = None' in text
     assert 'duration_text = None' in text
     assert 'modality = None' in text
     assert 'duration_text = "Consultar"' not in text

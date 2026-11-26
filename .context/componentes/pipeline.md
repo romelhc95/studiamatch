@@ -25,7 +25,11 @@ Enrichment conserva primero una modalidad válida normalizada por el proveedor.
 Si falta o es inválida, `cleansed_programs.modality` solo es fallback cuando
 existe evidencia `metadata.modality_evidence` creada por cleansing y las filas
 actuales de staging/cleansing coinciden en IDs, institución, URL, estados,
-contenido y modalidad. Para recuperar una fila legacy sin esa evidencia, solo
+contenido y modalidad. La identidad actual de staging respeta la misma precedencia
+de Cleansing: `normalize_url(canonical_url or effective_url or url)`, conservando
+la equivalencia de aliases de detalle. El digest de la URL original sigue
+verificándose por separado; una URL canónica no dispensa contenido ni institución.
+Para recuperar una fila legacy sin esa evidencia, solo
 se acepta un snapshot de modalidad incluido en el approved lot de digest exacto
 y ligado a `course_id`, `staging_id`, `cleansed_id`, institución, URL y hash del
 valor; el worker vuelve a leer y validar las identidades actuales antes de

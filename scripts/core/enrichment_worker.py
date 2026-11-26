@@ -21,6 +21,7 @@ from shared.utils import (
     infer_course_type,
     standardize_mode,
     normalize_course_modality,
+    normalize_url,
     course_modality_sha256,
     standardize_category,
     setup_lima_logging,
@@ -895,7 +896,7 @@ class EnrichmentWorker:
             current_raw = self.db.select_pipeline_raise(
                 "staging_raw",
                 filters=f"id=eq.{quote(staging_id, safe='')}",
-                columns="id,institution_id,url,status,content_hash",
+                columns="id,institution_id,url,canonical_url,effective_url,status,content_hash",
                 limit=2,
             )
         except Exception as exc:
@@ -919,8 +920,12 @@ class EnrichmentWorker:
             or str(current_source.get("id") or "") != staging_id
             or str(current_source.get("institution_id") or "").lower() != institution_id
             or current_source.get("status") != "processed"
-            or course_identity_url(str(current_source.get("url") or ""))
-            != course_identity_url(str(cleansed_url or ""))
+            or course_identity_url(normalize_url(str(
+                current_source.get("canonical_url")
+                or current_source.get("effective_url")
+                or current_source.get("url")
+                or ""
+            ))) != course_identity_url(normalize_url(str(cleansed_url or "")))
             or str(current_source.get("content_hash") or "").lower() != source_content_sha
             or source_url_sha != url_sha256(str(current_source.get("url") or ""))
         ):
