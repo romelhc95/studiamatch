@@ -146,6 +146,7 @@ H1_LOCAL_PATHS
 .context/componentes/datos_pipeline.md
 .context/componentes/infra_release.md
 .context/componentes/pipeline.md
+.context/componentes/seguridad_tooling.md
 .context/database.md
 .context/estado_del_proyecto.md
 .context/evidencias_cliente/sprint_1/paquete_hito_001.md
@@ -199,7 +200,7 @@ FG2_FULL_LOCAL_PATHS
    # Exact retired paths stay allowlisted so scoped deletions still run this gate.
    # R19's exact reconciled candidate and catalog-reference closure are checked against this list by
    # tests/test_protected_path_scope_guard.sh; keep deletions and ignored evidence explicit.
-   # This single FG2 JIT path only reaches the workflow's separate approval/content checks.
+   # These exact FG2 JIT paths only reach the workflow's separate approval/content checks.
    allowed_h3_local=$(cat <<'H3_LOCAL_PATHS'
 .context/evidencia/h3req1_certification_promotion_path_scope_2026-10-28.json
 .context/evidencia/h3req1_main_promotion_path_scope_2026-10-31.json
@@ -209,6 +210,7 @@ FG2_FULL_LOCAL_PATHS
 .context/operaciones/h2_main_production_expand_evidence.json
 .context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md
 .context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md
+.context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md
 README.md
 .env.example
 .github/pull_request_template.md

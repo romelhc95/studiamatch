@@ -208,6 +208,17 @@ El paquete local del contrato editorial H3REQ1 (2026-10-28) añade a `allowed_h3
 
 El fix de lectura pública de precio extiende esa lista con cinco paths exactos: una migration y cuatro fixtures/tests PG17. `tests/test_protected_path_scope_guard.sh` exige las cinco rutas y rechaza sus vecinos `_extra`; no se amplían patrones ni carpetas. El resultado se limita al scope guard local y no prueba branch protection remota.
 
+La preparación JIT de FG2 modality añade como ruta de autorización a
+`allowed_h3_local` solo
+`.context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md`.
+La ficha de seguridad que describe este control también se agrega como ruta
+exacta a `FG2_FULL_LOCAL_PATHS` para trazar el cambio.
+En Docker sin red, `tests/test_protected_path_scope_guard.sh` pasó con la ruta
+exacta admitida, vecino/otra fecha/`.md.bak` rechazados, y los positivos y
+negativos del registro de onboarding preservados. La admisión solo deja el
+archivo dentro del alcance del workflow para sus validaciones de estado,
+payload, manifest y digest; no aprueba ni ejecuta DDL.
+
 `security-audit.yml` agrega `tests/test_h3_public_price_projection_migration.py` a la suite pytest offline. Esa prueba valida el contrato estático de la migration; el comportamiento SQL queda cubierto por el harness sintético PG17, ejecutado localmente y no como efecto remoto.
 
 El delta D04 mantiene R20/#503 intacto. El sucesor R21 `h3req1_d04_candidate_docs_scope_2026-10-25.json` conserva los 297 paths de selección R20 y añade únicamente la migration y el contrato Python D04 (299 entradas); `security-audit.yml` usa este snapshot y ejecuta el nuevo contrato con pytest. El manifiesto exacto de publicación `h3req1_d04_candidate_pr_scope_2026-10-25.json` enumera 19 paths, excluye explícitamente los dos WIP PostgREST y no incluye Admin/MFA/FG3 ajenos. La regresión protegida compara ese set con la allowlist exacta y prueba vecinos negativos; el guard solo agrega los paths concretos del paquete. Ambos JSON pertenecen a la familia de evidencia y no fijan su propio hash. Esto es validación local de alcance/CI, no publica ni demuestra el check remoto.

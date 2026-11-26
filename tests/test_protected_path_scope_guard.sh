@@ -100,6 +100,9 @@ local_paths = set(local_path_records)
 fg2_ddl_auth_path = ".context/operaciones/ddl_authorizations/DDL-FG2-PROFILE-ONBOARDING-PRO-20261121.md"
 if local_path_records.count(fg2_ddl_auth_path) != 1:
     raise SystemExit("protected path integration test: exact FG2 DDL authorization path is not admitted")
+fg2_modality_ddl_auth_path = ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md"
+if local_path_records.count(fg2_modality_ddl_auth_path) != 1:
+    raise SystemExit("protected path integration test: exact FG2 modality DDL authorization path is not admitted")
 if ".context/operaciones/ddl_authorizations/DDL-H3-EDITORIAL-EXPAND-PRO-20261101.md" not in local_paths:
     raise SystemExit("protected path integration test: existing H3 DDL authorization path was removed")
 h1_match = re.search(
@@ -152,6 +155,7 @@ expected_fg2_full_paths = {
     ".context/componentes/datos_pipeline.md",
     ".context/componentes/infra_release.md",
     ".context/componentes/pipeline.md",
+    ".context/componentes/seguridad_tooling.md",
     ".context/database.md",
     ".context/estado_del_proyecto.md",
     ".context/evidencias_cliente/sprint_1/paquete_hito_001.md",
@@ -203,7 +207,7 @@ expected_fg2_full_paths = {
 }
 fg2_full_records = [line.strip() for line in fg2_full_match.group("body").splitlines() if line.strip()]
 fg2_full_paths = set(fg2_full_records)
-if len(fg2_full_records) != 54 or fg2_full_paths != expected_fg2_full_paths:
+if len(fg2_full_records) != 55 or fg2_full_paths != expected_fg2_full_paths:
     raise SystemExit("protected path integration test: full-FG2 allowlist differs from exact candidate inventory")
 if any(any(char in path for char in "*?[]") or path.startswith("/") or ".." in path.split("/") for path in fg2_full_paths):
     raise SystemExit("protected path integration test: full-FG2 allowlist contains a wildcard or unsafe path")
@@ -220,6 +224,7 @@ for neighbor in (
     "tests/fg2_full_pipeline_pg17/prepare_post272_recovery_extra.py",
     "tests/fg2_full_pipeline_pg17/prepare_post272_recovery_extra.sql",
     ".context/componentes/pipeline_extra.md",
+    ".context/componentes/seguridad_tooling_extra.md",
 ):
     if neighbor in fg2_full_paths or any(re.search(pattern, neighbor) for pattern in patterns):
         raise SystemExit(f"protected path integration test: neighboring full-FG2 path is admitted: {neighbor}")
@@ -324,6 +329,13 @@ for neighbor in (
 ):
     if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
         raise SystemExit(f"protected path integration test: neighboring FG2 DDL authorization path is admitted: {neighbor}")
+for neighbor in (
+    ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126-extra.md",
+    ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261127.md",
+    ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md.bak",
+):
+    if neighbor in local_paths or any(re.search(pattern, neighbor) for pattern in patterns):
+        raise SystemExit(f"protected path integration test: neighboring FG2 modality DDL path is admitted: {neighbor}")
 
 diff_scope = guard.split('git diff --name-only -z "$base" HEAD -- \\\n', 1)[1].split('>"$changed_path_file"', 1)[0]
 pathspecs = diff_scope.replace("\\\n", " ").split()
@@ -880,6 +892,11 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
     if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
         raise SystemExit("protected path candidate regression: exact FG2 H2 contract test was not admitted")
 
+    modality_ddl_auth_path = ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md"
+    result = create_candidate(root, "fg2-modality-ddl-auth", modality_ddl_auth_path)
+    if result.returncode != 0 or "protected H3 candidate paths are allowlisted" not in result.stdout:
+        raise SystemExit("protected path candidate regression: exact FG2 modality DDL path was not admitted")
+
     result = create_candidate(root, "fg2-h2-pipeline-contract-neighbor", "tests/test_h2_pipeline_contract_extra.py")
     if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
         raise SystemExit("protected path candidate regression: neighboring FG2 H2 contract test was admitted")
@@ -920,11 +937,22 @@ with tempfile.TemporaryDirectory(prefix="protected-path-candidate-") as temp:
             raise SystemExit(
                 f"protected path candidate regression: neighboring FG2 DDL path was not rejected: {neighbor}"
             )
+    fg2_modality_ddl_neighbors = (
+        ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126-extra.md",
+        ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261127.md",
+        ".context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md.bak",
+    )
+    for index, neighbor in enumerate(fg2_modality_ddl_neighbors):
+        result = create_candidate(root, f"fg2-modality-ddl-neighbor-{index}", neighbor)
+        if result.returncode == 0 or "candidate path omitted" not in result.stderr + result.stdout:
+            raise SystemExit(
+                f"protected path candidate regression: neighboring FG2 modality DDL path was not rejected: {neighbor}"
+            )
     result = create_candidate(root, "invalid-scope", h1_paths[0], baseline_override="not-a-git-sha")
     if result.returncode == 0:
         raise SystemExit("protected path candidate regression: invalid baseline scope did not fail closed")
 
-print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|FG2_DDL_exact_path=admitted|FG2_DDL_neighbors=4_rejected|H1_exact_paths=20|FG2_full_exact_paths=54|FG2_H2_contract_exact=admitted|FG2_H2_contract_neighbor=rejected|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
+print("protected-writer-path-candidate-regressions=PASS|preflight=detected_and_admitted|writer_test=detected_and_admitted|ledger_snapshot=detected_and_admitted|FG2_DDL_exact_path=admitted|FG2_DDL_neighbors=4_rejected|FG2_MODALITY_DDL_exact=admitted|FG2_MODALITY_DDL_neighbors=3_rejected|H1_exact_paths=20|FG2_full_exact_paths=55|FG2_H2_contract_exact=admitted|FG2_H2_contract_neighbor=rejected|FG2_neighbors=rejected|combined_five_path_candidate=admitted|test_neighbor=rejected|ledger_neighbor=rejected|CA1_plan_neighbor=rejected|FG2_neighbor=rejected|invalid_scope=fail_closed|preflight_neighbor=exact_matcher_rejected|temporary_commits_only=1")
 PY
 
 printf '%s\n' 'protected-path-scope-regressions=PASS|ordinary=3|newline=1|controls=1|malformed=3|unmanifested_h3=2'

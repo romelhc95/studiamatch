@@ -125,6 +125,15 @@ reutiliza el registro JIT de onboarding ya consumido. `Report` es dry-run;
 backup/PITR vigente, `apply_authorized=true` y aprobación humana de Production.
 No existe una alternativa manual de SQL en este paquete.
 
+La ruta versionada prevista para esa decisión es
+`.context/operaciones/ddl_authorizations/DDL-FG2-MODALITY-PRO-20261126.md`.
+El scope guard local admite solo esa ruta exacta para que llegue a las
+validaciones de contenido del workflow; su regresión rechaza vecinos, otras
+fechas y `.bak`. La admisión no constituye una aprobación ni una ejecución.
+El registro seguirá ausente/no aprobado hasta que el JIT humano vincule el
+payload P1, `fg2-modality-provenance`, el hash de migration y el digest no-auth
+calculado por el workflow. La migration y el manifest permanecen sin cambios.
+
 `Verify` llama al contrato de solo lectura
 `fg2_modality_provenance_schema_contract()` como service_role y coteja el
 ledger, firma/retorno, cuerpo exacto del RPC, `SECURITY DEFINER`,
