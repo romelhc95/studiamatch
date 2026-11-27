@@ -238,6 +238,7 @@ def approved_lot(
     database: FakeDB,
     *,
     selected_seed_urls: list[str] | None = None,
+    selection_mode: str = "rotation_prefix",
 ) -> tuple[dict, bytes, str]:
     institution = next(row for row in database.institutions if row["id"] == INSTITUTION_B)
     profile = next(row for row in database.profiles if row["institution_id"] == INSTITUTION_B)
@@ -250,6 +251,7 @@ def approved_lot(
         "schema_version": 1,
         "reference": "H1REQ1-FG2-LOT-REVIEW-001",
         "source_sha": SOURCE_SHA,
+        "selection_mode": selection_mode,
         "limits": dict(FG2_LIMITS),
         "institutions": [
             {
@@ -373,6 +375,8 @@ def run_approved_dispatch(
         "GITHUB_RUN_ATTEMPT": "1",
         "GITHUB_SHA": source_sha,
         "GITHUB_REF": "refs/heads/main",
+        "GITHUB_EVENT_NAME": "workflow_dispatch",
+        "FG2_APPROVED_LOT_SELECTION": payload.get("selection_mode", "rotation_prefix"),
         "FG2_APPROVED_LOT_MANIFEST_B64": base64.b64encode(raw).decode("ascii"),
     }
     args = [
@@ -386,6 +390,8 @@ def run_approved_dispatch(
         ref,
         "--approved-lot-sha256",
         digest,
+        "--approved-lot-selection",
+        payload.get("selection_mode", "rotation_prefix"),
     ]
     with (
         patch.dict(os.environ, env, clear=False),
@@ -1114,6 +1120,341 @@ def test_approved_lot_rejects_a_newly_eligible_institution_ahead_of_its_rotation
             )
 
     assert database.writes == []
+
+
+def test_reviewed_exact_lot_selects_only_approved_institution_when_rotation_prefix_differs() -> None:
+    database = FakeDB()
+    database.profiles[0]["seed_urls"] = ["https://a.example/programs/"]
+    approved = approved_lot(database, selection_mode="reviewed_exact")
+    payload, raw, digest = approved
+    manifest = FG2ApprovedLotManifest.from_bytes(
+        raw,
+        payload,
+        expected_sha256=digest,
+        expected_reference=payload["reference"],
+        expected_source_sha=SOURCE_SHA,
+        expected_selection_mode="reviewed_exact",
+    )
+
+    with patch.object(orchestrator, "_get_db", return_value=database):
+        selected = orchestrator.get_institutions(
+            limit=10,
+            controlled=True,
+            approved_lot=manifest,
+            approved_lot_selection="reviewed_exact",
+            now=datetime(2026, 11, 9, tzinfo=timezone.utc),
+        )
+
+    assert [row["id"] for row in selected] == [INSTITUTION_B]
+    assert selected[0]["_controlled_seed_urls"] == ["https://b.example/programs"]
+    assert database.writes == []
+
+
+def test_reviewed_exact_dispatch_skips_global_onboarding_and_preserves_manifest_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    database = FakeDB()
+    database.profiles[0]["seed_urls"] = ["https://a.example/programs/"]
+    approved = approved_lot(database, selection_mode="reviewed_exact")
+    started: list[list[str]] = []
+
+    def capture_child(_script, args, **_kwargs):
+        started.append(list(args))
+        cohort_path = Path(args[args.index("--cohort-manifest") + 1])
+        update_manifest_institution(
+            cohort_path,
+            institution_id=INSTITUTION_B,
+            http_requests=1,
+            unique_urls=1,
+            result="complete",
+        )
+        append_manifest_discovery_row(
+            cohort_path,
+            {
+                "institution_id": INSTITUTION_B,
+                "staging_id": STAGING_B,
+                "url_sha256": url_sha256(URL_B),
+                "initial_status": "discovered",
+                "kind": "refresh_existing",
+                "course_id": COURSE_B,
+            },
+        )
+        append_manifest_entry(
+            cohort_path,
+            {
+                "institution_id": INSTITUTION_B,
+                "staging_id": STAGING_B,
+                "course_id": COURSE_B,
+                "url_sha256": url_sha256(URL_B),
+                "content_sha256": "e" * 64,
+                "kind": "refresh_existing",
+            },
+        )
+        return True
+
+    monkeypatch.setenv("FG2_PROFILE_DIAGNOSTICS_ENABLED", "true")
+    with patch.object(orchestrator, "run_profile_onboarding", side_effect=AssertionError("onboarding must not run")):
+        with caplog.at_level(logging.INFO, logger=orchestrator.logger.name):
+            result, payload, _raw, _digest, _approved_path, cohort_path = run_approved_dispatch(
+                database,
+                tmp_path,
+                source_runner=capture_child,
+                approved=approved,
+            )
+
+    assert result == 0
+    cohort = FG2CohortManifest.load(
+        cohort_path,
+        expected_run_id="123456789",
+        expected_source_sha=SOURCE_SHA,
+        expected_approved_lot_reference=payload["reference"],
+        expected_approved_lot_sha256=hashlib.sha256(_raw).hexdigest(),
+        expected_approved_lot_selection="reviewed_exact",
+        allow_empty=True,
+    )
+    assert cohort.payload["approved_lot_selection"] == "reviewed_exact"
+    assert len(started) == 1
+    assert started[0][started[0].index("--approved-lot-selection") + 1] == "reviewed_exact"
+    assert (
+        "FG2_SELECTION mode=reviewed_exact outcome=accepted approved_institutions=1 "
+        "approved_urls=1 selected_institutions=1 category=none"
+    ) in caplog.text
+    assert "https://b.example/programs" not in caplog.text
+
+
+def test_rotation_rejection_logs_stable_sanitized_selection_result(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    database = FakeDB()
+    database.profiles[0]["seed_urls"] = ["https://a.example/programs/"]
+    approved = approved_lot(database)
+
+    with caplog.at_level(logging.INFO, logger=orchestrator.logger.name):
+        result, _payload, _raw, _digest, _approved_path, _cohort_path = run_approved_dispatch(
+            database,
+            tmp_path,
+            source_runner=lambda *_args, **_kwargs: pytest.fail("rejected lot must not launch a worker"),
+            approved=approved,
+        )
+
+    assert result == 1
+    assert (
+        "FG2_SELECTION mode=rotation_prefix outcome=rejected approved_institutions=1 "
+        "approved_urls=1 selected_institutions=0 category=outside_eligible_rotation_prefix"
+    ) in caplog.text
+    assert "https://b.example/programs" not in caplog.text
+
+
+def test_approved_lot_rejects_institution_without_scope_before_database_or_worker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database = FakeDB()
+    database.profiles[0]["seed_urls"] = ["https://a.example/programs/"]
+    payload, _raw, _digest = approved_lot(database, selection_mode="reviewed_exact")
+    institution_a = database.institutions[0]
+    profile_a = database.profiles[0]
+    preflight_a = validate_controlled_profile(institution_a, profile_a)
+    payload["institutions"].append(
+        {
+            "institution_id": INSTITUTION_A,
+            "institution_sha256": stable_json_sha256(
+                {"id": INSTITUTION_A, "slug": "a", "website_url": "https://a.example"}
+            ),
+            "profile_sha256": preflight_a["profile_sha256"],
+            "seed_sha256": preflight_a["seed_sha256"],
+            "seed_urls": preflight_a["seed_urls"],
+        }
+    )
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+
+    monkeypatch.setenv("GITHUB_RUN_ID", "123456789")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    monkeypatch.setenv("GITHUB_SHA", SOURCE_SHA)
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+    monkeypatch.setenv("FG2_APPROVED_LOT_MANIFEST_B64", base64.b64encode(raw).decode("ascii"))
+    monkeypatch.setattr(
+        orchestrator,
+        "_get_db",
+        lambda: pytest.fail("incomplete exact lot must be rejected before database reads"),
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "run_script",
+        lambda *_args, **_kwargs: pytest.fail("incomplete exact lot must not start a worker"),
+    )
+
+    result = orchestrator.main(
+        [
+            "--controlled-first-run",
+            "--skip-cleansing",
+            "--cohort-manifest",
+            str(tmp_path / "cohort.json"),
+            "--approved-lot-manifest",
+            str(tmp_path / "approved-lot.json"),
+            "--approved-lot-reference",
+            payload["reference"],
+            "--approved-lot-sha256",
+            digest,
+            "--approved-lot-selection",
+            "reviewed_exact",
+        ]
+    )
+
+    assert result == 1
+
+
+def test_reviewed_exact_manifest_cannot_be_silently_downgraded_to_rotation_prefix() -> None:
+    database = FakeDB()
+    approved = approved_lot(database, selection_mode="reviewed_exact")
+    payload, raw, digest = approved
+    manifest = FG2ApprovedLotManifest.from_bytes(
+        raw,
+        payload,
+        expected_sha256=digest,
+        expected_reference=payload["reference"],
+        expected_source_sha=SOURCE_SHA,
+    )
+    with patch.object(orchestrator, "_get_db", return_value=database):
+        with pytest.raises(InvalidControlledRun, match="does not match the dispatch"):
+            orchestrator.get_institutions(
+                limit=10,
+                controlled=True,
+                approved_lot=manifest,
+                approved_lot_selection="rotation_prefix",
+            )
+    with pytest.raises(InvalidControlledRun, match="does not match the dispatch"):
+        FG2ApprovedLotManifest.from_bytes(
+            raw,
+            payload,
+            expected_sha256=digest,
+            expected_reference=payload["reference"],
+            expected_source_sha=SOURCE_SHA,
+            expected_selection_mode="rotation_prefix",
+        )
+
+
+def test_legacy_approved_lot_without_selection_mode_remains_rotation_prefix() -> None:
+    database = FakeDB()
+    payload, _raw, _digest = approved_lot(database)
+    payload.pop("selection_mode")
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+    manifest = FG2ApprovedLotManifest.from_bytes(
+        raw,
+        payload,
+        expected_sha256=digest,
+        expected_reference=payload["reference"],
+        expected_source_sha=SOURCE_SHA,
+    )
+    assert manifest.selection_mode == "rotation_prefix"
+
+
+@pytest.mark.parametrize(
+    ("drift", "message"),
+    [
+        ("profile_status", "pending review"),
+        ("pipeline_enabled", "pipeline_enabled is not enabled"),
+        ("circuit_open", "source circuit is open"),
+        ("freshness", "freshness eligible"),
+        ("seed_urls", "outside the configured profile"),
+        ("website_url", "source seed is outside the institution origin"),
+    ],
+)
+def test_reviewed_exact_does_not_skip_selected_profile_circuit_seed_or_origin_gates(
+    drift: str, message: str
+) -> None:
+    database = FakeDB()
+    approved = approved_lot(database, selection_mode="reviewed_exact")
+    payload, raw, digest = approved
+    manifest = FG2ApprovedLotManifest.from_bytes(
+        raw,
+        payload,
+        expected_sha256=digest,
+        expected_reference=payload["reference"],
+        expected_source_sha=SOURCE_SHA,
+        expected_selection_mode="reviewed_exact",
+    )
+    target = database.profiles[1]
+    if drift == "profile_status":
+        target[drift] = "pending_review"
+    elif drift == "pipeline_enabled":
+        target[drift] = False
+    elif drift == "circuit_open":
+        target[drift] = True
+        target["circuit_opened_at"] = "2026-11-27T00:00:00+00:00"
+    elif drift == "freshness":
+        database.institutions[1]["last_harvest_at"] = "2026-11-26T23:00:00+00:00"
+        database.count_pipeline_raise = lambda *_args, **_kwargs: 51
+    elif drift == "seed_urls":
+        target[drift] = ["https://b.example/changed/seed"]
+    elif drift == "website_url":
+        database.institutions[1][drift] = "https://other.example/"
+
+    with patch.object(orchestrator, "_get_db", return_value=database):
+        with pytest.raises(InvalidControlledRun, match=message):
+            orchestrator.get_institutions(
+                limit=10,
+                controlled=True,
+                approved_lot=manifest,
+                approved_lot_selection="reviewed_exact",
+                now=datetime(2026, 11, 27, 0, 30, tzinfo=timezone.utc),
+            )
+    assert database.writes == []
+
+
+def test_reviewed_exact_is_rejected_before_recovery_or_schedule_database_reads(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        orchestrator,
+        "_get_db",
+        lambda: pytest.fail("reviewed-exact mode must be rejected before database reads"),
+    )
+    recovery = orchestrator.main(
+        [
+            "--limit", "5", "--skip-cleansing", "--prepare-post272-enrichment-recovery",
+            "--approved-lot-selection", "reviewed_exact",
+        ]
+    )
+    schedule = orchestrator.main(
+        [
+            "--limit", "10", "--max-urls", "10", "--skip-cleansing", "--scheduled-cohort",
+            "--cohort-manifest", str(tmp_path / "schedule.json"),
+            "--approved-lot-selection", "reviewed_exact",
+        ]
+    )
+    assert recovery == 1
+    assert schedule == 1
+
+
+def test_recovery_rejects_reviewed_exact_lot_before_database_reads(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database = FakeDB()
+    payload, raw, digest = approved_lot(database, selection_mode="reviewed_exact")
+    monkeypatch.setattr(
+        orchestrator,
+        "_get_db",
+        lambda: pytest.fail("recovery must reject an exact-mode lot before database reads"),
+    )
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+    monkeypatch.setenv("GITHUB_RUN_ID", "123456789")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    monkeypatch.setenv("GITHUB_SHA", SOURCE_SHA)
+    monkeypatch.setenv("FG2_APPROVED_LOT_MANIFEST_B64", base64.b64encode(raw).decode("ascii"))
+    args = SimpleNamespace(
+        source_cohort_manifest=str(tmp_path / "historical.json"),
+        cohort_manifest=str(tmp_path / "recovery.json"),
+        approved_lot_manifest=str(tmp_path / "approved-lot.json"),
+        approved_lot_reference=payload["reference"],
+        approved_lot_sha256=digest,
+    )
+
+    assert orchestrator._prepare_post272_enrichment_recovery(args) == 1
+    assert not (tmp_path / "approved-lot.json").exists()
 
 
 def test_approved_lot_passes_non_prefix_seed_subset_to_child_without_writes(tmp_path: Path) -> None:

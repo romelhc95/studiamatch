@@ -736,6 +736,46 @@ genera cohort entry; la postcondición de cohorte vacía impide ejecutar las
 estaciones downstream. Esta excepción no altera el schedule ordinario ni
 autoriza reparar filas históricas.
 
+### Selección manual exacta por lote revisado — `reviewed_exact`
+
+El `workflow_dispatch` ofrece `approved_lot_selection` con dos valores y deja
+`rotation_prefix` como valor predeterminado. Este último conserva la selección
+rotativa vigente: las instituciones aprobadas deben seguir siendo el prefijo
+elegible actual. `reviewed_exact` permite, únicamente para un `bounded_first_run`
+manual en `main`, ejecutar las instituciones y URLs exactas del lote en su
+orden revisado, aunque otras instituciones elegibles las precedan en la
+rotación. Cada institución aprobada debe tener al menos una URL de detalle en
+el scope; un lote incompleto se rechaza durante el parseo, antes de leer DB o
+iniciar workers. No es un filtro general ni una selección por slug.
+
+La excepción omite solo la comparación con el prefijo global. Para cada
+institución aprobada siguen siendo obligatorios la identidad única, perfil
+activo y sin deriva, gates de discovery/pipeline, circuito cerrado, frescura,
+origen, semillas y política de URLs. Cada URL conserva el snapshot exacto de
+staging, cursos y relaciones downstream; el harvester lo revalida antes de
+solicitar y escribir. Permanecen los límites 10 URLs/20 inicios HTTP por
+institución, DNS público fijado por salto, HTTPS sin proxy/redirect/retry
+automático, límites de cuerpo, parada ante 403/429, selección de IDs y
+proveedor real en las etapas correspondientes. El modo se liga al lote y al
+manifest de cohorte; harvesting, cleansing, enrichment, sync y sus postflights
+rechazan una discrepancia del modo.
+
+Este modo requiere referencia, SHA-256 y bytes del lote revisado, además de
+`bounded_first_run=true`; no se combina con `resume_enrichment_from_272` ni con
+el evento `schedule`. El cron conserva su `rotation_prefix` predeterminado y
+su selector, concurrencia y gates actuales. La recuperación #275 sigue siendo
+enrichment/sync únicamente. Para evitar solicitudes o escrituras ajenas al
+lote, `reviewed_exact` omite el onboarding y los diagnósticos globales de
+perfiles; los otros modos conservan ese camino. El orquestador emite un evento
+`FG2_SELECTION` con modo permitido, resultado, conteos agregados y una categoría
+de rechazo estable (`outside_eligible_rotation_prefix`, `database_read_failed`,
+`controlled_lot_rejected` u otra categoría fija). No registra URLs, IDs,
+referencias, bytes del lote ni excepciones privadas. La regresión PG17 crea solo
+predecesores sintéticos: demuestra el rechazo UTEC bajo rotación y, con el
+mismo snapshot, el recorrido `reviewed_exact` hasta Admin, con HTTP y proveedor
+sintéticos y red Docker interna sin egress. No acredita una llamada al sitio,
+un proveedor pagado ni ejecución de Pro.
+
 La identidad del lote usa la misma función `normalize_url` que el harvester
 (quita query/fragment y slash final, baja scheme/host y retira `/en/`). El
 `url_sha256` del scope aprobado identifica esa URL normalizada; el `url_sha256`

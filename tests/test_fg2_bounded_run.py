@@ -1634,3 +1634,27 @@ def test_controlled_first_run_requires_manual_dispatch_on_main() -> None:
         validate_harvester_run_mode(**{**args, "event_name": "schedule"})
     with pytest.raises(InvalidControlledRun, match="manual workflow_dispatch on main"):
         validate_harvester_run_mode(**{**args, "git_ref": "refs/heads/desarrollo"})
+
+
+def test_reviewed_exact_selection_is_dispatch_only_and_requires_manifest_binding() -> None:
+    args = {
+        "controlled": True,
+        "scheduled": False,
+        "cohort_manifest": "/tmp/cohort.json",
+        "approved_lot_manifest": "/tmp/approved-lot.json",
+        "approved_lot_reference": "human-reviewed-lot",
+        "approved_lot_sha256": "a" * 64,
+        "max_urls": 10,
+        "event_name": "workflow_dispatch",
+        "git_ref": "refs/heads/main",
+        "approved_lot_selection": "reviewed_exact",
+    }
+    assert validate_harvester_run_mode(**args) == "controlled_first_run"
+    with pytest.raises(InvalidControlledRun, match="manual workflow_dispatch on main"):
+        validate_harvester_run_mode(**{**args, "event_name": "schedule"})
+    with pytest.raises(InvalidControlledRun, match="manual workflow_dispatch on main"):
+        validate_harvester_run_mode(**{**args, "git_ref": "refs/heads/feature"})
+    with pytest.raises(InvalidControlledRun, match="requires a controlled manual first run"):
+        validate_harvester_run_mode(**{**args, "controlled": False})
+    with pytest.raises(InvalidControlledRun, match="selection mode is unsupported"):
+        validate_harvester_run_mode(**{**args, "approved_lot_selection": "manual_guess"})

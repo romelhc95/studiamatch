@@ -281,23 +281,30 @@ prepare_approved_lot() {
 run_approved_master() {
   local phase="$1" run_id="$2" expect_noop="${3:-false}"
   local response_file="${4:-responses_refresh.json}"
-  local log="$out/${phase}.log" lot_path=/run/fg2-approved-lot.json
+  local selection_mode="${5:-rotation_prefix}"
+  local approved_reference="${6:-fixture-processed-refresh-existing-course}"
+  local lot_file="${7:-$run_dir/fg2-approved-lot.json}"
+  local lot_path
+  local log="$out/${phase}.log"
   local cohort_path=/run/fg2-cohort-manifest.json
+  lot_path="/run/$(basename "$lot_file")"
   local lot_sha lot_b64
-  lot_sha="$(sha256sum "$run_dir/fg2-approved-lot.json" | cut -d' ' -f1)"
-  lot_b64="$(base64 -w0 "$run_dir/fg2-approved-lot.json")"
+  lot_sha="$(sha256sum "$lot_file" | cut -d' ' -f1)"
+  lot_b64="$(base64 -w0 "$lot_file")"
   rm -f -- "$manifest"
   if docker run "${approved_docker_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
       --env FG2_FIXTURE_RESPONSE_FILE="/workspace/tests/fg2_full_pipeline_pg17/$response_file" \
+      --env FG2_APPROVED_LOT_SELECTION="$selection_mode" \
       --env FG2_APPROVED_LOT_MANIFEST_B64="$lot_b64" \
       --env FG2_FIXTURE_EXPORT_MANIFEST=/run/fg2-cohort-manifest.json \
       "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
       /workspace/scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing \
       --controlled-first-run --cohort-manifest "$cohort_path" \
       --approved-lot-manifest "$lot_path" \
-      --approved-lot-reference fixture-processed-refresh-existing-course \
-      --approved-lot-sha256 "$lot_sha" >"$log" 2>&1; then
+      --approved-lot-reference "$approved_reference" \
+      --approved-lot-sha256 "$lot_sha" \
+      --approved-lot-selection "$selection_mode" >"$log" 2>&1; then
     if [[ "$expect_noop" == true ]]; then
       fail "$phase" IDENTICAL_REFRESH_UNEXPECTEDLY_PRODUCED_A_COHORT
     fi
@@ -328,6 +335,7 @@ run_approved_master() {
 
 run_worker() {
   local phase="$1" script="$2" run_id="$3" expected_result="${4:-success}" recovery_source="${5:-false}"
+  local selection_mode="${6:-rotation_prefix}"
   local manifest_sha manifest_b64 log
   local recovery_args=()
   if [[ "$recovery_source" == "true" ]]; then
@@ -339,6 +347,7 @@ run_worker() {
   if docker run "${common_docker_args[@]}" \
       "${recovery_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
+      --env FG2_APPROVED_LOT_SELECTION="$selection_mode" \
       --env FG2_FIXTURE_MANIFEST_B64="$manifest_b64" \
       --env FG2_FIXTURE_MANIFEST_SHA256="$manifest_sha" \
       "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
@@ -365,6 +374,7 @@ run_worker() {
 
 run_worker_with_openai_http_fixture() {
   local phase="$1" script="$2" run_id="$3" provider_mode="${4:-success}" expected_result="${5:-success}" recovery_source="${6:-false}" provider_modality_mode="${7:-valid}"
+  local selection_mode="${8:-rotation_prefix}"
   local manifest_sha manifest_b64 log
   local provider_http_args=("${approved_docker_args[@]}")
   if [[ "$recovery_source" == "true" ]]; then
@@ -380,6 +390,7 @@ run_worker_with_openai_http_fixture() {
   done
   if docker run "${provider_http_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
+      --env FG2_APPROVED_LOT_SELECTION="$selection_mode" \
       --env FG2_FIXTURE_PROVIDER_HTTP=1 \
       --env FG2_FIXTURE_PROVIDER_MODE="$provider_mode" \
       --env FG2_FIXTURE_PROVIDER_MODALITY_MODE="$provider_modality_mode" \
@@ -811,5 +822,147 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
   -f /fixture/assert_post272_recovery.sql >"$out/post272_postflight.log"
 cat "$out/post272_postflight.log"
 
-printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_recovery_stations=Enrichment+Sync|post272_refresh_synced=5|out_of_scope_excluded=1|discovery_only_unchanged=2|public_effective=0|provider_boundary=synthetic_loopback_openai|harvest_cleansing_replayed=false\n'
+# Reproduce the production mismatch in disposable PG17: ten eligible
+# institutions precede the UTEC snapshot, so the unchanged default selector
+# rejects it. Then run the same one-URL identity only with reviewed_exact.
+docker exec -i "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
+  <<'SQL' >/dev/null
+INSERT INTO public.institutions (id, name, slug, website_url, last_harvest_at)
+VALUES (
+  '50d8779c-54fd-437e-b941-e817e202e60c',
+  'UTEC synthetic fixture',
+  'utec',
+  'https://posgrado.utec.edu.pe/',
+  '2026-07-17T07:18:57.38649+00:00'
+);
+INSERT INTO public.institution_site_profiles (
+  institution_id, pipeline_ready, pipeline_enabled, discovery_enabled,
+  production_enabled, website_url, site_type, discovery_mode, seed_urls,
+  allowed_url_patterns, exclusion_patterns, allowed_resource_origins,
+  catalog_url_patterns, catalog_max_pages, catalog_scroll_iterations,
+  catalog_link_selector, field_defaults, section_keywords, profile_status,
+  diagnostic_status, auto_generated, requires_stealth, requires_cloudflare_bypass,
+  detail_wait_ms
+)
+VALUES (
+  '50d8779c-54fd-437e-b941-e817e202e60c', true, true, true,
+  true, 'https://posgrado.utec.edu.pe/', 'traditional_ssr', 'hardcoded_urls',
+  '[
+    "https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial",
+    "https://posgrado.utec.edu.pe/maestrias/management-analytics-e-inteligencia-artificial",
+    "https://posgrado.utec.edu.pe/cursos/data-science-fundamentals",
+    "https://posgrado.utec.edu.pe/cursos/big-data",
+    "https://posgrado.utec.edu.pe/programas/programa-en-arquitectura-de-datos"
+  ]'::jsonb,
+  '["re:^(/maestrias/|/cursos/|/programas/)"]'::jsonb,
+  '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 1, 0, NULL,
+  '{}'::jsonb, '{}'::jsonb, 'active', 'verified', false, false, false, 0
+);
+WITH predecessors AS (
+  SELECT
+    ('60000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid AS id,
+    'rotation-predecessor-' || lpad(n::text, 2, '0') AS slug,
+    'https://rotation-' || lpad(n::text, 2, '0') || '.fg2.example' AS website_url
+  FROM generate_series(1, 10) AS n
+)
+INSERT INTO public.institutions (id, name, slug, website_url, last_harvest_at)
+SELECT id, 'Synthetic rotation predecessor ' || slug, slug, website_url, NULL
+FROM predecessors;
+WITH predecessors AS (
+  SELECT
+    ('60000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid AS institution_id,
+    'https://rotation-' || lpad(n::text, 2, '0') || '.fg2.example' AS website_url
+  FROM generate_series(1, 10) AS n
+)
+INSERT INTO public.institution_site_profiles (
+  institution_id, pipeline_ready, pipeline_enabled, discovery_enabled,
+  production_enabled, website_url, site_type, discovery_mode, seed_urls,
+  allowed_url_patterns, exclusion_patterns, allowed_resource_origins,
+  catalog_url_patterns, catalog_max_pages, catalog_scroll_iterations,
+  catalog_link_selector, field_defaults, section_keywords, profile_status,
+  diagnostic_status, auto_generated, requires_stealth, requires_cloudflare_bypass,
+  detail_wait_ms
+)
+SELECT
+  institution_id, true, true, true, true, website_url,
+  'traditional_ssr', 'hardcoded_urls',
+  jsonb_build_array(website_url || '/programas/synthetic'),
+  '["re:^/programas/"]'::jsonb, '[]'::jsonb, '[]'::jsonb,
+  '[]'::jsonb, 1, 0, NULL, '{}'::jsonb, '{}'::jsonb,
+  'active', 'verified', false, false, false, 0
+FROM predecessors;
+INSERT INTO public.staging_raw (
+  id, institution_id, url, raw_name, raw_description, raw_html, status,
+  content_hash, effective_url, canonical_url, metadata
+)
+VALUES (
+  '792b1600-9939-4cf3-95fd-5056d8f5d99c',
+  '50d8779c-54fd-437e-b941-e817e202e60c',
+  'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
+  'Synthetic prior UTEC discovery',
+  'Synthetic preflight-only placeholder.',
+  '<html><body>preflight-only placeholder</body></html>',
+  'discovered',
+  'f05f5beb61a19d62b65c25530d4eda59ddfce2b8e8ba26c593203fd5a8d963ce',
+  'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
+  'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
+  '{"fixture_case":"utec_reviewed_exact"}'::jsonb
+);
+SQL
+utec_snapshot_counts="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
+  "SELECT (SELECT count(*) FROM public.institutions WHERE id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.institution_site_profiles WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.staging_raw WHERE id='792b1600-9939-4cf3-95fd-5056d8f5d99c')")"
+[[ "$utec_snapshot_counts" == "1|1|1" ]] || fail utec_pg17_snapshot FIXTURE_ROWS_MISSING
+printf 'phase=utec_pg17_snapshot|result=PASS|institution=1|profile=1|staging=1\n'
+utec_lot_log="$out/utec_reviewed_exact_manifest.log"
+if ! docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000006 \
+    "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+    /workspace/tests/fg2_full_pipeline_pg17/prepare_approved_lot.py --utec-reviewed-exact \
+    >"$utec_lot_log" 2>&1; then
+  cat "$utec_lot_log"
+  fail utec_reviewed_exact_manifest SNAPSHOT_OR_PROFILE_MISMATCH
+fi
+cat "$utec_lot_log"
+
+rotation_probe_log="$out/utec_default_rotation_rejected.log"
+if docker run "${approved_docker_args[@]}" --env GITHUB_RUN_ID=9000007 \
+    --env FG2_APPROVED_LOT_SELECTION=rotation_prefix \
+    "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+    /workspace/tests/fg2_full_pipeline_pg17/prepare_approved_lot.py --verify-utec-rotation-rejected \
+    >"$rotation_probe_log" 2>&1; then
+  grep -q '^phase=utec_default_rotation|result=PASS|utec=rejected|reason=outside_eligible_rotation_prefix$' \
+    "$rotation_probe_log" || { cat "$rotation_probe_log"; fail utec_default_rotation EXPECTED_REJECTION_NOT_DEMONSTRATED; }
+else
+  cat "$rotation_probe_log"
+  fail utec_default_rotation SELECTOR_PROBE_FAILED
+fi
+grep -q '^phase=utec_default_rotation|result=PASS|utec=rejected|reason=outside_eligible_rotation_prefix$' \
+  "$rotation_probe_log" || { cat "$rotation_probe_log"; fail utec_default_rotation EXPECTED_REJECTION_NOT_DEMONSTRATED; }
+cat "$rotation_probe_log"
+
+run_approved_master \
+  utec_reviewed_exact_harvest 9000006 false responses_initial.json reviewed_exact \
+  fixture-utec-reviewed-exact-new-discovery "$run_dir/fg2-approved-lot.json"
+docker run --pull=never --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+  --mount "type=bind,src=$events,dst=/run/events.jsonl,readonly" \
+  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,pathlib,sys; rows=[json.loads(x) for x in pathlib.Path("/run/events.jsonl").read_text().splitlines() if x]; picked=[x for x in rows if x.get("run_id")=="9000006" and x.get("boundary")=="harvester_budget"]; ok=len(picked)==1 and picked[0].get("host")=="posgrado.utec.edu.pe" and picked[0].get("path")=="/maestrias/ciencia-de-datos-inteligencia-artificial" and picked[0].get("status")==200 and picked[0].get("pinned") is True and not [x for x in picked if x.get("host") in {"certus.edu.pe","www.certus.edu.pe"}]; ok or sys.exit("phase=utec_reviewed_exact_http_scope|result=FAIL|code=unexpected_source_request_set"); print("phase=utec_reviewed_exact_http_scope|result=PASS|requests=1|target=approved_utec_detail|pinned=true|certus=0|robots=0|sitemaps=0")' \
+  >"$out/utec_reviewed_exact_http_scope.log" 2>&1 \
+  || { cat "$out/utec_reviewed_exact_http_scope.log"; fail utec_reviewed_exact_http_scope SOURCE_SCOPE_ASSERTION; }
+cat "$out/utec_reviewed_exact_http_scope.log"
+
+run_worker utec_reviewed_exact_cleansing cleansing_worker.py 9000006 success false reviewed_exact
+run_worker_with_openai_http_fixture \
+  utec_reviewed_exact_enrichment enrichment_worker.py 9000006 success success false valid reviewed_exact
+run_worker utec_reviewed_exact_sync sync_vector_worker.py 9000006 success false reviewed_exact
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 \
+  -c "SELECT set_config('fg2.fixture_expected_staging',(SELECT count(*)::text FROM public.staging_raw),false), set_config('fg2.fixture_expected_cleansed',(SELECT count(*)::text FROM public.cleansed_programs),false), set_config('fg2.fixture_expected_enriched',(SELECT count(*)::text FROM public.enriched_programs),false), set_config('fg2.fixture_expected_courses',(SELECT count(*)::text FROM public.courses),false)" \
+  -f /fixture/assert_state.sql >"$out/utec_reviewed_exact_postflight.log"
+cat "$out/utec_reviewed_exact_postflight.log"
+docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000006 \
+  "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+  /workspace/tests/fg2_full_pipeline_pg17/verify_admin_queue.py --utec-reviewed-exact \
+  >"$out/utec_reviewed_exact_admin.log" 2>&1 \
+  || { cat "$out/utec_reviewed_exact_admin.log"; fail utec_reviewed_exact_admin_queue ADMIN_RPC_ASSERTION; }
+cat "$out/utec_reviewed_exact_admin.log"
+
+printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_recovery_stations=Enrichment+Sync|post272_refresh_synced=5|out_of_scope_excluded=1|discovery_only_unchanged=2|utec_reviewed_exact=Harvest+Cleansing+Enrichment+Sync+Admin|public_effective=0|provider_boundary=synthetic_loopback_openai|harvest_cleansing_replayed=false\n'
 printf 'phase=limits|result=LOCAL_EVIDENCE_ONLY|network=internal_no_egress|db=ephemeral_pg17|production=untouched\n'
