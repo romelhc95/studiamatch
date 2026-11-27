@@ -1078,6 +1078,7 @@ class FG2CohortManifest:
         expected_source_sha: str | None = None,
         expected_approved_lot_reference: str | None = None,
         expected_approved_lot_sha256: str | None = None,
+        expected_approved_lot_selection: str | None = None,
         allow_empty: bool = False,
     ) -> "FG2CohortManifest":
         source = Path(path)
@@ -1095,6 +1096,7 @@ class FG2CohortManifest:
             expected_source_sha=expected_source_sha,
             expected_approved_lot_reference=expected_approved_lot_reference,
             expected_approved_lot_sha256=expected_approved_lot_sha256,
+            expected_approved_lot_selection=expected_approved_lot_selection,
             allow_empty=allow_empty,
         )
 
@@ -1108,6 +1110,7 @@ class FG2CohortManifest:
         expected_source_sha: str | None = None,
         expected_approved_lot_reference: str | None = None,
         expected_approved_lot_sha256: str | None = None,
+        expected_approved_lot_selection: str | None = None,
         allow_empty: bool = False,
     ) -> "FG2CohortManifest":
         if not isinstance(payload, dict) or payload.get("schema_version") != 1:
@@ -1134,6 +1137,12 @@ class FG2CohortManifest:
             and payload.get("approved_lot_sha256") != expected_approved_lot_sha256.lower()
         ):
             raise InvalidControlledRun("cohort manifest approved-lot digest mismatch")
+        selection_mode = payload.get("approved_lot_selection", "rotation_prefix")
+        if selection_mode not in FG2_APPROVED_LOT_SELECTION_MODES:
+            raise InvalidControlledRun("cohort manifest approved-lot selection is unsupported")
+        if expected_approved_lot_selection is not None and selection_mode != expected_approved_lot_selection:
+            raise InvalidControlledRun("cohort manifest approved-lot selection mismatch")
+        payload["approved_lot_selection"] = selection_mode
         if payload.get("limits") != FG2_LIMITS:
             raise InvalidControlledRun("cohort manifest limits differ from the approved candidate")
         recovery_source = payload.get("recovery_source")
@@ -1228,6 +1237,8 @@ class FG2CohortManifest:
                 or not _valid_sha256(lot_digest)
             ):
                 raise InvalidControlledRun("cohort manifest approved-lot binding is invalid")
+        elif selection_mode != "rotation_prefix":
+            raise InvalidControlledRun("cohort manifest selection mode requires an approved lot binding")
 
         institutions = payload.get("institutions")
         if not isinstance(institutions, list) or not institutions or len(institutions) > 10:
@@ -1661,8 +1672,11 @@ def validate_harvester_run_mode(
     max_urls: int | None,
     event_name: str,
     git_ref: str,
+    approved_lot_selection: str = "rotation_prefix",
 ) -> str:
     """Keep ordinary schedule cohorts distinct from the manually reviewed lot."""
+    if approved_lot_selection not in FG2_APPROVED_LOT_SELECTION_MODES:
+        raise InvalidControlledRun("approved FG2 lot selection mode is unsupported")
     if controlled and scheduled:
         raise InvalidControlledRun("harvester cannot be both controlled-first-run and scheduled")
     if controlled:
@@ -1673,6 +1687,8 @@ def validate_harvester_run_mode(
         if not all((approved_lot_manifest, approved_lot_reference, approved_lot_sha256)):
             raise InvalidControlledRun("controlled first run requires the reviewed FG2 lot binding")
         return "controlled_first_run"
+    if approved_lot_selection != "rotation_prefix":
+        raise InvalidControlledRun("reviewed-exact lot selection requires a controlled manual first run")
     if scheduled:
         if (
             max_urls != FG2_LIMITS["max_urls_per_institution"]
@@ -1689,6 +1705,7 @@ def validate_harvester_run_mode(
 
 
 APPROVED_LOT_MAX_BYTES = 40 * 1024
+FG2_APPROVED_LOT_SELECTION_MODES = frozenset({"rotation_prefix", "reviewed_exact"})
 _APPROVED_REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$")
 _APPROVED_SNAPSHOT_KEYS = (
     "staging_rows",
@@ -1722,6 +1739,7 @@ class FG2ApprovedLotManifest:
         expected_sha256: str,
         expected_reference: str,
         expected_source_sha: str,
+        expected_selection_mode: str | None = None,
     ) -> "FG2ApprovedLotManifest":
         try:
             raw = Path(path).read_bytes()
@@ -1734,6 +1752,7 @@ class FG2ApprovedLotManifest:
             expected_sha256=expected_sha256,
             expected_reference=expected_reference,
             expected_source_sha=expected_source_sha,
+            expected_selection_mode=expected_selection_mode,
         )
 
     @classmethod
@@ -1745,6 +1764,7 @@ class FG2ApprovedLotManifest:
         expected_sha256: str,
         expected_reference: str,
         expected_source_sha: str,
+        expected_selection_mode: str | None = None,
     ) -> "FG2ApprovedLotManifest":
         if not isinstance(encoded, str) or not encoded or len(encoded) > 4 * APPROVED_LOT_MAX_BYTES // 3 + 8:
             raise InvalidControlledRun("approved FG2 lot payload is missing or too large")
@@ -1759,6 +1779,7 @@ class FG2ApprovedLotManifest:
             expected_sha256=expected_sha256,
             expected_reference=expected_reference,
             expected_source_sha=expected_source_sha,
+            expected_selection_mode=expected_selection_mode,
         )
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1784,6 +1805,7 @@ class FG2ApprovedLotManifest:
         expected_sha256: str,
         expected_reference: str,
         expected_source_sha: str,
+        expected_selection_mode: str | None = None,
     ) -> "FG2ApprovedLotManifest":
         digest = hashlib.sha256(raw).hexdigest()
         if len(raw) > APPROVED_LOT_MAX_BYTES:
@@ -1794,6 +1816,7 @@ class FG2ApprovedLotManifest:
             payload,
             expected_reference=expected_reference,
             expected_source_sha=expected_source_sha,
+            expected_selection_mode=expected_selection_mode,
         )
         return cls(validated, digest)
 
@@ -1804,6 +1827,7 @@ class FG2ApprovedLotManifest:
         *,
         expected_reference: str,
         expected_source_sha: str,
+        expected_selection_mode: str | None = None,
     ) -> dict[str, Any]:
         if not isinstance(payload, dict) or payload.get("schema_version") != 1:
             raise InvalidControlledRun("unsupported approved FG2 lot schema")
@@ -1823,6 +1847,12 @@ class FG2ApprovedLotManifest:
             raise InvalidControlledRun("approved FG2 lot source SHA mismatch")
         if payload.get("limits") != FG2_LIMITS:
             raise InvalidControlledRun("approved FG2 lot limits differ from the reviewed candidate")
+        selection_mode = payload.get("selection_mode", "rotation_prefix")
+        if selection_mode not in FG2_APPROVED_LOT_SELECTION_MODES:
+            raise InvalidControlledRun("approved FG2 lot selection mode is unsupported")
+        if expected_selection_mode is not None and selection_mode != expected_selection_mode:
+            raise InvalidControlledRun("approved FG2 lot selection mode does not match the dispatch")
+        payload["selection_mode"] = selection_mode
 
         institutions = payload.get("institutions")
         if not isinstance(institutions, list) or not 1 <= len(institutions) <= 10:
@@ -1986,11 +2016,20 @@ class FG2ApprovedLotManifest:
             if url_counts[institution_id.lower()] > FG2_LIMITS["max_urls_per_institution"]:
                 raise InvalidControlledRun("approved FG2 lot exceeds the institution URL limit")
 
+        if set(url_counts) != set(institution_ids):
+            raise InvalidControlledRun(
+                "approved FG2 lot must include at least one URL for every institution"
+            )
+
         return payload
 
     @property
     def reference(self) -> str:
         return self.payload["reference"]
+
+    @property
+    def selection_mode(self) -> str:
+        return self.payload.get("selection_mode", "rotation_prefix")
 
     @property
     def institution_ids(self) -> tuple[str, ...]:
@@ -2860,6 +2899,7 @@ def initialize_manifest(
     institutions: list[dict[str, Any]],
     approved_lot_reference: str | None = None,
     approved_lot_sha256: str | None = None,
+    approved_lot_selection: str = "rotation_prefix",
     recovery_source: dict[str, Any] | None = None,
 ) -> str:
     payload = {
@@ -2872,6 +2912,7 @@ def initialize_manifest(
         "origin_state": {},
         "approved_lot_reference": approved_lot_reference,
         "approved_lot_sha256": approved_lot_sha256,
+        "approved_lot_selection": approved_lot_selection,
         "entries": [],
         "discovery_rows": [],
         "blocked_staging_rows": [],

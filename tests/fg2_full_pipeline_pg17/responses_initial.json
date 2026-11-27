@@ -138,5 +138,10 @@
     "status": 429,
     "content_type": "text/plain; charset=utf-8",
     "body": "synthetic institution rate limit"
+  },
+  "https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial": {
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "<!doctype html><html><head><title>Maestría sintética UTEC en Ciencia de Datos e Inteligencia Artificial</title><meta name=\"description\" content=\"Programa sintético de ciencia de datos, duración 18 meses, modalidad híbrida.\"><link rel=\"canonical\" href=\"https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial\"></head><body><main><h1>Maestría en Ciencia de Datos e Inteligencia Artificial (fixture sintético)</h1><p>Duración: 18 meses. Modalidad híbrida. Inversión referencial S/ 24000.</p><h2>Requisitos</h2><p>Experiencia previa en análisis de datos.</p><h2>Objetivos</h2><p>Aplicar métodos de ciencia de datos e inteligencia artificial.</p></main></body></html>"
   }
 }

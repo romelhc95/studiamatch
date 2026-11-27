@@ -6,6 +6,61 @@
 
 ## Corte vigente
 
+### H1REQ1 — FG2 selección manual exacta por lote UTEC — 2026-11-27
+
+Se prepara en `/tmp/fg2-reviewed-exact-selection-20261127`, rama
+`codex/fg2-reviewed-exact-selection-20261127`, sobre
+`main@c7272d542875a5ed6fa4daa94f9712fe19315d76`, una excepción opt-in
+`reviewed_exact` para el `workflow_dispatch` manual en `main`. `rotation_prefix`
+sigue siendo el valor predeterminado y la selección obligatoria del scheduler;
+la recuperación #275 continúa limitada a Enrichment/Sync. El modo se fija en
+el manifiesto aprobado junto con referencia, digest y SHA de origen; cada
+institución debe tener URLs dentro del scope, y los modos no se pueden degradar
+entre workflow, orquestador, harvester y workers. Identidad, perfil, gates,
+circuito, frescura, origen, semillas, snapshots, URL/DNS, límites, SSRF,
+budgets, concurrencia, aprobación Production y controles de writer permanecen
+activos. No se añadió SQL ni dependencia.
+
+La evidencia anterior de #280 documenta que el runtime base rechazó UTEC antes
+de Harvesting por `outside_eligible_rotation_prefix`. El E2E local PG17/
+PostgREST reproduce ese rechazo con `rotation_prefix` y acepta la misma
+identidad/snapshot solo con `reviewed_exact`. Con red Docker interna sin egress
+y proveedor sintético recorrió Harvesting, Cleansing, Enrichment, Sync y Admin:
+contenido y modalidad `Híbrido` quedaron con identidad/provenance; Enrichment
+persistió modalidad `Remoto` con provenance sintética; Admin muestra una fila
+`pending_review`, `public_effective=0`, con overrides editoriales previos
+preservados. El refresh idéntico siguió con cohorte vacía y sin providers ni
+estaciones downstream. Es evidencia local sintética, no llamada a UTEC,
+proveedor pagado ni ejecución Pro.
+
+La compatibilidad incluye lote heredado sin `selection_mode` → rotación,
+rechazo de modo/hash/referencia/SHA discrepantes, schedule y Recovery exactos
+rechazados antes de DB, cobertura completa de URLs por institución antes de
+DB/workers y rechazo de perfil/circuito/frescura/origen/identidad inválidos.
+`FG2_SELECTION` emite solo modo permitido, resultado, conteos y categoría fija;
+omite URLs, IDs, referencias, bytes y excepciones privadas.
+
+En Docker sin red, las suites de run/orquestador/workflow/workers terminaron
+**327 passed**, con warning PyPDF2 y warning de cache read-only. El E2E
+PG17/PostgREST terminó PASS con las etapas UTEC y Admin descritas arriba.
+Actionlint, ShellCheck, `bash -n`, `git diff --check`, credential scan por
+paths cambiados y `tests/test_protected_path_scope_guard.sh` pasan. La revisión
+independiente estática cerró dos hallazgos concretos; no es Codex Security.
+El cotejo integral de diagnóstico documental se ejecutó sobre snapshots Git
+limpios de la base y del candidato con instrumentación temporal externa que
+evita truncar la lista; el checker versionado y el payload no se modificaron.
+Ambos conservaron FAIL348 y produjeron las mismas 348 entradas diagnósticas,
+byte por byte, cero nuevas y cero resueltas. SHA-256 común de las líneas
+normalizadas (sin el prefijo `DOC_GATE_FAIL `):
+`dfa59500cc19e03fc28cc3406dcbe8e40b4372d7ff2336341ff80ab9f48cc6ea`.
+
+El candidato sigue pendiente de publicación; aún no tiene checks remotos. Para
+publicarlo se requiere la disposición humana exacta de FAIL348 para la base y
+huella de este candidato; no se transfiere ninguna dispensa anterior. FAIL348
+permanece FAIL y Codex Security formal permanece NO EJECUTADO. No hubo SQL/
+lectura Pro nueva, dispatch, gasto de proveedor, cambio de flags/schedule ni
+merge.
+
 ### H1REQ1 — FG2 modalidad: preflight post-merge y ruta JIT local — 2026-11-26
 
 PR #595 fue integrado por `romelhc95`; main quedó en

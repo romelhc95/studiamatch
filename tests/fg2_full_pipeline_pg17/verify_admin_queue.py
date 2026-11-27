@@ -19,6 +19,7 @@ from scripts.maintenance.check_db_parity import (
 
 BASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 ADMIN_ID = "30000000-0000-0000-0000-000000000001"
+UTEC_EXPECTED_URL = "https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial"
 
 
 def call(name: str, payload: dict, token: str):
@@ -38,6 +39,44 @@ def call(name: str, payload: dict, token: str):
 def fail(code: str) -> None:
     print(f"phase=admin_queue_rpc|result=FAIL|code={code}")
     raise SystemExit(1)
+
+
+def verify_utec_review_queue() -> None:
+    user_token = _jwt(role="authenticated", sub=ADMIN_ID)
+    role_response = call("admin_current_user_role", {}, user_token)
+    aal2_response = call("admin_has_aal2", {}, user_token)
+    if role_response.status_code != 200 or role_response.json() != "admin":
+        raise SystemExit("phase=utec_admin_queue|result=FAIL|code=fixture_admin_gate")
+    if aal2_response.status_code != 200 or aal2_response.json() is not True:
+        raise SystemExit("phase=utec_admin_queue|result=FAIL|code=fixture_admin_gate")
+    response = call(
+        "admin_get_course_queue_filtered",
+        {
+            "p_first": 20,
+            "p_after_cursor": None,
+            "p_editorial_status": "pending_review",
+            "p_quality_status": None,
+            "p_institution_slug": "utec",
+        },
+        user_token,
+    )
+    if response.status_code != 200:
+        raise SystemExit(f"phase=utec_admin_queue|result=FAIL|code=rpc_http_{response.status_code}")
+    try:
+        row = response.json()[0]
+        courses = row["courses"]
+    except (ValueError, IndexError, KeyError, TypeError):
+        raise SystemExit("phase=utec_admin_queue|result=FAIL|code=rpc_shape") from None
+    if row.get("error") is not None or not isinstance(courses, list) or len(courses) != 1:
+        raise SystemExit("phase=utec_admin_queue|result=FAIL|code=utec_queue_count")
+    course = courses[0]
+    if (
+        course.get("institution_slug") != "utec"
+        or str(course.get("course_url") or "").rstrip("/") != UTEC_EXPECTED_URL.rstrip("/")
+        or course.get("editorial_status") != "pending_review"
+    ):
+        raise SystemExit("phase=utec_admin_queue|result=FAIL|code=editorial_queue_contract")
+    print("phase=utec_admin_queue|result=PASS|rows=1|editorial=pending_review|public_effective=0")
 
 
 def verify_fg2_profile_schema_contract() -> None:
@@ -112,6 +151,9 @@ def verify_fg2_profile_schema_contract() -> None:
 
 
 def main() -> None:
+    if sys.argv[1:] == ["--utec-reviewed-exact"]:
+        verify_utec_review_queue()
+        return
     verify_fg2_profile_schema_contract()
     user_token = _jwt(role="authenticated", sub=ADMIN_ID)
     role_response = call("admin_current_user_role", {}, user_token)

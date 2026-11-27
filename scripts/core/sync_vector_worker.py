@@ -893,6 +893,7 @@ def main():
             expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
             expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
             expected_source_sha=os.getenv("GITHUB_SHA", ""),
+            expected_approved_lot_selection=os.getenv("FG2_APPROVED_LOT_SELECTION", "").strip() or None,
             allow_empty=True,
         )
 

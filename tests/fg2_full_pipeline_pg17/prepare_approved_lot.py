@@ -7,18 +7,21 @@ import json
 import os
 from pathlib import Path
 import sys
+from datetime import datetime, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.core.fg2_bounded_run import (  # noqa: E402
     FG2_LIMITS,
     FG2ApprovedLotManifest,
+    InvalidControlledRun,
     approved_url_alias_filter,
     course_url_alias_filter,
     stable_json_sha256,
     url_sha256,
     validate_controlled_profile,
 )
+from scripts.core.master_orchestrator import get_institutions  # noqa: E402
 from scripts.shared.db_client import get_db_client  # noqa: E402
 
 
@@ -27,6 +30,12 @@ REFRESH_URL = "https://ssr.fg2.example/programas/analitica-aplicada"
 REFERENCE = "fixture-processed-refresh-existing-course"
 SOURCE_SHA = os.environ["GITHUB_SHA"]
 TARGET = Path("/run/fg2-approved-lot.json")
+UTEC_INSTITUTION_ID = "50d8779c-54fd-437e-b941-e817e202e60c"
+UTEC_TARGET_URL = "https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial"
+UTEC_STAGING_ID = "792b1600-9939-4cf3-95fd-5056d8f5d99c"
+UTEC_PRIOR_CONTENT_SHA256 = "f05f5beb61a19d62b65c25530d4eda59ddfce2b8e8ba26c593203fd5a8d963ce"
+UTEC_REFERENCE = "fixture-utec-reviewed-exact-new-discovery"
+UTEC_ROTATION_TARGET = Path("/run/fg2-approved-lot-rotation.json")
 
 
 def select(client, table: str, filters: str, columns: str, *, pipeline: bool):
@@ -48,7 +57,164 @@ def merge_by_id(*groups: list[dict]) -> list[dict]:
     return sorted(records.values(), key=lambda row: str(row["id"]).lower())
 
 
+def prepare_utec_reviewed_exact() -> None:
+    if len(SOURCE_SHA) != 40 or any(character not in "0123456789abcdef" for character in SOURCE_SHA):
+        raise SystemExit("phase=utec_exact_lot_fixture|result=FAIL|code=invalid_source_sha")
+
+    client = get_db_client()
+    institutions = select(
+        client, "institutions", f"id=eq.{UTEC_INSTITUTION_ID}", "id,slug,website_url", pipeline=False
+    )
+    profiles = select(
+        client, "institution_site_profiles", f"institution_id=eq.{UTEC_INSTITUTION_ID}", "*", pipeline=True
+    )
+    if len(institutions) != 1:
+        raise SystemExit(
+            f"phase=utec_exact_lot_fixture|result=FAIL|code=institution_binding_count_{len(institutions)}"
+        )
+    if len(profiles) != 1:
+        raise SystemExit(
+            f"phase=utec_exact_lot_fixture|result=FAIL|code=profile_binding_count_{len(profiles)}"
+        )
+    institution, profile = institutions[0], profiles[0]
+    selected_seeds = profile.get("seed_urls")
+    if isinstance(selected_seeds, str):
+        selected_seeds = json.loads(selected_seeds)
+    preflight = validate_controlled_profile(institution, profile, selected_seed_urls=selected_seeds)
+
+    staging_rows = select(
+        client,
+        "staging_raw",
+        f"institution_id=eq.{UTEC_INSTITUTION_ID}&{approved_url_alias_filter([UTEC_TARGET_URL])}",
+        "id,institution_id,url,status,content_hash",
+        pipeline=True,
+    )
+    if (
+        len(staging_rows) != 1
+        or str(staging_rows[0].get("id", "")).lower() != UTEC_STAGING_ID
+        or staging_rows[0].get("status") != "discovered"
+        or staging_rows[0].get("content_hash") != UTEC_PRIOR_CONTENT_SHA256
+    ):
+        raise SystemExit("phase=utec_exact_lot_fixture|result=FAIL|code=staging_snapshot_mismatch")
+
+    course_rows = select(
+        client,
+        "courses",
+        f"institution_id=eq.{UTEC_INSTITUTION_ID}&{course_url_alias_filter([UTEC_TARGET_URL])}",
+        "id,institution_id,url,is_active,is_verified,last_404_at",
+        pipeline=False,
+    )
+    cleansed_by_url = select(
+        client, "cleansed_programs", approved_url_alias_filter([UTEC_TARGET_URL]),
+        "id,staging_id,institution_id,url,status,modality", pipeline=True,
+    )
+    cleansed_by_staging = select(
+        client, "cleansed_programs", f"staging_id=in.({UTEC_STAGING_ID})",
+        "id,staging_id,institution_id,url,status,modality", pipeline=True,
+    )
+    cleansed_rows = merge_by_id(cleansed_by_url, cleansed_by_staging)
+    enriched_by_url = select(
+        client, "enriched_programs", approved_url_alias_filter([UTEC_TARGET_URL]),
+        "id,cleansed_id,institution_id,url,status", pipeline=True,
+    )
+    enriched_by_cleansed = select(
+        client,
+        "enriched_programs",
+        "cleansed_id=in.({})".format(",".join(str(row["id"]) for row in cleansed_rows))
+        if cleansed_rows else "id=eq.00000000-0000-0000-0000-000000000000",
+        "id,cleansed_id,institution_id,url,status",
+        pipeline=True,
+    )
+    enriched_rows = merge_by_id(enriched_by_url, enriched_by_cleansed)
+    if course_rows or cleansed_rows or enriched_rows:
+        raise SystemExit("phase=utec_exact_lot_fixture|result=FAIL|code=unexpected_downstream_identity")
+
+    payload = {
+        "schema_version": 1,
+        "reference": UTEC_REFERENCE,
+        "source_sha": SOURCE_SHA,
+        "selection_mode": "reviewed_exact",
+        "limits": dict(FG2_LIMITS),
+        "institutions": [{
+            "institution_id": UTEC_INSTITUTION_ID,
+            "institution_sha256": stable_json_sha256({
+                "id": str(institution["id"]).lower(),
+                "slug": institution.get("slug"),
+                "website_url": institution.get("website_url"),
+            }),
+            "profile_sha256": preflight["profile_sha256"],
+            "seed_sha256": preflight["seed_sha256"],
+            "seed_urls": preflight["seed_urls"],
+        }],
+        "scope": [{
+            "institution_id": UTEC_INSTITUTION_ID,
+            "url": UTEC_TARGET_URL,
+            "url_sha256": url_sha256(UTEC_TARGET_URL),
+            "kind": "new_discovery",
+            "snapshot": {
+                "staging_rows": staging_rows,
+                "course_rows": course_rows,
+                "cleansed_rows": cleansed_rows,
+                "enriched_rows": enriched_rows,
+            },
+        }],
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+    FG2ApprovedLotManifest.from_bytes(
+        raw, payload, expected_sha256=digest, expected_reference=UTEC_REFERENCE,
+        expected_source_sha=SOURCE_SHA, expected_selection_mode="reviewed_exact",
+    )
+    TARGET.write_bytes(raw)
+    TARGET.chmod(0o644)
+
+    rotation_payload = {**payload, "selection_mode": "rotation_prefix"}
+    rotation_raw = json.dumps(
+        rotation_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    rotation_digest = hashlib.sha256(rotation_raw).hexdigest()
+    FG2ApprovedLotManifest.from_bytes(
+        rotation_raw, rotation_payload, expected_sha256=rotation_digest,
+        expected_reference=UTEC_REFERENCE, expected_source_sha=SOURCE_SHA,
+        expected_selection_mode="rotation_prefix",
+    )
+    UTEC_ROTATION_TARGET.write_bytes(rotation_raw)
+    UTEC_ROTATION_TARGET.chmod(0o644)
+    print(
+        "phase=utec_exact_lot_fixture|result=PASS|selection=reviewed_exact|"
+        f"sha256={digest}|rotation_sha256={rotation_digest}|source_sha={SOURCE_SHA}|scope_urls=1|staging_discovered=1|"
+        "courses=0|cleansed=0|enriched=0"
+    )
+
+
+def verify_utec_rotation_rejected() -> None:
+    raw = UTEC_ROTATION_TARGET.read_bytes()
+    payload = json.loads(raw)
+    lot = FG2ApprovedLotManifest.from_bytes(
+        raw, payload, expected_sha256=hashlib.sha256(raw).hexdigest(),
+        expected_reference=payload["reference"], expected_source_sha=payload["source_sha"],
+        expected_selection_mode="rotation_prefix",
+    )
+    try:
+        get_institutions(
+            limit=10, controlled=True, approved_lot=lot,
+            approved_lot_selection="rotation_prefix", now=datetime.now(timezone.utc),
+        )
+    except InvalidControlledRun as exc:
+        if "eligible rotation prefix" not in str(exc):
+            raise SystemExit("phase=utec_default_rotation|result=FAIL|code=unexpected_rejection") from None
+        print("phase=utec_default_rotation|result=PASS|utec=rejected|reason=outside_eligible_rotation_prefix")
+        return
+    raise SystemExit("phase=utec_default_rotation|result=FAIL|code=utec_was_not_rejected")
+
+
 def main() -> None:
+    if "--utec-reviewed-exact" in sys.argv[1:]:
+        prepare_utec_reviewed_exact()
+        return
+    if "--verify-utec-rotation-rejected" in sys.argv[1:]:
+        verify_utec_rotation_rejected()
+        return
     if len(SOURCE_SHA) != 40 or any(character not in "0123456789abcdef" for character in SOURCE_SHA):
         raise SystemExit("phase=approved_lot_fixture|result=FAIL|code=invalid_source_sha")
 

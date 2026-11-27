@@ -393,12 +393,23 @@ def test_bounded_first_run_is_opt_in_and_does_not_change_the_schedule() -> None:
         "approved_lot_reference:",
         "approved_lot_sha256:",
         "approved_lot_manifest_b64:",
+        "approved_lot_selection:",
     ):
         assert field in header
+    selection_input = header.split("approved_lot_selection:", 1)[1].split("concurrency:", 1)[0]
+    assert "type: choice" in selection_input
+    assert "default: rotation_prefix" in selection_input
+    assert "- rotation_prefix" in selection_input
+    assert "- reviewed_exact" in selection_input
     assert "--approved-lot-manifest \"$RUNNER_TEMP/fg2-approved-lot.json\"" in workflow
     assert "--approved-lot-reference \"$FG2_APPROVED_LOT_REFERENCE\"" in workflow
     assert "--approved-lot-sha256 \"$FG2_APPROVED_LOT_SHA256\"" in workflow
     assert "FG2_APPROVED_LOT_MANIFEST_B64: ${{ inputs.approved_lot_manifest_b64 }}" in workflow
+    assert "FG2_APPROVED_LOT_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.approved_lot_selection || 'rotation_prefix' }}" in workflow
+    assert "--approved-lot-selection \"$FG2_APPROVED_LOT_SELECTION\"" in workflow
+    assert "Reviewed-exact selection requires a bounded manual first run" in workflow
+    assert "FG2_APPROVED_LOT_SELECTION" in workflow.split("jobs:", 1)[1].split("  phase_1_5_cleansing:", 1)[0]
+    assert "cron: '0 5 * * *'" in header
 
 
 def test_controlled_manifest_is_bound_through_each_downstream_job() -> None:
@@ -415,6 +426,7 @@ def test_controlled_manifest_is_bound_through_each_downstream_job() -> None:
         section = workflow.split(f"  {job}:", 1)[1].split("\n  phase_", 1)[0]
         assert "needs: [production_control_preflight, phase_1_harvesting" in section
         assert "FG2_COHORT_MANIFEST_SHA256" in section
+        assert "FG2_APPROVED_LOT_SELECTION" in section
 
 
 def test_ordinary_harvest_and_downstream_paths_remain_available() -> None:

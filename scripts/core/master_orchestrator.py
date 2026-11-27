@@ -16,6 +16,7 @@ from shared.db_client import DatabaseAPIError, get_db_client
 from shared.utils import setup_lima_logging
 from scripts.core.fg2_bounded_run import (
     FG2ApprovedLotManifest,
+    FG2_APPROVED_LOT_SELECTION_MODES,
     FG2_LIMITS,
     FG2CohortManifest,
     FG2_POST272_RECOVERY_INSTITUTION_ID,
@@ -121,6 +122,46 @@ def _approved_lot_preflight_error_label(error):
     return f"verification_failed: {type(error).__name__}"
 
 
+def _approved_selection_counts(approved_lot):
+    """Return bounded counts only; never expose lot identities or URLs in logs."""
+    if approved_lot is None:
+        return 0, 0
+    institution_count = len(approved_lot.institution_ids)
+    url_count = sum(
+        len(approved_lot.scope_for_institution(institution_id))
+        for institution_id in approved_lot.institution_ids
+    )
+    return institution_count, url_count
+
+
+def _selection_rejection_category(error):
+    """Map selection failures to stable, non-sensitive operational categories."""
+    if isinstance(error, DatabaseAPIError):
+        return "database_read_failed"
+    if isinstance(error, InvalidControlledRun):
+        if "eligible rotation prefix" in str(error):
+            return "outside_eligible_rotation_prefix"
+        return "controlled_lot_rejected"
+    return "selection_failed"
+
+
+def _log_selection_result(
+    *, mode, outcome, approved_lot=None, selected_institutions=0, category="none"
+):
+    mode_label = mode if mode in {"rotation_prefix", "reviewed_exact"} else "unknown"
+    institution_count, url_count = _approved_selection_counts(approved_lot)
+    logger.info(
+        "FG2_SELECTION mode=%s outcome=%s approved_institutions=%d "
+        "approved_urls=%d selected_institutions=%d category=%s",
+        mode_label,
+        outcome,
+        institution_count,
+        url_count,
+        selected_institutions,
+        category,
+    )
+
+
 # StudIAMatch-Docs: .context/componentes/pipeline.md#concurrencia-idempotencia-requeue-y-errores
 def _safe_stage_label(script_path):
     """Map child paths to a fixed operational label for sensitive logs."""
@@ -208,6 +249,7 @@ def _prepare_post272_enrichment_recovery(args) -> int:
             expected_sha256=args.approved_lot_sha256,
             expected_reference=args.approved_lot_reference,
             expected_source_sha=source_sha,
+            expected_selection_mode="rotation_prefix",
         )
         institution_rows = _get_db().select_service_raise(
             "institutions",
@@ -478,6 +520,7 @@ def get_institutions(
     controlled=False,
     approved_lot=None,
     scheduled_cohort=False,
+    approved_lot_selection="rotation_prefix",
 ):
     """Return eligible institutions after all gates, then apply the limit."""
     if limit <= 0:
@@ -507,25 +550,34 @@ def get_institutions(
     if approved_lot is not None:
         if not controlled or excluded or selected_slug:
             raise InvalidControlledRun("approved FG2 lot cannot be combined with selection overrides")
+        if approved_lot_selection != approved_lot.selection_mode:
+            raise InvalidControlledRun("approved FG2 lot selection mode does not match the dispatch")
+        if approved_lot_selection not in {"rotation_prefix", "reviewed_exact"}:
+            raise InvalidControlledRun("approved FG2 lot selection mode is unsupported")
         if limit < len(approved_lot.institution_ids):
             raise InvalidControlledRun("approved FG2 lot exceeds the selected institution limit")
-        institutions_by_id = {
-            str(institution.get("id", "")).lower(): institution
-            for institution in all_insts
-            if institution.get("id")
-        }
-        if len(institutions_by_id) != len(all_insts):
-            raise InvalidControlledRun("current institution catalog contains duplicate or invalid IDs")
         expected_ids = approved_lot.institution_ids
-        if any(institution_id not in institutions_by_id for institution_id in expected_ids):
-            raise InvalidControlledRun("an approved FG2 lot institution is no longer present")
-        rotated_ids = tuple(
-            str(institution.get("id", "")).lower()
-            for institution in all_insts
-            if str(institution.get("id", "")).lower() in set(expected_ids)
-        )
-        if rotated_ids != expected_ids:
-            raise InvalidControlledRun("approved FG2 lot no longer matches the rotation order")
+        institutions_by_id = {}
+        for institution_id in expected_ids:
+            matches = [
+                institution for institution in all_insts
+                if str(institution.get("id", "")).lower() == institution_id
+            ]
+            if len(matches) != 1:
+                raise InvalidControlledRun("an approved FG2 lot institution is missing or duplicated")
+            institutions_by_id[institution_id] = matches[0]
+        if approved_lot_selection == "rotation_prefix":
+            if any(not institution.get("id") for institution in all_insts) or len({
+                str(institution.get("id", "")).lower() for institution in all_insts
+            }) != len(all_insts):
+                raise InvalidControlledRun("current institution catalog contains duplicate or invalid IDs")
+            rotated_ids = tuple(
+                str(institution.get("id", "")).lower()
+                for institution in all_insts
+                if str(institution.get("id", "")).lower() in set(expected_ids)
+            )
+            if rotated_ids != expected_ids:
+                raise InvalidControlledRun("approved FG2 lot no longer matches the rotation order")
 
         profile_counts: dict[str, int] = {}
         for profile in profiles:
@@ -535,48 +587,49 @@ def get_institutions(
         if any(profile_counts.get(institution_id, 0) != 1 for institution_id in expected_ids):
             raise InvalidControlledRun("an approved FG2 lot institution profile is missing or duplicated")
 
-        last_expected_index = next(
-            index
-            for index, institution in enumerate(all_insts)
-            if str(institution.get("id", "")).lower() == expected_ids[-1]
-        )
-        eligible_prefix = []
-        for institution in all_insts[: last_expected_index + 1]:
-            institution_id = str(institution.get("id", "")).lower()
-            if profile_counts.get(institution_id, 0) > 1:
-                raise InvalidControlledRun("institution rotation prefix contains duplicate site profiles")
-            profile = profile_by_institution.get(institution_id)
-            if not profile or not profile.get("discovery_enabled"):
-                continue
-            if profile.get("circuit_open"):
-                try:
-                    opened_at = _parse_timestamp(profile.get("circuit_opened_at"))
-                except (TypeError, ValueError):
-                    opened_at = None
-                if opened_at is None or current_time - opened_at < CIRCUIT_COOLDOWN:
+        if approved_lot_selection == "rotation_prefix":
+            last_expected_index = next(
+                index
+                for index, institution in enumerate(all_insts)
+                if str(institution.get("id", "")).lower() == expected_ids[-1]
+            )
+            eligible_prefix = []
+            for institution in all_insts[: last_expected_index + 1]:
+                institution_id = str(institution.get("id", "")).lower()
+                if profile_counts.get(institution_id, 0) > 1:
+                    raise InvalidControlledRun("institution rotation prefix contains duplicate site profiles")
+                profile = profile_by_institution.get(institution_id)
+                if not profile or not profile.get("discovery_enabled"):
                     continue
-            last_harvest = _parse_timestamp(institution.get("last_harvest_at"))
-            if (
-                last_harvest
-                and current_time - last_harvest < timedelta(days=3)
-                and client.count_pipeline_raise(
-                    "staging_raw",
-                    filters=f"institution_id=eq.{quote(institution_id, safe='')}",
-                ) > 50
-            ):
-                continue
-            try:
-                validate_controlled_profile(
-                    institution,
-                    profile,
-                    now=current_time,
-                    scheduled_cohort=scheduled_cohort,
-                )
-            except InvalidControlledRun:
-                continue
-            eligible_prefix.append(institution_id)
-        if tuple(eligible_prefix[: len(expected_ids)]) != expected_ids:
-            raise InvalidControlledRun("approved FG2 lot no longer matches the eligible rotation prefix")
+                if profile.get("circuit_open"):
+                    try:
+                        opened_at = _parse_timestamp(profile.get("circuit_opened_at"))
+                    except (TypeError, ValueError):
+                        opened_at = None
+                    if opened_at is None or current_time - opened_at < CIRCUIT_COOLDOWN:
+                        continue
+                last_harvest = _parse_timestamp(institution.get("last_harvest_at"))
+                if (
+                    last_harvest
+                    and current_time - last_harvest < timedelta(days=3)
+                    and client.count_pipeline_raise(
+                        "staging_raw",
+                        filters=f"institution_id=eq.{quote(institution_id, safe='')}",
+                    ) > 50
+                ):
+                    continue
+                try:
+                    validate_controlled_profile(
+                        institution,
+                        profile,
+                        now=current_time,
+                        scheduled_cohort=scheduled_cohort,
+                    )
+                except InvalidControlledRun:
+                    continue
+                eligible_prefix.append(institution_id)
+            if tuple(eligible_prefix[: len(expected_ids)]) != expected_ids:
+                raise InvalidControlledRun("approved FG2 lot no longer matches the eligible rotation prefix")
 
         selected = []
         for institution_id in expected_ids:
@@ -727,6 +780,12 @@ def main(argv=None):
     parser.add_argument("--approved-lot-reference", help="Human review reference bound to the approved lot")
     parser.add_argument("--approved-lot-sha256", help="SHA-256 of the exact approved FG2 lot bytes")
     parser.add_argument(
+        "--approved-lot-selection",
+        default=os.getenv("FG2_APPROVED_LOT_SELECTION", "").strip() or "rotation_prefix",
+        choices=sorted(FG2_APPROVED_LOT_SELECTION_MODES),
+        help="Selection rule bound to the reviewed lot; reviewed_exact is manual-dispatch only",
+    )
+    parser.add_argument(
         "--prepare-post272-enrichment-recovery",
         action="store_true",
         help="Verify the pinned #272 artifact and current lot, then emit a new-run Enrichment/Sync manifest",
@@ -744,6 +803,7 @@ def main(argv=None):
             or args.max_urls is not None
             or args.institution_slug
             or args.exclude
+            or args.approved_lot_selection != "rotation_prefix"
         ):
             logger.error("FG2 recovery only prepares the approved downstream handoff; it cannot harvest or cleanse.")
             return 1
@@ -780,7 +840,16 @@ def main(argv=None):
         run_attempt = os.getenv("GITHUB_RUN_ATTEMPT", "")
         source_sha = os.getenv("GITHUB_SHA", "")
         github_ref = os.getenv("GITHUB_REF", "")
-        if not run_id.isdigit() or not run_attempt.isdigit() or not source_sha or github_ref != "refs/heads/main":
+        if (
+            not run_id.isdigit()
+            or not run_attempt.isdigit()
+            or not source_sha
+            or github_ref != "refs/heads/main"
+            or (
+                args.approved_lot_selection == "reviewed_exact"
+                and os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch"
+            )
+        ):
             logger.error("Controlled first-run requires main and the exact GitHub run ID, attempt, and source SHA.")
             return 1
         try:
@@ -791,8 +860,14 @@ def main(argv=None):
                 expected_sha256=args.approved_lot_sha256,
                 expected_reference=args.approved_lot_reference,
                 expected_source_sha=source_sha,
+                expected_selection_mode=args.approved_lot_selection,
             )
         except (InvalidControlledRun, TypeError, ValueError) as exc:
+            _log_selection_result(
+                mode=args.approved_lot_selection,
+                outcome="rejected",
+                category="approved_lot_rejected",
+            )
             logger.error("Approved FG2 lot rejected before database selection: %s", _safe_error_label(exc))
             return 1
     elif args.scheduled_cohort:
@@ -800,6 +875,7 @@ def main(argv=None):
             not args.skip_cleansing
             or not args.cohort_manifest
             or any((args.approved_lot_manifest, args.approved_lot_reference, args.approved_lot_sha256))
+            or args.approved_lot_selection != "rotation_prefix"
         ):
             logger.error("Scheduled FG2 requires only a cohort manifest and delegated cleansing.")
             return 1
@@ -822,13 +898,18 @@ def main(argv=None):
     elif any((args.approved_lot_manifest, args.approved_lot_reference, args.approved_lot_sha256)):
         logger.error("Approved FG2 lot inputs are only accepted for a controlled first run")
         return 1
+    elif args.approved_lot_selection != "rotation_prefix":
+        logger.error("Reviewed-exact FG2 lot selection requires a controlled manual first run")
+        return 1
 
     excluded_slugs = {
         slug.strip() for slug in args.exclude.split(',') if slug.strip()
     } if args.exclude else set()
     failures = []
     newly_diagnosed_slugs = set()
-    if os.getenv("FG2_PROFILE_DIAGNOSTICS_ENABLED", "").strip().lower() == "true":
+    if args.approved_lot_selection == "reviewed_exact":
+        logger.info("Manual reviewed-exact selection suppresses profile onboarding and diagnostics outside the approved lot.")
+    elif os.getenv("FG2_PROFILE_DIAGNOSTICS_ENABLED", "").strip().lower() == "true":
         try:
             newly_diagnosed_slugs = run_profile_onboarding(source_sha=os.getenv("GITHUB_SHA"))
         except Exception as exc:
@@ -849,6 +930,7 @@ def main(argv=None):
                     controlled=cohort_scoped,
                     approved_lot=approved_lot,
                     scheduled_cohort=args.scheduled_cohort,
+                    approved_lot_selection=args.approved_lot_selection,
                 )
         else:
             institutions = get_institutions(
@@ -858,8 +940,16 @@ def main(argv=None):
                 controlled=cohort_scoped,
                 approved_lot=approved_lot,
                 scheduled_cohort=args.scheduled_cohort,
+                approved_lot_selection=args.approved_lot_selection,
             )
     except Exception as exc:
+        if cohort_scoped:
+            _log_selection_result(
+                mode=args.approved_lot_selection,
+                outcome="rejected",
+                approved_lot=approved_lot,
+                category=_selection_rejection_category(exc),
+            )
         logger.error(f"Failed to select eligible institutions: {_safe_error_label(exc)}")
         return 1
 
@@ -871,11 +961,26 @@ def main(argv=None):
         try:
             verify_approved_lot_scope(_get_db(), approved_lot)
         except Exception as exc:
+            _log_selection_result(
+                mode=args.approved_lot_selection,
+                outcome="rejected",
+                approved_lot=approved_lot,
+                selected_institutions=len(institutions),
+                category="approved_lot_snapshot_rejected",
+            )
             logger.error(
                 "Approved FG2 lot verification failed before harvester launch: %s",
                 _approved_lot_preflight_error_label(exc),
             )
             return 1
+
+    if cohort_scoped:
+        _log_selection_result(
+            mode=args.approved_lot_selection,
+            outcome="accepted",
+            approved_lot=approved_lot,
+            selected_institutions=len(institutions),
+        )
 
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
 
@@ -902,6 +1007,7 @@ def main(argv=None):
             institutions=initial_institutions,
             approved_lot_reference=approved_lot.reference if approved_lot else None,
             approved_lot_sha256=approved_lot.sha256 if approved_lot else None,
+            approved_lot_selection=(approved_lot.selection_mode if approved_lot else "rotation_prefix"),
         )
 
     for inst in institutions:
@@ -933,6 +1039,7 @@ def main(argv=None):
                     "--approved-lot-manifest", args.approved_lot_manifest,
                     "--approved-lot-reference", args.approved_lot_reference,
                     "--approved-lot-sha256", args.approved_lot_sha256,
+                    "--approved-lot-selection", args.approved_lot_selection,
                 ])
         elif args.max_urls is not None:
             harvester_args.extend(["--max-urls", str(args.max_urls)])
@@ -954,6 +1061,7 @@ def main(argv=None):
                 expected_run_id=os.getenv("GITHUB_RUN_ID", ""),
                 expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "")),
                 expected_source_sha=os.getenv("GITHUB_SHA", ""),
+                expected_approved_lot_selection=args.approved_lot_selection,
                 allow_empty=True,
             )
         except (InvalidControlledRun, TypeError, ValueError) as exc:

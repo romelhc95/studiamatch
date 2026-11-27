@@ -167,7 +167,7 @@ _original_getaddrinfo = socket.getaddrinfo
 
 def _synthetic_public_dns(host, port, *args, **kwargs):
     hostname = str(host or "").rstrip(".").lower()
-    if hostname.endswith(".fg2.example"):
+    if hostname.endswith(".fg2.example") or hostname == "posgrado.utec.edu.pe":
         return [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", port or 443))]
     return _original_getaddrinfo(host, port, *args, **kwargs)
 

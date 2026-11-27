@@ -384,6 +384,7 @@ class UniversalHarvester:
         approved_lot_manifest=None,
         approved_lot_reference=None,
         approved_lot_sha256=None,
+        approved_lot_selection="rotation_prefix",
         require_approved_lot=False,
         scheduled_cohort=False,
         _controlled_transport=None,
@@ -462,6 +463,7 @@ class UniversalHarvester:
                         expected_sha256=approved_lot_sha256,
                         expected_reference=approved_lot_reference,
                         expected_source_sha=os.getenv("GITHUB_SHA", ""),
+                        expected_selection_mode=approved_lot_selection,
                     )
                     approved_institution = self.approved_lot.institution(str(self.institution.get("id")))
                     self.approved_lot.assert_institution_origin(
@@ -519,6 +521,7 @@ class UniversalHarvester:
                     expected_source_sha=os.getenv("GITHUB_SHA", ""),
                     expected_approved_lot_reference=approved_lot_reference,
                     expected_approved_lot_sha256=approved_lot_sha256,
+                    expected_approved_lot_selection=approved_lot_selection,
                     allow_empty=True,
                 )
             except (InvalidControlledRun, TypeError, ValueError) as exc:
@@ -2799,6 +2802,12 @@ async def main(argv=None):
     parser.add_argument("--approved-lot-manifest", help="Private reviewed FG2 lot payload path")
     parser.add_argument("--approved-lot-reference", help="Human review reference bound to the FG2 lot")
     parser.add_argument("--approved-lot-sha256", help="SHA-256 of the reviewed FG2 lot bytes")
+    parser.add_argument(
+        "--approved-lot-selection",
+        choices=("rotation_prefix", "reviewed_exact"),
+        default=os.getenv("FG2_APPROVED_LOT_SELECTION", "").strip() or "rotation_prefix",
+        help="Selection rule bound to the reviewed FG2 lot",
+    )
     args = parser.parse_args(argv)
     if args.controlled:
         os.environ["FG2_CONTROLLED_FIRST_RUN"] = "true"
@@ -2815,6 +2824,7 @@ async def main(argv=None):
             max_urls=args.max_urls,
             event_name=os.getenv("GITHUB_EVENT_NAME", ""),
             git_ref=os.getenv("GITHUB_REF", ""),
+            approved_lot_selection=args.approved_lot_selection,
         )
     except InvalidControlledRun as exc:
         _emit_failure_for_exception("mode_validation", exc)
@@ -2847,6 +2857,7 @@ async def main(argv=None):
             approved_lot_manifest=args.approved_lot_manifest,
             approved_lot_reference=args.approved_lot_reference,
             approved_lot_sha256=args.approved_lot_sha256,
+            approved_lot_selection=args.approved_lot_selection,
             require_approved_lot=args.controlled,
             scheduled_cohort=args.scheduled_cohort,
         )

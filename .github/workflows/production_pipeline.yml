@@ -28,6 +28,14 @@ on:
         description: "Base64 JSON payload of the reviewed FG2 lot; never log this input"
         required: false
         type: string
+      approved_lot_selection:
+        description: "Selection rule bound to the reviewed FG2 lot"
+        required: false
+        type: choice
+        options:
+          - rotation_prefix
+          - reviewed_exact
+        default: rotation_prefix
 
 concurrency:
   group: studiamatch-fg2-${{ github.ref }}
@@ -48,6 +56,7 @@ jobs:
         env:
           FG2_BOUNDED_FIRST_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.bounded_first_run }}
           FG2_RESUME_ENRICHMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_enrichment_from_272 }}
+          FG2_APPROVED_LOT_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.approved_lot_selection || 'rotation_prefix' }}
         run: |
           set -euo pipefail
           if [[ "${GITHUB_REF:-}" != "refs/heads/main" ]]; then
@@ -56,6 +65,10 @@ jobs:
           fi
           if [[ "$FG2_BOUNDED_FIRST_RUN" == "true" && "$FG2_RESUME_ENRICHMENT" == "true" ]]; then
             echo "::error::A run cannot combine a new harvest with the pinned enrichment recovery."
+            exit 1
+          fi
+          if [[ "$FG2_APPROVED_LOT_SELECTION" == "reviewed_exact" && ( "$FG2_BOUNDED_FIRST_RUN" != "true" || "$FG2_RESUME_ENRICHMENT" == "true" ) ]]; then
+            echo "::error::Reviewed-exact selection requires a bounded manual first run and cannot be used for recovery or schedule."
             exit 1
           fi
           echo "FG2 production ref guard passed."
@@ -230,6 +243,7 @@ jobs:
           FG2_APPROVED_LOT_REFERENCE: ${{ inputs.approved_lot_reference }}
           FG2_APPROVED_LOT_SHA256: ${{ inputs.approved_lot_sha256 }}
           FG2_APPROVED_LOT_MANIFEST_B64: ${{ inputs.approved_lot_manifest_b64 }}
+          FG2_APPROVED_LOT_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.approved_lot_selection || 'rotation_prefix' }}
           FG2_PROFILE_DIAGNOSTICS_ENABLED: ${{ vars.FG2_PROFILE_DIAGNOSTICS_ENABLED }}
           FG2_PROFILE_DIAGNOSTIC_SLUGS: ${{ vars.FG2_PROFILE_DIAGNOSTIC_SLUGS }}
           FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED: ${{ vars.FG2_PROFILE_DIAGNOSTIC_PERSIST_ENABLED }}
@@ -241,7 +255,7 @@ jobs:
           elif [[ "$FG2_SCHEDULED_COHORT" == "true" ]]; then
             python3 scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing --scheduled-cohort --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json"
           elif [[ "$FG2_CONTROLLED_FIRST_RUN" == "true" ]]; then
-            python3 scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing --controlled-first-run --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --approved-lot-manifest "$RUNNER_TEMP/fg2-approved-lot.json" --approved-lot-reference "$FG2_APPROVED_LOT_REFERENCE" --approved-lot-sha256 "$FG2_APPROVED_LOT_SHA256"
+            python3 scripts/core/master_orchestrator.py --limit 10 --max-urls 10 --skip-cleansing --controlled-first-run --cohort-manifest "$RUNNER_TEMP/fg2-cohort-manifest.json" --approved-lot-manifest "$RUNNER_TEMP/fg2-approved-lot.json" --approved-lot-reference "$FG2_APPROVED_LOT_REFERENCE" --approved-lot-sha256 "$FG2_APPROVED_LOT_SHA256" --approved-lot-selection "$FG2_APPROVED_LOT_SELECTION"
           else
             python3 scripts/core/master_orchestrator.py --limit 10 --skip-cleansing
           fi
@@ -283,6 +297,7 @@ jobs:
       FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.bounded_first_run || inputs.resume_enrichment_from_272)) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}
+      FG2_APPROVED_LOT_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.approved_lot_selection || 'rotation_prefix' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -352,6 +367,7 @@ jobs:
       FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.bounded_first_run || inputs.resume_enrichment_from_272)) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}
+      FG2_APPROVED_LOT_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.approved_lot_selection || 'rotation_prefix' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -425,6 +441,7 @@ jobs:
       FG2_COHORT_SCOPED: ${{ (github.event_name == 'schedule' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.bounded_first_run || inputs.resume_enrichment_from_272)) }}
       FG2_COHORT_MANIFEST_B64: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_b64 }}
       FG2_COHORT_MANIFEST_SHA256: ${{ needs.phase_1_harvesting.outputs.cohort_manifest_sha256 }}
+      FG2_APPROVED_LOT_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.approved_lot_selection || 'rotation_prefix' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
