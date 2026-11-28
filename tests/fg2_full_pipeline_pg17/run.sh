@@ -1375,13 +1375,15 @@ zero_transition="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
   || fail utec_zero_progress_manifest DISCOVERY_TO_PENDING_FIXTURE_TRANSITION_FAILED
 zero_cohort_sha="$(sed -nE 's/^phase=utec_zero_progress_manifest\|result=PASS\|selection=reviewed_exact\|lot_sha256=[0-9a-f]{64}\|cohort_sha256=([0-9a-f]{64})\|scope=1\|stage=pending_after_discovery\|provider=not_started\|export_mode=0644\|digest_preserved=true$/\1/p' "$zero_manifest_log")"
 [[ "$zero_cohort_sha" =~ ^[0-9a-f]{64}$ ]] || fail utec_zero_progress_manifest EXPORTED_DIGEST_MISSING
-if ! cp -- "$run_dir/fg2-zero-progress-cohort.json" "$manifest"; then
-  fail utec_zero_progress_manifest EXPORTED_COHORT_COPY_FAILED
-fi
-if ! manifest_sha="$(artifact_sha256 "$manifest")" || [[ "$manifest_sha" != "$zero_cohort_sha" ]]; then
+zero_manifest_source="$run_dir/fg2-zero-progress-cohort.json"
+if ! manifest_sha="$(artifact_sha256 "$zero_manifest_source")" || [[ "$manifest_sha" != "$zero_cohort_sha" ]]; then
   fail utec_zero_progress_manifest EXPORTED_COHORT_DIGEST_MISMATCH
 fi
-printf 'phase=utec_zero_progress_manifest_transfer|result=PASS|mode=0644|sha256=%s|digest_preserved=true\n' "$manifest_sha"
+# The exported file is already readable and this is the final worker case.
+# Consume it directly: replacing a container-owned file in the sticky shared
+# run directory is denied to a different host UID even though the file is 0644.
+manifest="$zero_manifest_source"
+printf 'phase=utec_zero_progress_manifest_transfer|result=PASS|mode=0644|sha256=%s|digest_preserved=true|copy=not_required\n' "$manifest_sha"
 cleansing_zero_offset="$(wc -l <"$events")"
 run_worker utec_reviewed_exact_cleansing_zero_rejected cleansing_worker.py 9000007 failure false reviewed_exact
 grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=cleansing result=FAIL category=zero_cleansed_promotions' \
