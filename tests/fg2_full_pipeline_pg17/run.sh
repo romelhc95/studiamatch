@@ -44,6 +44,84 @@ fail() {
   exit 2
 }
 
+artifact_sha256() {
+  local output digest
+  if ! output="$(sha256sum -- "$1" 2>/dev/null)"; then return 1; fi
+  digest="${output%% *}"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "$digest"
+}
+
+artifact_base64() {
+  local encoded
+  if ! encoded="$(base64 -w0 -- "$1" 2>/dev/null)"; then return 1; fi
+  [[ -n "$encoded" && "$encoded" =~ ^[A-Za-z0-9+/]+={0,2}$ ]] || return 1
+  printf '%s' "$encoded"
+}
+
+noop_manifest_digest_from_log() {
+  local digest
+  digest="$(sed -nE 's/^phase=approved_refresh_manifest_read\|result=PASS\|cohort_entries=0\|processed_discovery=1\|manifest_mode=0600\|manifest_sha256=([0-9a-f]{64})$/\1/p' "$1")"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "$digest"
+}
+
+noop_manifest_validator="$out/verify_noop_manifest.py"
+cat >"$noop_manifest_validator" <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+
+def reject(code):
+    print(f"phase=approved_refresh_manifest_read|result=FAIL|code={code}", file=sys.stderr)
+    raise SystemExit(2)
+
+try:
+    cohort_path = Path(sys.argv[1])
+    raw = cohort_path.read_bytes()
+    mode = stat.S_IMODE(cohort_path.stat().st_mode)
+except OSError as exc:
+    reject(f"manifest_unreadable_errno_{exc.errno}")
+try:
+    manifest = json.loads(raw)
+except (UnicodeDecodeError, json.JSONDecodeError):
+    reject("manifest_invalid_json")
+digest = hashlib.sha256(raw).hexdigest()
+if not re.fullmatch(r"[0-9a-f]{64}", digest):
+    reject("manifest_invalid_sha256")
+rows = manifest.get("discovery_rows") if isinstance(manifest, dict) else None
+if (
+    not isinstance(manifest, dict)
+    or manifest.get("schema_version") != 1
+    or manifest.get("run_id") != os.environ["FG2_EXPECTED_MANIFEST_RUN_ID"]
+    or manifest.get("source_sha") != os.environ["FG2_EXPECTED_MANIFEST_SOURCE_SHA"]
+    or manifest.get("entries") != []
+    or not isinstance(rows, list)
+    or len(rows) != 1
+    or not isinstance(rows[0], dict)
+    or rows[0].get("initial_status") != "processed"
+    or rows[0].get("kind") != "refresh_existing"
+    or mode != 0o600
+):
+    reject("empty_cohort_contract_mismatch")
+print(f"phase=approved_refresh_manifest_read|result=PASS|cohort_entries=0|processed_discovery=1|manifest_mode=0600|manifest_sha256={digest}")
+PY
+chmod 0644 "$noop_manifest_validator"
+noop_invalid_digest_log="$out/noop_invalid_digest.log"
+printf '%s\n' 'phase=approved_refresh_manifest_read|result=PASS|cohort_entries=0|processed_discovery=1|manifest_mode=0600|manifest_sha256=invalid' >"$noop_invalid_digest_log"
+if noop_manifest_digest_from_log "$noop_invalid_digest_log" >/dev/null; then
+  fail approved_refresh_manifest_digest INVALID_DIGEST_ACCEPTED
+fi
+: >"$noop_invalid_digest_log"
+if noop_manifest_digest_from_log "$noop_invalid_digest_log" >/dev/null; then
+  fail approved_refresh_manifest_digest EMPTY_DIGEST_ACCEPTED
+fi
+printf 'phase=approved_refresh_manifest_digest|result=PASS|invalid=fail_closed|empty=fail_closed\n'
+
 cleanup() {
   local status=$?
   trap - EXIT
@@ -174,6 +252,109 @@ for index in "${!approved_docker_args[@]}"; do
   esac
 done
 
+# Reproduce the atomic-manifest UID boundary with the real writer. A different
+# non-root consumer must be denied at 0600 and succeed only after the synthetic
+# fixture artifact is explicitly exported as 0644, without changing its bytes.
+manifest_uid_probe="$run_dir/fg2-manifest-uid-probe.json"
+uid_producer_log="$out/manifest_uid_producer.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1000:1000 \
+    --tmpfs /tmp:rw,noexec,nosuid,size=32m --workdir /workspace --env PYTHONPATH=/workspace \
+    --mount "type=bind,src=$ROOT/scripts,dst=/workspace/scripts,readonly" \
+    --mount "type=bind,src=$run_dir,dst=/case" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_producer_log" 2>&1 <<'PY'
+import hashlib
+import os
+from pathlib import Path
+from scripts.core.fg2_bounded_run import write_manifest_atomic
+
+target = Path("/case/fg2-manifest-uid-probe.json")
+first = {"fixture": "uid-transfer", "entries": []}
+final = {"fixture": "uid-transfer", "entries": [{"id": "synthetic"}]}
+write_manifest_atomic(target, first)
+first_mode = target.stat().st_mode & 0o777
+first_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+write_manifest_atomic(target, final)
+final_mode = target.stat().st_mode & 0o777
+final_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+if os.getuid() != 1000 or first_mode != 0o600 or final_mode != 0o600 or first_sha == final_sha:
+    raise SystemExit("phase=manifest_uid_probe_producer|result=FAIL|code=unexpected_atomic_file_state")
+print(f"phase=manifest_uid_probe_producer|result=PASS|uid=1000|first_mode=0600|final_mode=0600|first_sha256={first_sha}|final_sha256={final_sha}")
+PY
+then
+  cat "$uid_producer_log"
+  fail manifest_uid_probe PRODUCER_FAILED
+fi
+cat "$uid_producer_log"
+uid_probe_sha="$(sed -nE 's/^phase=manifest_uid_probe_producer\|result=PASS\|uid=1000\|first_mode=0600\|final_mode=0600\|first_sha256=[0-9a-f]{64}\|final_sha256=([0-9a-f]{64})$/\1/p' "$uid_producer_log")"
+[[ "$uid_probe_sha" =~ ^[0-9a-f]{64}$ ]] || fail manifest_uid_probe PRODUCER_DIGEST_MISSING
+uid_denied_log="$out/manifest_uid_pre_export_denial.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1001:1001 \
+    --mount "type=bind,src=$run_dir,dst=/case,readonly" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_denied_log" 2>&1 <<'PY'
+from pathlib import Path
+
+try:
+    Path("/case/fg2-manifest-uid-probe.json").read_bytes()
+except PermissionError:
+    print("phase=manifest_uid_probe_pre_export|result=PASS|uid=1001|read=denied")
+else:
+    raise SystemExit("phase=manifest_uid_probe_pre_export|result=FAIL|code=private_file_readable")
+PY
+then
+  cat "$uid_denied_log"
+  fail manifest_uid_probe PRE_EXPORT_DENIAL_NOT_DEMONSTRATED
+fi
+grep -qx 'phase=manifest_uid_probe_pre_export|result=PASS|uid=1001|read=denied' "$uid_denied_log" \
+  || { cat "$uid_denied_log"; fail manifest_uid_probe PRE_EXPORT_DENIAL_ASSERTION; }
+cat "$uid_denied_log"
+uid_export_log="$out/manifest_uid_export.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1000:1000 \
+    --mount "type=bind,src=$run_dir,dst=/case" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_export_log" 2>&1 <<'PY'
+import hashlib
+import os
+from pathlib import Path
+
+target = Path("/case/fg2-manifest-uid-probe.json")
+before = hashlib.sha256(target.read_bytes()).hexdigest()
+target.chmod(0o644)
+after = hashlib.sha256(target.read_bytes()).hexdigest()
+if before != after or (target.stat().st_mode & 0o777) != 0o644:
+    raise SystemExit("phase=manifest_uid_probe_export|result=FAIL|code=digest_or_mode_mismatch")
+print(f"phase=manifest_uid_probe_export|result=PASS|uid={os.getuid()}|mode=0644|digest_preserved=true|sha256={after}")
+PY
+then
+  cat "$uid_export_log"
+  fail manifest_uid_probe EXPORT_FAILED
+fi
+grep -qx "phase=manifest_uid_probe_export|result=PASS|uid=1000|mode=0644|digest_preserved=true|sha256=$uid_probe_sha" "$uid_export_log" \
+  || { cat "$uid_export_log"; fail manifest_uid_probe EXPORT_ASSERTION; }
+cat "$uid_export_log"
+uid_read_log="$out/manifest_uid_post_export_read.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1001:1001 \
+    --mount "type=bind,src=$run_dir,dst=/case,readonly" --env FG2_EXPECTED_UID_PROBE_SHA256="$uid_probe_sha" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_read_log" 2>&1 <<'PY'
+import hashlib
+import os
+from pathlib import Path
+import stat
+
+target = Path("/case/fg2-manifest-uid-probe.json")
+raw = target.read_bytes()
+digest = hashlib.sha256(raw).hexdigest()
+if os.getuid() != 1001 or stat.S_IMODE(target.stat().st_mode) != 0o644 or digest != os.environ["FG2_EXPECTED_UID_PROBE_SHA256"]:
+    raise SystemExit("phase=manifest_uid_probe_post_export|result=FAIL|code=reader_or_digest_mismatch")
+print(f"phase=manifest_uid_probe_post_export|result=PASS|uid=1001|read=allowed|mode=0644|sha256={digest}")
+PY
+then
+  cat "$uid_read_log"
+  fail manifest_uid_probe POST_EXPORT_READ_FAILED
+fi
+grep -qx "phase=manifest_uid_probe_post_export|result=PASS|uid=1001|read=allowed|mode=0644|sha256=$uid_probe_sha" "$uid_read_log" \
+  || { cat "$uid_read_log"; fail manifest_uid_probe POST_EXPORT_READ_ASSERTION; }
+cat "$uid_read_log"
+rm -f -- "$manifest_uid_probe"
+
 # Exercise the versioned production control gate separately from the local
 # synthetic writer run. No remote environment or flags are touched.
 blocked_control_log="$out/production_control_paused.log"
@@ -255,7 +436,7 @@ run_master() {
     grep -E '"boundary":"postgrest_api"' "$events" | tail -n 20 || true
     exit 2
   fi
-  if ! manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)" || [[ ! "$manifest_sha" =~ ^[0-9a-f]{64}$ ]]; then
+  if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
     fail "$phase" MANIFEST_EXPORT_NOT_READABLE
   fi
   printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
@@ -288,9 +469,13 @@ run_approved_master() {
   local log="$out/${phase}.log"
   local cohort_path=/run/fg2-cohort-manifest.json
   lot_path="/run/$(basename "$lot_file")"
-  local lot_sha lot_b64
-  lot_sha="$(sha256sum "$lot_file" | cut -d' ' -f1)"
-  lot_b64="$(base64 -w0 "$lot_file")"
+  local manifest_sha lot_sha lot_b64
+  if ! lot_sha="$(artifact_sha256 "$lot_file")"; then
+    fail "$phase" APPROVED_LOT_NOT_READABLE
+  fi
+  if ! lot_b64="$(artifact_base64 "$lot_file")"; then
+    fail "$phase" APPROVED_LOT_NOT_ENCODABLE
+  fi
   rm -f -- "$manifest"
   if docker run "${approved_docker_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
@@ -322,11 +507,56 @@ run_approved_master() {
     fi
   fi
   if [[ "$expect_noop" == true ]]; then
-    printf 'phase=%s|result=PASS|expected=empty_cohort_guard|manifest_sha256=%s\n' \
-      "$phase" "$(sha256sum "$manifest" | cut -d' ' -f1)"
+    local noop_manifest_log="$out/${phase}_manifest_read.log"
+    if ! docker run --pull=never --rm --network none --read-only --user 1000:1000 \
+        --mount "type=bind,src=$manifest,dst=/run/cohort.json,readonly" \
+        --mount "type=bind,src=$noop_manifest_validator,dst=/workspace/verify_noop_manifest.py,readonly" \
+        --env FG2_EXPECTED_MANIFEST_RUN_ID="$run_id" --env FG2_EXPECTED_MANIFEST_SOURCE_SHA="$source_sha" \
+        "$APP_IMAGE" /opt/venv/bin/python /workspace/verify_noop_manifest.py /run/cohort.json \
+        >"$noop_manifest_log" 2>&1
+    then
+      cat "$noop_manifest_log"
+      fail "$phase" NOOP_MANIFEST_READ_OR_CONTRACT_FAILED
+    fi
+    if ! manifest_sha="$(noop_manifest_digest_from_log "$noop_manifest_log")"; then
+      cat "$noop_manifest_log"
+      fail "$phase" NOOP_MANIFEST_DIGEST_MISSING_OR_INVALID
+    fi
+    cat "$noop_manifest_log"
+    printf 'phase=%s|result=PASS|expected=empty_cohort_guard|manifest_sha256=%s\n' "$phase" "$manifest_sha"
+
+    local unreadable_manifest_log="$out/${phase}_manifest_unreadable.log"
+    if docker run --pull=never --rm --network none --read-only --user 1001:1001 \
+        --mount "type=bind,src=$manifest,dst=/run/cohort.json,readonly" \
+        --mount "type=bind,src=$noop_manifest_validator,dst=/workspace/verify_noop_manifest.py,readonly" \
+        --env FG2_EXPECTED_MANIFEST_RUN_ID="$run_id" --env FG2_EXPECTED_MANIFEST_SOURCE_SHA="$source_sha" \
+        "$APP_IMAGE" /opt/venv/bin/python /workspace/verify_noop_manifest.py /run/cohort.json \
+        >"$unreadable_manifest_log" 2>&1; then
+      cat "$unreadable_manifest_log"
+      fail "$phase" UNREADABLE_MANIFEST_WAS_ACCEPTED
+    fi
+    grep -qx 'phase=approved_refresh_manifest_read|result=FAIL|code=manifest_unreadable_errno_13' "$unreadable_manifest_log" \
+      || { cat "$unreadable_manifest_log"; fail "$phase" UNREADABLE_MANIFEST_NOT_EXPLICIT; }
+    printf 'phase=approved_refresh_manifest_negative|result=PASS|case=unreadable|code=manifest_unreadable_errno_13\n'
+
+    local missing_manifest_log="$out/${phase}_manifest_missing.log"
+    local missing_manifest_dir="$out/${phase}_missing_mount"
+    mkdir -p "$missing_manifest_dir"
+    chmod 0755 "$missing_manifest_dir"
+    if docker run --pull=never --rm --network none --read-only --user 1000:1000 \
+        --mount "type=bind,src=$missing_manifest_dir,dst=/run,readonly" \
+        --mount "type=bind,src=$noop_manifest_validator,dst=/workspace/verify_noop_manifest.py,readonly" \
+        --env FG2_EXPECTED_MANIFEST_RUN_ID="$run_id" --env FG2_EXPECTED_MANIFEST_SOURCE_SHA="$source_sha" \
+        "$APP_IMAGE" /opt/venv/bin/python /workspace/verify_noop_manifest.py /run/cohort.json \
+        >"$missing_manifest_log" 2>&1; then
+      cat "$missing_manifest_log"
+      fail "$phase" MISSING_MANIFEST_WAS_ACCEPTED
+    fi
+    grep -qx 'phase=approved_refresh_manifest_read|result=FAIL|code=manifest_unreadable_errno_2' "$missing_manifest_log" \
+      || { cat "$missing_manifest_log"; fail "$phase" MISSING_MANIFEST_NOT_EXPLICIT; }
+    printf 'phase=approved_refresh_manifest_negative|result=PASS|case=missing|code=manifest_unreadable_errno_2\n'
   else
-    local manifest_sha
-    if ! manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)" || [[ ! "$manifest_sha" =~ ^[0-9a-f]{64}$ ]]; then
+    if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
       fail "$phase" MANIFEST_EXPORT_NOT_READABLE
     fi
     printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
@@ -341,8 +571,12 @@ run_worker() {
   if [[ "$recovery_source" == "true" ]]; then
     recovery_args+=(--env FG2_FIXTURE_RECOVERY_SOURCE=1)
   fi
-  manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
-  manifest_b64="$(base64 -w0 "$manifest")"
+  if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_READABLE
+  fi
+  if ! manifest_b64="$(artifact_base64 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_ENCODABLE
+  fi
   log="$out/${phase}.log"
   if docker run "${common_docker_args[@]}" \
       "${recovery_args[@]}" \
@@ -380,8 +614,12 @@ run_worker_with_openai_http_fixture() {
   if [[ "$recovery_source" == "true" ]]; then
     provider_http_args+=(--env FG2_FIXTURE_RECOVERY_SOURCE=1)
   fi
-  manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
-  manifest_b64="$(base64 -w0 "$manifest")"
+  if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_READABLE
+  fi
+  if ! manifest_b64="$(artifact_base64 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_ENCODABLE
+  fi
   log="$out/${phase}.log"
   for index in "${!provider_http_args[@]}"; do
     if [[ "${provider_http_args[index]}" == "FG2_FIXTURE_PROVIDER_ADAPTER=1" ]]; then
@@ -505,14 +743,9 @@ noop_staging_after="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -At -
   "SELECT status || '|' || content_hash FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada'")"
 [[ "$noop_staging_before" == "$noop_staging_after" ]] || fail run_4_identical_refresh STAGING_CHANGED_DURING_NOOP
 docker run --pull=never --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
-  --mount "type=bind,src=$manifest,dst=/run/cohort.json,readonly" \
-  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,pathlib,sys; m=json.loads(pathlib.Path("/run/cohort.json").read_text()); rows=m.get("discovery_rows", []); ok=not m.get("entries") and len(rows)==1 and rows[0].get("initial_status")=="processed" and rows[0].get("kind")=="refresh_existing"; ok or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=cohort_not_empty_guarded"); print("phase=approved_refresh_identical_noop|result=PASS|cohort_entries=0|processed_discovery=1")' \
-  >"$out/identical_refresh_manifest.log" 2>&1 || { cat "$out/identical_refresh_manifest.log"; fail run_4_identical_refresh NOOP_COHORT_ASSERTION; }
-cat "$out/identical_refresh_manifest.log"
-docker run --pull=never --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
   --mount "type=bind,src=$events,dst=/run/events.jsonl,readonly" \
   --env FG2_EVENT_OFFSET="$noop_event_start" \
-  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,os,pathlib,sys; lines=pathlib.Path("/run/events.jsonl").read_text().splitlines()[int(os.environ["FG2_EVENT_OFFSET"]):]; events=[json.loads(line) for line in lines if line]; writes=[event for event in events if event.get("boundary")=="postgrest_api" and event.get("method") in {"POST","PATCH","DELETE"}]; not writes or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=unexpected_database_write"); print("phase=approved_refresh_identical_noop|result=PASS|database_writes=0|downstream_jobs=not_started")' \
+  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,os,pathlib,sys; lines=pathlib.Path("/run/events.jsonl").read_text().splitlines()[int(os.environ["FG2_EVENT_OFFSET"]):]; events=[json.loads(line) for line in lines if line]; writes=[event for event in events if event.get("boundary")=="postgrest_api" and event.get("method") in {"POST","PATCH","DELETE"}]; providers=[event for event in events if event.get("boundary")=="provider_loopback"]; (not writes and not providers) or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=unexpected_write_or_provider"); print("phase=approved_refresh_identical_noop|result=PASS|database_writes=0|provider_events=0|downstream_jobs=not_started")' \
   >"$out/identical_refresh_audit.log" 2>&1 || { cat "$out/identical_refresh_audit.log"; fail run_4_identical_refresh DATABASE_WRITE_DURING_NOOP; }
 cat "$out/identical_refresh_audit.log"
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
@@ -523,8 +756,12 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixt
 
 prepare_approved_lot run_3_processed_refresh_manifest 9000003
 run_approved_master run_3_processed_refresh 9000003
-manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
-manifest_b64="$(base64 -w0 "$manifest")"
+if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
+  fail refresh_recovery MANIFEST_INPUT_NOT_READABLE
+fi
+if ! manifest_b64="$(artifact_base64 "$manifest")"; then
+  fail refresh_recovery MANIFEST_INPUT_NOT_ENCODABLE
+fi
 fault_log="$out/refresh_expected_failure.log"
 if docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000003 \
     --env FG2_FIXTURE_MANIFEST_B64="$manifest_b64" --env FG2_FIXTURE_MANIFEST_SHA256="$manifest_sha" \
@@ -1136,7 +1373,15 @@ zero_transition="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
   "UPDATE public.staging_raw SET status='pending' WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5088'::uuid AND institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND url='https://posgrado.utec.edu.pe/utec-only/zero-progress' AND status='discovered' AND content_hash='5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004' RETURNING status || '|' || content_hash")"
 [[ "$zero_transition" == "pending|5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004" ]] \
   || fail utec_zero_progress_manifest DISCOVERY_TO_PENDING_FIXTURE_TRANSITION_FAILED
-cp "$run_dir/fg2-zero-progress-cohort.json" "$manifest"
+zero_cohort_sha="$(sed -nE 's/^phase=utec_zero_progress_manifest\|result=PASS\|selection=reviewed_exact\|lot_sha256=[0-9a-f]{64}\|cohort_sha256=([0-9a-f]{64})\|scope=1\|stage=pending_after_discovery\|provider=not_started\|export_mode=0644\|digest_preserved=true$/\1/p' "$zero_manifest_log")"
+[[ "$zero_cohort_sha" =~ ^[0-9a-f]{64}$ ]] || fail utec_zero_progress_manifest EXPORTED_DIGEST_MISSING
+if ! cp -- "$run_dir/fg2-zero-progress-cohort.json" "$manifest"; then
+  fail utec_zero_progress_manifest EXPORTED_COHORT_COPY_FAILED
+fi
+if ! manifest_sha="$(artifact_sha256 "$manifest")" || [[ "$manifest_sha" != "$zero_cohort_sha" ]]; then
+  fail utec_zero_progress_manifest EXPORTED_COHORT_DIGEST_MISMATCH
+fi
+printf 'phase=utec_zero_progress_manifest_transfer|result=PASS|mode=0644|sha256=%s|digest_preserved=true\n' "$manifest_sha"
 cleansing_zero_offset="$(wc -l <"$events")"
 run_worker utec_reviewed_exact_cleansing_zero_rejected cleansing_worker.py 9000007 failure false reviewed_exact
 grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=cleansing result=FAIL category=zero_cleansed_promotions' \

@@ -310,7 +310,17 @@ def prepare_utec_zero_progress() -> None:
         "content_sha256": UTEC_ZERO_PROGRESS_CONTENT_SHA256,
         "kind": "new_discovery",
     })
+    digest_before_export = hashlib.sha256(UTEC_ZERO_PROGRESS_COHORT_TARGET.read_bytes()).hexdigest()
+    try:
+        # write_manifest_atomic replaces the inode with a mkstemp file (0600).
+        # This synthetic artifact is copied by the host runner after the final append.
+        UTEC_ZERO_PROGRESS_COHORT_TARGET.chmod(0o644)
+    except OSError:
+        raise SystemExit("phase=utec_zero_progress_manifest|result=FAIL|code=cohort_export_chmod_failed") from None
     raw_manifest = UTEC_ZERO_PROGRESS_COHORT_TARGET.read_bytes()
+    digest_after_export = hashlib.sha256(raw_manifest).hexdigest()
+    if digest_after_export != digest_before_export or (UTEC_ZERO_PROGRESS_COHORT_TARGET.stat().st_mode & 0o777) != 0o644:
+        raise SystemExit("phase=utec_zero_progress_manifest|result=FAIL|code=cohort_export_integrity_failed")
     cohort = FG2CohortManifest.from_payload(
         json.loads(raw_manifest),
         expected_run_id=os.getenv("GITHUB_RUN_ID", "9000007"),
@@ -323,8 +333,8 @@ def prepare_utec_zero_progress() -> None:
         raise SystemExit("phase=utec_zero_progress_manifest|result=FAIL|code=cohort_identity_mismatch")
     print(
         "phase=utec_zero_progress_manifest|result=PASS|selection=reviewed_exact|"
-        f"lot_sha256={approved_lot.sha256}|cohort_sha256={hashlib.sha256(raw_manifest).hexdigest()}|"
-        "scope=1|stage=pending_after_discovery|provider=not_started"
+        f"lot_sha256={approved_lot.sha256}|cohort_sha256={digest_after_export}|"
+        "scope=1|stage=pending_after_discovery|provider=not_started|export_mode=0644|digest_preserved=true"
     )
 
 
