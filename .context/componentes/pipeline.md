@@ -7,7 +7,7 @@
 | FG1 discovery | config/institution_sources.json → institutions e institution_site_profiles | discovery_institutions.py comprueba instituciones y puede insertar las faltantes; --no-insert detiene el caso sin catálogo. Escritura de catálogo, autorización operacional separada. |
 | FG2 orchestration | perfiles y flags → tareas por institución | master_orchestrator.py decide elegibilidad/recencia/circuit breaker, ejecuta workers por subproceso y aplica time guard. En contextos controlados conserva solo diagnósticos versionados con fase/categoría allowlistadas y metadatos DB sanitizados; nunca publica stdout/stderr ni argumentos. |
 | FG2-1 harvester | web/sitemap/config → staging_raw | universal_harvester.py descubre URLs, filtra/noise/exclusiones, canonicaliza, extrae HTML/metadata, calcula SHA-256 content_hash y omite contenido sin cambio. En el modo controlado, el GET limita el cuerpo antes de parsearlo. |
-| FG2-1.5 cleansing | staging_raw → cleansed_programs | cleansing_worker.py bloquea batch, limpia texto, consolida páginas y filtra ruido; usa atomic_cleansing_promote y conserva estados/errores de origen. |
+| FG2-1.5 cleansing | staging_raw → cleansed_programs | cleansing_worker.py valida la exclusión con la identidad canonical_url → effective_url → url antes de agrupar aliases; aplica reglas de perfil solo a su institution_id y defaults compartidos globalmente. Una fila excluida no contamina hermanos válidos; un perfil malformado queda fail-closed. Promueve con atomic_cleansing_promote y conserva estados/errores de origen. |
 | FG2-2 enrichment | cleansed_programs → enriched_programs | enrichment_worker.py aplica prompt/campos y normaliza respuestas; los entrypoints fallan cerrados por defecto y requieren resultado real antes de persistir. `atomic_enrichment_promote` guarda la unidad de trabajo. El smart mock solo puede activarse explícitamente en un fixture aislado. |
 | FG2-3 sync | enriched_programs → courses + editorial quality | sync_vector_worker.py es writer normal de datos finales, conserva overrides y aplica guards de mock/canary/quality. El nombre no acredita embeddings activos. |
 | FG3 integrity | courses_public_effective → RPC atómica limitada de courses | integrity_ping.py valida con HEAD/GET y decisión conservadora; el RPC revalida elegibilidad y snapshot en la transacción y solo cambia last_404_at o is_active. |
@@ -306,7 +306,7 @@ un nuevo runtime productivo.
 | `scripts/core/discovery_institutions.py` | `load_sources()` selecciona config; `run_discovery(..., allow_insert)` verifica instituciones/perfiles y `--no-insert` mantiene el preflight sin insertar. | `.github/workflows/fg1_inventory.yml`; `.github/workflows/production_canary.yml` lo invoca con `--no-insert`. | `institutions`, `institution_site_profiles`; el modo normal puede insertar catálogo/perfil y requiere autorización de escritura. |
 | `scripts/core/master_orchestrator.py` | `get_institutions()` resuelve cohortes/gates/recencia/circuit breaker; `run_script()` lanza workers por subprocess con timeout; `main()` aplica límites y flags. | Job FG2 en `production_pipeline.yml`; sus subprocessos y jobs siguientes son etapas separadas. | Lee perfiles/estado y lanza subprocessos; los procesos hijos pueden tocar DB/red. `--limit`, exclusiones y modo canario cambian el lote. |
 | `scripts/core/universal_harvester.py` | `UniversalHarvester` obtiene sitemap/BFS, aplica hosts/gates/exclusiones, extrae HTML/metadata y calcula hash del contenido antes de registrar la URL. | Job de orquestación FG2; `cleansing_worker.py` consume `staging_raw`. | Web externa y `staging_raw`; escribe usando identidad de pipeline autorizada. `content_hash` evita repetir contenido igual, no representa identidad única de curso. |
-| `scripts/core/cleansing_worker.py` | `CleansingWorker` reclama staging, limpia/consolida páginas, aplica ruido y fechas/precio, registra errores y promueve el batch con RPC atómica. | Job separado de `production_pipeline.yml`; RPC lock/promote en el ledger DB. | `staging_raw → cleansed_programs`, estados y errores; writer de pipeline. |
+| `scripts/core/cleansing_worker.py` | `CleansingWorker` comprueba exclusiones antes de colapsar URLs: conserva precedencia canonical/effective/requested, comparte solo patrones globales, limita reglas extra al institution_id y falla cerrado para perfil malformado. Limpia/consolida páginas válidas, registra estado por fila y promueve con RPC atómica. | Job separado de `production_pipeline.yml`; RPC lock/promote en el ledger DB. | `staging_raw → cleansed_programs`; el estado discarded se asigna a la fila excluida, un hermano válido conserva su ruta de promoción; writer de pipeline. |
 | `scripts/core/enrichment_worker.py` | `EnrichmentWorker` prepara prompt/contexto, llama OpenAI Responses como proveedor primario, conserva Cloudflare como fallback y normaliza la respuesta; `process_enrichment_records()` limita/agrupa intentos. | Job separado de `production_pipeline.yml`; `OPENAI_API_KEY` llega solo al paso backend de Enrichment. El health check revisa configuración local y no envía una solicitud de prueba. | `cleansed_programs → enriched_programs`; requiere `OPENAI_API_KEY` más `CF_ACCOUNT_ID`/`CF_API_TOKEN` para fallback. Un proveedor real usa red/costo; ninguna llamada real se ejecutó. |
 | `scripts/core/sync_vector_worker.py` | `SyncVectorWorker` valida datos normalizados/calidad/guards y persiste cursos, respetando ownership editorial. El nombre no prueba que embeddings estén activos. | Job separado de `production_pipeline.yml`; `roi_engine.py` calcula campos ROI. | `enriched_programs → courses`; writer normal final, requiere permisos de pipeline y preflight de modo. |
 | `scripts/core/integrity_ping.py` | `run_integrity_ping()` selecciona desde `courses_public_effective`, lee la base solo para esos IDs y llama `fg3_apply_public_course_transition` para revalidar y escribir en una transacción. Cada probe valida/pinea DNS público, HTTPS y redirects; aplica HEAD/GET y retry bounded. | `.github/workflows/fg3_integrity.yml` (comando desde `scripts/core`); `production_canary.yml` lo usa con límites canario. | Lee URLs efectivas públicas y snapshots base de IDs seleccionados; el RPC solo cambia `last_404_at` o `is_active`. `stale` es NO-OP. La revisión local no acredita que la migration esté aplicada en Pro. |
@@ -775,6 +775,28 @@ predecesores sintéticos: demuestra el rechazo UTEC bajo rotación y, con el
 mismo snapshot, el recorrido `reviewed_exact` hasta Admin, con HTTP y proveedor
 sintéticos y red Docker interna sin egress. No acredita una llamada al sitio,
 un proveedor pagado ni ejecución de Pro.
+
+En Cleansing, las reglas globales de URL salen de
+`scripts/shared/site_profile_policy.py`, la misma fuente usada al sembrar los
+perfiles. Los patrones adicionales de `exclusion_patterns` se compilan por
+`institution_id` UUID y solo se aplican al dueño del perfil; un perfil ausente
+no hereda el de otra institución y perfiles duplicados fallan antes de procesar.
+Filas sin identidad UUID válida fallan cerradas en `process_batch`. La
+consolidación de URLs sigue rechazando cualquier grupo que cruce instituciones.
+
+Un manifest `reviewed_exact` no vacío debe producir al menos una promoción
+efectiva en Cleansing, un enriquecimiento exitoso y un Sync exitoso. Cada
+estación usa su contador real, emite una categoría sanitizada y termina con
+error si su cuenta es cero; la dependencia entre jobs impide ejecutar la etapa
+siguiente. La regla no alcanza `rotation_prefix`: el scheduler conserva sus
+no-ops legítimos, como un refresh sin cambios/cohorte vacía. Recovery #275
+mantiene su contrato `enrichment_sync_only` y no se interpreta como primer run.
+
+Para el incidente #283, el ensayo local de PG17 parte de la identidad staging
+UTEC que estaba `discarded` por `hard_db_exclusion:/maestrias/`, fija su hash,
+aliases y ausencia de descendientes, y prueba en transacción la única transición
+condicionada a `discovered`, seguida de rollback. El recorrido local posterior
+solo usa el fixture desechable; no demuestra reparación Pro ni autoriza DML.
 
 La identidad del lote usa la misma función `normalize_url` que el harvester
 (quita query/fragment y slash final, baja scheme/host y retira `/en/`). El

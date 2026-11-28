@@ -126,6 +126,8 @@ scripts/core/fg2_bounded_run.py
 scripts/core/master_orchestrator.py
 scripts/core/sync_vector_worker.py
 scripts/shared/db_client.py
+scripts/shared/site_profile_policy.py
+scripts/maintenance/seed_site_profiles.py
 .context/evidencia/h1req1_fg3_atomic_local_scope_2026-11-15.json
 db/migrations/20261115234509_h1_fg3_atomic_public_transition.sql
 tests/h1_fg3_atomic_public_transition_pg17.sh
@@ -161,11 +163,13 @@ scripts/core/fg2_bounded_run.py
 scripts/core/master_orchestrator.py
 scripts/core/profile_onboarding.py
 scripts/core/universal_harvester.py
+scripts/maintenance/seed_site_profiles.py
 scripts/maintenance/check_db_parity.py
 scripts/maintenance/db_migrate.py
 scripts/maintenance/pro_h3_migration_manifest.py
 scripts/security/protected_path_scope_guard.sh
 scripts/shared/site_diagnostics.py
+scripts/shared/site_profile_policy.py
 scripts/shared/utils.py
 tests/fg2_full_pipeline_pg17/assert_state.sql
 tests/fg2_full_pipeline_pg17/assert_post272_recovery.sql

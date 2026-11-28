@@ -129,9 +129,9 @@
       "name": "bootstrap inicial del primer Admin — candidato local 2026-11-05",
       "source_set": "Base main 96eb696d53a7f90279afdc4d37fadec10c2056c4 más cinco fuentes nuevas exactas del paquete bootstrap, el path existente del scope guard reclasificado como candidate-only por su cambio y cinco fuentes nuevas exactas del candidato local FG2 H1: scripts/core/fg2_bounded_run.py y sus cuatro pruebas. Las ediciones del manifest y tests existentes siguen asignadas una sola vez en sus grupos originales; no se incorpora otro WIP.; isolated FG3 atomic follow-up adds exactly five new paths: one migration and four PG17/static test paths. Reconciliación 2026-11-18: base desarrollo 9435bdfd5121e804ef5bfe361cc94db6f5481c6b (tree 12087f431ccdc6c3c89d20e784c0170cd1b81067), igual a main 0037f11d0b058158b244d1bb2e1d8a487e2f62c5; cinco paths FG3 nuevos sobre esa base. Los conteos anteriores 328/774/446 siguen siendo el corte histórico 2026-11-15.",
       "candidate_only_path_count_at_cut": 348,
-      "note": "Corte historico local 2026-11-22: 790 fuentes, 344 candidate-only y 446 relevantes en la proyeccion. Reconciliacion 2026-11-24 del candidato local FG2: el checkout descubre 793 fuentes asignadas tras registrar tres helpers sinteticos de recuperacion post-#272 como candidate-only; el conjunto candidate-only es 347 y la proyeccion relevante permanece en 446. Estos helpers son solo fixture local, no codigo de runtime ni evidencia remota. Los valores 328/774/446 del corte historico 2026-11-15 se conservan como historia. El FAIL integral historico se compara por separado y no se convierte en PASS.",
-      "refresh": "Para esta huella, el corte vigente del inventario es 793 fuentes, 347 candidate-only y 446 fuentes proyectadas. Recalcular solo si cambia el paquete; conservar los cortes 2026-11-15 y 2026-11-22 como evidencia historica.",
-      "projected_relevant_source_paths_at_cut": 446
+      "note": "Corte historico local 2026-11-22: 790 fuentes, 344 candidate-only y 446 relevantes en la proyeccion. Reconciliacion 2026-11-24 del candidato local FG2: 793 fuentes, 347 candidate-only y 446 relevantes. En este candidato de correccion #283, `scripts/shared/site_profile_policy.py` agrega una fuente compartida del runtime; el corte actual se recalcula a 795 fuentes, 348 candidate-only y 447 fuentes proyectadas. Los helpers sinteticos post-#272 siguen siendo candidate-only y no son runtime ni evidencia remota. Los valores 328/774/446 del corte historico 2026-11-15 se conservan como historia. El FAIL integral historico se compara por separado y no se convierte en PASS.",
+      "refresh": "Para el candidato local FG2/H1REQ1 #283, el corte vigente del inventario es 795 fuentes asignadas, 348 candidate-only y 447 fuentes proyectadas. Recalcular al cambiar el paquete; conservar los cortes 2026-11-15, 2026-11-22 y 2026-11-24 como evidencia historica.",
+      "projected_relevant_source_paths_at_cut": 447
     }
   },
   "exclusions": [
@@ -10329,16 +10329,19 @@
       "paths": [
         "scripts/core/cleansing_worker.py",
         "scripts/core/enrichment_worker.py",
-        "scripts/core/sync_vector_worker.py"
+        "scripts/core/sync_vector_worker.py",
+        "scripts/shared/site_profile_policy.py"
       ],
       "candidate_only_paths": [],
       "contracts": {
         "state": "verified",
-        "note": "Cleansing promueve staging y fija modalidad solo con detección explícita no ambigua; su evidence queda ligada a staging/institución/URL/content_hash. Enrichment conserva modalidad válida del proveedor o reutiliza la de cleansing tras revalidar identidad y procedencia; falta o ambigüedad queda NULL. Sync conserva provenance para no aplicar defaults cuando el campo quedó sin resolver. Migration RPC aditiva y validación remota JIT pendientes.",
+        "note": "Cleansing promueve staging y fija modalidad solo con detección explícita no ambigua; su evidence queda ligada a staging/institución/URL/content_hash. Antes de agrupar aliases, valida canonical_url → effective_url → url y conserva el digest de URL original por separado; una exclusión no descarta hermanos válidos ni los promueve como otra identidad. Los defaults globales y de seed comparten site_profile_policy.py; reglas adicionales aplican solo al institution_id propio. Perfiles ausentes/duplicados, identidades staging inválidas y exclusion_patterns malformado fallan cerrado sin bloquear otros dueños; colisiones entre owners siguen rechazadas. Enrichment conserva modalidad válida del proveedor o reutiliza la de cleansing tras revalidar identidad y procedencia; falta o ambigüedad queda NULL. Sync conserva provenance para no aplicar defaults cuando el campo quedó sin resolver. Un reviewed_exact no vacío exige progreso efectivo por estación; scheduler rotation_prefix, refresh sin cambios y recovery #275 conservan sus no-ops. Migration RPC aditiva y validación remota JIT pendientes.",
         "evidence": [
           "path:scripts/core/cleansing_worker.py",
           "path:scripts/core/enrichment_worker.py",
           "path:scripts/core/sync_vector_worker.py",
+          "path:scripts/shared/site_profile_policy.py",
+          "path:scripts/maintenance/seed_site_profiles.py",
           "path:.context/componentes/pipeline.md"
         ]
       },
@@ -10364,12 +10367,14 @@
       },
       "tests_evidence": {
         "state": "verified",
-        "note": "test_h2_pipeline_contract.py afirma contratos de campos/estado; test_h3req1_local_pipeline_walk.py prueba transform/recovery y refresh editorial sintéticos; test_fg2_bounded_workers.py rechaza IDs fuera del manifest en cleansing, enrichment y sync. En Docker --network none, la revalidación actual de seis suites FG2/pipeline/H2 pasó 106; la regresión ampliada con contrato de credenciales y controles fase 09/10 pasó 169, 1 deselected, 1 warning PyPDF2. El excluido es la aserción H2 antigua contra archivos sin cambios; no es PASS. h3req1_pipeline_postgrest_pg17_integration.py conserva output R161, limitado a su corte PG17/PostgreSQL.",
+        "note": "test_fg2_bounded_workers.py cubre aislamiento de reglas por institution_id, reglas globales y propias, UTEC/Pacífico con un tercer perfil, identidades canonical/effective/requested de UNMSM antes de agrupar y PUCP malformado sin bloquear otro owner. test_fg2_bounded_orchestration.py cubre el selector real con orden, freshness, circuitos, conteos y límite; reviewed_exact sin avance falla y rotation_prefix/recovery conservan no-ops. Las tres suites FG2 afectadas dieron 288 passed en Docker --network none antes de añadir el último assert al caso de eliminación del tercer perfil; no se reclasifica como validación del WIP final. El reintento actual fue bloqueado por permission denied en unix:///var/run/docker.sock; host Python no tiene pytest. El scope guard aceptó los paths FG2/H2 exactos y rechazó vecinos, pero la regresión R21 local terminó con spawnSync git EPERM bajo el sandbox. El E2E PG17/PostgREST del candidato no inició contenedores: el preflight IMAGE_PIN_NOT_LOCAL no pudo ejecutar docker image inspect por el mismo permiso. Evidencia PG17 anterior no acredita este runtime; no hay resultado Pro ni proveedor real.",
         "evidence": [
           "path:.context/evidencia/h3req1_sem_pipeline_relaciones_locales_2026-10-13_r11.md",
           "path:tests/test_h2_pipeline_contract.py",
           "path:tests/test_h3req1_local_pipeline_walk.py",
           "path:tests/test_fg2_bounded_workers.py",
+          "path:tests/fg2_full_pipeline_pg17/run.sh",
+          "path:tests/fg2_full_pipeline_pg17/prepare_approved_lot.py",
           "path:tests/test_fg2_bounded_run.py",
           "path:tests/h3req1_pipeline_postgrest_pg17_integration.py",
           "path:.context/evidencia/h3req1_g09_pipeline_postgrest_r161/run-r10.log",
@@ -10378,7 +10383,7 @@
       },
       "operations": {
         "state": "verified",
-        "note": "Workers son writers operativos y usan permisos de pipeline; proveedor real requiere red/costo/variables, los mocks son sintéticos. Validar por impacto en Docker PG17 desechable; no invocar cloud writer ni proveedor.",
+        "note": "Workers son writers operativos y usan permisos de pipeline; proveedor real requiere red/costo/variables, los mocks son sintéticos. La precondición y transición `status=discarded`→`discovered` de la fila #283 se ensayó con hash/metadata/identidad/downstream exactos y rollback en PG17 desechable; no se escribe Pro. Una reparación Pro exige releer el snapshot vigente y autorización DML JIT separada. Validar por impacto en Docker PG17 desechable; no invocar cloud writer ni proveedor.",
         "evidence": [
           "path:.github/workflows/production_pipeline.yml",
           "path:.context/componentes/pipeline.md",

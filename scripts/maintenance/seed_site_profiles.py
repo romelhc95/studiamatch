@@ -5,6 +5,7 @@ import json
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
 from scripts.shared.utils import setup_lima_logging
+from scripts.shared.site_profile_policy import GLOBAL_EXCLUSIONS
 
 logger = setup_lima_logging('seed_site_profiles')
 
@@ -215,22 +216,6 @@ PROFILES = [
         "notes": "UNI. Minimal data expected."
     },
 ]
-
-GLOBAL_EXCLUSIONS = [
-    ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".pptx", ".ppt",
-    ".zip", ".rar", ".7z", ".tar", ".gz",
-    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp", ".ico",
-    ".mp4", ".mp3", ".avi", ".mov", ".wmv",
-    ".css", ".js", ".json", ".xml",
-    "/about/", "/admision/", "/archive/", "/assets/", "/author/",
-    "/biblioteca/", "/blog/", "/carrito/", "/categoria/", "/category/",
-    "/contacto/", "/eventos/", "/faq/", "/feed/", "/img/",
-    "/login", "/media/", "/nosotros/", "/noticias/", "/page/",
-    "/politica/", "/privacidad/", "/register/", "/rss/", "/search/",
-    "/static/", "/tag/", "/agradecimiento/", "/thank-you-page/",
-    "/publicaciones/"
-]
-
 
 def seed():
     db = get_db_client()

@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import sys
+from uuid import UUID
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple, Generator
 from urllib.parse import quote
@@ -29,11 +30,14 @@ from shared.utils import (
     parse_start_date,
 )
 from shared.db_client import get_db_client, DatabaseClient
+from shared.site_profile_policy import GLOBAL_EXCLUSIONS
 from scripts.core.fg2_bounded_run import (
     FG2CohortManifest,
     InvalidControlledRun,
     cleanse_course_url,
     require_manifest_sha256,
+    reviewed_exact_progress_missing,
+    profile_url_policy_rejection,
     url_sha256,
     uuid_in_filter,
 )
@@ -207,11 +211,19 @@ class CleansingWorker:
     def __init__(self, db_client: Optional[DatabaseClient] = None) -> None:
         self.db = db_client or get_db_client()
         self.profiles = self._load_profiles()
+        self.profile_exclusions_by_inst: Dict[str, List[Any]] = {}
+        self._profiles_by_inst: Dict[str, Dict[str, Any]] = {}
+        self.invalid_profile_exclusions: set[str] = set()
         self.exclusions = self._load_exclusions()
         # Fase 100: pipeline_enabled supersedes pipeline_ready, with temporary fallback.
         self.ready_inst_ids = {
             str(p['institution_id']) for p in self.profiles
-            if isinstance(p, dict) and self._gate_enabled(p, 'pipeline_enabled')
+            if (
+                isinstance(p, dict)
+                and self._gate_enabled(p, 'pipeline_enabled')
+                and self._institution_profile_key(p.get('institution_id'))
+                not in self.invalid_profile_exclusions
+            )
         }
         # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado
         self.default_noise_name_patterns = [
@@ -246,43 +258,103 @@ class CleansingWorker:
     def is_hub_page(self, url: str) -> bool:
         return any(re.search(p, url.lower()) for p in self.hub_patterns)
 
-    def _load_exclusions(self) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _institution_profile_key(institution_id: Any) -> Optional[str]:
+        if not isinstance(institution_id, (str, UUID)):
+            return None
         try:
-            if self.profiles:
+            return str(UUID(str(institution_id)))
+        except (ValueError, TypeError, AttributeError):
+            return None
+
+    @staticmethod
+    def _raw_profile_exclusions(profile: Dict[str, Any]) -> Optional[List[str]]:
+        patterns = profile.get('exclusion_patterns', [])
+        if patterns is None:
+            return []
+        if isinstance(patterns, str):
+            try:
+                patterns = json.loads(patterns)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        if not isinstance(patterns, list) or any(
+            not isinstance(pattern, str) or not pattern.strip()
+            for pattern in patterns
+        ):
+            return None
+        return list(dict.fromkeys(patterns))
+
+    @staticmethod
+    def _exclusion_key(pattern: str) -> str:
+        return pattern if pattern.startswith('re:') else pattern.casefold()
+
+    def _compile_exclusions(self, patterns: List[str], *, strict: bool = False) -> List[Any]:
+        compiled: List[Any] = []
+        for exc in dict.fromkeys(patterns):
+            if exc.startswith('re:'):
+                pat = exc[3:]
+                if not self._is_safe_profile_regex(pat):
+                    logger.warning("FG2_CLEANSING_PROFILE_EXCLUSION category=unsafe_regex_skipped")
+                    if strict:
+                        raise ValueError("invalid_profile_exclusion_policy")
+                    continue
+                try:
+                    re.compile(pat)
+                except re.error:
+                    logger.warning("FG2_CLEANSING_PROFILE_EXCLUSION category=invalid_regex_skipped")
+                    if strict:
+                        raise ValueError("invalid_profile_exclusion_policy")
+                    continue
+                compiled.append(('re', pat))
+            else:
+                compiled.append(exc.casefold())
+        return compiled
+
+    def _load_exclusions(self) -> List[Any]:
+        profiles_by_inst: Dict[str, Dict[str, Any]] = {}
+        raw_by_inst: Dict[str, List[str]] = {}
+        invalid_profile_exclusions: set[str] = set()
+        for profile in self.profiles or []:
+            if not isinstance(profile, dict):
+                continue
+            institution_key = self._institution_profile_key(profile.get('institution_id'))
+            if institution_key is None:
+                logger.warning("FG2_CLEANSING_PROFILE category=invalid_institution_id")
+                continue
+            if institution_key in profiles_by_inst:
+                raise RuntimeError("duplicate_institution_site_profile")
+            profiles_by_inst[institution_key] = profile
+            raw_patterns = self._raw_profile_exclusions(profile)
+            if raw_patterns is None:
+                logger.warning("FG2_CLEANSING_PROFILE_EXCLUSION category=invalid_policy_shape")
+                invalid_profile_exclusions.add(institution_key)
                 raw_patterns = []
-                for p in self.profiles:
-                    ep = p.get('exclusion_patterns', [])
-                    if ep:
-                        if isinstance(ep, str):
-                            try:
-                                parsed = json.loads(ep)
-                                if isinstance(parsed, list):
-                                    raw_patterns.extend(parsed)
-                            except (json.JSONDecodeError, TypeError):
-                                pass
-                        else:
-                            raw_patterns.extend(ep)
-                if raw_patterns:
-                    compiled = []
-                    for exc in set(raw_patterns):
-                        if isinstance(exc, str):
-                            if exc.startswith('re:'):
-                                pat = exc[3:]
-                                if not self._is_safe_profile_regex(pat):
-                                    logger.warning(f"ReDoS-risk pattern rejected: {pat}")
-                                    continue
-                                try:
-                                    compiled.append(('re', pat))
-                                except re.error as e:
-                                    logger.warning(f"Invalid regex pattern '{pat}': {e}")
-                                    continue
-                            else:
-                                compiled.append(exc.lower())
-                    return compiled
-            return []
-        except Exception as e:
-            logger.warning(f"Error loading exclusions: {e}")
-            return []
+            raw_by_inst[institution_key] = raw_patterns
+
+        self._profiles_by_inst = profiles_by_inst
+        global_keys = {self._exclusion_key(pattern) for pattern in GLOBAL_EXCLUSIONS}
+        self.profile_exclusions_by_inst = {}
+        for institution_key, patterns in raw_by_inst.items():
+            scoped_patterns = [
+                pattern for pattern in patterns
+                if self._exclusion_key(pattern) not in global_keys
+            ]
+            try:
+                self.profile_exclusions_by_inst[institution_key] = self._compile_exclusions(
+                    scoped_patterns, strict=True
+                )
+            except ValueError:
+                logger.warning("FG2_CLEANSING_PROFILE_EXCLUSION category=invalid_policy_pattern")
+                invalid_profile_exclusions.add(institution_key)
+                # Keep valid rules active for direct classification. The owner
+                # is still fail-closed before any row can be promoted.
+                self.profile_exclusions_by_inst[institution_key] = self._compile_exclusions(
+                    [pattern for pattern in scoped_patterns if not pattern.startswith('re:')]
+                )
+        self.invalid_profile_exclusions = invalid_profile_exclusions
+        # These rules are global by contract and are also the exact defaults
+        # written by seed_site_profiles; profile-specific additions stay scoped.
+        return self._compile_exclusions(list(GLOBAL_EXCLUSIONS))
 
     def _load_profiles(self) -> List[Dict[str, Any]]:
         try:
@@ -320,12 +392,8 @@ class CleansingWorker:
 
     # Fase 62C: Perfil-driven cleansing helpers
     def _get_profile_for_inst(self, inst_id) -> Dict[str, Any]:
-        if not inst_id:
-            return {}
-        for p in self.profiles or []:
-            if isinstance(p, dict) and str(p.get('institution_id', '')) == str(inst_id):
-                return p
-        return {}
+        key = self._institution_profile_key(inst_id)
+        return getattr(self, '_profiles_by_inst', {}).get(key, {}) if key else {}
 
     def _get_institution_website(self, inst_id) -> str:
         if not inst_id:
@@ -418,6 +486,47 @@ class CleansingWorker:
 
     def _get_base_url(self, url: str) -> str:
         return cleanse_course_url(url)
+
+    def _url_exclusion_reason(self, url: str, institution_id: str) -> Optional[str]:
+        low_url = str(url or "").lower()
+        institution_key = self._institution_profile_key(institution_id)
+        scoped_exclusions = getattr(self, 'profile_exclusions_by_inst', {}).get(institution_key, [])
+        for exc in [*self.exclusions, *scoped_exclusions]:
+            if isinstance(exc, tuple) and exc[0] == 're':
+                if self._safe_profile_search(exc[1], low_url):
+                    return f"hard_db_exclusion:regex:{exc[1]}"
+            elif isinstance(exc, re.Pattern):
+                if exc.search(low_url[:2000]):
+                    return f"hard_db_exclusion:regex:{exc.pattern}"
+            elif isinstance(exc, str) and exc in low_url:
+                return f"hard_db_exclusion:{exc}"
+        return None
+
+    def _profile_url_exclusion_reason(self, identity_url: str, institution_id: str) -> Optional[str]:
+        """Apply URL exclusions before cleansing collapses a detail path to its parent."""
+        profile = self._get_profile_for_inst(institution_id)
+        raw_patterns = self._raw_profile_exclusions(profile)
+        if raw_patterns is None:
+            return None  # The caller marks this owner as an error before grouping.
+        policy_profile = dict(profile)
+        policy_profile['exclusion_patterns'] = list(dict.fromkeys([*GLOBAL_EXCLUSIONS, *raw_patterns]))
+        website = self._get_institution_website(institution_id)
+        rejection = profile_url_policy_rejection(
+            identity_url,
+            website or identity_url,
+            policy_profile,
+            role="course_detail",
+        )
+        if rejection != "excluded_by_profile":
+            return self._url_exclusion_reason(identity_url, institution_id)
+        # Preserve the existing cleansing reason while using the shared URL
+        # policy's terminal-slash equivalence before the grouping suffix is lost.
+        reason = self._url_exclusion_reason(identity_url, institution_id)
+        if reason:
+            return reason
+        if identity_url and not identity_url.endswith('/'):
+            return self._url_exclusion_reason(f"{identity_url}/", institution_id)
+        return "hard_db_exclusion:profile_exclusion"
 
     def stream_pending_staging(
         self,
@@ -555,16 +664,9 @@ class CleansingWorker:
                 normalized_url = url.rstrip('/').lower()
                 if normalized_url == normalized_website:
                     return "is_institution_homepage"
-        for exc in self.exclusions:
-            if isinstance(exc, tuple) and exc[0] == 're':
-                if self._safe_profile_search(exc[1], low_url):
-                    return f"hard_db_exclusion:regex:{exc[1]}"
-            elif isinstance(exc, re.Pattern):
-                if exc.search(low_url[:2000]):
-                    return f"hard_db_exclusion:regex:{exc.pattern}"
-            elif isinstance(exc, str):
-                if exc in low_url:
-                    return f"hard_db_exclusion:{exc}"
+        exclusion_reason = self._url_exclusion_reason(url, institution_id)
+        if exclusion_reason:
+            return exclusion_reason
 
         # Fase 79C: Noise name patterns por institución (no global)
         noise_patterns = self._get_noise_patterns_for_inst(institution_id)
@@ -580,15 +682,39 @@ class CleansingWorker:
 
     def process_batch(self, batch: List[Dict[str, Any]]) -> int:
         groups: Dict[str, List[Dict[str, Any]]] = {}
+        cleansed_batch, staging_updates, processed_count = [], [], 0
         for raw in batch:
+            institution_key = self._institution_profile_key(raw.get('institution_id'))
+            if institution_key is None:
+                raise RuntimeError("invalid_institution_identity")
+            if institution_key not in self._profiles_by_inst:
+                raise RuntimeError("missing_institution_site_profile")
+            if institution_key in self.invalid_profile_exclusions:
+                staging_updates.append({
+                    "id": raw['id'],
+                    "status": "error",
+                    "metadata": _mark_canary_metadata({
+                        "processing_error": "invalid_profile_exclusion_policy"
+                    }),
+                })
+                continue
             identity = normalize_url(raw.get('canonical_url') or raw.get('effective_url') or raw['url'])
+            exclusion_reason = self._profile_url_exclusion_reason(identity, institution_key)
+            if exclusion_reason:
+                staging_updates.append({
+                    "id": raw['id'],
+                    "status": "discarded",
+                    "metadata": _mark_canary_metadata({"discard_reason": exclusion_reason}),
+                })
+                continue
             base = self._get_base_url(identity)
             if base not in groups: groups[base] = []
             groups[base].append(raw)
 
-        cleansed_batch, staging_updates, processed_count = [], [], 0
         for base_url, members in groups.items():
-            member_institutions = {str(m.get('institution_id')) for m in members}
+            member_institutions = {
+                self._institution_profile_key(m.get('institution_id')) for m in members
+            }
             if len(member_institutions) != 1:
                 raise RuntimeError("cross_institution_url_collision")
             combined_html, combined_desc = "", ""
@@ -775,3 +901,6 @@ if __name__ == "__main__":
     if batch_accumulator and not guard.should_exit:
         total_processed += worker.process_batch(batch_accumulator)
     logger.info(f"Session finished. Total staging URLs processed: {total_processed} | Time: {guard.elapsed_hours:.2f}h")
+    if reviewed_exact_progress_missing(cohort_manifest, total_processed):
+        logger.error("FG2_REVIEWED_EXACT_PROGRESS stage=cleansing result=FAIL category=zero_cleansed_promotions")
+        sys.exit(1)

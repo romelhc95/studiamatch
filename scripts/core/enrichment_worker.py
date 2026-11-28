@@ -35,6 +35,7 @@ from scripts.core.fg2_bounded_run import (
     InvalidControlledRun,
     course_identity_url,
     require_manifest_sha256,
+    reviewed_exact_progress_missing,
     url_sha256,
     uuid_in_filter,
 )
@@ -2095,3 +2096,6 @@ if __name__ == "__main__":
             break
 
     logger.info(f"🏁 Sesión finalizada. Total registros enriquecidos: {total_processed} | Tiempo: {guard.elapsed_hours:.2f}h | Providers: {worker.orchestrator.summary()}")
+    if reviewed_exact_progress_missing(cohort_manifest, total_processed):
+        logger.error("FG2_REVIEWED_EXACT_PROGRESS stage=enrichment result=FAIL category=zero_effective_enrichments")
+        sys.exit(1)

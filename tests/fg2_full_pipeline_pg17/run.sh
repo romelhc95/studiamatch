@@ -647,6 +647,31 @@ PY
   cat "$log"
 }
 
+assert_single_staging_discard_since() {
+  local phase="$1" offset="$2" log="$out/${1}.log"
+  if ! docker run --pull=never --rm --interactive --network none --read-only \
+    --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \
+    --mount "type=bind,src=$events,dst=/run/fg2-http-events.jsonl,readonly" \
+    --env FG2_EVENT_OFFSET="$offset" "$APP_IMAGE" /opt/venv/bin/python - \
+    /run/fg2-http-events.jsonl >"$log" 2>&1 <<'PY'
+import json, os, pathlib, sys
+events = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line]
+events = events[int(os.environ["FG2_EVENT_OFFSET"]):]
+writes = [event for event in events if event.get("boundary") == "postgrest_api" and event.get("method") in {"POST", "PATCH", "DELETE"}]
+successful = [event for event in writes if 200 <= int(event.get("status", 0)) < 300]
+resources = [str(event.get("resource", "")).split("?", 1)[0].strip("/") for event in successful]
+providers = [event for event in events if event.get("boundary") == "provider_loopback"]
+if len(writes) != 1 or len(successful) != 1 or writes[0].get("method") != "PATCH" or resources != ["staging_raw"] or providers:
+    raise SystemExit("phase=reviewed_exact_zero_cleansing|result=FAIL|code=unexpected_effects")
+print("phase=reviewed_exact_zero_cleansing|result=PASS|worker_result=FAIL|writes=1|target=staging_raw|providers=0|sync=not_started")
+PY
+  then
+    cat "$log"
+    fail "$phase" ZERO_PROGRESS_EFFECT_AUDIT_FAILED
+  fi
+  cat "$log"
+}
+
 openai_missing_events="$run_dir/provider-events-missing.jsonl"
 openai_invalid_events="$run_dir/provider-events-invalid.jsonl"
 : >"$openai_missing_events"
@@ -835,6 +860,14 @@ VALUES (
   'https://posgrado.utec.edu.pe/',
   '2026-07-17T07:18:57.38649+00:00'
 );
+INSERT INTO public.institutions (id, name, slug, website_url, last_harvest_at)
+VALUES (
+  'a4fd99a6-d161-4854-bdc8-6b5f1bd8163e',
+  'Universidad del Pacífico synthetic fixture',
+  'universidad-del-pacifico',
+  'https://posgrado.pacifico.edu.pe/',
+  NULL
+);
 INSERT INTO public.institution_site_profiles (
   institution_id, pipeline_ready, pipeline_enabled, discovery_enabled,
   production_enabled, website_url, site_type, discovery_mode, seed_urls,
@@ -855,7 +888,24 @@ VALUES (
     "https://posgrado.utec.edu.pe/programas/programa-en-arquitectura-de-datos"
   ]'::jsonb,
   '["re:^(/maestrias/|/cursos/|/programas/)"]'::jsonb,
-  '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 1, 0, NULL,
+  '[".pdf","/noticias/","/utec-only/"]'::jsonb, '[]'::jsonb, '[]'::jsonb, 1, 0, NULL,
+  '{}'::jsonb, '{}'::jsonb, 'active', 'verified', false, false, false, 0
+);
+INSERT INTO public.institution_site_profiles (
+  institution_id, pipeline_ready, pipeline_enabled, discovery_enabled,
+  production_enabled, website_url, site_type, discovery_mode, seed_urls,
+  allowed_url_patterns, exclusion_patterns, allowed_resource_origins,
+  catalog_url_patterns, catalog_max_pages, catalog_scroll_iterations,
+  catalog_link_selector, field_defaults, section_keywords, profile_status,
+  diagnostic_status, auto_generated, requires_stealth, requires_cloudflare_bypass,
+  detail_wait_ms
+)
+VALUES (
+  'a4fd99a6-d161-4854-bdc8-6b5f1bd8163e', true, true, true,
+  true, 'https://posgrado.pacifico.edu.pe/', 'traditional_ssr', 'hardcoded_urls',
+  '["https://posgrado.pacifico.edu.pe/maestrias/programa-sintetico"]'::jsonb,
+  '["re:^/maestrias/"]'::jsonb,
+  '[".pdf","/maestrias/"]'::jsonb, '[]'::jsonb, '[]'::jsonb, 1, 0, NULL,
   '{}'::jsonb, '{}'::jsonb, 'active', 'verified', false, false, false, 0
 );
 WITH predecessors AS (
@@ -896,21 +946,112 @@ INSERT INTO public.staging_raw (
   content_hash, effective_url, canonical_url, metadata
 )
 VALUES (
-  '792b1600-9939-4cf3-95fd-5056d8f5d99c',
+  'a1d10e6a-0058-4798-82ba-9cf86e0b5077',
   '50d8779c-54fd-437e-b941-e817e202e60c',
   'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
   'Synthetic prior UTEC discovery',
   'Synthetic preflight-only placeholder.',
   '<html><body>preflight-only placeholder</body></html>',
-  'discovered',
-  'f05f5beb61a19d62b65c25530d4eda59ddfce2b8e8ba26c593203fd5a8d963ce',
+  'discarded',
+  '4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c',
   'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
   'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
-  '{"fixture_case":"utec_reviewed_exact"}'::jsonb
+  '{"fixture_case":"utec_discarded_recovery","discard_reason":"hard_db_exclusion:/maestrias/"}'::jsonb
 );
 SQL
+docker exec -i "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 <<'SQL' >"$out/utec_discarded_recovery_preflight.log"
+DO $$
+DECLARE target public.staging_raw%ROWTYPE;
+BEGIN
+  SELECT * INTO STRICT target FROM public.staging_raw
+  WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid;
+  IF target.institution_id <> '50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+     OR target.url <> 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial'
+     OR target.canonical_url <> target.url OR target.effective_url <> target.url
+     OR target.status <> 'discarded'
+     OR target.content_hash <> '4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c'
+     OR target.metadata->>'discard_reason' <> 'hard_db_exclusion:/maestrias/' THEN
+    RAISE EXCEPTION 'fixture_recovery_snapshot_mismatch';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.cleansed_programs WHERE staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.cleansed_programs WHERE institution_id=target.institution_id AND lower(rtrim(split_part(url,'?',1),'/'))=lower(rtrim(split_part(target.url,'?',1),'/')))
+     OR EXISTS (SELECT 1 FROM public.enriched_programs e JOIN public.cleansed_programs c ON c.id=e.cleansed_id WHERE c.staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.courses WHERE institution_id=target.institution_id AND lower(rtrim(split_part(url,'?',1),'/'))=lower(rtrim(split_part(target.url,'?',1),'/'))) THEN
+    RAISE EXCEPTION 'fixture_recovery_has_downstream_identity';
+  END IF;
+  IF (SELECT count(*) FROM public.staging_raw alias_row
+      WHERE alias_row.institution_id=target.institution_id
+        AND lower(rtrim(split_part(coalesce(alias_row.canonical_url,alias_row.effective_url,alias_row.url),'?',1),'/'))
+            = lower(rtrim(split_part(target.url,'?',1),'/'))) <> 1 THEN
+    RAISE EXCEPTION 'fixture_recovery_alias_is_ambiguous';
+  END IF;
+END $$;
+SELECT 'phase=utec_discarded_recovery_preflight|result=PASS|snapshot=exact|reason=matched|aliases=checked|downstream=0|mode=read_only';
+SQL
+cat "$out/utec_discarded_recovery_preflight.log"
+
+# Rehearse the exact one-row repair inside a transaction and roll it back.
+docker exec -i "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 <<'SQL' >"$out/utec_discarded_recovery_rollback.log"
+BEGIN;
+UPDATE public.staging_raw SET status='discovered'
+WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid
+  AND institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+  AND url='https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial'
+  AND canonical_url=url AND effective_url=url
+  AND status='discarded'
+  AND content_hash='4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c'
+  AND metadata->>'discard_reason'='hard_db_exclusion:/maestrias/'
+  AND (SELECT count(*) FROM public.staging_raw alias_row
+       WHERE alias_row.institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+         AND lower(rtrim(split_part(coalesce(alias_row.canonical_url,alias_row.effective_url,alias_row.url),'?',1),'/'))
+             = 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial') = 1
+  AND NOT EXISTS (SELECT 1 FROM public.cleansed_programs c
+                  WHERE c.staging_id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid
+                     OR (c.institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+                         AND lower(rtrim(split_part(c.url,'?',1),'/'))
+                             = 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial'))
+  AND NOT EXISTS (SELECT 1 FROM public.enriched_programs e
+                  WHERE e.institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+                    AND lower(rtrim(split_part(e.url,'?',1),'/'))
+                        = 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial')
+  AND NOT EXISTS (SELECT 1 FROM public.courses WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND lower(rtrim(split_part(url,'?',1),'/'))='https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.staging_raw
+    WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid
+      AND status='discovered'
+      AND content_hash='4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c'
+      AND metadata->>'discard_reason'='hard_db_exclusion:/maestrias/'
+  ) THEN RAISE EXCEPTION 'fixture_repair_transition_mismatch'; END IF;
+END $$;
+ROLLBACK;
+SELECT 'phase=utec_discarded_recovery_rollback|result=PASS|transition=discovered|hash_metadata_preserved=true|database_restored=true';
+SQL
+cat "$out/utec_discarded_recovery_rollback.log"
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
+  "SELECT status || '|' || content_hash || '|' || (metadata->>'discard_reason') || '|' || (metadata = '{\"fixture_case\":\"utec_discarded_recovery\",\"discard_reason\":\"hard_db_exclusion:/maestrias/\"}'::jsonb) FROM public.staging_raw WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid" \
+  | grep -qx 'discarded|4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c|hard_db_exclusion:/maestrias/|true' \
+  || fail utec_discarded_recovery ROLLBACK_DID_NOT_RESTORE_SNAPSHOT
+
+# The next state change is confined to the disposable fixture; Pro remains untouched.
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "UPDATE public.staging_raw SET status='discovered' WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid AND institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND status='discarded' AND content_hash='4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c' AND metadata->>'discard_reason'='hard_db_exclusion:/maestrias/' AND NOT EXISTS (SELECT 1 FROM public.cleansed_programs WHERE staging_id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid) AND NOT EXISTS (SELECT 1 FROM public.courses WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND lower(rtrim(split_part(url,'?',1),'/'))='https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial')" >/dev/null
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
+  "SELECT status || '|' || content_hash || '|' || (metadata->>'discard_reason') FROM public.staging_raw WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid" \
+  | grep -qx 'discovered|4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c|hard_db_exclusion:/maestrias/' \
+  || fail utec_discarded_recovery FIXTURE_TRANSITION_NOT_APPLIED
+printf 'phase=utec_discarded_recovery|result=PASS|scope=ephemeral_pg17_fixture_only|row_count=1|status=discarded_to_discovered|hash_metadata_preserved=true|pro_write=0\n'
+
+# Both profiles are loaded in the same worker; each institution keeps its own rule set.
+docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000006 \
+  "$APP_IMAGE" /opt/venv/bin/python -c 'from scripts.core.cleansing_worker import CleansingWorker; u="50d8779c-54fd-437e-b941-e817e202e60c"; p="a4fd99a6-d161-4854-bdc8-6b5f1bd8163e"; w=CleansingWorker(); checks=[w.is_invalid_course("Programa de maestría","","https://posgrado.utec.edu.pe/maestrias/programa",institution_id=u) is None,w.is_invalid_course("Programa de maestría","","https://posgrado.pacifico.edu.pe/maestrias/programa",institution_id=p)=="hard_db_exclusion:/maestrias/",w.is_invalid_course("Programa","","https://posgrado.utec.edu.pe/utec-only/programa",institution_id=u)=="hard_db_exclusion:/utec-only/",w.is_invalid_course("Programa","","https://posgrado.pacifico.edu.pe/utec-only/programa",institution_id=p) is None]; all(checks) or __import__("sys").exit("phase=cleansing_profile_isolation|result=FAIL|code=profile_scope_mismatch"); print("phase=cleansing_profile_isolation|result=PASS|utec_maestrias=allowed|pacifico_maestrias=blocked|utec_own_rule=blocked|cross_profile_leak=0")' \
+  >"$out/cleansing_profile_isolation.log" 2>&1 \
+  || { cat "$out/cleansing_profile_isolation.log"; fail cleansing_profile_isolation PROFILE_SCOPE_ASSERTION; }
+cat "$out/cleansing_profile_isolation.log"
+
 utec_snapshot_counts="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
-  "SELECT (SELECT count(*) FROM public.institutions WHERE id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.institution_site_profiles WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.staging_raw WHERE id='792b1600-9939-4cf3-95fd-5056d8f5d99c')")"
+  "SELECT (SELECT count(*) FROM public.institutions WHERE id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.institution_site_profiles WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.staging_raw WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077')")"
 [[ "$utec_snapshot_counts" == "1|1|1" ]] || fail utec_pg17_snapshot FIXTURE_ROWS_MISSING
 printf 'phase=utec_pg17_snapshot|result=PASS|institution=1|profile=1|staging=1\n'
 utec_lot_log="$out/utec_reviewed_exact_manifest.log"
@@ -963,6 +1104,63 @@ docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000006 \
   >"$out/utec_reviewed_exact_admin.log" 2>&1 \
   || { cat "$out/utec_reviewed_exact_admin.log"; fail utec_reviewed_exact_admin_queue ADMIN_RPC_ASSERTION; }
 cat "$out/utec_reviewed_exact_admin.log"
+
+# Replaying completed non-empty exact scopes must fail at zero effective work.
+# The cleansing case below uses a fresh pending identity so protected processed
+# or discarded rows are never reopened to manufacture the regression.
+enrichment_zero_offset="$(wc -l <"$events")"
+run_worker utec_reviewed_exact_enrichment_zero_rejected enrichment_worker.py 9000006 failure false reviewed_exact
+grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=enrichment result=FAIL category=zero_effective_enrichments' \
+  "$out/utec_reviewed_exact_enrichment_zero_rejected.log" \
+  || fail utec_reviewed_exact_enrichment_zero_rejected PROGRESS_FAILURE_NOT_REPORTED
+assert_no_successful_db_writes_since utec_reviewed_exact_enrichment_zero_rejected "$enrichment_zero_offset"
+
+sync_zero_offset="$(wc -l <"$events")"
+run_worker utec_reviewed_exact_sync_zero_rejected sync_vector_worker.py 9000006 failure false reviewed_exact
+grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=sync result=FAIL category=zero_effective_syncs' \
+  "$out/utec_reviewed_exact_sync_zero_rejected.log" \
+  || fail utec_reviewed_exact_sync_zero_rejected PROGRESS_FAILURE_NOT_REPORTED
+assert_no_successful_db_writes_since utec_reviewed_exact_sync_zero_rejected "$sync_zero_offset"
+
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "INSERT INTO public.staging_raw (id,institution_id,url,raw_name,raw_description,raw_html,status,content_hash,effective_url,canonical_url,metadata) VALUES ('a1d10e6a-0058-4798-82ba-9cf86e0b5088','50d8779c-54fd-437e-b941-e817e202e60c','https://posgrado.utec.edu.pe/utec-only/zero-progress','Programa sintético excluido por regla propia UTEC','Fixture sintético de progreso cero','<html><body>UTEC zero progress fixture</body></html>','discovered','5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004','https://posgrado.utec.edu.pe/utec-only/zero-progress','https://posgrado.utec.edu.pe/utec-only/zero-progress','{\"fixture_case\":\"reviewed_exact_zero_progress\"}'::jsonb)" \
+  >/dev/null
+zero_manifest_log="$out/utec_zero_progress_manifest.log"
+docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000007 \
+  "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+  /workspace/tests/fg2_full_pipeline_pg17/prepare_approved_lot.py --utec-zero-progress \
+  >"$zero_manifest_log" 2>&1 \
+  || { cat "$zero_manifest_log"; fail utec_zero_progress_manifest LOT_OR_COHORT_BINDING_FAILED; }
+cat "$zero_manifest_log"
+zero_transition="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
+  "UPDATE public.staging_raw SET status='pending' WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5088'::uuid AND institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND url='https://posgrado.utec.edu.pe/utec-only/zero-progress' AND status='discovered' AND content_hash='5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004' RETURNING status || '|' || content_hash")"
+[[ "$zero_transition" == "pending|5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004" ]] \
+  || fail utec_zero_progress_manifest DISCOVERY_TO_PENDING_FIXTURE_TRANSITION_FAILED
+cp "$run_dir/fg2-zero-progress-cohort.json" "$manifest"
+cleansing_zero_offset="$(wc -l <"$events")"
+run_worker utec_reviewed_exact_cleansing_zero_rejected cleansing_worker.py 9000007 failure false reviewed_exact
+grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=cleansing result=FAIL category=zero_cleansed_promotions' \
+  "$out/utec_reviewed_exact_cleansing_zero_rejected.log" \
+  || fail utec_reviewed_exact_cleansing_zero_rejected PROGRESS_FAILURE_NOT_REPORTED
+assert_single_staging_discard_since utec_reviewed_exact_cleansing_zero_rejected "$cleansing_zero_offset"
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 <<'SQL' >"$out/utec_reviewed_exact_cleansing_zero_postflight.log"
+DO $$
+DECLARE target public.staging_raw%ROWTYPE;
+BEGIN
+  SELECT * INTO STRICT target FROM public.staging_raw
+  WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5088'::uuid;
+  IF target.status <> 'discarded'
+     OR target.content_hash <> '5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004'
+     OR target.metadata->>'discard_reason' <> 'hard_db_exclusion:/utec-only/'
+     OR EXISTS (SELECT 1 FROM public.cleansed_programs WHERE staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.enriched_programs e JOIN public.cleansed_programs c ON c.id=e.cleansed_id WHERE c.staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.courses WHERE institution_id=target.institution_id AND lower(rtrim(split_part(url,'?',1),'/'))=lower(rtrim(split_part(target.url,'?',1),'/'))) THEN
+    RAISE EXCEPTION 'reviewed_exact_zero_progress_side_effect_assertion';
+  END IF;
+END $$;
+SELECT 'phase=utec_reviewed_exact_cleansing_zero_postflight|result=PASS|worker=FAIL|row=discarded_by_own_rule|downstream=0|provider=0|sync=not_started';
+SQL
+cat "$out/utec_reviewed_exact_cleansing_zero_postflight.log"
 
 printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_recovery_stations=Enrichment+Sync|post272_refresh_synced=5|out_of_scope_excluded=1|discovery_only_unchanged=2|utec_reviewed_exact=Harvest+Cleansing+Enrichment+Sync+Admin|public_effective=0|provider_boundary=synthetic_loopback_openai|harvest_cleansing_replayed=false\n'
 printf 'phase=limits|result=LOCAL_EVIDENCE_ONLY|network=internal_no_egress|db=ephemeral_pg17|production=untouched\n'

@@ -6,6 +6,70 @@
 
 ## Corte vigente
 
+### H1REQ1 — Corrección del incidente #283 en FG2 — 2026-11-27
+
+El run #283 terminó en verde, pero Cleansing promovió cero filas, Enrichment no
+seleccionó datos y Sync quedó en 0/0; no fue una prueba funcional completa.
+Base `1dcf9e02e05a739ef03df9428340d2ba73dcf662`; WIP local en
+`/tmp/fg2-283-cleansing-exclusion-fix-20261127`, rama
+`codex/fg2-cleansing-exclusion-20261127`. No hay commit, push ni PR.
+
+El cambio aísla exclusiones adicionales por `institution_id`; solo los defaults
+de política compartida son globales. Cleansing evalúa la exclusión con la
+identidad de staging `canonical_url → effective_url → url` antes de colapsar
+aliases, de modo que excluir un hermano UNMSM `/formacion-academica/admision`
+no descarta ni promueve por separado a su hermano válido. Perfiles con
+`exclusion_patterns` malformado, como el objeto de PUCP, quedan fail-closed sin
+bloquear otros dueños. Se mantienen las colisiones entre instituciones y las
+reglas propias/globales válidas. `reviewed_exact` no vacío exige progreso
+efectivo de cada estación; `rotation_prefix`, refresh sin cambios y Recovery
+#275 conservan sus no-ops.
+
+En la corrida anterior de las tres suites FG2 afectadas, Docker sin red terminó
+**288 passed** con dos warnings. Esa evidencia precede a un assert añadido al
+caso de eliminación del tercer perfil; la suite actualizada no se pudo repetir:
+`docker run ...` terminó con `permission denied while trying to connect to the
+docker API at unix:///var/run/docker.sock`. El Python del host no tiene pytest.
+Por tanto, el 288 no se presenta como validación completa de este WIP final.
+El guard reportó PASS para las rutas exactas FG2/H2 y rechazo de vecinos, pero
+su regresión R21 no completó: Node recibió `spawnSync git EPERM` en el sandbox.
+
+Con el snapshot Pro de solo lectura del 2026-11-27 18:56 UTC
+(`snapshot.json` SHA-256
+`39d1849ff4ae63a9a7b7f72c76d0f0b8ae27b8b7ce8f099379c89426a7ed761f`), el
+selector real en el adaptador aislado admitió Certus, Cibertec, New Horizons,
+Universidad de Lima y UTEC; las cinco pasaron el preflight de perfil. De 23
+perfiles activos de discovery/pipeline, omitió 18 por gates observados: cuatro
+sin semillas compatibles (SENATI, UNMSM, Universidad del Pacífico, USIL), tres
+por incompatibilidad SPA/seed (UPC, Smart Data, IDAT), ocho por política de
+evasión (CoderHouse, DMC, DataPath, Digital House, EducacionIT, Le Wagon,
+SoyHenry, TripleTen), PBS por origen de semilla, Colectivo23 por consulta de
+semillas hardcoded y PUCP por `exclusion_patterns` con tipo objeto. PUCP además
+tiene SPA y semillas hardcoded vacías; corregir solo el JSON no la habilita.
+El selector aplicó orden, circuit breaker, frescura, conteo y límite sin writes;
+es una reproducción local del snapshot, no lectura ni ejecución nueva en Pro.
+
+El E2E actualizado PG17/PostgREST no llegó a crear contenedores: el preflight
+`IMAGE_PIN_NOT_LOCAL` no pudo verificar imágenes porque el daemon devolvió el
+mismo `permission denied` del socket. `docker image ls --no-trunc` sí mostró
+los tres IDs fijados, pero no sustituye `docker image inspect` ni valida el
+recorrido completo. El E2E de código anterior no se atribuye a este runtime.
+La reparación de la fila UTEC `a1d10e6a-0058-4798-82ba-9cf86e0b5077` solo se
+ensayó en BD desechable, con rollback y `pro_write=0`; antes de cualquier DML
+Pro se debe releer identidad, motivo, hash, aliases y descendientes y solicitar
+autorización JIT específica.
+
+FAIL348 continúa **FAIL**. La comparación íntegra con instrumentación temporal
+externa —sin modificar el checker ni su payload— dio 348 diagnósticos en base y
+candidato, cero nuevos y cero resueltos; SHA-256 común de las listas completas
+ordenadas: `33a2d223a356afa217f629dfea307195a9d15be50821f8d56c2b3a0b503f435b`.
+Codex Security formal sigue **NO EJECUTADO**. No hay commit, push ni PR para esta
+huella; la disposición FAIL348 anterior no se transfiere. Tampoco hay permiso
+para escrituras Pro, dispatch o cambios de flags/schedule. La siguiente puerta
+es presentar la huella completa y pedir la disposición FAIL348 exacta y la
+autorización protegida de publicación; reparación JIT y prueba productiva siguen
+separadas. El scheduler permanece cerrado.
+
 ### H1REQ1 — FG2 selección manual exacta por lote UTEC — 2026-11-27
 
 Se prepara en `/tmp/fg2-reviewed-exact-selection-20261127`, rama

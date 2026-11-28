@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import base64
 import asyncio
 import hashlib
@@ -415,6 +415,137 @@ def test_controlled_selection_preserves_rotation_but_skips_missing_seeds_before_
     assert selected[0]["_controlled_seed_urls"] == ["https://b.example/programs"]
     assert len(selected[0]["_controlled_profile_sha256"]) == 64
     assert len(selected[0]["_controlled_seed_sha256"]) == 64
+    assert database.writes == []
+
+
+def test_scheduled_selector_applies_order_freshness_circuit_profile_and_limit_gates() -> None:
+    now = datetime(2026, 11, 27, 19, 0, tzinfo=timezone.utc)
+    ids = {
+        name: f"00000000-0000-0000-0000-{index:012d}"
+        for index, name in enumerate(
+            [
+                "pucp-malformed",
+                "recent-circuit",
+                "freshness-blocked",
+                "freshness-allowed",
+                "expired-circuit",
+                "pending-review",
+                "after-limit",
+            ],
+            start=11,
+        )
+    }
+
+    def institution(name: str, checked_at: str | None) -> dict:
+        return {
+            "id": ids[name],
+            "name": name,
+            "slug": name,
+            "website_url": f"https://{name}.example/",
+            "last_harvest_at": checked_at,
+        }
+
+    def profile(name: str, **overrides) -> dict:
+        row = {
+            "institution_id": ids[name],
+            "discovery_enabled": True,
+            "pipeline_enabled": True,
+            "production_enabled": False,
+            "profile_status": "active",
+            "circuit_open": False,
+            "site_type": "traditional_ssr",
+            "discovery_mode": "sitemap_bfs",
+            "seed_urls": [],
+            "exclusion_patterns": [],
+        }
+        row.update(overrides)
+        return row
+
+    class SelectorDatabase:
+        def __init__(self) -> None:
+            # Deliberately unsorted: get_institutions requests the stable DB order.
+            self.institutions = [
+                institution("after-limit", "2026-11-27T18:04:00+00:00"),
+                institution("expired-circuit", "2026-11-27T18:03:00+00:00"),
+                institution("freshness-allowed", "2026-11-27T18:02:00+00:00"),
+                institution("freshness-blocked", "2026-11-27T18:01:00+00:00"),
+                institution("recent-circuit", "2026-10-01T00:00:00+00:00"),
+                institution("pucp-malformed", None),
+                institution("pending-review", "2026-11-27T18:05:00+00:00"),
+            ]
+            self.profiles = [
+                profile(
+                    "pucp-malformed",
+                    exclusion_patterns={"Count": 21, "value": ["/admision/"]},
+                ),
+                profile(
+                    "recent-circuit",
+                    circuit_open=True,
+                    circuit_opened_at=(now - timedelta(hours=1)).isoformat(),
+                ),
+                profile("freshness-blocked"),
+                profile("freshness-allowed"),
+                profile(
+                    "expired-circuit",
+                    circuit_open=True,
+                    circuit_opened_at=(now - timedelta(hours=25)).isoformat(),
+                ),
+                profile("pending-review", profile_status="pending_review"),
+                profile("after-limit"),
+            ]
+            self.staging_counts = {
+                ids["freshness-blocked"]: 51,
+                ids["freshness-allowed"]: 50,
+            }
+            self.calls: list[tuple[str, dict]] = []
+            self.writes: list = []
+
+        def select_service_raise(self, table: str, **kwargs):
+            self.calls.append((table, dict(kwargs)))
+            assert table == "institutions"
+            rows = list(self.institutions)
+            if kwargs.get("order") == "last_harvest_at.asc.nullsfirst":
+                rows.sort(
+                    key=lambda row: (
+                        row.get("last_harvest_at") is not None,
+                        row.get("last_harvest_at") or "",
+                    )
+                )
+            return rows
+
+        def select_pipeline_raise(self, table: str, **kwargs):
+            self.calls.append((table, dict(kwargs)))
+            assert table == "institution_site_profiles"
+            return [dict(row) for row in self.profiles]
+
+        def count_pipeline_raise(self, table: str, *, filters: str):
+            self.calls.append(("count:" + table, {"filters": filters}))
+            institution_id = filters.removeprefix("institution_id=eq.")
+            return self.staging_counts.get(institution_id, 0)
+
+    database = SelectorDatabase()
+    with patch.object(orchestrator, "_get_db", return_value=database):
+        selected = orchestrator.get_institutions(
+            limit=2,
+            controlled=True,
+            scheduled_cohort=True,
+            now=now,
+        )
+
+    assert [row["id"] for row in selected] == [ids["freshness-allowed"], ids["expired-circuit"]]
+    assert all(row["_controlled_seed_urls"] == [f"https://{row['slug']}.example/sitemap.xml"] for row in selected)
+    assert all(row["production_enabled"] is False for row in [
+        next(profile_row for profile_row in database.profiles if profile_row["institution_id"] == row["id"])
+        for row in selected
+    ])
+    assert ("institutions", {
+        "columns": "id,name,slug,website_url,last_harvest_at",
+        "order": "last_harvest_at.asc.nullsfirst",
+    }) in database.calls
+    assert any(call[0] == "count:staging_raw" and ids["freshness-blocked"] in call[1]["filters"] for call in database.calls)
+    assert any(call[0] == "count:staging_raw" and ids["freshness-allowed"] in call[1]["filters"] for call in database.calls)
+    assert all(row["id"] != ids["pucp-malformed"] for row in selected)
+    assert all(row["id"] != ids["after-limit"] for row in selected)
     assert database.writes == []
 
 

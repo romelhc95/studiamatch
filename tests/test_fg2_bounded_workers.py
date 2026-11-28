@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from scripts.core.fg2_bounded_run import (
     FG2_LIMITS,
     cleanse_course_url,
     cleansed_url_sha256,
+    reviewed_exact_progress_missing,
     url_sha256,
 )
 from scripts.core.sync_vector_worker import SyncVectorWorker
@@ -74,11 +76,16 @@ class SelectAdapter:
         ]
         self.calls: list[tuple[str, str]] = []
         self.writes: list[tuple[str, str, dict]] = []
+        self.rpc_calls: list[tuple[str, dict]] = []
 
     def select_pipeline_raise(self, table: str, **_kwargs):
         if table == "institution_site_profiles":
             return [dict(row) for row in self.profiles]
         return [dict(row) for row in self.responses.get(table, [])]
+
+    def select_service_raise(self, table: str, **_kwargs):
+        assert table == "institutions"
+        return [{"website_url": "https://synthetic.example/"}]
 
     def select_all_pipeline(self, table: str, filters: str = "", **_kwargs):
         self.calls.append((table, filters))
@@ -92,6 +99,13 @@ class SelectAdapter:
         self.writes.append(("patch", table, data))
         return True
 
+    def patch_raise(self, table: str, filters: str, data: dict, **_kwargs):
+        return self.patch(table, filters, data, **_kwargs)
+
+    def rpc_raise(self, name: str, params: dict):
+        self.rpc_calls.append((name, params))
+        return True
+
 
 def raw_row() -> dict:
     return {
@@ -102,6 +116,391 @@ def raw_row() -> dict:
         "raw_html": RAW_HTML,
         "status": "pending",
     }
+
+
+@pytest.mark.parametrize("reverse_profiles", [False, True])
+def test_cleansing_profile_exclusions_are_global_or_scoped_to_their_owner(
+    reverse_profiles: bool,
+) -> None:
+    utec_id = "50d8779c-54fd-437e-b941-e817e202e60c"
+    pacifico_id = "a4fd99a6-d161-4854-bdc8-6b5f1bd8163e"
+    profiles = [
+        {
+            "institution_id": utec_id,
+            "pipeline_enabled": True,
+            "exclusion_patterns": json.dumps([".pdf", "/noticias/", "/utec-only/", "re:utec-regex/"]),
+        },
+        {
+            "institution_id": pacifico_id,
+            "pipeline_enabled": True,
+            "exclusion_patterns": [".pdf", "/maestrias/", "re:[", "re:(a+)+$"],
+        },
+    ]
+    if reverse_profiles:
+        profiles.reverse()
+    worker = CleansingWorker(db_client=SelectAdapter({}, profiles=profiles))
+    worker._get_institution_website = lambda _institution_id: ""
+    worker._get_noise_patterns_for_inst = lambda _institution_id: []
+
+    utec_maestria = "https://posgrado.utec.edu.pe/maestrias/programa"
+    pacifico_maestria = "https://posgrado.pacifico.edu.pe/maestrias/programa"
+    assert worker.is_invalid_course("Programa de maestría", "", utec_maestria, institution_id=utec_id) is None
+    assert worker.is_invalid_course("Programa de maestría", "", pacifico_maestria, institution_id=pacifico_id) == "hard_db_exclusion:/maestrias/"
+
+    assert worker.is_invalid_course("Noticias", "", "https://posgrado.utec.edu.pe/noticias/programa", institution_id=utec_id) == "hard_db_exclusion:/noticias/"
+    assert worker.is_invalid_course("Programa", "", "https://posgrado.pacifico.edu.pe/noticias/programa", institution_id=pacifico_id) == "hard_db_exclusion:/noticias/"
+    assert worker.is_invalid_course("Programa", "", "https://posgrado.utec.edu.pe/utec-only/programa", institution_id=utec_id) == "hard_db_exclusion:/utec-only/"
+    assert worker.is_invalid_course("Programa", "", "https://posgrado.pacifico.edu.pe/utec-only/programa", institution_id=pacifico_id) is None
+    assert worker.is_invalid_course("Programa", "", "https://posgrado.utec.edu.pe/utec-regex/programa", institution_id=utec_id) == "hard_db_exclusion:regex:utec-regex/"
+
+    # The exact global default remains active for both profiles.
+    assert worker.is_invalid_course("Documento", "", "https://posgrado.utec.edu.pe/plan.pdf", institution_id=utec_id) == "hard_db_exclusion:.pdf"
+    assert worker.is_invalid_course("Documento", "", "https://posgrado.pacifico.edu.pe/plan.pdf", institution_id=pacifico_id) == "hard_db_exclusion:.pdf"
+
+
+@pytest.mark.parametrize("operation", ["add", "modify", "delete"])
+def test_third_profile_changes_preserve_utec_pacifico_classification_and_scope_its_rules(
+    operation: str,
+) -> None:
+    utec_id = "50d8779c-54fd-437e-b941-e817e202e60c"
+    pacifico_id = "a4fd99a6-d161-4854-bdc8-6b5f1bd8163e"
+    third_id = "30000000-0000-0000-0000-000000000003"
+    base_profiles = [
+        {"institution_id": utec_id, "pipeline_enabled": True, "exclusion_patterns": ["/utec-only/"]},
+        {"institution_id": pacifico_id, "pipeline_enabled": True, "exclusion_patterns": ["/maestrias/"]},
+    ]
+    third_profile = {
+        "institution_id": third_id,
+        "pipeline_enabled": True,
+        "exclusion_patterns": ["/third-only/"],
+    }
+    initial_profiles = [*base_profiles, third_profile] if operation != "add" else list(base_profiles)
+    changed_third_profile = {
+        **third_profile,
+        "exclusion_patterns": ["re:/maestrias/|/third-only/"],
+    }
+    if operation == "add":
+        changed_profiles = [*base_profiles, changed_third_profile]
+    elif operation == "modify":
+        changed_profiles = [
+            changed_third_profile if profile["institution_id"] == third_id else profile
+            for profile in initial_profiles
+        ]
+    else:
+        changed_profiles = [profile for profile in initial_profiles if profile["institution_id"] != third_id]
+
+    utec_url = "https://posgrado.utec.edu.pe/maestrias/programa"
+    pacifico_url = "https://posgrado.pacifico.edu.pe/maestrias/programa"
+
+    def classify(profiles: list[dict], institution_id: str, url: str):
+        worker = CleansingWorker(db_client=SelectAdapter({}, profiles=profiles))
+        worker._get_institution_website = lambda _institution_id: ""
+        worker._get_noise_patterns_for_inst = lambda _institution_id: []
+        return worker.is_invalid_course("Programa de maestría", "", url, institution_id=institution_id)
+
+    before = {
+        (utec_id, utec_url): classify(initial_profiles, utec_id, utec_url),
+        (pacifico_id, pacifico_url): classify(initial_profiles, pacifico_id, pacifico_url),
+    }
+    after = {
+        (utec_id, utec_url): classify(changed_profiles, utec_id, utec_url),
+        (pacifico_id, pacifico_url): classify(changed_profiles, pacifico_id, pacifico_url),
+    }
+
+    assert before == after
+    assert after == {
+        (utec_id, utec_url): None,
+        (pacifico_id, pacifico_url): "hard_db_exclusion:/maestrias/",
+    }
+    if operation != "delete":
+        assert classify(changed_profiles, third_id, utec_url) == "hard_db_exclusion:regex:/maestrias/|/third-only/"
+        assert classify(
+            changed_profiles,
+            third_id,
+            "https://catalog.third.example/third-only/programa",
+        ) == "hard_db_exclusion:regex:/maestrias/|/third-only/"
+        assert classify(
+            changed_profiles,
+            third_id,
+            "https://catalog.third.example/utec-only/programa",
+        ) is None
+    else:
+        assert classify(
+            initial_profiles,
+            third_id,
+            "https://catalog.third.example/third-only/programa",
+        ) == "hard_db_exclusion:/third-only/"
+
+
+def test_foreign_profile_changes_leave_all_28_owner_classifications_unchanged() -> None:
+    profiles = [
+        {
+            "institution_id": f"00000000-0000-0000-0000-{index:012d}",
+            "pipeline_enabled": True,
+            "exclusion_patterns": [f"/owner-{index}-only/"],
+        }
+        for index in range(1, 29)
+    ]
+    results = []
+    for owner_index, profile in enumerate(profiles):
+        owner_id = profile["institution_id"]
+        foreign_index = (owner_index + 1) % len(profiles)
+        foreign_id = profiles[foreign_index]["institution_id"]
+        url = f"https://owner-{owner_index + 1}.example/fg2-policy-regression/course"
+        before = CleansingWorker(
+            db_client=SelectAdapter({}, profiles=profiles)
+        )
+        changed_profiles = [dict(candidate, exclusion_patterns=list(candidate["exclusion_patterns"])) for candidate in profiles]
+        foreign_profile = next(item for item in changed_profiles if item["institution_id"] == foreign_id)
+        foreign_profile["exclusion_patterns"].append("/fg2-policy-regression/")
+        after = CleansingWorker(db_client=SelectAdapter({}, profiles=changed_profiles))
+        before._get_institution_website = lambda _institution_id: ""
+        after._get_institution_website = lambda _institution_id: ""
+        before._get_noise_patterns_for_inst = lambda _institution_id: []
+        after._get_noise_patterns_for_inst = lambda _institution_id: []
+        decision_before = before.is_invalid_course("Programa válido", "", url, institution_id=owner_id)
+        decision_after = after.is_invalid_course("Programa válido", "", url, institution_id=owner_id)
+        results.append(decision_before is None and decision_after is None)
+
+    assert len(results) == 28
+    assert all(results)
+
+
+@pytest.mark.parametrize("selected_identity_field", ["canonical_url", "effective_url", "url"])
+def test_unmsm_admission_exclusion_runs_before_sibling_grouping(
+    selected_identity_field: str,
+) -> None:
+    unmsm_id = "312d1aa3-69f2-4a46-87de-3f4f8f2d1352"
+    allowed_url = "https://unmsm.edu.pe/formacion-academica/"
+    admission_url = "https://unmsm.edu.pe/formacion-academica/admision"
+    worker_db = SelectAdapter({}, profiles=[
+        {
+            "institution_id": unmsm_id,
+            "pipeline_enabled": True,
+            "exclusion_patterns": ["/admision/"],
+        },
+    ])
+    worker = CleansingWorker(db_client=worker_db)
+    worker._get_institution_website = lambda _institution_id: "https://unmsm.edu.pe/"
+    worker._get_noise_patterns_for_inst = lambda _institution_id: []
+
+    # Reproduce the old caller failure: the grouping identity erases /admision,
+    # so evaluating exclusions only after cleanse_course_url misses the rule.
+    assert worker._get_base_url(admission_url) == allowed_url
+    assert worker.is_invalid_course(
+        "Programa académico", "", worker._get_base_url(admission_url), institution_id=unmsm_id
+    ) is None
+
+    excluded_row = dict(
+        raw_row(),
+        institution_id=unmsm_id,
+        url=admission_url if selected_identity_field == "url" else allowed_url,
+        raw_name="Admisión académica",
+    )
+    if selected_identity_field == "effective_url":
+        excluded_row["effective_url"] = admission_url
+    elif selected_identity_field == "canonical_url":
+        excluded_row["effective_url"] = allowed_url
+        excluded_row["canonical_url"] = admission_url
+    valid_sibling = dict(
+        raw_row(),
+        id="40000000-0000-0000-0000-000000000002",
+        institution_id=unmsm_id,
+        url=allowed_url,
+        raw_name="Programa válido de formación académica",
+    )
+
+    processed = worker.process_batch([excluded_row, valid_sibling])
+
+    assert processed == 1
+    assert len(worker_db.rpc_calls) == 1
+    rpc_name, rpc_params = worker_db.rpc_calls[0]
+    assert rpc_name == "atomic_cleansing_promote"
+    assert rpc_params["p_staging_ids"] == [valid_sibling["id"]]
+    assert [item["staging_id"] for item in rpc_params["p_cleansed_data"]] == [valid_sibling["id"]]
+    assert rpc_params["p_cleansed_data"][0]["url"] == allowed_url
+    assert worker_db.writes == [
+        (
+            "patch",
+            "staging_raw",
+            {
+                "status": "discarded",
+                "metadata": {"discard_reason": "hard_db_exclusion:/admision/"},
+            },
+        )
+    ]
+
+
+def test_canonical_identity_has_priority_over_excluded_effective_and_requested_urls() -> None:
+    unmsm_id = "312d1aa3-69f2-4a46-87de-3f4f8f2d1352"
+    allowed_url = "https://unmsm.edu.pe/formacion-academica/"
+    admission_url = "https://unmsm.edu.pe/formacion-academica/admision"
+    worker_db = SelectAdapter({}, profiles=[
+        {
+            "institution_id": unmsm_id,
+            "pipeline_enabled": True,
+            "exclusion_patterns": ["/admision/"],
+        },
+    ])
+    worker = CleansingWorker(db_client=worker_db)
+    worker._get_institution_website = lambda _institution_id: "https://unmsm.edu.pe/"
+    worker._get_noise_patterns_for_inst = lambda _institution_id: []
+    canonical_wins = dict(
+        raw_row(),
+        institution_id=unmsm_id,
+        url=admission_url,
+        effective_url=admission_url,
+        canonical_url=allowed_url,
+        raw_name="Programa válido de formación académica",
+    )
+
+    assert worker.process_batch([canonical_wins]) == 1
+    assert worker_db.rpc_calls[0][1]["p_cleansed_data"][0]["url"] == allowed_url
+    assert worker_db.writes == []
+
+
+def test_malformed_pucp_profile_fails_closed_without_blocking_another_owner() -> None:
+    pucp_id = "f6b22a7f-62e8-4ef4-a91b-56096a6a7b6b"
+    other_id = "00000000-0000-0000-0000-000000000009"
+    worker_db = SelectAdapter({}, profiles=[
+        {
+            "institution_id": pucp_id,
+            "pipeline_enabled": True,
+            "exclusion_patterns": {"Count": 21, "value": ["/admision/"]},
+        },
+        {"institution_id": other_id, "pipeline_enabled": True, "exclusion_patterns": []},
+    ])
+    worker = CleansingWorker(db_client=worker_db)
+    worker._get_institution_website = lambda _institution_id: ""
+    worker._get_noise_patterns_for_inst = lambda _institution_id: []
+    assert pucp_id not in worker.ready_inst_ids
+    assert other_id in worker.ready_inst_ids
+
+    malformed = dict(
+        raw_row(),
+        institution_id=pucp_id,
+        url="https://www.pucp.edu.pe/programas/datos",
+        raw_name="Programa PUCP de datos",
+    )
+    valid = dict(
+        raw_row(),
+        id="40000000-0000-0000-0000-000000000003",
+        institution_id=other_id,
+        url="https://other.example/programas/datos",
+        raw_name="Programa válido de datos",
+    )
+
+    assert worker.process_batch([malformed, valid]) == 1
+    assert worker_db.rpc_calls[0][1]["p_staging_ids"] == [valid["id"]]
+    assert worker_db.writes == [
+        (
+            "patch",
+            "staging_raw",
+            {
+                "status": "error",
+                "metadata": {"processing_error": "invalid_profile_exclusion_policy"},
+            },
+        )
+    ]
+
+
+def test_all_discarded_reviewed_exact_cleansing_is_not_green_but_scheduler_noop_is_valid() -> None:
+    utec_id = "50d8779c-54fd-437e-b941-e817e202e60c"
+    worker_db = SelectAdapter({}, profiles=[
+        {"institution_id": utec_id, "pipeline_enabled": True, "exclusion_patterns": ["/utec-only/"]},
+    ])
+    worker = CleansingWorker(db_client=worker_db)
+    worker._get_institution_website = lambda _institution_id: ""
+    worker._get_noise_patterns_for_inst = lambda _institution_id: []
+
+    rejected_url = "https://posgrado.utec.edu.pe/utec-only/programa"
+    row = dict(raw_row(), institution_id=utec_id, url=rejected_url, raw_name="Known Program")
+    processed = worker.process_batch([row])
+    assert processed == 0
+    assert worker_db.writes == [
+        ("patch", "staging_raw", {"status": "discarded", "metadata": {"discard_reason": "hard_db_exclusion:/utec-only/"}})
+    ]
+
+    payload = dict(cohort_manifest().payload)
+    payload["approved_lot_selection"] = "reviewed_exact"
+    payload["approved_lot_reference"] = "fixture-reviewed-progress"
+    payload["approved_lot_sha256"] = "d" * 64
+    payload["entries"] = [dict(payload["entries"][0], url_sha256=url_sha256(rejected_url))]
+    manual_manifest = FG2CohortManifest.from_payload(payload)
+    assert reviewed_exact_progress_missing(manual_manifest, processed)
+
+    scheduled_manifest = cohort_manifest()
+    assert not reviewed_exact_progress_missing(scheduled_manifest, 0)
+
+
+def test_cleansing_unknown_or_missing_profile_identity_never_falls_back_to_another_profile() -> None:
+    utec_id = "50d8779c-54fd-437e-b941-e817e202e60c"
+    pacifico_id = "a4fd99a6-d161-4854-bdc8-6b5f1bd8163e"
+    worker = CleansingWorker(db_client=SelectAdapter({}, profiles=[
+        {"institution_id": utec_id, "pipeline_enabled": True, "exclusion_patterns": ["/utec-only/"]},
+        {"institution_id": pacifico_id, "pipeline_enabled": True, "exclusion_patterns": ["/maestrias/"]},
+        {"institution_id": "invalid", "pipeline_enabled": True, "exclusion_patterns": ["/foreign-invalid/"]},
+    ]))
+    worker._get_institution_website = lambda _institution_id: ""
+    worker._get_noise_patterns_for_inst = lambda _institution_id: []
+
+    foreign_urls = [
+        "https://unknown.example/utec-only/programa",
+        "https://unknown.example/maestrias/programa",
+        "https://unknown.example/foreign-invalid/programa",
+    ]
+    assert [worker.is_invalid_course("Programa", "", url, institution_id="a4fd99a6-d161-4854-bdc8-6b5f1bd8163f") for url in foreign_urls] == [None, None, None]
+    assert [worker.is_invalid_course("Programa", "", url, institution_id="") for url in foreign_urls] == [None, None, None]
+
+    with pytest.raises(RuntimeError, match="invalid_institution_identity"):
+        worker.process_batch([dict(raw_row(), institution_id=None)])
+    with pytest.raises(RuntimeError, match="invalid_institution_identity"):
+        worker.process_batch([dict(raw_row(), institution_id="not-a-uuid")])
+    with pytest.raises(RuntimeError, match="missing_institution_site_profile"):
+        worker.process_batch([dict(raw_row(), institution_id="00000000-0000-0000-0000-000000000003")])
+
+
+def test_duplicate_cleansing_profiles_for_an_institution_fail_closed() -> None:
+    profiles = [
+        {"institution_id": INSTITUTION_ID, "pipeline_enabled": True, "exclusion_patterns": []},
+        {"institution_id": INSTITUTION_ID.upper(), "pipeline_enabled": True, "exclusion_patterns": ["/foreign/"]},
+    ]
+    with pytest.raises(RuntimeError, match="duplicate_institution_site_profile"):
+        CleansingWorker(db_client=SelectAdapter({}, profiles=profiles))
+
+
+def test_cleansing_rejects_same_normalized_url_owned_by_multiple_institutions() -> None:
+    profiles = [
+        {"institution_id": INSTITUTION_ID, "pipeline_enabled": True, "exclusion_patterns": []},
+        {"institution_id": "00000000-0000-0000-0000-000000000002", "pipeline_enabled": True, "exclusion_patterns": []},
+    ]
+    worker = CleansingWorker(db_client=SelectAdapter({}, profiles=profiles))
+    with pytest.raises(RuntimeError, match="cross_institution_url_collision"):
+        worker.process_batch([
+            raw_row(),
+            dict(raw_row(), id="40000000-0000-0000-0000-000000000002", institution_id="00000000-0000-0000-0000-000000000002"),
+        ])
+
+
+def test_reviewed_exact_requires_real_progress_but_schedule_and_recovery_noops_remain_valid() -> None:
+    manifest = cohort_manifest()
+    manifest.payload["approved_lot_selection"] = "reviewed_exact"
+    assert reviewed_exact_progress_missing(manifest, 0)
+    assert not reviewed_exact_progress_missing(manifest, 1)
+
+    manifest.payload["approved_lot_selection"] = "rotation_prefix"
+    assert not reviewed_exact_progress_missing(manifest, 0)
+
+    manifest.payload["approved_lot_selection"] = "reviewed_exact"
+    manifest.payload["recovery_source"] = {"mode": "enrichment_sync_only"}
+    assert not reviewed_exact_progress_missing(manifest, 0)
+
+    empty_payload = dict(manifest.payload)
+    empty_payload.pop("recovery_source", None)
+    empty_payload["entries"] = []
+    empty_payload["approved_lot_selection"] = "rotation_prefix"
+    empty_manifest = FG2CohortManifest.from_payload(empty_payload, allow_empty=True)
+    assert not reviewed_exact_progress_missing(empty_manifest, 0)
 
 
 @pytest.mark.parametrize("result", ["complete", "partial"])

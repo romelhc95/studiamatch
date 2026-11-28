@@ -14,9 +14,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.core.fg2_bounded_run import (  # noqa: E402
     FG2_LIMITS,
     FG2ApprovedLotManifest,
+    FG2CohortManifest,
     InvalidControlledRun,
     approved_url_alias_filter,
+    append_manifest_discovery_row,
+    append_manifest_entry,
     course_url_alias_filter,
+    initialize_manifest,
     stable_json_sha256,
     url_sha256,
     validate_controlled_profile,
@@ -32,10 +36,16 @@ SOURCE_SHA = os.environ["GITHUB_SHA"]
 TARGET = Path("/run/fg2-approved-lot.json")
 UTEC_INSTITUTION_ID = "50d8779c-54fd-437e-b941-e817e202e60c"
 UTEC_TARGET_URL = "https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial"
-UTEC_STAGING_ID = "792b1600-9939-4cf3-95fd-5056d8f5d99c"
-UTEC_PRIOR_CONTENT_SHA256 = "f05f5beb61a19d62b65c25530d4eda59ddfce2b8e8ba26c593203fd5a8d963ce"
+UTEC_STAGING_ID = "a1d10e6a-0058-4798-82ba-9cf86e0b5077"
+UTEC_PRIOR_CONTENT_SHA256 = "4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c"
 UTEC_REFERENCE = "fixture-utec-reviewed-exact-new-discovery"
 UTEC_ROTATION_TARGET = Path("/run/fg2-approved-lot-rotation.json")
+UTEC_ZERO_PROGRESS_URL = "https://posgrado.utec.edu.pe/utec-only/zero-progress"
+UTEC_ZERO_PROGRESS_STAGING_ID = "a1d10e6a-0058-4798-82ba-9cf86e0b5088"
+UTEC_ZERO_PROGRESS_CONTENT_SHA256 = "5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004"
+UTEC_ZERO_PROGRESS_REFERENCE = "fixture-utec-reviewed-exact-zero-progress"
+UTEC_ZERO_PROGRESS_LOT_TARGET = Path("/run/fg2-zero-progress-approved-lot.json")
+UTEC_ZERO_PROGRESS_COHORT_TARGET = Path("/run/fg2-zero-progress-cohort.json")
 
 
 def select(client, table: str, filters: str, columns: str, *, pipeline: bool):
@@ -187,6 +197,137 @@ def prepare_utec_reviewed_exact() -> None:
     )
 
 
+def prepare_utec_zero_progress() -> None:
+    """Build a real reviewed_exact cohort whose only row is discarded by UTEC's own rule."""
+    if len(SOURCE_SHA) != 40 or any(character not in "0123456789abcdef" for character in SOURCE_SHA):
+        raise SystemExit("phase=utec_zero_progress_manifest|result=FAIL|code=invalid_source_sha")
+
+    client = get_db_client()
+    institutions = select(
+        client, "institutions", f"id=eq.{UTEC_INSTITUTION_ID}", "id,slug,website_url", pipeline=False
+    )
+    profiles = select(
+        client, "institution_site_profiles", f"institution_id=eq.{UTEC_INSTITUTION_ID}", "*", pipeline=True
+    )
+    staging_rows = select(
+        client,
+        "staging_raw",
+        f"id=eq.{UTEC_ZERO_PROGRESS_STAGING_ID}",
+        "id,institution_id,url,status,content_hash",
+        pipeline=True,
+    )
+    if len(institutions) != 1 or len(profiles) != 1 or len(staging_rows) != 1:
+        raise SystemExit("phase=utec_zero_progress_manifest|result=FAIL|code=fixture_binding_not_unique")
+    institution, profile, staging = institutions[0], profiles[0], staging_rows[0]
+    if (
+        str(staging.get("institution_id", "")).lower() != UTEC_INSTITUTION_ID
+        or staging.get("url") != UTEC_ZERO_PROGRESS_URL
+        or staging.get("status") != "discovered"
+        or staging.get("content_hash") != UTEC_ZERO_PROGRESS_CONTENT_SHA256
+    ):
+        raise SystemExit("phase=utec_zero_progress_manifest|result=FAIL|code=staging_snapshot_mismatch")
+
+    selected_seeds = profile.get("seed_urls")
+    if isinstance(selected_seeds, str):
+        selected_seeds = json.loads(selected_seeds)
+    preflight = validate_controlled_profile(
+        institution, profile, selected_seed_urls=selected_seeds
+    )
+    snapshot = {
+        "staging_rows": [staging],
+        "course_rows": [],
+        "cleansed_rows": [],
+        "enriched_rows": [],
+    }
+    lot_payload = {
+        "schema_version": 1,
+        "reference": UTEC_ZERO_PROGRESS_REFERENCE,
+        "source_sha": SOURCE_SHA,
+        "selection_mode": "reviewed_exact",
+        "limits": dict(FG2_LIMITS),
+        "institutions": [{
+            "institution_id": UTEC_INSTITUTION_ID,
+            "institution_sha256": stable_json_sha256({
+                "id": str(institution["id"]).lower(),
+                "slug": institution.get("slug"),
+                "website_url": institution.get("website_url"),
+            }),
+            "profile_sha256": preflight["profile_sha256"],
+            "seed_sha256": preflight["seed_sha256"],
+            "seed_urls": preflight["seed_urls"],
+        }],
+        "scope": [{
+            "institution_id": UTEC_INSTITUTION_ID,
+            "url": UTEC_ZERO_PROGRESS_URL,
+            "url_sha256": url_sha256(UTEC_ZERO_PROGRESS_URL),
+            "kind": "new_discovery",
+            "snapshot": snapshot,
+        }],
+    }
+    lot_raw = json.dumps(
+        lot_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    lot_digest = hashlib.sha256(lot_raw).hexdigest()
+    approved_lot = FG2ApprovedLotManifest.from_bytes(
+        lot_raw, lot_payload, expected_sha256=lot_digest,
+        expected_reference=UTEC_ZERO_PROGRESS_REFERENCE,
+        expected_source_sha=SOURCE_SHA,
+        expected_selection_mode="reviewed_exact",
+    )
+    UTEC_ZERO_PROGRESS_LOT_TARGET.write_bytes(lot_raw)
+    UTEC_ZERO_PROGRESS_LOT_TARGET.chmod(0o644)
+
+    manifest_institution = {
+        "institution_id": UTEC_INSTITUTION_ID,
+        "profile_sha256": preflight["profile_sha256"],
+        "seed_sha256": preflight["seed_sha256"],
+        "http_requests": 1,
+        "unique_urls": 1,
+        "result": "complete",
+    }
+    initialize_manifest(
+        UTEC_ZERO_PROGRESS_COHORT_TARGET,
+        run_id=os.getenv("GITHUB_RUN_ID", "9000007"),
+        run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "1")),
+        source_sha=SOURCE_SHA,
+        institutions=[manifest_institution],
+        approved_lot_reference=approved_lot.reference,
+        approved_lot_sha256=approved_lot.sha256,
+        approved_lot_selection="reviewed_exact",
+    )
+    append_manifest_discovery_row(UTEC_ZERO_PROGRESS_COHORT_TARGET, {
+        "institution_id": UTEC_INSTITUTION_ID,
+        "staging_id": UTEC_ZERO_PROGRESS_STAGING_ID,
+        "url_sha256": url_sha256(UTEC_ZERO_PROGRESS_URL),
+        "initial_status": "discovered",
+        "kind": "new_discovery",
+    })
+    append_manifest_entry(UTEC_ZERO_PROGRESS_COHORT_TARGET, {
+        "institution_id": UTEC_INSTITUTION_ID,
+        "staging_id": UTEC_ZERO_PROGRESS_STAGING_ID,
+        "url_sha256": url_sha256(UTEC_ZERO_PROGRESS_URL),
+        "cleansed_url_sha256": url_sha256(UTEC_ZERO_PROGRESS_URL),
+        "content_sha256": UTEC_ZERO_PROGRESS_CONTENT_SHA256,
+        "kind": "new_discovery",
+    })
+    raw_manifest = UTEC_ZERO_PROGRESS_COHORT_TARGET.read_bytes()
+    cohort = FG2CohortManifest.from_payload(
+        json.loads(raw_manifest),
+        expected_run_id=os.getenv("GITHUB_RUN_ID", "9000007"),
+        expected_run_attempt=int(os.getenv("GITHUB_RUN_ATTEMPT", "1")),
+        expected_source_sha=SOURCE_SHA,
+        expected_approved_lot_selection="reviewed_exact",
+        allow_empty=False,
+    )
+    if cohort.staging_ids != (UTEC_ZERO_PROGRESS_STAGING_ID,):
+        raise SystemExit("phase=utec_zero_progress_manifest|result=FAIL|code=cohort_identity_mismatch")
+    print(
+        "phase=utec_zero_progress_manifest|result=PASS|selection=reviewed_exact|"
+        f"lot_sha256={approved_lot.sha256}|cohort_sha256={hashlib.sha256(raw_manifest).hexdigest()}|"
+        "scope=1|stage=pending_after_discovery|provider=not_started"
+    )
+
+
 def verify_utec_rotation_rejected() -> None:
     raw = UTEC_ROTATION_TARGET.read_bytes()
     payload = json.loads(raw)
@@ -211,6 +352,9 @@ def verify_utec_rotation_rejected() -> None:
 def main() -> None:
     if "--utec-reviewed-exact" in sys.argv[1:]:
         prepare_utec_reviewed_exact()
+        return
+    if "--utec-zero-progress" in sys.argv[1:]:
+        prepare_utec_zero_progress()
         return
     if "--verify-utec-rotation-rejected" in sys.argv[1:]:
         verify_utec_rotation_rejected()

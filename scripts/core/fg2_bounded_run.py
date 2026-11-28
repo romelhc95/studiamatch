@@ -1719,6 +1719,20 @@ _PAGINATION_QUERY_KEYS = frozenset({
 _TRACKING_QUERY_KEYS = frozenset({"gclid", "fbclid", "msclkid"})
 
 
+def reviewed_exact_progress_missing(cohort_manifest: Any, effective_count: int) -> bool:
+    """Require each non-empty manual reviewed_exact stage to do real work."""
+    if cohort_manifest is None or effective_count > 0:
+        return False
+    payload = getattr(cohort_manifest, "payload", {})
+    if not isinstance(payload, dict):
+        return False
+    return bool(
+        payload.get("approved_lot_selection", "rotation_prefix") == "reviewed_exact"
+        and getattr(cohort_manifest, "staging_ids", ())
+        and not payload.get("recovery_source")
+    )
+
+
 @dataclass(frozen=True)
 class FG2ApprovedLotManifest:
     """Human-reviewed, immutable course-detail scope for a controlled FG2 run.
