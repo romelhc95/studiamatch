@@ -44,6 +44,84 @@ fail() {
   exit 2
 }
 
+artifact_sha256() {
+  local output digest
+  if ! output="$(sha256sum -- "$1" 2>/dev/null)"; then return 1; fi
+  digest="${output%% *}"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "$digest"
+}
+
+artifact_base64() {
+  local encoded
+  if ! encoded="$(base64 -w0 -- "$1" 2>/dev/null)"; then return 1; fi
+  [[ -n "$encoded" && "$encoded" =~ ^[A-Za-z0-9+/]+={0,2}$ ]] || return 1
+  printf '%s' "$encoded"
+}
+
+noop_manifest_digest_from_log() {
+  local digest
+  digest="$(sed -nE 's/^phase=approved_refresh_manifest_read\|result=PASS\|cohort_entries=0\|processed_discovery=1\|manifest_mode=0600\|manifest_sha256=([0-9a-f]{64})$/\1/p' "$1")"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "$digest"
+}
+
+noop_manifest_validator="$out/verify_noop_manifest.py"
+cat >"$noop_manifest_validator" <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+
+def reject(code):
+    print(f"phase=approved_refresh_manifest_read|result=FAIL|code={code}", file=sys.stderr)
+    raise SystemExit(2)
+
+try:
+    cohort_path = Path(sys.argv[1])
+    raw = cohort_path.read_bytes()
+    mode = stat.S_IMODE(cohort_path.stat().st_mode)
+except OSError as exc:
+    reject(f"manifest_unreadable_errno_{exc.errno}")
+try:
+    manifest = json.loads(raw)
+except (UnicodeDecodeError, json.JSONDecodeError):
+    reject("manifest_invalid_json")
+digest = hashlib.sha256(raw).hexdigest()
+if not re.fullmatch(r"[0-9a-f]{64}", digest):
+    reject("manifest_invalid_sha256")
+rows = manifest.get("discovery_rows") if isinstance(manifest, dict) else None
+if (
+    not isinstance(manifest, dict)
+    or manifest.get("schema_version") != 1
+    or manifest.get("run_id") != os.environ["FG2_EXPECTED_MANIFEST_RUN_ID"]
+    or manifest.get("source_sha") != os.environ["FG2_EXPECTED_MANIFEST_SOURCE_SHA"]
+    or manifest.get("entries") != []
+    or not isinstance(rows, list)
+    or len(rows) != 1
+    or not isinstance(rows[0], dict)
+    or rows[0].get("initial_status") != "processed"
+    or rows[0].get("kind") != "refresh_existing"
+    or mode != 0o600
+):
+    reject("empty_cohort_contract_mismatch")
+print(f"phase=approved_refresh_manifest_read|result=PASS|cohort_entries=0|processed_discovery=1|manifest_mode=0600|manifest_sha256={digest}")
+PY
+chmod 0644 "$noop_manifest_validator"
+noop_invalid_digest_log="$out/noop_invalid_digest.log"
+printf '%s\n' 'phase=approved_refresh_manifest_read|result=PASS|cohort_entries=0|processed_discovery=1|manifest_mode=0600|manifest_sha256=invalid' >"$noop_invalid_digest_log"
+if noop_manifest_digest_from_log "$noop_invalid_digest_log" >/dev/null; then
+  fail approved_refresh_manifest_digest INVALID_DIGEST_ACCEPTED
+fi
+: >"$noop_invalid_digest_log"
+if noop_manifest_digest_from_log "$noop_invalid_digest_log" >/dev/null; then
+  fail approved_refresh_manifest_digest EMPTY_DIGEST_ACCEPTED
+fi
+printf 'phase=approved_refresh_manifest_digest|result=PASS|invalid=fail_closed|empty=fail_closed\n'
+
 cleanup() {
   local status=$?
   trap - EXIT
@@ -174,6 +252,109 @@ for index in "${!approved_docker_args[@]}"; do
   esac
 done
 
+# Reproduce the atomic-manifest UID boundary with the real writer. A different
+# non-root consumer must be denied at 0600 and succeed only after the synthetic
+# fixture artifact is explicitly exported as 0644, without changing its bytes.
+manifest_uid_probe="$run_dir/fg2-manifest-uid-probe.json"
+uid_producer_log="$out/manifest_uid_producer.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1000:1000 \
+    --tmpfs /tmp:rw,noexec,nosuid,size=32m --workdir /workspace --env PYTHONPATH=/workspace \
+    --mount "type=bind,src=$ROOT/scripts,dst=/workspace/scripts,readonly" \
+    --mount "type=bind,src=$run_dir,dst=/case" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_producer_log" 2>&1 <<'PY'
+import hashlib
+import os
+from pathlib import Path
+from scripts.core.fg2_bounded_run import write_manifest_atomic
+
+target = Path("/case/fg2-manifest-uid-probe.json")
+first = {"fixture": "uid-transfer", "entries": []}
+final = {"fixture": "uid-transfer", "entries": [{"id": "synthetic"}]}
+write_manifest_atomic(target, first)
+first_mode = target.stat().st_mode & 0o777
+first_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+write_manifest_atomic(target, final)
+final_mode = target.stat().st_mode & 0o777
+final_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+if os.getuid() != 1000 or first_mode != 0o600 or final_mode != 0o600 or first_sha == final_sha:
+    raise SystemExit("phase=manifest_uid_probe_producer|result=FAIL|code=unexpected_atomic_file_state")
+print(f"phase=manifest_uid_probe_producer|result=PASS|uid=1000|first_mode=0600|final_mode=0600|first_sha256={first_sha}|final_sha256={final_sha}")
+PY
+then
+  cat "$uid_producer_log"
+  fail manifest_uid_probe PRODUCER_FAILED
+fi
+cat "$uid_producer_log"
+uid_probe_sha="$(sed -nE 's/^phase=manifest_uid_probe_producer\|result=PASS\|uid=1000\|first_mode=0600\|final_mode=0600\|first_sha256=[0-9a-f]{64}\|final_sha256=([0-9a-f]{64})$/\1/p' "$uid_producer_log")"
+[[ "$uid_probe_sha" =~ ^[0-9a-f]{64}$ ]] || fail manifest_uid_probe PRODUCER_DIGEST_MISSING
+uid_denied_log="$out/manifest_uid_pre_export_denial.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1001:1001 \
+    --mount "type=bind,src=$run_dir,dst=/case,readonly" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_denied_log" 2>&1 <<'PY'
+from pathlib import Path
+
+try:
+    Path("/case/fg2-manifest-uid-probe.json").read_bytes()
+except PermissionError:
+    print("phase=manifest_uid_probe_pre_export|result=PASS|uid=1001|read=denied")
+else:
+    raise SystemExit("phase=manifest_uid_probe_pre_export|result=FAIL|code=private_file_readable")
+PY
+then
+  cat "$uid_denied_log"
+  fail manifest_uid_probe PRE_EXPORT_DENIAL_NOT_DEMONSTRATED
+fi
+grep -qx 'phase=manifest_uid_probe_pre_export|result=PASS|uid=1001|read=denied' "$uid_denied_log" \
+  || { cat "$uid_denied_log"; fail manifest_uid_probe PRE_EXPORT_DENIAL_ASSERTION; }
+cat "$uid_denied_log"
+uid_export_log="$out/manifest_uid_export.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1000:1000 \
+    --mount "type=bind,src=$run_dir,dst=/case" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_export_log" 2>&1 <<'PY'
+import hashlib
+import os
+from pathlib import Path
+
+target = Path("/case/fg2-manifest-uid-probe.json")
+before = hashlib.sha256(target.read_bytes()).hexdigest()
+target.chmod(0o644)
+after = hashlib.sha256(target.read_bytes()).hexdigest()
+if before != after or (target.stat().st_mode & 0o777) != 0o644:
+    raise SystemExit("phase=manifest_uid_probe_export|result=FAIL|code=digest_or_mode_mismatch")
+print(f"phase=manifest_uid_probe_export|result=PASS|uid={os.getuid()}|mode=0644|digest_preserved=true|sha256={after}")
+PY
+then
+  cat "$uid_export_log"
+  fail manifest_uid_probe EXPORT_FAILED
+fi
+grep -qx "phase=manifest_uid_probe_export|result=PASS|uid=1000|mode=0644|digest_preserved=true|sha256=$uid_probe_sha" "$uid_export_log" \
+  || { cat "$uid_export_log"; fail manifest_uid_probe EXPORT_ASSERTION; }
+cat "$uid_export_log"
+uid_read_log="$out/manifest_uid_post_export_read.log"
+if ! docker run --pull=never --rm --interactive --network none --read-only --user 1001:1001 \
+    --mount "type=bind,src=$run_dir,dst=/case,readonly" --env FG2_EXPECTED_UID_PROBE_SHA256="$uid_probe_sha" \
+    "$APP_IMAGE" /opt/venv/bin/python - >"$uid_read_log" 2>&1 <<'PY'
+import hashlib
+import os
+from pathlib import Path
+import stat
+
+target = Path("/case/fg2-manifest-uid-probe.json")
+raw = target.read_bytes()
+digest = hashlib.sha256(raw).hexdigest()
+if os.getuid() != 1001 or stat.S_IMODE(target.stat().st_mode) != 0o644 or digest != os.environ["FG2_EXPECTED_UID_PROBE_SHA256"]:
+    raise SystemExit("phase=manifest_uid_probe_post_export|result=FAIL|code=reader_or_digest_mismatch")
+print(f"phase=manifest_uid_probe_post_export|result=PASS|uid=1001|read=allowed|mode=0644|sha256={digest}")
+PY
+then
+  cat "$uid_read_log"
+  fail manifest_uid_probe POST_EXPORT_READ_FAILED
+fi
+grep -qx "phase=manifest_uid_probe_post_export|result=PASS|uid=1001|read=allowed|mode=0644|sha256=$uid_probe_sha" "$uid_read_log" \
+  || { cat "$uid_read_log"; fail manifest_uid_probe POST_EXPORT_READ_ASSERTION; }
+cat "$uid_read_log"
+rm -f -- "$manifest_uid_probe"
+
 # Exercise the versioned production control gate separately from the local
 # synthetic writer run. No remote environment or flags are touched.
 blocked_control_log="$out/production_control_paused.log"
@@ -255,7 +436,7 @@ run_master() {
     grep -E '"boundary":"postgrest_api"' "$events" | tail -n 20 || true
     exit 2
   fi
-  if ! manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)" || [[ ! "$manifest_sha" =~ ^[0-9a-f]{64}$ ]]; then
+  if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
     fail "$phase" MANIFEST_EXPORT_NOT_READABLE
   fi
   printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
@@ -288,9 +469,13 @@ run_approved_master() {
   local log="$out/${phase}.log"
   local cohort_path=/run/fg2-cohort-manifest.json
   lot_path="/run/$(basename "$lot_file")"
-  local lot_sha lot_b64
-  lot_sha="$(sha256sum "$lot_file" | cut -d' ' -f1)"
-  lot_b64="$(base64 -w0 "$lot_file")"
+  local manifest_sha lot_sha lot_b64
+  if ! lot_sha="$(artifact_sha256 "$lot_file")"; then
+    fail "$phase" APPROVED_LOT_NOT_READABLE
+  fi
+  if ! lot_b64="$(artifact_base64 "$lot_file")"; then
+    fail "$phase" APPROVED_LOT_NOT_ENCODABLE
+  fi
   rm -f -- "$manifest"
   if docker run "${approved_docker_args[@]}" \
       --env GITHUB_RUN_ID="$run_id" \
@@ -322,11 +507,56 @@ run_approved_master() {
     fi
   fi
   if [[ "$expect_noop" == true ]]; then
-    printf 'phase=%s|result=PASS|expected=empty_cohort_guard|manifest_sha256=%s\n' \
-      "$phase" "$(sha256sum "$manifest" | cut -d' ' -f1)"
+    local noop_manifest_log="$out/${phase}_manifest_read.log"
+    if ! docker run --pull=never --rm --network none --read-only --user 1000:1000 \
+        --mount "type=bind,src=$manifest,dst=/run/cohort.json,readonly" \
+        --mount "type=bind,src=$noop_manifest_validator,dst=/workspace/verify_noop_manifest.py,readonly" \
+        --env FG2_EXPECTED_MANIFEST_RUN_ID="$run_id" --env FG2_EXPECTED_MANIFEST_SOURCE_SHA="$source_sha" \
+        "$APP_IMAGE" /opt/venv/bin/python /workspace/verify_noop_manifest.py /run/cohort.json \
+        >"$noop_manifest_log" 2>&1
+    then
+      cat "$noop_manifest_log"
+      fail "$phase" NOOP_MANIFEST_READ_OR_CONTRACT_FAILED
+    fi
+    if ! manifest_sha="$(noop_manifest_digest_from_log "$noop_manifest_log")"; then
+      cat "$noop_manifest_log"
+      fail "$phase" NOOP_MANIFEST_DIGEST_MISSING_OR_INVALID
+    fi
+    cat "$noop_manifest_log"
+    printf 'phase=%s|result=PASS|expected=empty_cohort_guard|manifest_sha256=%s\n' "$phase" "$manifest_sha"
+
+    local unreadable_manifest_log="$out/${phase}_manifest_unreadable.log"
+    if docker run --pull=never --rm --network none --read-only --user 1001:1001 \
+        --mount "type=bind,src=$manifest,dst=/run/cohort.json,readonly" \
+        --mount "type=bind,src=$noop_manifest_validator,dst=/workspace/verify_noop_manifest.py,readonly" \
+        --env FG2_EXPECTED_MANIFEST_RUN_ID="$run_id" --env FG2_EXPECTED_MANIFEST_SOURCE_SHA="$source_sha" \
+        "$APP_IMAGE" /opt/venv/bin/python /workspace/verify_noop_manifest.py /run/cohort.json \
+        >"$unreadable_manifest_log" 2>&1; then
+      cat "$unreadable_manifest_log"
+      fail "$phase" UNREADABLE_MANIFEST_WAS_ACCEPTED
+    fi
+    grep -qx 'phase=approved_refresh_manifest_read|result=FAIL|code=manifest_unreadable_errno_13' "$unreadable_manifest_log" \
+      || { cat "$unreadable_manifest_log"; fail "$phase" UNREADABLE_MANIFEST_NOT_EXPLICIT; }
+    printf 'phase=approved_refresh_manifest_negative|result=PASS|case=unreadable|code=manifest_unreadable_errno_13\n'
+
+    local missing_manifest_log="$out/${phase}_manifest_missing.log"
+    local missing_manifest_dir="$out/${phase}_missing_mount"
+    mkdir -p "$missing_manifest_dir"
+    chmod 0755 "$missing_manifest_dir"
+    if docker run --pull=never --rm --network none --read-only --user 1000:1000 \
+        --mount "type=bind,src=$missing_manifest_dir,dst=/run,readonly" \
+        --mount "type=bind,src=$noop_manifest_validator,dst=/workspace/verify_noop_manifest.py,readonly" \
+        --env FG2_EXPECTED_MANIFEST_RUN_ID="$run_id" --env FG2_EXPECTED_MANIFEST_SOURCE_SHA="$source_sha" \
+        "$APP_IMAGE" /opt/venv/bin/python /workspace/verify_noop_manifest.py /run/cohort.json \
+        >"$missing_manifest_log" 2>&1; then
+      cat "$missing_manifest_log"
+      fail "$phase" MISSING_MANIFEST_WAS_ACCEPTED
+    fi
+    grep -qx 'phase=approved_refresh_manifest_read|result=FAIL|code=manifest_unreadable_errno_2' "$missing_manifest_log" \
+      || { cat "$missing_manifest_log"; fail "$phase" MISSING_MANIFEST_NOT_EXPLICIT; }
+    printf 'phase=approved_refresh_manifest_negative|result=PASS|case=missing|code=manifest_unreadable_errno_2\n'
   else
-    local manifest_sha
-    if ! manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)" || [[ ! "$manifest_sha" =~ ^[0-9a-f]{64}$ ]]; then
+    if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
       fail "$phase" MANIFEST_EXPORT_NOT_READABLE
     fi
     printf 'phase=%s|result=PASS|manifest_sha256=%s\n' "$phase" "$manifest_sha"
@@ -341,8 +571,12 @@ run_worker() {
   if [[ "$recovery_source" == "true" ]]; then
     recovery_args+=(--env FG2_FIXTURE_RECOVERY_SOURCE=1)
   fi
-  manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
-  manifest_b64="$(base64 -w0 "$manifest")"
+  if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_READABLE
+  fi
+  if ! manifest_b64="$(artifact_base64 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_ENCODABLE
+  fi
   log="$out/${phase}.log"
   if docker run "${common_docker_args[@]}" \
       "${recovery_args[@]}" \
@@ -380,8 +614,12 @@ run_worker_with_openai_http_fixture() {
   if [[ "$recovery_source" == "true" ]]; then
     provider_http_args+=(--env FG2_FIXTURE_RECOVERY_SOURCE=1)
   fi
-  manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
-  manifest_b64="$(base64 -w0 "$manifest")"
+  if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_READABLE
+  fi
+  if ! manifest_b64="$(artifact_base64 "$manifest")"; then
+    fail "$phase" MANIFEST_INPUT_NOT_ENCODABLE
+  fi
   log="$out/${phase}.log"
   for index in "${!provider_http_args[@]}"; do
     if [[ "${provider_http_args[index]}" == "FG2_FIXTURE_PROVIDER_ADAPTER=1" ]]; then
@@ -505,14 +743,9 @@ noop_staging_after="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -At -
   "SELECT status || '|' || content_hash FROM public.staging_raw WHERE rtrim(url, '/')='https://ssr.fg2.example/programas/analitica-aplicada'")"
 [[ "$noop_staging_before" == "$noop_staging_after" ]] || fail run_4_identical_refresh STAGING_CHANGED_DURING_NOOP
 docker run --pull=never --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
-  --mount "type=bind,src=$manifest,dst=/run/cohort.json,readonly" \
-  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,pathlib,sys; m=json.loads(pathlib.Path("/run/cohort.json").read_text()); rows=m.get("discovery_rows", []); ok=not m.get("entries") and len(rows)==1 and rows[0].get("initial_status")=="processed" and rows[0].get("kind")=="refresh_existing"; ok or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=cohort_not_empty_guarded"); print("phase=approved_refresh_identical_noop|result=PASS|cohort_entries=0|processed_discovery=1")' \
-  >"$out/identical_refresh_manifest.log" 2>&1 || { cat "$out/identical_refresh_manifest.log"; fail run_4_identical_refresh NOOP_COHORT_ASSERTION; }
-cat "$out/identical_refresh_manifest.log"
-docker run --pull=never --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
   --mount "type=bind,src=$events,dst=/run/events.jsonl,readonly" \
   --env FG2_EVENT_OFFSET="$noop_event_start" \
-  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,os,pathlib,sys; lines=pathlib.Path("/run/events.jsonl").read_text().splitlines()[int(os.environ["FG2_EVENT_OFFSET"]):]; events=[json.loads(line) for line in lines if line]; writes=[event for event in events if event.get("boundary")=="postgrest_api" and event.get("method") in {"POST","PATCH","DELETE"}]; not writes or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=unexpected_database_write"); print("phase=approved_refresh_identical_noop|result=PASS|database_writes=0|downstream_jobs=not_started")' \
+  "$APP_IMAGE" /opt/venv/bin/python -c 'import json,os,pathlib,sys; lines=pathlib.Path("/run/events.jsonl").read_text().splitlines()[int(os.environ["FG2_EVENT_OFFSET"]):]; events=[json.loads(line) for line in lines if line]; writes=[event for event in events if event.get("boundary")=="postgrest_api" and event.get("method") in {"POST","PATCH","DELETE"}]; providers=[event for event in events if event.get("boundary")=="provider_loopback"]; (not writes and not providers) or sys.exit("phase=approved_refresh_identical_noop|result=FAIL|code=unexpected_write_or_provider"); print("phase=approved_refresh_identical_noop|result=PASS|database_writes=0|provider_events=0|downstream_jobs=not_started")' \
   >"$out/identical_refresh_audit.log" 2>&1 || { cat "$out/identical_refresh_audit.log"; fail run_4_identical_refresh DATABASE_WRITE_DURING_NOOP; }
 cat "$out/identical_refresh_audit.log"
 docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
@@ -523,8 +756,12 @@ docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -f /fixt
 
 prepare_approved_lot run_3_processed_refresh_manifest 9000003
 run_approved_master run_3_processed_refresh 9000003
-manifest_sha="$(sha256sum "$manifest" | cut -d' ' -f1)"
-manifest_b64="$(base64 -w0 "$manifest")"
+if ! manifest_sha="$(artifact_sha256 "$manifest")"; then
+  fail refresh_recovery MANIFEST_INPUT_NOT_READABLE
+fi
+if ! manifest_b64="$(artifact_base64 "$manifest")"; then
+  fail refresh_recovery MANIFEST_INPUT_NOT_ENCODABLE
+fi
 fault_log="$out/refresh_expected_failure.log"
 if docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000003 \
     --env FG2_FIXTURE_MANIFEST_B64="$manifest_b64" --env FG2_FIXTURE_MANIFEST_SHA256="$manifest_sha" \
@@ -643,6 +880,31 @@ PY
   then
     cat "$log"
     fail "$phase" DB_WRITE_AUDIT_FAILED
+  fi
+  cat "$log"
+}
+
+assert_single_staging_discard_since() {
+  local phase="$1" offset="$2" log="$out/${1}.log"
+  if ! docker run --pull=never --rm --interactive --network none --read-only \
+    --tmpfs "/tmp:rw,noexec,nosuid,size=32m" \
+    --mount "type=bind,src=$events,dst=/run/fg2-http-events.jsonl,readonly" \
+    --env FG2_EVENT_OFFSET="$offset" "$APP_IMAGE" /opt/venv/bin/python - \
+    /run/fg2-http-events.jsonl >"$log" 2>&1 <<'PY'
+import json, os, pathlib, sys
+events = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line]
+events = events[int(os.environ["FG2_EVENT_OFFSET"]):]
+writes = [event for event in events if event.get("boundary") == "postgrest_api" and event.get("method") in {"POST", "PATCH", "DELETE"}]
+successful = [event for event in writes if 200 <= int(event.get("status", 0)) < 300]
+resources = [str(event.get("resource", "")).split("?", 1)[0].strip("/") for event in successful]
+providers = [event for event in events if event.get("boundary") == "provider_loopback"]
+if len(writes) != 1 or len(successful) != 1 or writes[0].get("method") != "PATCH" or resources != ["staging_raw"] or providers:
+    raise SystemExit("phase=reviewed_exact_zero_cleansing|result=FAIL|code=unexpected_effects")
+print("phase=reviewed_exact_zero_cleansing|result=PASS|worker_result=FAIL|writes=1|target=staging_raw|providers=0|sync=not_started")
+PY
+  then
+    cat "$log"
+    fail "$phase" ZERO_PROGRESS_EFFECT_AUDIT_FAILED
   fi
   cat "$log"
 }
@@ -835,6 +1097,14 @@ VALUES (
   'https://posgrado.utec.edu.pe/',
   '2026-07-17T07:18:57.38649+00:00'
 );
+INSERT INTO public.institutions (id, name, slug, website_url, last_harvest_at)
+VALUES (
+  'a4fd99a6-d161-4854-bdc8-6b5f1bd8163e',
+  'Universidad del Pacífico synthetic fixture',
+  'universidad-del-pacifico',
+  'https://posgrado.pacifico.edu.pe/',
+  NULL
+);
 INSERT INTO public.institution_site_profiles (
   institution_id, pipeline_ready, pipeline_enabled, discovery_enabled,
   production_enabled, website_url, site_type, discovery_mode, seed_urls,
@@ -855,7 +1125,24 @@ VALUES (
     "https://posgrado.utec.edu.pe/programas/programa-en-arquitectura-de-datos"
   ]'::jsonb,
   '["re:^(/maestrias/|/cursos/|/programas/)"]'::jsonb,
-  '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 1, 0, NULL,
+  '[".pdf","/noticias/","/utec-only/"]'::jsonb, '[]'::jsonb, '[]'::jsonb, 1, 0, NULL,
+  '{}'::jsonb, '{}'::jsonb, 'active', 'verified', false, false, false, 0
+);
+INSERT INTO public.institution_site_profiles (
+  institution_id, pipeline_ready, pipeline_enabled, discovery_enabled,
+  production_enabled, website_url, site_type, discovery_mode, seed_urls,
+  allowed_url_patterns, exclusion_patterns, allowed_resource_origins,
+  catalog_url_patterns, catalog_max_pages, catalog_scroll_iterations,
+  catalog_link_selector, field_defaults, section_keywords, profile_status,
+  diagnostic_status, auto_generated, requires_stealth, requires_cloudflare_bypass,
+  detail_wait_ms
+)
+VALUES (
+  'a4fd99a6-d161-4854-bdc8-6b5f1bd8163e', true, true, true,
+  true, 'https://posgrado.pacifico.edu.pe/', 'traditional_ssr', 'hardcoded_urls',
+  '["https://posgrado.pacifico.edu.pe/maestrias/programa-sintetico"]'::jsonb,
+  '["re:^/maestrias/"]'::jsonb,
+  '[".pdf","/maestrias/"]'::jsonb, '[]'::jsonb, '[]'::jsonb, 1, 0, NULL,
   '{}'::jsonb, '{}'::jsonb, 'active', 'verified', false, false, false, 0
 );
 WITH predecessors AS (
@@ -896,21 +1183,112 @@ INSERT INTO public.staging_raw (
   content_hash, effective_url, canonical_url, metadata
 )
 VALUES (
-  '792b1600-9939-4cf3-95fd-5056d8f5d99c',
+  'a1d10e6a-0058-4798-82ba-9cf86e0b5077',
   '50d8779c-54fd-437e-b941-e817e202e60c',
   'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
   'Synthetic prior UTEC discovery',
   'Synthetic preflight-only placeholder.',
   '<html><body>preflight-only placeholder</body></html>',
-  'discovered',
-  'f05f5beb61a19d62b65c25530d4eda59ddfce2b8e8ba26c593203fd5a8d963ce',
+  'discarded',
+  '4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c',
   'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
   'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial',
-  '{"fixture_case":"utec_reviewed_exact"}'::jsonb
+  '{"fixture_case":"utec_discarded_recovery","discard_reason":"hard_db_exclusion:/maestrias/"}'::jsonb
 );
 SQL
+docker exec -i "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 <<'SQL' >"$out/utec_discarded_recovery_preflight.log"
+DO $$
+DECLARE target public.staging_raw%ROWTYPE;
+BEGIN
+  SELECT * INTO STRICT target FROM public.staging_raw
+  WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid;
+  IF target.institution_id <> '50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+     OR target.url <> 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial'
+     OR target.canonical_url <> target.url OR target.effective_url <> target.url
+     OR target.status <> 'discarded'
+     OR target.content_hash <> '4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c'
+     OR target.metadata->>'discard_reason' <> 'hard_db_exclusion:/maestrias/' THEN
+    RAISE EXCEPTION 'fixture_recovery_snapshot_mismatch';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.cleansed_programs WHERE staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.cleansed_programs WHERE institution_id=target.institution_id AND lower(rtrim(split_part(url,'?',1),'/'))=lower(rtrim(split_part(target.url,'?',1),'/')))
+     OR EXISTS (SELECT 1 FROM public.enriched_programs e JOIN public.cleansed_programs c ON c.id=e.cleansed_id WHERE c.staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.courses WHERE institution_id=target.institution_id AND lower(rtrim(split_part(url,'?',1),'/'))=lower(rtrim(split_part(target.url,'?',1),'/'))) THEN
+    RAISE EXCEPTION 'fixture_recovery_has_downstream_identity';
+  END IF;
+  IF (SELECT count(*) FROM public.staging_raw alias_row
+      WHERE alias_row.institution_id=target.institution_id
+        AND lower(rtrim(split_part(coalesce(alias_row.canonical_url,alias_row.effective_url,alias_row.url),'?',1),'/'))
+            = lower(rtrim(split_part(target.url,'?',1),'/'))) <> 1 THEN
+    RAISE EXCEPTION 'fixture_recovery_alias_is_ambiguous';
+  END IF;
+END $$;
+SELECT 'phase=utec_discarded_recovery_preflight|result=PASS|snapshot=exact|reason=matched|aliases=checked|downstream=0|mode=read_only';
+SQL
+cat "$out/utec_discarded_recovery_preflight.log"
+
+# Rehearse the exact one-row repair inside a transaction and roll it back.
+docker exec -i "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 <<'SQL' >"$out/utec_discarded_recovery_rollback.log"
+BEGIN;
+UPDATE public.staging_raw SET status='discovered'
+WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid
+  AND institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+  AND url='https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial'
+  AND canonical_url=url AND effective_url=url
+  AND status='discarded'
+  AND content_hash='4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c'
+  AND metadata->>'discard_reason'='hard_db_exclusion:/maestrias/'
+  AND (SELECT count(*) FROM public.staging_raw alias_row
+       WHERE alias_row.institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+         AND lower(rtrim(split_part(coalesce(alias_row.canonical_url,alias_row.effective_url,alias_row.url),'?',1),'/'))
+             = 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial') = 1
+  AND NOT EXISTS (SELECT 1 FROM public.cleansed_programs c
+                  WHERE c.staging_id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid
+                     OR (c.institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+                         AND lower(rtrim(split_part(c.url,'?',1),'/'))
+                             = 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial'))
+  AND NOT EXISTS (SELECT 1 FROM public.enriched_programs e
+                  WHERE e.institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid
+                    AND lower(rtrim(split_part(e.url,'?',1),'/'))
+                        = 'https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial')
+  AND NOT EXISTS (SELECT 1 FROM public.courses WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND lower(rtrim(split_part(url,'?',1),'/'))='https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.staging_raw
+    WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid
+      AND status='discovered'
+      AND content_hash='4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c'
+      AND metadata->>'discard_reason'='hard_db_exclusion:/maestrias/'
+  ) THEN RAISE EXCEPTION 'fixture_repair_transition_mismatch'; END IF;
+END $$;
+ROLLBACK;
+SELECT 'phase=utec_discarded_recovery_rollback|result=PASS|transition=discovered|hash_metadata_preserved=true|database_restored=true';
+SQL
+cat "$out/utec_discarded_recovery_rollback.log"
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
+  "SELECT status || '|' || content_hash || '|' || (metadata->>'discard_reason') || '|' || (metadata = '{\"fixture_case\":\"utec_discarded_recovery\",\"discard_reason\":\"hard_db_exclusion:/maestrias/\"}'::jsonb) FROM public.staging_raw WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid" \
+  | grep -qx 'discarded|4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c|hard_db_exclusion:/maestrias/|true' \
+  || fail utec_discarded_recovery ROLLBACK_DID_NOT_RESTORE_SNAPSHOT
+
+# The next state change is confined to the disposable fixture; Pro remains untouched.
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "UPDATE public.staging_raw SET status='discovered' WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid AND institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND status='discarded' AND content_hash='4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c' AND metadata->>'discard_reason'='hard_db_exclusion:/maestrias/' AND NOT EXISTS (SELECT 1 FROM public.cleansed_programs WHERE staging_id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid) AND NOT EXISTS (SELECT 1 FROM public.courses WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND lower(rtrim(split_part(url,'?',1),'/'))='https://posgrado.utec.edu.pe/maestrias/ciencia-de-datos-inteligencia-artificial')" >/dev/null
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
+  "SELECT status || '|' || content_hash || '|' || (metadata->>'discard_reason') FROM public.staging_raw WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077'::uuid" \
+  | grep -qx 'discovered|4ffc587dc49a2789acde46fdba984b698508f82ef49b49ba4580b75bd984427c|hard_db_exclusion:/maestrias/' \
+  || fail utec_discarded_recovery FIXTURE_TRANSITION_NOT_APPLIED
+printf 'phase=utec_discarded_recovery|result=PASS|scope=ephemeral_pg17_fixture_only|row_count=1|status=discarded_to_discovered|hash_metadata_preserved=true|pro_write=0\n'
+
+# Both profiles are loaded in the same worker; each institution keeps its own rule set.
+docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000006 \
+  "$APP_IMAGE" /opt/venv/bin/python -c 'from scripts.core.cleansing_worker import CleansingWorker; u="50d8779c-54fd-437e-b941-e817e202e60c"; p="a4fd99a6-d161-4854-bdc8-6b5f1bd8163e"; w=CleansingWorker(); checks=[w.is_invalid_course("Programa de maestría","","https://posgrado.utec.edu.pe/maestrias/programa",institution_id=u) is None,w.is_invalid_course("Programa de maestría","","https://posgrado.pacifico.edu.pe/maestrias/programa",institution_id=p)=="hard_db_exclusion:/maestrias/",w.is_invalid_course("Programa","","https://posgrado.utec.edu.pe/utec-only/programa",institution_id=u)=="hard_db_exclusion:/utec-only/",w.is_invalid_course("Programa","","https://posgrado.pacifico.edu.pe/utec-only/programa",institution_id=p) is None]; all(checks) or __import__("sys").exit("phase=cleansing_profile_isolation|result=FAIL|code=profile_scope_mismatch"); print("phase=cleansing_profile_isolation|result=PASS|utec_maestrias=allowed|pacifico_maestrias=blocked|utec_own_rule=blocked|cross_profile_leak=0")' \
+  >"$out/cleansing_profile_isolation.log" 2>&1 \
+  || { cat "$out/cleansing_profile_isolation.log"; fail cleansing_profile_isolation PROFILE_SCOPE_ASSERTION; }
+cat "$out/cleansing_profile_isolation.log"
+
 utec_snapshot_counts="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
-  "SELECT (SELECT count(*) FROM public.institutions WHERE id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.institution_site_profiles WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.staging_raw WHERE id='792b1600-9939-4cf3-95fd-5056d8f5d99c')")"
+  "SELECT (SELECT count(*) FROM public.institutions WHERE id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.institution_site_profiles WHERE institution_id='50d8779c-54fd-437e-b941-e817e202e60c') || '|' || (SELECT count(*) FROM public.staging_raw WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5077')")"
 [[ "$utec_snapshot_counts" == "1|1|1" ]] || fail utec_pg17_snapshot FIXTURE_ROWS_MISSING
 printf 'phase=utec_pg17_snapshot|result=PASS|institution=1|profile=1|staging=1\n'
 utec_lot_log="$out/utec_reviewed_exact_manifest.log"
@@ -963,6 +1341,73 @@ docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000006 \
   >"$out/utec_reviewed_exact_admin.log" 2>&1 \
   || { cat "$out/utec_reviewed_exact_admin.log"; fail utec_reviewed_exact_admin_queue ADMIN_RPC_ASSERTION; }
 cat "$out/utec_reviewed_exact_admin.log"
+
+# Replaying completed non-empty exact scopes must fail at zero effective work.
+# The cleansing case below uses a fresh pending identity so protected processed
+# or discarded rows are never reopened to manufacture the regression.
+enrichment_zero_offset="$(wc -l <"$events")"
+run_worker utec_reviewed_exact_enrichment_zero_rejected enrichment_worker.py 9000006 failure false reviewed_exact
+grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=enrichment result=FAIL category=zero_effective_enrichments' \
+  "$out/utec_reviewed_exact_enrichment_zero_rejected.log" \
+  || fail utec_reviewed_exact_enrichment_zero_rejected PROGRESS_FAILURE_NOT_REPORTED
+assert_no_successful_db_writes_since utec_reviewed_exact_enrichment_zero_rejected "$enrichment_zero_offset"
+
+sync_zero_offset="$(wc -l <"$events")"
+run_worker utec_reviewed_exact_sync_zero_rejected sync_vector_worker.py 9000006 failure false reviewed_exact
+grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=sync result=FAIL category=zero_effective_syncs' \
+  "$out/utec_reviewed_exact_sync_zero_rejected.log" \
+  || fail utec_reviewed_exact_sync_zero_rejected PROGRESS_FAILURE_NOT_REPORTED
+assert_no_successful_db_writes_since utec_reviewed_exact_sync_zero_rejected "$sync_zero_offset"
+
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 -c \
+  "INSERT INTO public.staging_raw (id,institution_id,url,raw_name,raw_description,raw_html,status,content_hash,effective_url,canonical_url,metadata) VALUES ('a1d10e6a-0058-4798-82ba-9cf86e0b5088','50d8779c-54fd-437e-b941-e817e202e60c','https://posgrado.utec.edu.pe/utec-only/zero-progress','Programa sintético excluido por regla propia UTEC','Fixture sintético de progreso cero','<html><body>UTEC zero progress fixture</body></html>','discovered','5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004','https://posgrado.utec.edu.pe/utec-only/zero-progress','https://posgrado.utec.edu.pe/utec-only/zero-progress','{\"fixture_case\":\"reviewed_exact_zero_progress\"}'::jsonb)" \
+  >/dev/null
+zero_manifest_log="$out/utec_zero_progress_manifest.log"
+docker run "${common_docker_args[@]}" --env GITHUB_RUN_ID=9000007 \
+  "$APP_IMAGE" /opt/venv/bin/python /workspace/tests/fg2_full_pipeline_pg17/run_entrypoint.py \
+  /workspace/tests/fg2_full_pipeline_pg17/prepare_approved_lot.py --utec-zero-progress \
+  >"$zero_manifest_log" 2>&1 \
+  || { cat "$zero_manifest_log"; fail utec_zero_progress_manifest LOT_OR_COHORT_BINDING_FAILED; }
+cat "$zero_manifest_log"
+zero_transition="$(docker exec "$pg" psql -X -U postgres -d "$DATABASE" -Atqc \
+  "UPDATE public.staging_raw SET status='pending' WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5088'::uuid AND institution_id='50d8779c-54fd-437e-b941-e817e202e60c'::uuid AND url='https://posgrado.utec.edu.pe/utec-only/zero-progress' AND status='discovered' AND content_hash='5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004' RETURNING status || '|' || content_hash")"
+[[ "$zero_transition" == "pending|5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004" ]] \
+  || fail utec_zero_progress_manifest DISCOVERY_TO_PENDING_FIXTURE_TRANSITION_FAILED
+zero_cohort_sha="$(sed -nE 's/^phase=utec_zero_progress_manifest\|result=PASS\|selection=reviewed_exact\|lot_sha256=[0-9a-f]{64}\|cohort_sha256=([0-9a-f]{64})\|scope=1\|stage=pending_after_discovery\|provider=not_started\|export_mode=0644\|digest_preserved=true$/\1/p' "$zero_manifest_log")"
+[[ "$zero_cohort_sha" =~ ^[0-9a-f]{64}$ ]] || fail utec_zero_progress_manifest EXPORTED_DIGEST_MISSING
+zero_manifest_source="$run_dir/fg2-zero-progress-cohort.json"
+if ! manifest_sha="$(artifact_sha256 "$zero_manifest_source")" || [[ "$manifest_sha" != "$zero_cohort_sha" ]]; then
+  fail utec_zero_progress_manifest EXPORTED_COHORT_DIGEST_MISMATCH
+fi
+# The exported file is already readable and this is the final worker case.
+# Consume it directly: replacing a container-owned file in the sticky shared
+# run directory is denied to a different host UID even though the file is 0644.
+manifest="$zero_manifest_source"
+printf 'phase=utec_zero_progress_manifest_transfer|result=PASS|mode=0644|sha256=%s|digest_preserved=true|copy=not_required\n' "$manifest_sha"
+cleansing_zero_offset="$(wc -l <"$events")"
+run_worker utec_reviewed_exact_cleansing_zero_rejected cleansing_worker.py 9000007 failure false reviewed_exact
+grep -q 'FG2_REVIEWED_EXACT_PROGRESS stage=cleansing result=FAIL category=zero_cleansed_promotions' \
+  "$out/utec_reviewed_exact_cleansing_zero_rejected.log" \
+  || fail utec_reviewed_exact_cleansing_zero_rejected PROGRESS_FAILURE_NOT_REPORTED
+assert_single_staging_discard_since utec_reviewed_exact_cleansing_zero_rejected "$cleansing_zero_offset"
+docker exec "$pg" psql -X -U postgres -d "$DATABASE" -v ON_ERROR_STOP=1 <<'SQL' >"$out/utec_reviewed_exact_cleansing_zero_postflight.log"
+DO $$
+DECLARE target public.staging_raw%ROWTYPE;
+BEGIN
+  SELECT * INTO STRICT target FROM public.staging_raw
+  WHERE id='a1d10e6a-0058-4798-82ba-9cf86e0b5088'::uuid;
+  IF target.status <> 'discarded'
+     OR target.content_hash <> '5932ff8e8c9f5710b12a885f404ec13f147e122a6e4e1d0409a0cbc6e807b004'
+     OR target.metadata->>'discard_reason' <> 'hard_db_exclusion:/utec-only/'
+     OR EXISTS (SELECT 1 FROM public.cleansed_programs WHERE staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.enriched_programs e JOIN public.cleansed_programs c ON c.id=e.cleansed_id WHERE c.staging_id=target.id)
+     OR EXISTS (SELECT 1 FROM public.courses WHERE institution_id=target.institution_id AND lower(rtrim(split_part(url,'?',1),'/'))=lower(rtrim(split_part(target.url,'?',1),'/'))) THEN
+    RAISE EXCEPTION 'reviewed_exact_zero_progress_side_effect_assertion';
+  END IF;
+END $$;
+SELECT 'phase=utec_reviewed_exact_cleansing_zero_postflight|result=PASS|worker=FAIL|row=discarded_by_own_rule|downstream=0|provider=0|sync=not_started';
+SQL
+cat "$out/utec_reviewed_exact_cleansing_zero_postflight.log"
 
 printf 'phase=fg2_full_pipeline_pg17|result=PASS|initial_courses=6|post272_recovery_stations=Enrichment+Sync|post272_refresh_synced=5|out_of_scope_excluded=1|discovery_only_unchanged=2|utec_reviewed_exact=Harvest+Cleansing+Enrichment+Sync+Admin|public_effective=0|provider_boundary=synthetic_loopback_openai|harvest_cleansing_replayed=false\n'
 printf 'phase=limits|result=LOCAL_EVIDENCE_ONLY|network=internal_no_egress|db=ephemeral_pg17|production=untouched\n'

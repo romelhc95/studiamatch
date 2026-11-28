@@ -31,6 +31,7 @@ from scripts.core.fg2_bounded_run import (
     InvalidControlledRun,
     course_identity_url,
     require_manifest_sha256,
+    reviewed_exact_progress_missing,
     url_sha256,
     uuid_in_filter,
 )
@@ -935,6 +936,9 @@ def main():
             failed += 1
         guard.tick(every=50)
     logger.info(f"Sync batch complete. Synced: {synced}/{len(pending)} | Failed: {failed} | Time: {guard.elapsed_hours:.2f}h")
+    if reviewed_exact_progress_missing(cohort_manifest, synced):
+        logger.error("FG2_REVIEWED_EXACT_PROGRESS stage=sync result=FAIL category=zero_effective_syncs")
+        sys.exit(1)
     sys.exit(1 if failed or partial else 0)
 
 
